@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360" role="img" aria-label="Simulated doorbell snapshot">
+<rect width="640" height="360" fill="#e7edf0"/>
+<path d="M160 170 L320 65 L480 170 V310 H160Z" fill="#889ca7"/>
+<rect x="280" y="180" width="80" height="130" fill="#425b68"/>
+<circle cx="345" cy="245" r="5" fill="#fff"/>
+<rect y="315" width="640" height="45" fill="#20343e"/>
+<text x="320" y="344" text-anchor="middle" font-family="sans-serif" font-size="21" fill="white">Simulated doorbell snapshot</text>
+</svg>

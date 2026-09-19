@@ -718,6 +718,16 @@ unchanged. The approved choices and rejected alternatives are recorded in
 
 Full detail in [`docs/twin-and-scenarios.md`](./docs/twin-and-scenarios.md). The twin is a subsystem of the product, not test scaffolding: physics-lite models (thermal RC zones, EV and home battery with efficiency, PV from sun position and cloud cover, appliance cycles, occupancy schedules, wearable recovery), a `SimClock` that can run at any speed or jump, and a YAML **scenario DSL** describing a household, its constitution, initial state, and a timeline of events (arrivals, calls, doorbell presses, price spikes, voice requests). The demo evening is a scenario. Every scenario is also an integration test that asserts the audit trail it should produce.
 
+Item 13 implements the in-memory model/read portion. The exact clock, calibration,
+configuration and eight-adapter contracts live in
+[`docs/twin-and-scenarios.md` §2.11](./docs/twin-and-scenarios.md#211-item-13-in-memory-contract).
+`EnergyAdapter.get_tariff_state()` supplies the canonical household price-band
+observation. Camera, shade and doorbell motion fields extend `ObservationState`
+inside existing JSONB attributes; no migration is required. Model controls are
+hypothetical only: adapter writes and subscriptions remain unavailable, and no
+observation ingestion or scenario runner is introduced. The callable `SimClock`
+fits the existing injected-clock interface without changing pipeline behavior.
+
 ### 5.13 MCP Server (the Alexa+ surface)
 
 - **Transport.** Streamable HTTP on the official Python SDK, stateless mode by default (AgentCore Runtime adds `Mcp-Session-Id` continuity), stateful mode available for elicitation. Endpoint `/mcp`. Origin/Host validation on every request; 403 on invalid Origin per spec.

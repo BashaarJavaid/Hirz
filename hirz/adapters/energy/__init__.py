@@ -9,6 +9,8 @@ from hirz.pipeline.models import Action, Decision
 
 
 class EnergyAdapter(Adapter, Protocol):
+    async def get_tariff_state(self) -> Observation: ...
+
     async def get_prices(
         self, start: datetime, end: datetime, kind: PriceKind
     ) -> tuple[PriceSlot, ...]: ...

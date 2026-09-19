@@ -187,3 +187,70 @@ def test_observation_scope_and_domain_validation_on_write(scratch_database):
             )
 
     asyncio.run(run())
+
+
+def test_twin_motion_camera_shade_fields_roundtrip(scratch_database):
+    """Canonical optional JSONB fields need no schema upgrade or runtime ingestion."""
+    from hirz.graph.models import Asset
+
+    async def run():
+        async with connect(scratch_database) as connection:
+            await migrate(connection)
+            await load_seeds(connection, [SEED], lambda: AT)
+            repo = GraphRepository(connection, HOME)
+            observations = []
+            async with repo.write(lambda: AT):
+                for kind, state in (
+                    ("camera", {"camera_armed": True}),
+                    ("shade", {"cover_position_percent": 42}),
+                ):
+                    asset = Asset(
+                        id=uuid4(),
+                        household_id=HOME,
+                        name=f"Synthetic {kind}",
+                        kind=kind,
+                    )
+                    await repo.put("assets", asset)
+                    observations.append(
+                        Observation(
+                            id=uuid4(),
+                            household_id=HOME,
+                            asset_id=asset.id,
+                            domain="devices",
+                            source="twin",
+                            observed_at=AT,
+                            state=state,
+                        )
+                    )
+                observations.append(
+                    Observation(
+                        id=uuid4(),
+                        household_id=HOME,
+                        asset_id=ident("assets", "doorbell.front_door"),
+                        domain="doorbell",
+                        source="twin",
+                        observed_at=AT,
+                        state={
+                            "last_motion_at": AT,
+                            "motion_classification": "vehicle",
+                        },
+                    )
+                )
+                for observation in observations:
+                    await repo.put("observations", observation)
+            snapshot = await ContextService(
+                connection, lambda: AT
+            ).get_household_context(HOME)
+            stored = {
+                row["id"]: Observation.model_validate(
+                    {
+                        k: v
+                        for k, v in row.items()
+                        if k not in {"valid_from", "valid_to", "staleness_seconds"}
+                    }
+                )
+                for row in snapshot.data["observations"]
+            }
+            assert all(stored[str(row.id)] == row for row in observations)
+
+    asyncio.run(run())

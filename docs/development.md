@@ -425,3 +425,46 @@ file writing, and cryptography are real. Offline commands run as separate instal
 CLI processes in a temporary directory without `.env`. It verifies full and range
 exports, changes one exported payload, asserts rejection, and removes only its
 temporary files and database. No device operation or live-household mutation occurs.
+
+## Twin models and read adapters (item 13)
+
+Run the credential-free demonstration from the checkout root:
+
+```sh
+uv run --locked python scripts/smoke_twin.py
+uv run --locked pytest tests/unit/test_twin.py --no-cov
+```
+
+The smoke reads both existing seed files without loading them into PostgreSQL,
+uses explicit synthetic inputs and in-memory `rate_plan=twin` copies, boots eight
+read adapters, and prints measured physics checks and household energy residuals.
+All observations are labeled `twin`. No `.env`, network feed, model, solver, device
+command, audit append or development migration is involved. The script's values
+are demonstration inputs, not product defaults or real ComEd rates.
+
+For library use, construct the validated models in `hirz.twin`, supply a
+`TwinConfig`, and construct `TwinWorld` with canonical household records and a
+`SimClock`. `hirz.twin.adapters.registry(world, config)` uses the existing adapter
+configuration syntax; omitting `config` reads `HIRZ_ADAPTERS`, with no implicit
+defaults. Start/close the registry and resolve an advertised read capability.
+Advance a paused clock with `clock.jump(aware_timestamp)` before reading adapters.
+`world.advance_to(at)` is useful for physics checks but does not move the clock;
+do not subsequently ask adapters to read an earlier clock instant. Reinitialize
+the world to replay. Supply all missing calibration/initial-state inputs explicitly.
+
+For doorbell inputs, pause the clock, take `clock.now()`, and submit strict JSON
+through the twin adapter's `on_event(body, {})`. This changes simulated world
+state only; it is not a Ring webhook route. Every action method and device
+subscription remains unavailable. Full interfaces and numerical defaults have one
+home in [the twin spec](./twin-and-scenarios.md#211-item-13-in-memory-contract).
+
+The integration regression for the new nullable observation fields uses only the
+existing uniquely named disposable databases:
+
+```sh
+uv run --locked pytest -m integration --no-cov
+```
+
+Item 13 adds no schema revision and does not apply item 12's pending development
+database upgrade. The bundled SVG is original repository artwork and ships in the
+Python wheel; it is visibly labeled as simulated.

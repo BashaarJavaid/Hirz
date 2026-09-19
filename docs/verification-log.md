@@ -1284,3 +1284,139 @@ Final record review: an initial strict instruction-file comparison reported
 The diff confirmed that only the pre-existing heading/introduction differ; the
 substantive guidance, including both item 12 edits, matches. The post-record Ruff
 check passed and the final format check reported `101 files already formatted`.
+
+## Item 13 — Complete (2026-09-19)
+
+Implemented the author-approved in-memory twin models, forward-only `SimClock`,
+independent seeded inputs, canonical observations, and eight polling/read adapters.
+The decisions and rejected alternatives are in
+[ADR-006](./adr/ADR-006-twin-first-adapters.md#item-13-models-and-read-adapters-amendment--2026-09-19-author-approved).
+Exact model and interface behavior has one home in
+[the twin spec](./twin-and-scenarios.md#211-item-13-in-memory-contract);
+the runnable procedure is in [development](./development.md#twin-models-and-read-adapters-item-13).
+
+Environment: Darwin arm64, Python 3.12.13, uv 0.12.15 (Homebrew 2026-09-15).
+Python checks used `UV_CACHE_DIR=/private/tmp/hirz-uv-cache` and locked offline
+project runs. Native Dogwood was discovered by the existing `tests/conftest.py`
+and ran inside the full suite; it was not skipped. PostgreSQL was already healthy.
+Its tests created and dropped only the existing fixture's uniquely named disposable
+databases. The development database was neither migrated nor reset; item 12's
+manual upgrade remains outstanding. Source manifests and lockfiles are unchanged.
+
+### Failures found and corrected
+
+- Strict mypy initially reported 13 errors (optional UUID lookup, heterogeneous
+  model collections, class-variable annotations, and a reused key variable), then
+  10 after the smoke was added (including Decimal constructor annotations), then
+  one heterogeneous storage-loop annotation. All were corrected. Ruff also caught
+  a misplaced test import and an incorrectly renamed local variable.
+- The first focused run was `1 failed, 21 passed in 1.15s`. It exposed a real
+  configuration-precedence bug: copying a model materialized omitted defaults as
+  explicit overrides, masking graph calibration. The shared validated-copy helper
+  now preserves explicit-field provenance. The regression then passed with
+  `22 passed in 1.04s`; later expanded focused runs passed 25 and finally 27 tests.
+- The initial full run reported `3 failed, 645 passed, 51 deselected in 53.73s`,
+  coverage 89.11%: two existing localhost WebSocket tests could not bind under
+  the sandbox, and the same configuration-precedence regression failed. Authorized
+  escalation resolved the socket restriction; no production socket behavior changed.
+- Intermediate full runs passed `651 passed, 52 deselected in 56.68s` at 89.09%
+  and `652 passed, 52 deselected in 56.44s` at 88.60%. Review added explicit range
+  checks so a longer weather input cannot extend the world's query horizon, and
+  a regression preventing backward direct reads within an uncommitted minute.
+  The final run below supersedes these intermediate snapshots.
+- The new PostgreSQL round-trip test first reported `1 failed, 51 passed,
+  651 deselected in 31.98s`: the test passed context-only `staleness_seconds`
+  metadata into canonical `Observation`. Excluding that metadata fixed the test;
+  the implementation required no database change.
+- The first isolated wheel install could not find existing `rfc8785==0.1.4` in the
+  temporary offline cache. Authorized online installation into a disposable venv
+  supplied the existing dependency; subsequent wheel reinstalls worked offline.
+  A helper edit also initially used a relative repository path while its command
+  was running from `/private/tmp`; rerunning from the checkout corrected that
+  `FileNotFoundError`, without changing any external state. Repeat environment
+  friction and exact tool errors are recorded in the friction log.
+
+### Final verification
+
+Commands from the checkout root (the full/socket and PostgreSQL runs used authorized
+sandbox escalation; all project `uv run` commands had the temporary cache above):
+
+```sh
+uv run --locked --offline pytest tests/unit/test_twin.py --no-cov -q
+uv run --locked --offline pytest -q
+uv run --locked --offline pytest -m integration --no-cov -q
+uv run --locked --offline ruff check .
+uv run --locked --offline mypy hirz/ scripts/ alembic/
+uv run --locked --offline python scripts/smoke_twin.py
+uv build
+```
+
+Results:
+
+```text
+27 passed in 1.45s
+653 passed, 52 deselected in 57.02s
+Required test coverage of 80% reached. Total coverage: 89.11%
+52 passed, 652 deselected in 31.69s
+All checks passed!
+Success: no issues found in 70 source files
+Successfully built dist/hirz-0.0.0.tar.gz
+Successfully built dist/hirz-0.0.0-py3-none-any.whl
+```
+
+The PostgreSQL run preceded the final world-only backward-read regression, which
+has no persistence path; all 52 database checks passed, including camera/shade/
+doorbell-motion JSONB round trips. The final full Python run includes the new
+regression and native Dogwood conformance. Property-based battery verification
+uses 80 generated examples within one pytest test.
+
+The actual user-facing smoke command printed:
+
+```text
+SIMULATED: standalone physics and read adapters; no actions or persistence
+PASS ev_minutes_34_to_50=105.75793184
+PASS warm_45_min_f=4.00089188
+PASS drift_60_min_f=0.98378575
+PASS ev_energy_residual_kwh=0.00000000
+PASS quinn-home: adapters=8 observations=15 source=twin writes=unavailable balance_residual_kwh=0.0000000000
+PASS quinn-parents: adapters=8 observations=6 source=twin writes=unavailable balance_residual_kwh=0.0000000000
+```
+
+The suite also verifies analytical EV taper and driving, battery reserve/full
+saturation and 90% round-trip return, thermal coupling conservation/COP/duty,
+all three appliance profiles, PV geometry/cloud/night behavior, tariff clipping
+and reproducible spikes, schedule jitter/DST/overrides/recovery, exact device
+latency/failure, unavailable write methods/subscriptions, private contact/call/
+visitor data, lifecycle, household isolation and provenance. Equivalent minute-
+partitioned and irregular polling histories produce identical state/model events.
+
+A fresh `/private/tmp/hirz-item13-wheel` venv installed the built wheel and its
+existing dependencies. After final code changes the wheel was rebuilt and
+reinstalled with:
+
+```sh
+uv pip install --offline --reinstall-package hirz --python /private/tmp/hirz-item13-wheel/bin/python dist/hirz-0.0.0-py3-none-any.whl
+```
+
+From `/private/tmp`, the installed interpreter asserted that `hirz.__file__`
+resolved inside that venv, imported all eight twin adapter packages, exercised
+`SimClock` and the EV transition, and read the packaged SVG with
+`importlib.resources`. It printed:
+
+```text
+PASS isolated installed wheel: eight adapters, clock, physics, bundled SVG; checkout not imported
+```
+
+Ruff format verification is run last after this evidence and the closeout records:
+`uv run --locked --offline ruff format --check .` (118 Python files). Instruction
+parity and `git diff --check` are also checked. No remote CI run, push, commit,
+real feed, device action, scenario runner, persistence/ingestion, activation,
+execution or new threat-model protection is claimed. The frontend is unchanged;
+no frontend checks were added or represented as part of this item.
+
+Post-closeout checks: Ruff reported `All checks passed!`, mypy reported
+`Success: no issues found in 70 source files`, and the final format check reported
+`118 files already formatted`. The first instruction-parity assertion excluded
+only the headings and therefore caught the pre-existing AGENTS-only introductory
+mirror sentence. Normalizing that existing introduction and the two headings
+confirms identical guidance; no unrelated introductory text was changed.

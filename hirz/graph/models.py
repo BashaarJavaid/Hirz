@@ -253,6 +253,10 @@ class ObservationState(Model):
     recovery_score: int | None = Field(default=None, ge=0, le=100)
     last_press_at: AwareDatetime | None = None
     price_band: Text | None = None
+    camera_armed: StrictBool | None = None
+    cover_position_percent: PolicyNumber | None = Field(default=None, ge=0, le=100)
+    motion_classification: Literal["human", "animal", "vehicle"] | None = None
+    last_motion_at: AwareDatetime | None = None
 
 
 class Observation(Entity):
@@ -275,6 +279,22 @@ class Observation(Entity):
         # Legacy rows remain readable without assigning them an inferred domain.
         if self.domain is not None:
             state = self.state
+            if (
+                state.last_motion_at is not None
+                and state.last_motion_at > self.observed_at
+            ):
+                raise ValueError("Motion cannot follow its observation")
+            if (state.last_motion_at is None) != (state.motion_classification is None):
+                raise ValueError("Motion requires both timestamp and classification")
+            if state.last_motion_at is not None and (
+                self.domain != "doorbell" or self.asset_id is None
+            ):
+                raise ValueError("Motion requires a doorbell observation")
+            if (
+                state.camera_armed is not None
+                or state.cover_position_percent is not None
+            ) and (self.domain != "devices" or self.asset_id is None):
+                raise ValueError("Camera and shade state require device observations")
             if any(
                 v is not None for v in (state.present, state.sleeping, state.zone_id)
             ):
@@ -330,6 +350,14 @@ def validate_observation_scope(
             raise GraphError("Invalid asset observation domain.")
     elif observation.domain is not None and observation.domain != "energy":
         raise GraphError("Invalid household observation domain.")
+    if observation.state.camera_armed is not None and (
+        observation.asset_id is None or assets.get(observation.asset_id) != "camera"
+    ):
+        raise GraphError("Camera state requires a camera asset.")
+    if observation.state.cover_position_percent is not None and (
+        observation.asset_id is None or assets.get(observation.asset_id) != "shade"
+    ):
+        raise GraphError("Cover position requires a shade asset.")
     if (
         observation.state.zone_id is not None
         and assets.get(observation.state.zone_id) != "hvac_zone"

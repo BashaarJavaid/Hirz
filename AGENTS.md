@@ -81,7 +81,7 @@ read-only constitution validation, compilation, and preview; native Dogwood setu
 is in `docs/development.md`. Item 8 adds standalone Python risk scoring; its API
 smoke procedure is also in `docs/development.md`. Item 9 adds the internal pipeline API and disposable `scripts/smoke_pipeline.py`
 example; signed append is internal only. Item 10 adds audit verification/export and
-the smoke's `--audit` option; anchors remain item 38b. Item 11 adds read-only `hirz decide` with explicit hypothetical inputs; its development-database invocation is verified. Item 12 adds the adapter contract smoke and explicit observation/room/scam preview files; schema upgrade remains manual (docs/development.md). The other commands below remain target state.
+the smoke's `--audit` option; anchors remain item 38b. Item 11 adds read-only `hirz decide` with explicit hypothetical inputs; its development-database invocation is verified. Item 12 adds the adapter contract smoke and explicit observation/room/scam preview files; schema upgrade remains manual (docs/development.md). Item 13 adds credential-free in-memory twin physics and eight read adapters via `scripts/smoke_twin.py`; execution and scenario commands remain later work. The other commands below remain target state.
 The verified toolchain and scaffold setup are in `README.md`; use Node 24.
 
 - `uv sync` — install Python deps; `pnpm install` — install workspaces.
@@ -95,6 +95,7 @@ The verified toolchain and scaffold setup are in `README.md`; use Node 24.
 - `uv run hirz context <household-uuid> --scope all` — redacted graph reads; `--scope member --member <uuid>` and timezone-aware `--as-of` are supported. Procedures in `docs/development.md`.
 - `uv run hirz doctor` — four read-only local checks: Postgres, HA demo entities, P-256 signing probe, migration head/table/materialized-view presence. Exit 0 only if all pass; no `--aws` or constitution check yet. Those checks remain target state.
 - `uv run hirz decide --household <uuid> --as malik --surface alexa --action energy.hvac_adjust --adapter twin --entity hvac.living_room --zone <zone-uuid> --params '{"target_f":72}'` — hypothetical preview of a stored, unactivated policy; optional `--cost`, `--at`, `--evidence`, and `--requester-confirmed`. Required observation/evidence setup and exit codes: `docs/development.md`.
+- `uv run python scripts/smoke_twin.py` — verify in-memory twin physics, eight read adapters and source labels; no database or device actions.
 - `uv run hirz scenario run scenarios/demo-evening.yaml --speed 60` — interactive; `--headless --assert` — CI; `--step --to "18:16"` — pause for recording.
 - `uv run hirz verify-audit --household <uuid>` / `uv run hirz audit export --household <uuid> [--range START:END] --output <new-file>` — full-chain verification and private exports. Offline: `hirz verify-audit --household <uuid> --file <export> --public-key <pem>` (or `--trusted-fingerprint <hex>`). `--anchors` remains item 38b; procedures in `docs/development.md`.
 - `docker compose -f compose.link.yml up -d` — Hirz Link beside Home Assistant, in the home (AWS mode).
@@ -111,7 +112,7 @@ The verified toolchain and scaffold setup are in `README.md`; use Node 24.
 
 ## Current phase
 
-**Phase 2 item 12 is complete; item 13 is next.** Adapter contracts and graph-derived facts are verified; mixed boot uses test implementations. Production adapters, twin physics, activation and execution remain pending. The development database remains on `0003_pipeline`; item 12 upgrade is manual. Evidence: `docs/verification-log.md`; procedures: `docs/development.md`. Four CI jobs remain placeholders; no new CI run for item 12.
+**Phase 2 item 13 is complete; item 14 is next.** In-memory twin models, SimClock and eight read adapters are verified. Real feeds, ingestion, scenarios and execution remain pending. The development database is unchanged on `0003_pipeline`; item 12 upgrade remains manual. Evidence: `docs/verification-log.md`; procedures: `docs/development.md`. Four CI jobs remain placeholders; no new remote CI run for item 13.
 
 ---
 

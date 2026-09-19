@@ -100,6 +100,29 @@ local service are not a new upstream defect or a new scored friction entry.
 References: [uv CLI](https://docs.astral.sh/uv/reference/cli/) and
 [Docker Compose up](https://docs.docker.com/reference/cli/docker/compose/up/).
 
+Item 13 follow-up to entries 6 and 8 (2026-09-19): local Compose inspection
+and the full suite again encountered the same sandbox restrictions:
+
+```text
+permission denied while trying to connect to the docker API at unix:///Users/bashaarjavaid/.docker/run/docker.sock
+PermissionError: [Errno 1] error while attempting to bind on address ('127.0.0.1', 0): [errno 1] operation not permitted
+```
+
+Authorized escalation allowed service inspection and disposable socket/database
+checks; PostgreSQL was already healthy and no service change was required.
+The isolated wheel install's first offline attempt also reported:
+
+```text
+error: No solution found when resolving dependencies
+  cause: Because rfc8785 was not found in the cache and hirz==0.0.0 depends on rfc8785==0.1.4, we can conclude that hirz==0.0.0 cannot be used.
+```
+
+An authorized online install into a disposable `/private/tmp` environment supplied
+that existing dependency; the source manifest/lockfile were unchanged. These are
+repeat environment/cache restrictions, not upstream defects or new scored entries.
+References: [uv offline behavior](https://docs.astral.sh/uv/reference/cli/#uv-pip-install--offline)
+and [Docker Compose ps](https://docs.docker.com/reference/cli/docker/compose/ps/).
+
 ## Candidates (not yet hit)
 
 - No documented way for an add-on to receive Alexa-side context (device modality, locale, timezone) or to be invoked proactively.

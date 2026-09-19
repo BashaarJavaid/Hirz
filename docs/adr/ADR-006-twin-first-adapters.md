@@ -61,3 +61,44 @@ and the incompatible CLI evidence-file change are in
 [`docs/development.md`](../development.md#adapter-contracts-and-graph-facts-item-12).
 Local verification uses disposable databases; no development schema reset,
 automatic migration, remote CI run or new threat-model claim is part of item 12.
+
+## Item 13 models and read adapters amendment — 2026-09-19 (author-approved)
+
+The author approved the following during explicit planning batches:
+
+- Build every listed model and eight read adapters in memory; retain the existing
+  registry and canonical observations. Pure hypothetical controls exercise physics;
+  every adapter write is unavailable. Rejected pulling execution, graph ingestion,
+  persistence, subscriptions, notifications, or scenario YAML parsing forward.
+- Use an injected monotonic clock, forward-only jumps, anchored numerical steps
+  and intermediate projections. Rejected rewind state storage and background
+  ticking. Seed independent streams per household/model/subject/time bucket;
+  polling and unrelated members cannot change the simulation.
+- Keep calibration knobs explicit, with override → graph → approved-default
+  precedence. Rejected invented initial state and silently choosing missing inputs.
+  Use float physics, canonical rounded observations and Decimal prices.
+- Use loss-accounted EV/battery models, a symmetric split of battery round-trip
+  efficiency, constant-power appliance cycles, and duty-limited RC thermal zones.
+  Rejected invented appliance waveforms and silently discarding physical losses.
+- Use NOAA's small solar-position calculation plus an explicitly synthetic cloud
+  approximation; supply weather and all synthetic tariff inputs. Rejected new
+  dependencies, live fetches in item 13 and fabricated ComEd rates. Twin prices
+  require an in-memory household with the twin rate plan; stored seeds stay intact.
+- Use weekly presence with bounded arrival/departure jitter and daily correlated
+  recovery scores; require their parameters. Choose the first occurrence of folded
+  local times and shift nonexistent times by the DST gap. Rejected implicit guest
+  identities and using a wearable score as a medical interpretation.
+- Keep contact scripts, inbound calls and expected-visitor hints private to the
+  simulation. Expose only redacted verified channels and graph-derived visitor
+  context. Bundle an original labeled SVG rather than a third-party stock photo.
+- Extend the canonical observation state for cameras, shades and doorbell motion;
+  add the energy tariff-state read. Rejected a second observation shape or a Ring
+  transport disguised as a twin event input.
+- Verify locally, including disposable PostgreSQL regressions and an installed
+  wheel. No remote CI push/dispatch, development migration, or new threat-model
+  claim. Private helper names, file splits and test-only inputs are implementation
+  choices; new behavioral questions still require the author's answer.
+
+The exact model parameters, interfaces and time semantics live in
+[`docs/twin-and-scenarios.md` §2.11](../twin-and-scenarios.md#211-item-13-in-memory-contract).
+Procedures live in [development](../development.md#twin-models-and-read-adapters-item-13).

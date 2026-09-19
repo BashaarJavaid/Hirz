@@ -29,6 +29,13 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- 2026-09-19: Completed item 13's in-memory twin models, simulated clock and eight
+  read adapters with explicit calibration, deterministic replay and labeled
+  observations; action execution remains deferred. Added the credential-free
+  smoke and corrected the derived EV timing in the twin spec
+  ([ADR-006 amendment](./docs/adr/ADR-006-twin-first-adapters.md#item-13-models-and-read-adapters-amendment--2026-09-19-author-approved),
+  [verification](./docs/verification-log.md#item-13--complete-2026-09-19)).
+
 - 2026-09-19: Completed item 12's nine adapter contracts, registry/source stamping,
   separate observation domains and graph-derived policy/risk facts; the CLI now
   accepts explicit fill-only simulated facts. Legacy observations are preserved,

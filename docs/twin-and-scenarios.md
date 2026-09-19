@@ -15,9 +15,9 @@ The twin is how Hirz demonstrates every capability end to end with no hardware, 
 
 ---
 
-Item 12 provides the nine async contracts and registry; mixed boot currently uses
-explicitly synthetic test implementations. Physics, production transports and
-scenario fallback remain later items. New observations require the correct domain
+Item 12 provides the nine async contracts and registry. Item 13 implements the
+in-memory models and eight read adapters (§2.11). Production transports, action
+execution, observation ingestion and scenario fallback remain later items. New observations require the correct domain
 as well as source; member presence and wearable readings occupy separate streams.
 The graph locations, legacy-row treatment and exact derivation rules are in
 [`ARCHITECTURE.md` §5.11](../ARCHITECTURE.md#511-adapters). `Registry.stamp()` validates
@@ -38,7 +38,7 @@ Parameters per zone: `C` (kWh/°F thermal mass), `R` (°F/kW envelope resistance
 
 ### 2.2 EV battery
 
-`capacity_kwh` (default 75), `soc`, `charger_kw` (default 7.4 for a Level 2 home charger; 11 optional), charge efficiency 0.92, a taper above 80 percent (power scales linearly to 30 percent of max at 100), and `driving` events that subtract energy. Useful derived facts: 34 → 50 percent at 7.4 kW takes about 1 h 45 min; 34 → 62 percent takes about 3 h 10 min. The demo numbers are computed from this model, never typed by hand.
+`capacity_kwh` (default 75), `soc`, `charger_kw` (default 7.4 for a Level 2 home charger; 11 optional), charge efficiency 0.92, a taper above 80 percent (power scales linearly to 30 percent of max at 100), and `driving` events that subtract energy. Useful derived facts: 34 → 50 percent at 7.4 kW takes about 1 h 45 min; 34 → 62 percent takes about 3 h 5 min. The demo numbers are computed from this model, never typed by hand.
 
 ### 2.3 Home battery
 
@@ -56,7 +56,7 @@ Named cycle profiles (`dishwasher`: 105 min, 1.2 kWh, noise level; `laundry`: 60
 
 The rate plan is an attribute of the household (`household.rate_plan`), and the planner always receives one all-in price per slot: supply plus delivery, in cents per kWh. Three sources produce that vector behind the same `energy.get_prices` interface:
 
-- **`comed_time_of_day`** (the demo household's plan). ComEd's residential Time-of-Day rate, full supply-plus-delivery version live since 2026-07-23: four fixed daily periods (Morning, Mid-Day Peak 1 PM to 7 PM, Evening, Overnight 9 PM to 6 AM) with summer and non-summer prices. The rates live in `tariffs/comed-time-of-day.yaml`, a small table transcribed from ComEd's published supply-charge information sheet and delivery-charge guide, each row carrying its source URL and effective date. Labeled `real (published ComEd rate)`: a real rate, not a live feed. Period hours and every price are checked against ComEd's own documents when the file is written (`ROADMAP.md` item 17); nothing in this repo types them from memory.
+- **`comed_time_of_day`** (the demo household's plan). ComEd's residential Time-of-Day rate, full supply-plus-delivery version live since 2026-07-23: four fixed daily periods (Morning, Mid-Day Peak 1 PM to 7 PM, Evening, Overnight 9 PM to 6 AM) with summer and non-summer prices. The rates live in `tariffs/comed-time-of-day.yaml`, a small table transcribed from ComEd's published supply-charge information sheet and delivery-charge guide, each row carrying its source URL and effective date. Labeled `real (published ComEd rate)`: a real rate, not a live feed. Period hours and every price are checked against ComEd's own documents when the file is written (`ROADMAP.md` item 14); nothing in this repo types them from memory.
 - **`comed_hourly`**. ComEd's Hourly Pricing live feed (day-ahead hourly plus 5-minute real-time, no auth) for supply, with the delivery charge added from the same tariff file. Labeled `real`. The feed serves historical ranges (`datestart`/`dateend`, verified 2026-09-17 back to September 2025), which is what the backtest uses.
 - **`twin`**. Time-of-use base with configurable peak windows and stochastic spikes, seeded; day-ahead and real-time series both produced so the planner path is identical to the real feed.
 
@@ -75,6 +75,125 @@ State machines with realistic latencies (lock 1.5 s, camera arm 0.5 s) and failu
 ### 2.10 Contacts and calls
 
 A scenario can inject an inbound-call event with a presented number and a transcript summary. That event is the state of the world, not something Hirz knows: Hirz cannot see a call, and it learns only what the member then says to Alexa. If the member does not read the number out, no tool output may say anything about the number, and the scenario asserts that. A scenario can also script the trusted contact's response to a check-in (`genuine`, `not_genuine`, no answer, delay). The contact may live in another Hirz household: in the demo, Malik is a trusted contact of his parents' household and answers from his own app.
+
+---
+
+### 2.11 Item 13 in-memory contract
+
+`hirz/twin/` contains pure model transitions and `TwinWorld`; each implemented
+adapter lives in its existing domain's `twin/` package. `TwinConfig` requires an
+aware start/end, seed, base electrical load, weather, tariff, model dictionaries,
+weekly schedules, overrides, couplings and private call/contact scripts. Empty
+collections are explicit. Asset/member keys are canonical UUIDs; adapter reads
+continue to use existing entity strings or member/contact UUIDs. Configuration
+is supplied as typed Python models; scenario YAML loading remains item 16.
+
+`TwinWorld` receives canonical household, member, asset, binding, contact,
+redacted-channel and calendar records plus the config and `SimClock`. It validates
+household membership and model/asset kinds. Every twin-bound asset needs its model;
+every member needs presence, weekly schedules and recovery inputs. Configuration
+values explicitly supplied by the caller override graph physical parameters,
+which override the approved defaults below. Missing nondefault inputs fail.
+Numbers must be finite and meet their declared bounds.
+
+**Clock and advancement.** `SimClock(start, speed, timer=monotonic)` is callable
+and exposes `now()`, `set_speed()` and `jump()`. Zero pauses; positive speed scales
+elapsed monotonic time. Backward jumps and negative/nonfinite speeds fail.
+`TwinWorld.advance_to(at)` advances models without changing the clock; `read()`
+uses the injected clock. The caller must keep both consistent. Nothing runs in a
+background thread. Minute boundaries are anchored to simulation start, with extra
+boundaries for weather changes, schedules, overrides, midnight, appliance/device
+completion and storage limits. Intermediate reads project from the last committed
+boundary, so polling does not insert extra integration steps. Rewinds require a
+new world. Reads and queries outside the configured horizon fail; endpoint state
+reads are allowed at the horizon end.
+
+Scheduled transitions precede supplied overrides at the same instant; overrides
+retain their supplied order. Recovery updates at local midnight. A SHA-256-derived
+stdlib random stream is keyed by seed, household, model, subject and time bucket;
+reading or adding another subject never consumes an existing subject's randomness.
+Local schedules use the first folded time; nonexistent times shift forward by the
+DST gap. Colliding scheduled transitions affecting the same state are rejected.
+
+**Physical models.** Pure `advance` methods return new states; they do not issue
+`Action`s or create `Decision`s. Hypothetical control inputs and accumulated energy
+are simulation data, never authority to execute a device command.
+
+| Model | Parameters and behavior |
+|---|---|
+| Thermal | Defaults: mass 0.46875 kWh/°F, resistance 64 °F/kW, HVAC thermal output 3 kW, occupant gain 0.1 kW/person, COP 1; mode, target, initial temperature and solar-gain area (including explicit zero) are required. Symmetric explicit zone links default to 0.01 kW/°F. Reject configurations unstable at one minute. Duty limits heat/cooling to the target; electricity equals absolute delivered heat divided by COP. Horizontal irradiance supplies solar gain. |
+| EV | Defaults from §2.2; require initial SoC, plugged-in/charging flags and charge limit. Integrate the linear taper analytically; cap exactly at the limit. Account separately for input, stored energy, losses and driving. An unplugged EV draws no charging power; driving requires unplugged state and sufficient energy. |
+| Battery | Defaults from §2.3; require initial SoC and signed dispatch. Each direction has efficiency sqrt(0.90). Positive dispatch discharges; negative charges. Saturate at power/energy limits. Initial SoC below reserve is valid but cannot discharge. Equivalent cycles = absolute stored-energy throughput / twice capacity. |
+| PV | Require location, tilt and orientation; default peak 6 kW. Use [NOAA fractional-year solar equations](https://gml.noaa.gov/grad/solcalc/solareqns.PDF) for the sun vector. Power = peak × positive panel/sun dot product × (1 − coefficient × cloud fraction), zero below the horizon. Cloud coefficient defaults to 0.8; this is a synthetic direct-beam approximation, not a NOAA yield model. |
+| Appliances | `PROFILES` contains the three named durations/energies from §2.5. Require profile parameters, running state and noise in dBA. Use constant power, complete once at the exact end, and reject a second start while running. |
+
+Require base electrical load explicitly. Sum it with EV, HVAC and appliance
+consumption, battery input/output and PV production to derive grid import/export.
+Energy accounting uses unrounded model values; graph observations retain the
+existing four-decimal policy-number representation. No savings are published by
+this item. Conservation tolerance is 1e-8 kWh absolute plus 1e-9 relative.
+The calibration check uses 70 °F inside, 40 °F outside, no occupant/solar/coupling
+gains: 3.8–4.2 °F warming in 45 minutes at 3 kW and 0.9–1.1 °F drift in an hour
+without HVAC. The EV check accepts 100–110 minutes for 34→50%.
+
+**Weather and tariff.** Supplied weather begins at its declared coverage start;
+timestamps must be strictly ordered within that coverage. Values hold until the
+next sample (the final sample through coverage end); no extrapolation or fetches.
+A synthetic tariff requires `household.rate_plan=twin`, using an in-memory copy
+when necessary. Require contiguous daily local-time periods covering 00:00–24:00,
+Decimal import prices, band names, slot minutes, spike probability and nonnegative
+spike range. Negative base prices are valid. Slots are anchored to simulation
+start; their base rate is selected at slot start in household local time. Queries
+clip the boundary slots. Day-ahead uses base prices; real-time adds seeded uniform
+per-slot spikes quantized to four decimal cents/kWh. Optional export prices do not
+receive spikes. Advertise `has_export_price` only when every period supplies one.
+
+**People and devices.** Presence requires explicit initial present/sleeping/zone
+state, weekly transitions and arrival/departure jitter (uniform integer ±minutes).
+Sleep requires a zone; guests are supplied household members. Overrides last until
+the next scheduled change affecting that state. Recovery requires initial score,
+mean, rho and noise standard deviation: daily score is rounded and clamped to
+0–100 after `mean + rho * (previous - mean) + Gaussian noise`; an override feeds the
+following day. None of these values are medical interpretations.
+
+Lock transitions take 1.5 seconds and camera arm takes 0.5 seconds; other device
+delays are explicit. Device initial availability/state is required. Reject
+concurrent pending transitions; `fail_next` consumes one matching transition and
+leaves state unchanged. Offline reads contain only `available=false`; actual
+state is unknown. Hypothetical pending transitions can be supplied as initial
+world state; no adapter write can create one in item 13.
+
+**Read contracts.** Eight adapters implement polling reads: devices, EV, energy,
+presence, wearable, calendar, contacts and doorbell. Async lifecycle uses the
+existing registry. Omitted configuration remains unavailable; there is no implicit
+fallback. All action-write methods and `subscribe()` raise `AdapterUnavailable`
+and are absent from advertised capabilities. `energy.get_tariff_state()` returns
+the canonical household-subject price-band observation. Observation IDs use UUID5
+of household/start/seed/domain/subject; every observation is `source=twin`, with
+scope validation and compatibility with `Registry.stamp()`.
+
+Canonical `ObservationState` adds nullable `camera_armed`, bounded
+`cover_position_percent`, `motion_classification` (human/animal/vehicle) and
+`last_motion_at`; the last two must occur together. Camera/shade fields require
+the matching device asset; motion requires a doorbell and a nonfuture timestamp.
+Appliances use existing `on`. Calendar queries select overlapping intervals;
+expected arrivals additionally filter `kind=arrival`. Channel reads return only
+redacted records verified by simulated now. Unknown subjects fail.
+
+The doorbell accepts strict JSON world inputs with `kind` (press/motion/online/
+offline), `entity_id`, aware `at` equal to the current simulated instant, and
+`classification` only for motion. Headers must be empty. Pause the clock when
+injecting exact-time events. Press/motion fail while offline. This API is not a
+Ring endpoint. Snapshot returns the packaged original labeled SVG, or null while
+offline; live-view is null. Expected-visitor hints remain private simulation state
+and never override graph-derived arrival context.
+
+Contact scripts specify request/deadline and optional reply time for genuine,
+not_genuine, will_call or no_answer. They expose model status only: no communication
+is sent and no verification case changes. Inbound numbers/transcript summaries
+remain private world data and never enter adapter outputs. Model events and energy
+counters are separate from the audit ledger. Persistence, execution, subscriptions,
+notification transport and the scenario runner remain later roadmap work.
 
 ---
 
