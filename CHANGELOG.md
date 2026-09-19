@@ -29,6 +29,12 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- 2026-09-19: Completed item 12's nine adapter contracts, registry/source stamping,
+  separate observation domains and graph-derived policy/risk facts; the CLI now
+  accepts explicit fill-only simulated facts. Legacy observations are preserved,
+  and production adapters remain later work ([ADR-006 amendment](./docs/adr/ADR-006-twin-first-adapters.md#item-12-contract-amendment--2026-09-19-author-approved),
+  [verification](./docs/verification-log.md#item-12--complete-2026-09-19)).
+
 - 2026-09-18: Recorded plan-approver authority for scheduled actions and autonomous
   re-plans, with an execution prohibition for unapproved plans;
   [author-approved ADR-005 amendment](./docs/adr/ADR-005-deterministic-planner.md#scheduled-action-authority-amendment--2026-09-18-author-approved).

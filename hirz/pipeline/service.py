@@ -37,6 +37,7 @@ from hirz.pipeline.models import (
     Role,
     SupplementalEvidence,
 )
+from hirz.pipeline.preview import PreviewEvidence, overlay
 from hirz.risk import RiskBand
 from hirz.risk.engine import RiskFacts, score
 
@@ -229,6 +230,8 @@ class Pipeline:
         cost: Decimal | None,
         evidence: tuple[SupplementalEvidence, ...],
         at: datetime,
+        *,
+        preview: PreviewEvidence | None = None,
     ) -> Evaluation:
         policy = self.bundle.policy()
         requester = await self.requester(principal)
@@ -260,12 +263,20 @@ class Pipeline:
             None,
             {},
         )
+        snapshot = None
+        if preview is not None:
+            try:
+                snapshot = overlay(await self.snapshot(at), preview)
+                if preview.scam_pattern is not None:
+                    evidence = (*evidence, preview.scam_pattern)
+            except ValueError:
+                return replace(ev, diagnostics=("context",))
         # Explicit NEVER does not require context or invoke risk scoring.
         if any(
             policy.role_mode(action.action_class, role) == "never" for role in roles
         ):
             return ev
-        snapshot = await self.snapshot(at)
+        snapshot = snapshot or await self.snapshot(at)
         local_date = at.astimezone(
             ZoneInfo(str(snapshot.data["households"][0]["timezone"]))
         ).date()
@@ -498,6 +509,7 @@ class Pipeline:
         *,
         cost: Decimal | None = None,
         evidence: tuple[SupplementalEvidence, ...] = (),
+        preview: PreviewEvidence | None = None,
     ) -> Decision:
         action, principal = (
             ingest(action),
@@ -510,7 +522,12 @@ class Pipeline:
             # Read-only transaction also serializes against graph writers; no stale view.
             async with self.repo.write(self.clock):
                 ev = await self.assess(
-                    action, principal, cost, evidence, utc(self.clock())
+                    action,
+                    principal,
+                    cost,
+                    evidence,
+                    utc(self.clock()),
+                    preview=preview,
                 )
                 if ev.decision.decision == "execute":
                     ev = await self.boundary_check(ev, utc(self.clock()))

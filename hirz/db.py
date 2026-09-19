@@ -194,6 +194,7 @@ for name, table, columns, condition in (
     sa.Index(
         name,
         *(table.c[c] for c in columns),
+        sa.text("COALESCE(attributes->>'domain', '')"),
         unique=True,
         postgresql_where=sa.text(condition),
     )

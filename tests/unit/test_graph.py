@@ -233,6 +233,7 @@ def test_quantized_observation_write_is_noop():
             household_id=HOME.household_id,
             observed_at=AT,
             source="twin",
+            domain="energy",
             state={"soc": 0.30000000000000004},
         )
         async with repository.write(lambda: AT):

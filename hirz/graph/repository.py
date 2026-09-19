@@ -12,12 +12,14 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 from hirz import db
 from hirz.graph.models import (
     MODELS,
+    Asset,
     ContactChannel,
     GraphError,
     Model,
     Observation,
     now,
     utc,
+    validate_observation_scope,
 )
 
 
@@ -154,6 +156,8 @@ class GraphRepository:
             raise GraphError("Wrong graph model.")
         # Revalidate even model_construct/model_copy inputs, including nested state.
         model = MODELS[name].model_validate(model.model_dump(mode="python"))
+        if isinstance(model, Observation) and model.domain is None:
+            raise GraphError("New observation writes require a domain.")
         values = row_values(name, model)
         scoped = "id" if name == "households" else "household_id"
         if values[scoped] != self.household_id:
@@ -204,8 +208,23 @@ class GraphRepository:
                     previous.asset_id,
                 ):
                     raise GraphError("An observation's subject cannot change.")
-            if model.state.zone_id is not None:
-                await self._require_zone(model.state.zone_id)
+                if model.domain != previous.domain:
+                    raise GraphError("An observation's domain cannot change.")
+            members = set()
+            if (
+                model.member_id is not None
+                and await self.get("members", {"id": model.member_id}) is not None
+            ):
+                members.add(model.member_id)
+            assets = {}
+            for identity in {model.asset_id, model.state.zone_id} - {None}:
+                row = await self.get("assets", {"id": identity})
+                if row is not None:
+                    asset = Asset.model_validate(row_model("assets", row).model_dump())
+                    assets[asset.id] = asset.kind
+            validate_observation_scope(
+                model, self.household_id, members, assets, self._at
+            )
         if name == "schedule_events" and values.get("zone_id") is not None:
             await self._require_zone(values["zone_id"])
         if current is None:

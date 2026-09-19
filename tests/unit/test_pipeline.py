@@ -14,9 +14,10 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from hirz.constitution.boundary import BoundaryResult
 from hirz.constitution.schema import Constitution, load
 from hirz.graph.context import ContextSnapshot
+from hirz.graph.models import ASSET_DOMAINS
 from hirz.graph.seeds import demo_id, read_seed
 from hirz.pipeline.audit import AuditWriter, PipelineError
-from hirz.pipeline.context import ContextError, extract, quiet_hours
+from hirz.pipeline.context import extract, quiet_hours
 from hirz.pipeline.hashing import action_hash, digest, ingest, timestamp
 from hirz.pipeline.models import Action, Principal, Requester, SupplementalEvidence
 from hirz.pipeline.service import Pipeline, PolicyBundle, estimate
@@ -78,12 +79,19 @@ def snapshot():
                     **{"asset_id" if name == "assets" else "member_id": row["id"]},
                     observed_at=AT.isoformat(),
                     source="twin",
-                    state={
-                        "present": True,
-                        "sleeping": False,
-                        "zone_id": str(ident("assets", "hvac.living_room")),
-                        "available": True,
-                    },
+                    domain="presence"
+                    if name == "members"
+                    else ASSET_DOMAINS[row["kind"]],
+                    state={"available": True}
+                    | (
+                        {
+                            "present": True,
+                            "sleeping": False,
+                            "zone_id": str(ident("assets", "hvac.living_room")),
+                        }
+                        if name == "members"
+                        else {}
+                    ),
                 )
             )
     data["preferences"].append(
@@ -112,7 +120,8 @@ def snapshot():
 
 def evidence(**changes):
     return SupplementalEvidence.model_validate(
-        dict(household_id=HOME, observed_at=AT, source="twin") | changes
+        dict(household_id=HOME, observed_at=AT, source="twin", scam_pattern=False)
+        | changes
     )
 
 
@@ -238,18 +247,27 @@ def test_canonical_vectors_and_safe_validation():
             "ASK_CONSTITUTION",
         ),
         ("security.door_unlock", {}, None, {"guest_present": True}, "DENY_RISK"),
-        ("energy.hvac_adjust", {}, None, {"occupancy_complete": True}, "EXECUTE"),
-        ("energy.hvac_adjust", {}, None, {}, "DENY_RISK"),
+        ("energy.hvac_adjust", {}, None, {}, "EXECUTE"),
+        ("energy.hvac_adjust", {}, None, {"missing_presence": True}, "DENY_RISK"),
     ],
 )
 def test_precedence(name, edit, cost, extras, expected):
     async def run():
-        p = await pipeline(policy_edit(name, **edit) if edit else POLICY)
+        snap = snapshot()
+        if extras.get("guest_present"):
+            snap.data["members"][1]["role"] = "guest"
+        if extras.get("missing_presence"):
+            snap.data["observations"] = [
+                r for r in snap.data["observations"] if not r.get("member_id")
+            ]
+        p = await pipeline(policy_edit(name, **edit) if edit else POLICY, snap=snap)
         ev = await p.assess(
             action(name),
             PRINCIPAL.model_copy(update={"requester_confirmed": True}),
             cost,
-            (evidence(**extras),),
+            (evidence(scam_pattern=extras["scam_pattern"]),)
+            if "scam_pattern" in extras
+            else (),
             AT,
         )
         assert ev.decision.event_type == expected
@@ -341,7 +359,7 @@ def test_context_ambiguity_missing_stale_and_sources():
         }
     )
     s = snapshot()
-    f = extract(s, POLICY, a, (evidence(occupancy_complete=True),), Decimal(0))
+    f = extract(s, POLICY, a, (), Decimal(0))
     assert f.risk.baseline_target_f == 72 and f.risk.sleeping_in_target_zone is False
     assert all(r["source"] == "twin" for r in f.policy.values["observations"])
     s.data["preferences"].append(deepcopy(s.data["preferences"][-1]))
@@ -352,7 +370,7 @@ def test_context_ambiguity_missing_stale_and_sources():
         if r.get("asset_id") != str(ident("assets", "hvac.living_room"))
     ]
     assert extract(s, POLICY, a, (), Decimal(0)).risk.observation_ages_seconds is None
-    with pytest.raises(ContextError):
+    with pytest.raises(ValueError):
         extract(s, POLICY, a, (evidence(household_id=uuid4()),), Decimal(0))
 
 
@@ -373,7 +391,7 @@ def test_context_ambiguity_missing_stale_and_sources():
 def test_bad_context_fails_closed(change):
     s = snapshot()
     change(s)
-    with pytest.raises(ContextError):
+    with pytest.raises(ValueError):
         extract(s, POLICY, action("energy.hvac_adjust"), (), Decimal(0))
 
 
@@ -426,8 +444,12 @@ def test_binding_strength_and_bundle_integrity():
 def test_high_floor_quiet_hours_bounds_and_target_denials():
     async def run():
         snap = snapshot()
+        for asset in snap.data["assets"]:
+            if asset["kind"] == "light":
+                asset["room_kind"] = "bedroom"
         for row in snap.data["observations"]:
-            row["state"]["sleeping"] = True
+            if row.get("member_id"):
+                row["state"]["sleeping"] = True
             row["observed_at"] = (AT - timedelta(seconds=301)).isoformat()
         a = action(
             "environment.lights",
@@ -442,12 +464,7 @@ def test_high_floor_quiet_hours_bounds_and_target_denials():
             a,
             PRINCIPAL,
             None,
-            (
-                evidence(
-                    target_is_bedroom=True,
-                    subject_id=ident("assets", "light.living_room"),
-                ),
-            ),
+            (),
             AT,
         )
         assert ev.decision.event_type == "ASK_RISK"

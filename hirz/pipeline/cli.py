@@ -22,7 +22,8 @@ from hirz.graph.seeds import demo_id
 from hirz.local import LocalError, read_env, signing_key
 from hirz.pipeline.audit import AuditWriter
 from hirz.pipeline.hashing import action_hash, digest
-from hirz.pipeline.models import Action, Principal, SupplementalEvidence
+from hirz.pipeline.models import Action, Principal
+from hirz.pipeline.preview import PreviewEvidence
 from hirz.pipeline.service import Pipeline, PolicyBundle, estimate
 
 HOMES = {demo_id(s, "households", s): s for s in ("quinn-home", "quinn-parents")}
@@ -53,7 +54,8 @@ def add_decide(commands: argparse._SubParsersAction[argparse.ArgumentParser]) ->
         help="Aware ISO timestamp; current graph at this clock, not historical replay",
     )
     parser.add_argument(
-        "--evidence", help="JSON list of source=twin supplemental evidence"
+        "--evidence",
+        help="JSON file of explicit source=twin preview observations, asset_rooms and scam_pattern",
     )
     parser.add_argument(
         "--requester-confirmed",
@@ -78,7 +80,7 @@ def json_input(text: str) -> Any:
 
 async def decide_command(args: argparse.Namespace) -> int:
     try:
-        evidence_text = Path(args.evidence).read_text() if args.evidence else "[]"
+        evidence_text = Path(args.evidence).read_text() if args.evidence else "{}"
     except (OSError, UnicodeError):
         print(
             "Cannot read evidence file; check its path and encoding.", file=sys.stderr
@@ -121,11 +123,9 @@ async def decide_command(args: argparse.Namespace) -> int:
         )
         action = action.model_copy(update={"content_hash": action_hash(action)})
         raw = json_input(evidence_text)
-        if not isinstance(raw, list):
-            raise ValueError("Evidence must be a list")
-        evidence = tuple(SupplementalEvidence.model_validate(item) for item in raw)
-        if any(item.source != "twin" for item in evidence):
-            raise ValueError("CLI evidence must be simulated")
+        preview = PreviewEvidence.model_validate(raw) if raw else None
+        if not isinstance(raw, dict):
+            raise ValueError("Evidence must be an object")
     except (ValueError, TypeError, ArithmeticError):
         print(
             "Invalid decide input; check --help, UUIDs, aware timestamps, exact cost, "
@@ -179,7 +179,7 @@ async def decide_command(args: argparse.Namespace) -> int:
             bundle = await PolicyBundle.validate(household, policy, boundary)
             decision = await Pipeline(
                 connection, bundle, boundary, writer, lambda: at
-            ).evaluate(action, principal, cost=cost, evidence=evidence)
+            ).evaluate(action, principal, cost=cost, preview=preview)
         print(
             f"Hypothetical dry run; policy v{policy.version} is unactivated "
             f"(stored: unvalidated); clock={at.isoformat()}; current graph, not historical replay. "

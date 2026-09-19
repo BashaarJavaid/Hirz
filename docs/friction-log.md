@@ -77,6 +77,29 @@ service change was needed. These are repeats of the existing environment frictio
 not new upstream defects. References: [uv CLI](https://docs.astral.sh/uv/reference/cli/)
 and [Docker context/socket configuration](https://docs.docker.com/engine/manage-resources/contexts/).
 
+Item 12 follow-up to entries 6 and 8 (2026-09-19): the same default uv cache
+restriction recurred:
+
+```text
+error: Failed to initialize cache at `/Users/bashaarjavaid/.cache/uv`
+  cause: failed to open file `/Users/bashaarjavaid/.cache/uv/sdists-v9/.git`: Operation not permitted (os error 1)
+```
+
+`UV_CACHE_DIR=/private/tmp/hirz-uv-cache` and locked offline runs resolved it.
+Local PostgreSQL tests also required sandbox escalation. The first escalated
+attempt then reported the genuinely stopped prerequisite:
+
+```text
+connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused
+```
+
+`docker compose -f compose.dev.yml ps --all` returned no services. Starting only
+PostgreSQL with `up -d --no-deps --wait postgres`, preserving its volume, enabled
+the disposable-database checks. These repeat environment restrictions and a stopped
+local service are not a new upstream defect or a new scored friction entry.
+References: [uv CLI](https://docs.astral.sh/uv/reference/cli/) and
+[Docker Compose up](https://docs.docker.com/reference/cli/docker/compose/up/).
+
 ## Candidates (not yet hit)
 
 - No documented way for an add-on to receive Alexa-side context (device modality, locale, timezone) or to be invoked proactively.

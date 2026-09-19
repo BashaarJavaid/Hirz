@@ -15,6 +15,15 @@ The twin is how Hirz demonstrates every capability end to end with no hardware, 
 
 ---
 
+Item 12 provides the nine async contracts and registry; mixed boot currently uses
+explicitly synthetic test implementations. Physics, production transports and
+scenario fallback remain later items. New observations require the correct domain
+as well as source; member presence and wearable readings occupy separate streams.
+The graph locations, legacy-row treatment and exact derivation rules are in
+[`ARCHITECTURE.md` §5.11](../ARCHITECTURE.md#511-adapters). `Registry.stamp()` validates
+provenance without writing graph state. Never call raw adapter write methods from
+scenario setup: production execution still belongs to the pipeline/executor.
+
 ## 2. Models
 
 ### 2.1 Thermal zone

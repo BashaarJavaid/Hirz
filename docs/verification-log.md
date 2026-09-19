@@ -1149,3 +1149,138 @@ sandbox escalation without a new failure or workaround, so no new friction entry
 was earned. No requested local verification remains outstanding. Phase 2 was not
 started; no push, deployment, remote CI run, activation migration, or doctor
 clock check was performed.
+
+
+## Item 12 — Complete (2026-09-19)
+
+Implemented the individually author-approved plan: all nine typed async adapter
+protocols, household-bound registry/configuration/capabilities/source validation,
+separate observation domains, graph-derived facts, and explicit fill-only CLI
+preview inputs. Decisions and rejected alternatives are in
+[ADR-006](./adr/ADR-006-twin-first-adapters.md#item-12-contract-amendment--2026-09-19-author-approved);
+interfaces and behavior are specified in `ARCHITECTURE.md` §5.11, and procedures
+have one home in [development](./development.md#adapter-contracts-and-graph-facts-item-12).
+
+Environment: macOS ARM64, Python 3.12.13, uv 0.12.15; existing locked dependencies
+and checkout `.tools/dogwood` discovered by `tests/conftest.py`. Commands used
+`UV_CACHE_DIR=/private/tmp/hirz-uv-cache`; `uv run` used `--locked --offline`.
+No dependency/lockfile changes were required. Native Dogwood was required, not
+skipped. PostgreSQL integration tests created and dropped only uniquely named
+`hirz_test_*` databases using the existing fixture and credentials without printing
+them. The full suite's disposable socket tests and PostgreSQL connections ran
+with authorized sandbox escalation.
+
+### Failures and corrections during implementation
+
+- The first uv checks hit the known default-cache sandbox permission failure;
+  the temporary cache resolved it. The first integration attempt produced 36
+  connection setup errors under the sandbox. The first escalated retry stopped
+  after one setup error: PostgreSQL refused the connection on port 5432.
+  Compose `ps --all` showed no services. `docker compose -f compose.dev.yml up -d
+  --no-deps --wait postgres` started only PostgreSQL and reported it healthy,
+  preserving the named volume. The friction log records the exact errors and
+  repeat-environment classification; these are not new upstream defects.
+- The initial focused suite returned `19 failed, 74 passed in 2.16s`: fixtures
+  still used aggregate supplemental facts, untagged observation writes and the
+  old evidence-list format. Converting them to explicit domain observations and
+  graph facts produced `93 passed in 1.40s`.
+- The new migration test initially returned `1 failed, 1 passed in 1.29s` because
+  it tried to call the current seed loader while deliberately on an old schema.
+  The fixture now seeds on current head, downgrades before writing any tagged
+  observations, and constructs its synthetic legacy rows. The corrected run
+  returned `2 passed in 1.45s`.
+- Review found that a sleep reading without Boolean presence must remain unknown.
+  Extraction now considers only explicitly present members for positive sleeping
+  facts. A regression case covers this, and native generated conformance also
+  includes absent members without sleep/zone fields. The exact documented light
+  preview was added as a CLI integration case.
+
+Before those final additions, the broad suites returned `625 passed, 50 deselected
+in 54.56s` at `86.22%` coverage and `50 passed, 625 deselected in 31.80s` for
+PostgreSQL. Final results below supersede those intermediate counts.
+
+### Final commands and outputs
+
+| Command (temporary uv cache; sandbox escalation where described) | Actual output / result, exit 0 |
+|---|---|
+| `uv run --locked --offline pytest -q --tb=short` | `626 passed, 51 deselected in 57.12s`; `Required test coverage of 80% reached. Total coverage: 86.24%` (3307 statements, 455 missed) |
+| `uv run --locked --offline pytest -m integration --no-cov -q --tb=short` | `51 passed, 626 deselected in 32.43s` |
+| `uv run --locked --offline pytest tests/unit/test_adapters.py -k mixed_boot --no-cov -s -q` | `1 passed, 20 deselected in 0.62s`; all four labeled observations below |
+| `uv run --locked --offline pytest tests/integration/test_decide_database.py tests/integration/test_adapter_database.py -m integration --no-cov -s -q --tb=short` | `19 passed in 10.55s`; printed CLI and migration evidence below |
+| `uv run --locked --offline ruff check .` | `All checks passed!` |
+| `uv run --locked --offline mypy hirz/ scripts/ alembic/` | `Success: no issues found in 54 source files` |
+| `uv run --locked --offline ruff format --check .` | `101 files already formatted`; repeated after the evidence/closeout records |
+| `uv build --offline` | Built `dist/hirz-0.0.0.tar.gz` and `dist/hirz-0.0.0-py3-none-any.whl` |
+| `git diff --check` | No whitespace errors |
+
+### Registry and CLI proof
+
+The mixed boot test instantiated selected adapters, resolved per-entity overrides,
+checked lifecycle/capabilities and validated/stamped each observation. Every
+implementation was explicitly synthetic; no physical device or real API was used:
+
+```text
+TEST IMPLEMENTATION: devices:ha; light.living_room; source=real
+TEST IMPLEMENTATION: devices:ha; hvac.living_room; source=real API, demo devices
+TEST IMPLEMENTATION: devices:twin; hvac.guest_room; source=twin
+TEST IMPLEMENTATION: ev:twin; ev; source=twin
+```
+
+Actual argparse dispatch, stored unactivated policy loading, native Dogwood and
+pipeline evaluation produced these outputs with database fingerprints unchanged:
+
+```text
+daytime_hvac: EXECUTE; audit=null; approval=null; database=unchanged
+sleeping_hvac: ASK_CONSTITUTION; audit=null; approval=null; database=unchanged
+teen_unlock: DENY_CONSTITUTION; audit=null; approval=null; database=unchanged
+unexpected_v7: ASK_CONSTITUTION; audit=null; approval=null; database=unchanged
+unexpected_v8: DENY_CONSTITUTION; audit=null; approval=null; database=unchanged
+expected_arrival: ASK_CONSTITUTION; audit=null; approval=null; database=unchanged
+stranger_in_window: ASK_CONSTITUTION; audit=null; approval=null; database=unchanged
+suspicious_request: VERIFY; audit=null; approval=null; database=unchanged
+budget_exceeded: DENY_BUDGET; audit=null; approval=null; database=unchanged
+overlay missing: DENY_RISK; database=unchanged
+overlay fill: EXECUTE; database=unchanged
+overlay conflict: DENY_CONSTITUTION; database=unchanged
+overlay foreign: DENY_CONSTITUTION; database=unchanged
+overlay future: DENY_CONSTITUTION; database=unchanged
+documented light preview: EXECUTE; dogwood-local=allow; audit=null; approval=null; database=unchanged
+```
+
+The last case parses the exact JSON and shell example from `docs/development.md`,
+substituting only its temporary evidence path, disposable database and test key.
+`EXECUTE` is a hypothetical result here; it creates no execution grant or operation.
+
+Migration verification printed:
+
+```text
+Migration: legacy current/history preserved; presence+wearable coexist; duplicate rejected; tagged current/history downgrade refused
+```
+
+The tests also verified SQLAlchemy metadata agreement, uniqueness after migration,
+immutable observation subject/domain, household/domain validation, the energy
+context projection, and rollback with only legacy data. Explicit read-only
+inspection of the existing development database after testing returned:
+
+```text
+Development migration: 0003_pipeline
+```
+
+No migration or reset was applied to that database, no seed file was changed, and
+no signing key was generated or replaced. PostgreSQL was started for verification
+and left running. The new revision must be applied explicitly before an operator
+uses item 12 against the development database.
+
+### Limits
+
+Item 12 proves contracts, configuration, fact derivation and hypothetical previews.
+It implements no production adapter, twin physics, runtime observation ingestion,
+activation, device operation, automatic fallback, hosted-demo eligibility or AWS
+enforcement. No threat-model row changed. No remote CI run, workflow change, commit,
+push or deployment was performed; the existing placeholder CI jobs remain placeholders.
+
+Final record review: an initial strict instruction-file comparison reported
+`AssertionError` because the existing AGENTS introduction names its CLAUDE mirror.
+The diff confirmed that only the pre-existing heading/introduction differ; the
+substantive guidance, including both item 12 edits, matches. The post-record Ruff
+check passed and the final format check reported `101 files already formatted`.

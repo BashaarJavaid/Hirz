@@ -18,3 +18,46 @@
 - *Home Assistant only.* Good device layer, but no EV/battery/solar/wearable/contacts models and no scenario timeline; kept as the device adapter, not the twin.
 
 **Consequences:** Twin models carry explicit calibration knobs and physics tests. The pipeline treats twin observations like real ones but the `state_stale` factor and verify-after-act apply equally, so a lying twin is caught the same way a flaky sensor would be.
+
+
+## Item 12 contract amendment — 2026-09-19 (author-approved)
+
+The author approved these choices individually during item 12 planning:
+
+- Build all nine typed async protocols now, with shared lifecycle and canonical
+  Action/Decision write arguments, but no production implementation, ingestion or
+  execution. Prove mixed boot with labeled test implementations and actual CLI
+  dispatch. Rejected moving real adapters/twin physics forward from items 13–15.
+- Use a plain household-bound factory map, explicit per-entity binding overrides,
+  method-name capabilities, and omitted domains as unavailable. Reject bad config
+  and unavailable implementations. Rejected implicit twin defaults, mandatory
+  all-domain configuration, plugin discovery and automatic fallback in item 12.
+- Stamp only from trusted per-subject provenance; reject mismatches. Rejected
+  trusting an adapter's label alone or silently labeling demo devices as real.
+- Keep separate observation domains with JSONB expression indexes. Preserve
+  legacy null-domain rows/history without inferring their meaning; decisions
+  require new tagged readings. Rejected selecting streams by whichever fields
+  happen to be present, inferred legacy backfills and extra relational columns.
+  Tagged current or historical data prevents downgrade; history is never erased
+  to make old code accept new data.
+- Derive facts from their graph homes. A sole doorbell and a press aged at most
+  60 seconds are required for visitor context; match stored half-open arrival
+  windows without identification. Rejected indefinite press lifetime, guessed
+  door/bell associations and an extra fixed tolerance around expected_at.
+- Completeness comes from per-member presence; stale readings retain the existing
+  risk treatment. Explicit absence needs no sleep/zone fields. Room kinds are
+  nullable bedroom/other, price bands remain nonempty strings, and irrelevant
+  tariff readings do not affect freshness. Rejected a room taxonomy, name
+  inference, early tariff band definitions and implicit complete occupancy.
+- Replace the CLI's aggregate evidence list with explicit simulated observations,
+  room metadata and deterministic scam evidence. A read-only copied snapshot can
+  fill missing facts only; no partial observation merges or stored-fact overrides.
+  Rejected maintaining aggregate flags by inventing members, presses or metadata.
+  Seeds stay unchanged; no runtime metadata mutation path is introduced.
+
+Exact interfaces and fact rules have one specification home:
+[`ARCHITECTURE.md` §5.11](../../ARCHITECTURE.md#511-adapters). Operator procedures
+and the incompatible CLI evidence-file change are in
+[`docs/development.md`](../development.md#adapter-contracts-and-graph-facts-item-12).
+Local verification uses disposable databases; no development schema reset,
+automatic migration, remote CI run or new threat-model claim is part of item 12.

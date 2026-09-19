@@ -81,7 +81,7 @@ read-only constitution validation, compilation, and preview; native Dogwood setu
 is in `docs/development.md`. Item 8 adds standalone Python risk scoring; its API
 smoke procedure is also in `docs/development.md`. Item 9 adds the internal pipeline API and disposable `scripts/smoke_pipeline.py`
 example; signed append is internal only. Item 10 adds audit verification/export and
-the smoke's `--audit` option; anchors remain item 38b. Item 11 adds read-only `hirz decide` with explicit hypothetical inputs; its development-database invocation is verified. The other commands below remain target state.
+the smoke's `--audit` option; anchors remain item 38b. Item 11 adds read-only `hirz decide` with explicit hypothetical inputs; its development-database invocation is verified. Item 12 adds the adapter contract smoke and explicit observation/room/scam preview files; schema upgrade remains manual (docs/development.md). The other commands below remain target state.
 The verified toolchain and scaffold setup are in `README.md`; use Node 24.
 
 - `uv sync` — install Python deps; `pnpm install` — install workspaces.
@@ -111,7 +111,7 @@ The verified toolchain and scaffold setup are in `README.md`; use Node 24.
 
 ## Current phase
 
-**Phase 1 is complete; item 12 is next.** Activation and physical execution remain pending. Evidence: `docs/verification-log.md`; procedures: `docs/development.md`. Four CI jobs remain placeholders; no new CI run for item 11.
+**Phase 2 item 12 is complete; item 13 is next.** Adapter contracts and graph-derived facts are verified; mixed boot uses test implementations. Production adapters, twin physics, activation and execution remain pending. The development database remains on `0003_pipeline`; item 12 upgrade is manual. Evidence: `docs/verification-log.md`; procedures: `docs/development.md`. Four CI jobs remain placeholders; no new CI run for item 12.
 
 ---
 

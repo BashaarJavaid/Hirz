@@ -29,7 +29,6 @@ from tests.unit.test_pipeline import (
     PRINCIPAL,
     SEED,
     action,
-    evidence,
     ident,
     policy_edit,
     snapshot,
@@ -70,7 +69,7 @@ def test_native_approval_one_grant_and_signed_envelopes(scratch_database):
             caller = PRINCIPAL.model_copy(
                 update={"requester_confirmed": True, "claimed_role": "adult"}
             )
-            extra = (evidence(guest_present=False),)
+            extra = ()
             preview = await p.evaluate(a, caller, evidence=extra)
             assert preview.event_type == "ASK_CONSTITUTION" and preview.audit_id is None
             assert await count(connection, db.actions) == 0

@@ -315,6 +315,9 @@ def predicate(node: Node, values: Mapping[str, Any], facts: PolicyFacts) -> bool
                 )
                 typed(row["present"], "bool")
             else:
+                if row.get("present") is False:
+                    matches.append(False)
+                    continue
                 if row["zone_id"] not in facts.zone_ids:
                     raise ValueError()
                 sleeping = typed(row["sleeping"], "bool")

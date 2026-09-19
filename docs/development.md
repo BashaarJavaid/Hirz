@@ -258,16 +258,14 @@ historical state; earlier row versions are not recovered, and stale/missing fact
 still fail closed. Seed files contain no observations, so seeding alone does not
 establish the facts needed for an HVAC or security preview.
 
-Optional `--evidence <file.json>` reads a JSON list of the existing
-`SupplementalEvidence` objects (defined in `hirz/pipeline/models.py`), each with
-explicit `household_id`, aware `observed_at` and `source: "twin"`. Supported facts
-include occupancy completeness, guest presence, bedroom status, price band,
-unexpected visitor, doorbell availability and deterministic scam-pattern evidence.
-Subject-scoped facts retain their subject UUID requirement. Evidence cannot replace
-stored member observations or contradict graph facts. Duplicate keys, invalid
-shapes and noncanonical/nonfinite numbers are rejected. `--requester-confirmed`
-is false unless present; it supplies hypothetical confirmation only. There are no
-approval, passkey, vote, redemption or policy-file controls.
+Optional `--evidence <file.json>` now reads a strict JSON object with optional
+`observations`, `asset_rooms`, and `scam_pattern` fields. This is an incompatible
+change from item 11's aggregate evidence list: `occupancy_complete`, `guest_present`,
+`target_is_bedroom`, `unexpected_visitor` and `doorbell_online` are no longer caller
+flags. Their graph homes are in `ARCHITECTURE.md` §5.11. The example below uses the
+new shape. Duplicate JSON keys, invalid/nonfinite values and non-twin evidence are
+rejected. `--requester-confirmed` remains hypothetical confirmation only; there are
+no approval, passkey, vote, redemption or policy-file controls.
 
 The reproducible nine-case CLI run uses only disposable databases and synthetic
 fixture state; it prints each initial event and verifies unchanged database state:
@@ -281,6 +279,83 @@ test-key configuration. Native Dogwood, stored policy loading and the pipeline r
 normally. The spending fixture establishes usage with an internal grant, never a
 fabricated audit row or device operation. Actual results and the existing local
 database's reset and successful invocation are recorded in [item 11 evidence](./verification-log.md#development-database-reset-and-phase-1-review--2026-09-18).
+
+## Adapter contracts and graph facts (item 12)
+
+The registry and nine domain protocols exist; production adapters, twin models and
+observation ingestion do not. No application endpoint or CLI command starts an
+adapter in this item. `HIRZ_ADAPTERS` is a process environment variable containing
+comma-separated `domain:implementation` pairs, for example `devices:ha,ev:twin`.
+Omitted domains are unavailable; selected implementations must be registered by
+the host. The factory dictionary currently has no production registrations.
+Per-entity asset bindings override defaults. Nothing automatically falls back to twin.
+
+The printable boot proof uses only test implementations and no device credential:
+
+```sh
+uv run pytest tests/unit/test_adapters.py -k mixed_boot --no-cov -s
+uv run pytest tests/integration/test_adapter_database.py -m integration --no-cov -s
+uv run pytest tests/integration/test_decide_database.py -m integration --no-cov -s
+```
+
+The integration tests create and drop uniquely named disposable databases. They
+exercise migration, preserved current/historical reads, domain uniqueness, guarded
+rollback and actual CLI dispatch with native Dogwood, verifying no preview writes.
+They do not migrate or reset the existing development database.
+
+**Schema compatibility.** Operators explicitly run `uv run alembic upgrade head`
+before using item 12 with their development database. Startup and preview never run
+migrations. Revision `0004_observation_domains` preserves old null-domain rows and
+history. Those observations remain visible to reads but cannot supply decision
+facts. New readings require an explicit domain and new IDs rather than inferred
+retagging. Downgrade refuses any tagged current or historical observations, even
+if only one domain exists: the old application's model cannot read the field.
+Never erase history, reset the database or change its audit key to work around this.
+
+**Explicit preview file.** For a seeded `quinn-home` with no stored light observation
+or room metadata, save this JSON as `/private/tmp/hirz-light-preview.json`. The
+observation ID is a synthetic preview ID, and the asset UUID is the seed's living
+room light. Every supplied reading must have its own explicit ID, domain, aware
+observation time and `source: twin`.
+
+```json
+{
+  "observations": [{
+    "id": "34a7254d-3a84-5dd4-b23c-5cd7c6ae2c2b",
+    "household_id": "536fa8ee-854e-56ca-8c5d-5ba418e710a0",
+    "asset_id": "cac78d95-1ad7-5ea1-9d46-7fa092854363",
+    "domain": "devices",
+    "observed_at": "2026-10-13T17:35:00-05:00",
+    "source": "twin",
+    "state": {"available": true, "on": false}
+  }],
+  "asset_rooms": [{
+    "asset_id": "cac78d95-1ad7-5ea1-9d46-7fa092854363",
+    "room_kind": "other"
+  }]
+}
+```
+
+```sh
+uv run hirz decide \
+  --household 536fa8ee-854e-56ca-8c5d-5ba418e710a0 \
+  --as malik --surface alexa --action environment.lights \
+  --adapter twin --entity light.living_room --params '{"on":true}' \
+  --at 2026-10-13T17:35:00-05:00 \
+  --evidence /private/tmp/hirz-light-preview.json
+```
+
+The optional `scam_pattern` field is an object containing `household_id`,
+`observed_at`, `source: "twin"`, and Boolean `scam_pattern`. Presence examples instead
+supply member-subject observations in domain `presence`, one per member; recovery
+uses separate `wearable` observations. Room kinds are only `bedroom` and `other`.
+The snapshot overlay accepts new subject/domain readings or exact canonical
+no-ops, never changed readings or partial field merges. Room metadata fills only
+missing values. Unknown UUIDs, duplicate overlay entries, cross-household facts,
+future observations, non-twin sources and arbitrary graph changes are rejected.
+Conflicts discovered against the graph return a fail-closed Decision; malformed
+file input exits 2. All success output remains hypothetical, with no execution
+grant, audit row or database change. See the evidence log for actual runs.
 
 ## Audit verification and export (item 10)
 
