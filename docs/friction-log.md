@@ -187,6 +187,18 @@ Authorized sandbox escalation used the existing cache successfully; this repeats
 the recorded sandbox restriction, not an upstream defect. Reference:
 [uv cache configuration](https://docs.astral.sh/uv/concepts/cache/).
 
+Doorbell approval correction follow-up to entry 6 (2026-09-20, Minor): the
+initial regression command hit the same sandbox cache restriction:
+
+```text
+error: Failed to initialize cache at `/Users/bashaarjavaid/.cache/uv`
+  cause: failed to open file `/Users/bashaarjavaid/.cache/uv/sdists-v9/.git`: Operation not permitted (os error 1)
+```
+
+Authorized sandbox escalation used the existing cache and local PostgreSQL;
+no upstream defect or dependency change. Reference:
+[uv cache configuration](https://docs.astral.sh/uv/concepts/cache/).
+
 ## Candidates (not yet hit)
 
 - No documented way for an add-on to receive Alexa-side context (device modality, locale, timezone) or to be invoked proactively.

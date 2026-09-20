@@ -26,6 +26,10 @@ class ContextError(ValueError):
     pass
 
 
+class NewerDoorbellPress(ContextError):
+    pass
+
+
 def quiet_hours(policy: Constitution, name: str, at: datetime) -> bool:
     for period in policy.quiet_hours:
         if name not in period.affects and name.split(".")[1] not in period.affects:
@@ -58,6 +62,7 @@ def extract(
     action: Action,
     evidence: tuple[SupplementalEvidence, ...],
     used: Decimal,
+    bound_press: dict[str, Any] | None = None,
 ) -> Facts:
     if snapshot.stale or snapshot.scope != "all":
         raise ContextError("A complete fresh snapshot is required")
@@ -203,19 +208,39 @@ def extract(
     context_extra: dict[str, Any] = {}
     arrivals = [r for r in data["schedule_events"] if r["kind"] == "arrival"]
     bells = [k for k, r in assets.items() if r["kind"] == "doorbell"]
+    press_binding = None
+    if bound_press is not None and (
+        name != "security.door_unlock"
+        or bells != [bound_press["asset_id"]]
+        or type(bound_press["expected"]) is not bool
+    ):
+        raise ContextError("Invalid bound doorbell press")
     if name == "security.door_unlock" and len(bells) == 1:
         required.add(bells[0])
         bell = observations.get(bells[0], {}).get("state", {})
         doorbell = bell.get("available")
-        if press_text := bell.get("last_press_at"):
-            press = datetime.fromisoformat(press_text)
-            if 0 <= (at - press).total_seconds() <= 60:
-                context_extra["unexpected_visitor"] = not any(
+        press_text = bell.get("last_press_at")
+        press = datetime.fromisoformat(press_text) if press_text else None
+        if bound_press is not None:
+            bound_at = datetime.fromisoformat(bound_press["last_press_at"])
+            if bound_at > at:
+                raise ContextError("Future bound doorbell press")
+            if press is not None and press > bound_at:
+                raise NewerDoorbellPress("a newer doorbell press")
+            press_binding = bound_press
+        elif press is not None and 0 <= (at - press).total_seconds() <= 60:
+            press_binding = {
+                "asset_id": bells[0],
+                "last_press_at": press_text,
+                "expected": any(
                     datetime.fromisoformat(r["starts_at"])
                     <= press
                     < datetime.fromisoformat(r["ends_at"])
                     for r in arrivals
-                )
+                ),
+            }
+        if press_binding is not None:
+            context_extra["unexpected_visitor"] = not press_binding["expected"]
     rule = policy.rule(name, action.requested_by.role)
     needs_price = any(
         node.kind == "attr" and node.value == "context.price_band"
@@ -280,6 +305,8 @@ def extract(
     values["observations"] = [
         observations[k] for k in sorted(required & observations.keys())
     ]
+    if press_binding is not None:
+        values["doorbell"] = press_binding
     values["supplemental"] = [e.model_dump(mode="json") for e in evidence]
     risk = RiskFacts(
         observation_ages_seconds=None if missing else tuple(ages),

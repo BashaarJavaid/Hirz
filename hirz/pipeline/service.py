@@ -23,7 +23,7 @@ from hirz.graph.context import ContextSnapshot, validate_snapshot
 from hirz.graph.models import Household, now, utc
 from hirz.graph.repository import GraphRepository, snapshot_sql
 from hirz.pipeline.audit import AuditWriter, PipelineError
-from hirz.pipeline.context import ContextError, Facts, extract
+from hirz.pipeline.context import ContextError, Facts, NewerDoorbellPress, extract
 from hirz.pipeline.hashing import digest, ingest, wire
 from hirz.pipeline.models import (
     Action,
@@ -33,6 +33,7 @@ from hirz.pipeline.models import (
     ConstitutionEvidence,
     Decision,
     EventType,
+    Explanation,
     Principal,
     Requester,
     Role,
@@ -233,6 +234,7 @@ class Pipeline:
         at: datetime,
         *,
         preview: PreviewEvidence | None = None,
+        bound_press: dict[str, Any] | None = None,
     ) -> Evaluation:
         policy = self.bundle.policy()
         requester = await self.requester(principal)
@@ -283,7 +285,12 @@ class Pipeline:
         ).date()
         used = await self.usage(action.action_class, local_date.isoformat())
         try:
-            facts = extract(snapshot, policy, action, evidence, used)
+            facts = extract(snapshot, policy, action, evidence, used, bound_press)
+        except NewerDoorbellPress:
+            ev.decision = ev.decision.model_copy(
+                update={"explain": Explanation(rejected=("a newer doorbell press",))}
+            )
+            return result(ev, EventType.DENY_APPROVAL_MISMATCH)
         except (ContextError, ValueError):
             return replace(ev, diagnostics=("context",))
         ev.facts = facts
@@ -589,6 +596,23 @@ class Pipeline:
         )
         return dict(row) if row else None
 
+    async def approval(self, approval_id: str) -> dict[str, Any] | None:
+        row = (
+            (
+                await self.connection.execute(
+                    sa.select(db.approvals)
+                    .where(
+                        self.scope(db.approvals),
+                        db.approvals.c.approval_id == approval_id,
+                    )
+                    .with_for_update()
+                )
+            )
+            .mappings()
+            .one_or_none()
+        )
+        return dict(row) if row else None
+
     async def status(self, approval: dict[str, Any], status: str) -> None:
         await self.connection.execute(
             db.approvals.update()
@@ -614,6 +638,8 @@ class Pipeline:
         }:
             return ev
         binding = self.binding(action, principal, cost, ev)
+        if ev.facts and "doorbell" in ev.facts.policy.values:
+            binding["doorbell"] = wire(ev.facts.policy.values["doorbell"])
         pending = await self.pending(action.action_id)
         if pending and (
             at >= pending["expires_at"]
@@ -653,7 +679,7 @@ class Pipeline:
 
     @staticmethod
     def compatible(old: dict[str, Any], new: dict[str, Any]) -> bool:
-        if any(old[k] != new[k] for k in new if k != "gates"):
+        if any(old.get(k) != new[k] for k in new if k != "gates"):
             return False
         for key, value in new["gates"].items():
             previous = old["gates"].get(key)
@@ -815,8 +841,21 @@ class Pipeline:
             async with self.repo.write(self.clock):
                 at = utc(self.clock())
                 matched, granted, stored = await self.proposal(action, principal, cost)
+                approval = (
+                    await self.approval(approval_id) if redeem and approval_id else None
+                )
+                bound_press = (
+                    approval["binding"].get("doorbell")
+                    if approval and approval["action_id"] == action.action_id
+                    else None
+                )
                 ev = await self.assess(
-                    stored if matched else action, principal, cost, evidence, at
+                    stored if matched else action,
+                    principal,
+                    cost,
+                    evidence,
+                    at,
+                    bound_press=bound_press,
                 )
                 if not matched:
                     ev = result(ev, EventType.DENY_APPROVAL_MISMATCH)
@@ -824,7 +863,7 @@ class Pipeline:
                     ev = result(ev, EventType.DENY_APPROVAL_USED)
                 elif redeem:
                     ev = await self.authorize(
-                        ev, action, principal, cost, at, approval_id
+                        ev, action, principal, cost, at, approval_id, approval
                     )
                 else:
                     if ev.decision.decision == "execute":
@@ -859,29 +898,16 @@ class Pipeline:
         cost: Decimal | None,
         at: datetime,
         approval_id: str | None,
+        approval: dict[str, Any] | None,
     ) -> Evaluation:
-        approval = None
         voter = None
-        if ev.decision.decision == "deny":
+        if ev.decision.decision == "deny" and not (
+            approval and approval["binding"].get("doorbell")
+        ):
             return ev
         if approval_id:
-            row = (
-                (
-                    await self.connection.execute(
-                        sa.select(db.approvals)
-                        .where(
-                            self.scope(db.approvals),
-                            db.approvals.c.approval_id == approval_id,
-                        )
-                        .with_for_update()
-                    )
-                )
-                .mappings()
-                .one_or_none()
-            )
-            if row is None or row["action_id"] != action.action_id:
+            if approval is None or approval["action_id"] != action.action_id:
                 return result(ev, EventType.DENY_APPROVAL_MISMATCH)
-            approval = dict(row)
             if approval["status"] == "redeemed":
                 return result(ev, EventType.DENY_APPROVAL_USED)
             if at >= approval["expires_at"] or approval["status"] == "expired":
@@ -1106,21 +1132,8 @@ class Pipeline:
         try:
             async with self.repo.write(self.clock):
                 at = utc(self.clock())
-                row = (
-                    (
-                        await self.connection.execute(
-                            sa.select(db.approvals)
-                            .where(
-                                self.scope(db.approvals),
-                                db.approvals.c.approval_id == approval_id,
-                            )
-                            .with_for_update()
-                        )
-                    )
-                    .mappings()
-                    .one_or_none()
-                )
-                if row is None:
+                approval = await self.approval(approval_id)
+                if approval is None:
                     policy = self.bundle.policy()
                     ev = Evaluation(
                         Decision(
@@ -1140,7 +1153,6 @@ class Pipeline:
                         {},
                     )
                     return await self.record(ev, at)
-                approval = dict(row)
                 stored = (
                     (
                         await self.connection.execute(
@@ -1154,8 +1166,8 @@ class Pipeline:
                     .one()
                 )
                 action = ingest(Action.model_validate(stored["proposal"]))
-                # Voting does not require resubmitting observations; current eligibility
-                # and channels are checked here, all current gates at redemption.
+                # Ordinary votes check eligibility/channels; bound visitor votes also
+                # re-evaluate live facts using the approval's original press.
                 policy = self.bundle.policy()
                 requester = await self.requester(
                     Principal.model_validate(stored["principal"])
@@ -1182,6 +1194,17 @@ class Pipeline:
                     None,
                     {},
                 )
+                if bound_press := approval["binding"].get("doorbell"):
+                    ev = await self.assess(
+                        action,
+                        Principal.model_validate(stored["principal"]),
+                        Decimal(stored["cost"]) if stored["cost"] is not None else None,
+                        (),
+                        at,
+                        bound_press=bound_press,
+                    )
+                    if ev.outcomes:
+                        outcome = ev.outcomes[0]
                 member = await self.requester(principal)
                 event = EventType.APPROVED if approved else EventType.REJECTED
                 if approval["status"] == "redeemed":
@@ -1189,6 +1212,8 @@ class Pipeline:
                 elif at >= approval["expires_at"] or approval["status"] == "expired":
                     await self.status(approval, "expired")
                     event = EventType.DENY_APPROVAL_EXPIRED
+                elif bound_press and ev.decision.decision == "deny":
+                    event = ev.decision.event_type
                 elif (
                     approval["status"] == "rejected"
                     or member.role not in outcome.approval.approver_roles

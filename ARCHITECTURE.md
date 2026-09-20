@@ -192,6 +192,20 @@ Unresolved facts cannot be approved. Expiry is `now >= expires_at`, checked agai
 the boundary call. Native events retain vote-before-action order even within one
 second. Boundary failure leaves the approval retryable within its original TTL.
 
+For `security.door_unlock`, an ASK using a press within 60 seconds stores
+`doorbell: {asset_id, last_press_at, expected}` in `approvals.binding`, without an
+image or visitor hint. Voting and redemption derive `context.unexpected_visitor`
+from this bound press; occupancy, sleeping, doorbell availability, observation ages
+and the action hash remain live checks. A newer `last_press_at` returns
+`DENY_APPROVAL_MISMATCH` with reason "a newer doorbell press", without approving the
+new press; approval expiry still wins. The bound press is included in
+`Facts.policy.values` alongside the derived Boolean: `boundary_check()` hashes
+these values into the audit Decision's `boundary.context_hash`, and
+`boundary_input()` projects the same Boolean to Dogwood. This uses the existing
+fact-hash path without changing the graph snapshot schema or hash algorithm.
+Autonomous evaluation and read-only previews retain the 60-second window;
+approvals without a doorbell binding retain their previous behavior.
+
 Daily dollar usage is the sum of reservation evidence on committed grant audit rows,
 per household/class and local calendar date. Missing estimates deny budgeted actions.
 Equality can be approved; crossing the cap cannot. ASK, DENY, failed transactions,
@@ -782,7 +796,7 @@ is refused whenever tagged current or historical observations exist.
 | Recovery | Member `wearable` observations coexist with presence; neither replaces the other. |
 | Bedroom | Bound target asset's `room_kind`: `bedroom` → true, `other` → false, null → unknown; no name inference. |
 | Doorbell online | The sole household doorbell's `doorbell` observation, `state.available`; zero/multiple doorbells leave it unknown. |
-| Unexpected visitor | `state.last_press_at` no later than observation time and at most 60 seconds old. Expected iff an arrival interval contains the press (`starts_at <= press < ends_at`). No/old press or ambiguous doorbell → unknown. A stranger inside the window gets the same phone approval requirement; no identity inference. |
+| Unexpected visitor | `state.last_press_at` no later than observation time and at most 60 seconds old. Expected iff an arrival interval contains the press (`starts_at <= press < ends_at`). No/old press or ambiguous doorbell → unknown. An ASK binds the press for voting/redemption beyond 60 seconds, subject to approval expiry and refusal on a newer press (§3.4). A stranger inside the window gets the same phone approval requirement; no identity inference. |
 | Price band | Household-subject `energy` observation with nonempty `state.price_band`. Used, including freshness, only when the action's parsed conditions/overrides reference it. The energy context scope includes these observations. Band assignment remains tariff-adapter work. |
 | Scam pattern | Scoped, timestamped deterministic Protect supplemental evidence; never an LLM decision input. |
 

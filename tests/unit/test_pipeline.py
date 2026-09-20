@@ -505,3 +505,134 @@ def test_high_floor_quiet_hours_bounds_and_target_denials():
         assert ev.decision.event_type == "ASK_CONSTITUTION" and ev.gates["quiet"]
 
     asyncio.run(run())
+
+
+@pytest.mark.parametrize(
+    "never,expected,second,legacy,seconds,event",
+    [
+        (True, True, False, False, 120, "EXECUTE"),
+        (True, True, True, False, 120, "DENY_APPROVAL_MISMATCH"),
+        (True, False, False, False, 120, "DENY_CONSTITUTION"),
+        (False, False, False, False, 120, "EXECUTE"),
+        (True, True, False, True, 120, "DENY_CONSTITUTION"),
+        (False, False, False, True, 120, "EXECUTE"),
+        (True, True, True, False, 1811, "DENY_APPROVAL_EXPIRED"),
+    ],
+)
+def test_bound_doorbell_approval(never, expected, second, legacy, seconds, event):
+    from tests.unit.test_adapter_facts import bell, context
+
+    async def run():
+        press = datetime.fromisoformat("2026-10-13T19:04:00-05:00")
+        snap = context(press + timedelta(seconds=10))
+        if not expected:
+            snap.data["schedule_events"] = []
+        bell(snap)["state"]["last_press_at"] = press.isoformat()
+        policy = policy_edit(
+            "security.door_unlock", never_for=["unexpected_visitor"] if never else []
+        ).model_copy(update={"version": 8 if never else 7})
+        p = await pipeline(policy, snap=snap)
+        a = action("security.door_unlock")
+        caller = PRINCIPAL.model_copy(update={"requester_confirmed": True})
+        voter = caller.model_copy(
+            update={
+                "passkey_verified": True,
+                "verified_action_hash": a.content_hash,
+            }
+        )
+        # Exercise real propose/vote/redeem; only storage and native subprocess
+        # are mocked here. The PostgreSQL case covers their actual contracts.
+        p.connection.in_transaction = Mock(return_value=False)
+        p.repo.write = Mock(return_value=AsyncMock())
+        p.proposal = AsyncMock(return_value=(True, None, a))
+        p.pending = AsyncMock(return_value=None)
+        p.record = AsyncMock(
+            side_effect=lambda ev, at: ev.decision.model_copy(update={"audit_id": 1})
+        )
+        p.audit = AsyncMock()
+        p.clock = lambda: snap.as_of
+        asked = await p.propose(a, caller)
+        if never and not expected:
+            assert asked.event_type == event
+            assert asked.approval is None
+            p.connection.execute.assert_not_called()
+            return
+        assert asked.event_type == "ASK_CONSTITUTION"
+        approval = p.connection.execute.call_args.args[0].compile().params
+        assert approval["binding"]["doorbell"] == {
+            "asset_id": bell(snap)["asset_id"],
+            "last_press_at": press.isoformat(),
+            "expected": expected,
+        }
+        if legacy:
+            approval["binding"].pop("doorbell")
+        p.approval = AsyncMock(return_value=approval)
+        stored = {
+            "proposal": a.model_dump(by_alias=True),
+            "principal": caller.model_dump(),
+            "cost": None,
+        }
+        rows = Mock()
+        rows.mappings.return_value.one.return_value = stored
+        p.connection.execute.return_value = rows
+        p.connection.scalar.return_value = None
+
+        async def eligible(approval, ev):
+            approval["approved_at"] = press + timedelta(seconds=60)
+            return True, voter
+
+        p.eligible_votes = AsyncMock(side_effect=eligible)
+
+        def advance(seconds):
+            nonlocal snap
+            snap = snap.model_copy(update={"as_of": press + timedelta(seconds=seconds)})
+            p.snapshot.return_value = snap
+            for row in snap.data["observations"]:
+                row["observed_at"] = snap.as_of.isoformat()
+
+        advance(60)
+        assert (
+            await p.vote(approval["approval_id"], voter, approved=True)
+        ).event_type == "APPROVED"
+        advance(61)
+        assert (
+            await p.vote(approval["approval_id"], voter, approved=True)
+        ).event_type == "APPROVED"
+        # Move the schedule too: classification remains the ASK-time fact.
+        snap.data["schedule_events"] = []
+        advance(seconds)
+        if second:
+            bell(snap)["state"]["last_press_at"] = (
+                press + timedelta(seconds=90)
+            ).isoformat()
+            p.connection.execute.reset_mock()
+            refused_vote = await p.vote(approval["approval_id"], voter, approved=True)
+            assert refused_vote.event_type == event
+            assert not any(
+                getattr(call.args[0], "is_insert", False)
+                for call in p.connection.execute.call_args_list
+            )
+        granted = await p.redeem(a, caller, approval_id=approval["approval_id"])
+        assert granted.event_type == event
+        assert p.pending.call_count == 1  # No new approval for the second press.
+        if event == "DENY_APPROVAL_MISMATCH":
+            assert granted.explain.rejected == ("a newer doorbell press",)
+        if event == "EXECUTE":
+            ev = p.record.call_args.args[0]
+            values = ev.facts.policy.values
+            assert granted.boundary.context_hash == "sha256:" + digest(values)
+            inputs = p.boundary.authorize.call_args.args[1].inputs
+            if legacy:
+                assert "unexpected_visitor" not in values["context"]
+            else:
+                assert values["doorbell"] == approval["binding"]["doorbell"]
+                assert values["context"]["unexpected_visitor"] is not expected
+                assert inputs["f_context_unexpected_visitor"] is not expected
+                assert digest(dict(values) | {"doorbell": {}}) != digest(values)
+        # Read-only decide uses evaluate: it must still apply the 60-second window.
+        preview = await p.evaluate(a, caller)
+        assert preview.approval is None
+        if never and not second:
+            assert preview.event_type == "DENY_CONSTITUTION"
+
+    asyncio.run(run())

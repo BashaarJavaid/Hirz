@@ -64,6 +64,22 @@ and the incompatible CLI evidence-file change are in
 Local verification uses disposable databases; no development schema reset,
 automatic migration, remote CI run or new threat-model claim is part of item 12.
 
+### Doorbell press bound to approval — 2026-09-21 (author-approved)
+
+Correction to items 9 and 12: the 60-second press window governs autonomous
+and initial evaluation. A `security.door_unlock` ASK binds the sole doorbell's
+`asset_id`, `last_press_at` and `expected` Boolean in the existing approval binding;
+no snapshot image or visitor hint is stored there. Voting and redemption use that
+press's visitor classification while re-evaluating live state and the action hash.
+A newer press refuses the approval with `DENY_APPROVAL_MISMATCH`; expiry retains
+precedence. Approvals without a bound press retain their existing behavior.
+
+Rejected widening the press window to the approval TTL: a second visitor could
+ride the first visitor's approval. The fact-hash mechanism is unchanged; the bound
+press and its derived fact enter the existing hashed policy facts, as specified in
+[architecture §3.4](../../ARCHITECTURE.md#34-internal-pipeline-contract-item-9).
+Verification: [doorbell approval correction](../verification-log.md#doorbell-press-bound-to-approval).
+
 ## Item 13 models and read adapters amendment — 2026-09-19 (author-approved)
 
 The author approved the following during explicit planning batches:

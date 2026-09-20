@@ -307,3 +307,35 @@ def test_preview_rejects_duplicate_and_non_twin_records():
         )
     with pytest.raises(ValueError):
         PreviewEvidence(scam_pattern=evidence(source="real"))
+
+
+@pytest.mark.parametrize("changed", ["sleeping", "occupancy", "offline", "stale"])
+def test_bound_press_keeps_other_facts_live(changed):
+    s = context(AT + timedelta(seconds=120))
+    binding = {
+        "asset_id": bell(s)["asset_id"],
+        "last_press_at": AT.isoformat(),
+        "expected": True,
+    }
+    bell(s)["state"]["last_press_at"] = AT.isoformat()
+    if changed == "sleeping":
+        member(s)["state"]["sleeping"] = True
+    elif changed == "occupancy":
+        member(s)["state"] = {"present": False}
+    elif changed == "offline":
+        bell(s)["state"]["available"] = False
+    else:
+        bell(s)["observed_at"] = AT.isoformat()
+    f = extract(s, POLICY, action("security.door_unlock"), (), Decimal(0), binding)
+    assert f.policy.values["context"]["unexpected_visitor"] is False
+    if changed == "sleeping":
+        assert f.risk.sleeping_any is True
+    elif changed == "occupancy":
+        assert (
+            str(ident("members", "mom"))
+            not in f.policy.values["occupancy"]["present_members"]
+        )
+    elif changed == "offline":
+        assert f.risk.doorbell_online is False
+    else:
+        assert max(f.risk.observation_ages_seconds) == 120

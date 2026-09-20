@@ -2074,3 +2074,128 @@ $ uv run ruff format --check .
 ```
 
 Exit 0; repeated after appending this result so formatting remains the final check.
+
+## Doorbell press bound to approval
+
+Author decision dated **2026-09-21**; local verification ran **2026-09-20** on
+`phase-2`, macOS, Python 3.12.13, the existing locked uv environment, local
+PostgreSQL and the repository's native `.tools/dogwood`. This corrects items 9
+and 12 under [ADR-006](./adr/ADR-006-twin-first-adapters.md#doorbell-press-bound-to-approval--2026-09-21-author-approved).
+
+### Regression and coverage
+
+The new PostgreSQL case uses the existing suites and a uniquely named disposable
+database. At T = `2026-10-13T19:04:00-05:00`, the press falls inside Mom's stored
+arrival window. Under v8 it proposes at T+10 seconds, records the synthetic
+passkey-verified phone vote at T+60, refreshes telemetry while preserving
+`last_press_at`, and redeems at T+120. It checks the three-field JSONB binding,
+native Dogwood authorization, one vote, and the stored audit context hash.
+`EXECUTE` here is an internal durable grant, not a physical unlock.
+
+Before implementation, the focused command returned `DENY_CONSTITUTION` instead
+of `EXECUTE`. After correcting fixture freshness/versioning, the **final test**
+was also run against both original pipeline files from HEAD, with the working
+changes saved and restored in a `finally` block. It reproduced the same failure:
+
+```text
+$ uv run pytest tests/integration/test_pipeline_database.py -m integration --no-cov -k doorbell --tb=short
+E   assert <EventType.DENY_CONSTITUTION: 'DENY_CONSTITUTION'> == 'EXECUTE'
+======================= 1 failed, 13 deselected in 1.52s =======================
+```
+
+The focused corrected-code PostgreSQL run passed:
+
+```text
+$ uv run pytest tests/integration/test_pipeline_database.py -m integration --no-cov -k doorbell
+======================= 1 passed, 13 deselected in 1.59s =======================
+```
+
+Seven service-free proposal/vote/redemption cases cover expected-v8 success, a
+second press at T+90 refusing both a vote and redemption without inserting another
+vote or approval, unexpected-v8 refusal without approval creation, unexpected-v7
+success with the Boolean still true, legacy bindings under both versions, and
+expiry after 30 minutes winning even over a newer press. Votes are checked at both
+T+60 and T+61. Schedule removal after ASK does not change the bound classification.
+Read-only `evaluate()` still creates no approval and uses the live press window;
+the existing `hirz decide` integration cases run in the full PostgreSQL suite.
+Four fact tests additionally verify live sleeping, occupancy, offline status and
+observation age; the existing 0/60/60.001/86400-second window tests remain intact.
+
+The service-free boundary test checks `f_context_unexpected_visitor`, equality of
+`boundary.context_hash` to the full facts digest, and that removing the bound press
+changes that digest. `boundary_check()` already hashes `Facts.policy.values` and
+passes those facts to `boundary_input()`. The bound press is now in those values;
+the existing compiler projects its derived Boolean. No graph snapshot schema,
+hash algorithm, boundary schema, database column or migration changed.
+
+```text
+$ uv run pytest tests/unit/test_pipeline.py tests/unit/test_adapter_facts.py --no-cov --tb=short
+============================== 70 passed in 1.18s ==============================
+```
+
+Intermediate development runs exposed a `TypeError` from serializing frozen
+policy facts (fixed by the existing `wire()` helper), stale fixture observations
+returning `DENY_RISK` (retained as correct behavior), a fixture insertion violating
+`observations_asset_unique` (changed to versioned updates), and six test failures
+from mutating a frozen `ContextSnapshot` (changed to `model_copy`). None remains
+in the final verification. The initial uv cache permission failure and successful
+escalated retry are recorded in [the friction log](./friction-log.md); no upstream
+defect, dependency change or remote CI run is claimed.
+
+### Required verification sequence
+
+The following ran in the requested order:
+
+```text
+$ uv run pytest
+TOTAL                                      5476    475    91%
+Required test coverage of 80% reached. Total coverage: 91.33%
+================ 875 passed, 61 deselected in 72.28s (0:01:12) =================
+
+$ uv run pytest -m integration --no-cov
+===================== 61 passed, 875 deselected in 37.40s ======================
+
+$ uv run mypy hirz/ scripts/ alembic/
+Success: no issues found in 79 source files
+
+$ uv run ruff check .
+All checks passed!
+
+$ HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run hirz scenario run scenarios/demo-evening.yaml --headless --assert
+$ HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run hirz scenario run scenarios/parents-scam-check.yaml --headless --assert
+```
+
+Both scenario JSON reports were parsed, asserting their status, exact check count,
+all passing checks and deferred counts:
+
+```text
+demo-evening: item16_observations_passed; 16 checks passed; 25 deferred
+parents-scam-check: item16_observations_passed; 9 checks passed; 9 deferred
+```
+
+These commands all exited 0. Full local outputs are
+`/private/tmp/hirz-doorbell-{before,pytest,integration}.log` and
+`/private/tmp/hirz-doorbell-{evening,parents}.json`. The scenario assertions remain
+item 16 observations; no executor, scheduler, Phase 3 item, or physical device
+operation was added. ROADMAP.md and the instruction files are unchanged. The
+unexpected-visitor threat row remains Planned; no threat-model status was raised.
+
+The final requested test command then exited 0:
+
+```text
+$ uv run pytest tests/cedar_conformance --no-cov
+============================= 40 passed in 44.66s ==============================
+```
+
+Full output: `/private/tmp/hirz-doorbell-cedar.log`. All 40 native conformance tests
+ran locally; AWS enforcement remains outside this correction.
+
+Final formatting, after the records were written:
+
+```text
+$ uv run ruff format --check .
+131 files already formatted
+```
+
+Exit 0. `git diff --check` also passed. The format check is repeated after appending
+this result so it remains the last verification command before the single commit.
