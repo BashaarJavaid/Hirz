@@ -265,3 +265,12 @@ The author approved the following choices individually before implementation:
 The contract lives in [the scenario specification](../twin-and-scenarios.md#31-item-16-runnable-contract).
 The committed scenario YAML files are the single home of the approved input
 values. Procedures are in [development](../development.md#scenario-runner-item-16).
+
+**Item 16 weather amendment (2026-09-21, author-approved):** Recorded scenarios
+keep weather supplied by the twin, derived inline from a cited Open-Meteo archive
+fixture for the same Chicago calendar night one year earlier; replay never fetches
+weather and retains `twin (supplied weather)` labeling. Live Open-Meteo is reserved
+for item 17's backtest and real households. Rejected live forecasts at run time:
+a fixed-date scenario cannot replay identically in CI, the video and judging,
+and the 16-day forecast window excludes the October scenario at November judging.
+No DSL extension or RealEnergy archive fallback is introduced.

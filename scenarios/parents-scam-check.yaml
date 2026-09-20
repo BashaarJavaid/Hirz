@@ -21,10 +21,19 @@ initial:
   weather:
     start: '2026-10-13T17:00:00-05:00'
     end: '2026-10-13T17:25:00-05:00'
+    # Supplied historical weather from Open-Meteo archive reanalysis (observations + models).
+    # Docs: https://open-meteo.com/en/docs/historical-weather-api
+    # Raw response: fixtures/weather-chicago-2025-10-13.json; provenance: fixtures/manifest.json
+    # Request URL: https://archive-api.open-meteo.com/v1/archive?latitude=41.88&longitude=-87.63&start_date=2025-10-13&end_date=2025-10-14&hourly=temperature_2m,cloud_cover&temperature_unit=fahrenheit&timezone=America/Chicago
+    # Retrieved at: 2026-09-20T23:16:01.214224+00:00
+    # SHA-256: a32b0dfccb3ba5619b24101d72fd14ac77f32b4b2b541706ce2471ef81c9a7c3
+    # Chicago local hours shifted from 2025 to the same calendar night in 2026.
+    # Only the 17:00 hour is needed for this 25-minute scenario; it is non-null.
+    # Held by the twin and labeled twin (supplied weather); never fetched during replay.
     samples:
     - at: '2026-10-13T17:00:00-05:00'
-      temp_f: 40
-      cloud_cover_percent: 20
+      temp_f: 65.6
+      cloud_cover_percent: 100
   tariff:
     periods:
     - start_minute: 0

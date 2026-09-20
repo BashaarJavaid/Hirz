@@ -379,6 +379,7 @@ into an isolated `TwinWorld`. `run_scenario(...)` is async and returns a JSON-re
 run report. These are simulation interfaces, not new Action/Decision/AuditEvent
 shapes or execution authority. There is no database, signing key, LLM, external
 feed or device credential. Native Dogwood is required for simulated activation.
+Scenario weather is supplied inline, derived from a cited [archive fixture](../scenarios/fixtures/manifest.json), and never fetched during replay.
 
 Top-level fields are `id`, `seed`, `household`, `clock` (`start`, `end`, `speed`),
 `rate_plan: twin`, explicit `adapters`, `initial`, `timeline`, and `assert`.

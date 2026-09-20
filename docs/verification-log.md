@@ -2199,3 +2199,111 @@ $ uv run ruff format --check .
 
 Exit 0. `git diff --check` also passed. The format check is repeated after appending
 this result so it remains the last verification command before the single commit.
+
+## Scenario weather from archived observations
+
+### Author decision 2026-09-21; local verification 2026-09-20
+
+Correction to item 16 on `phase-2`, based on `7e69ff3`. The machine clock at
+retrieval was 2026-09-20 UTC; decision/document dates retain the author's requested
+2026-09-21 date. Python 3.12 and the existing `.tools/dogwood` were used. No loader,
+DSL, adapter implementation, assertion, dependency or Phase 3 code changed.
+Item 17 remains incomplete.
+
+The [raw archive response](../scenarios/fixtures/weather-chicago-2025-10-13.json)
+was fetched once successfully with Python's `urllib.request.urlopen` and saved
+byte-for-byte (1,639 bytes). Its request URL, actual retrieval timestamp and SHA-256
+are recorded in the [manifest](../scenarios/fixtures/manifest.json), using the
+energy-fixture manifest shape, and above each scenario's inline samples.
+The request uses the seed's declared coordinates, 41.88, -87.63, both calendar
+dates, hourly temperature/cloud cover, Fahrenheit and America/Chicago. The raw
+response retains both full days; the inline data select 2025-10-13 17:00 through
+2025-10-14 07:00 inclusive. The returned coordinates are the archive grid cell,
+41.862915, -87.64877; they do not replace the requested seed coordinates.
+Open-Meteo describes this [archive as reanalysis using observations and models](https://open-meteo.com/en/docs/historical-weather-api#data-sources),
+so the comments identify that provenance without claiming a station measurement.
+
+All 15 selected hours contain both values; no null hours were omitted. Their
+Chicago local dates shift forward one calendar year. The evening uses the 17:00
+values at its exact 17:30 start, followed by 18:00 through 07:00. Its weather
+coverage ends at 08:00 because the existing Weather validator requires the last
+sample strictly before `weather.end`; the scenario clock still ends at 07:00.
+The parents scenario uses only the same response's 17:00 values for its 25 minutes.
+The 07:00 sample is retained at the evening endpoint, with no extra hour of
+physics advancement. There is no runtime fixture lookup or network request.
+
+The initial sandbox request failed before contacting the API:
+`urllib.error.URLError: <urlopen error [Errno 8] nodename nor servname provided, or not known>`.
+The authorized network escalation then succeeded. The API behaved as documented;
+no friction-log entry was earned under this task's archive-only criterion.
+
+### Scenario commands and final snapshots
+
+Before editing, ran the evening command with stdout saved to
+`/private/tmp/hirz-weather-before.json`; after editing, ran both commands below.
+All three exited 0. Scenario commands used `UV_CACHE_DIR=/private/tmp/hirz-uv-cache`
+to keep cache access inside the sandbox's writable roots.
+
+```text
+$ HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run hirz scenario run scenarios/demo-evening.yaml --headless --assert
+demo-evening: item16_observations_passed; 16 checks passed; 25 deferred
+
+$ HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run hirz scenario run scenarios/parents-scam-check.yaml --headless --assert
+parents-scam-check: item16_observations_passed; 9 checks passed; 9 deferred
+```
+
+After reports: `/private/tmp/hirz-weather-evening.json` and
+`/private/tmp/hirz-weather-parents.json`. A one-off `uv run python` check recomputed
+the raw SHA-256, checked response units/timezone, compared every inline timestamp,
+temperature and cloud-cover value with the selected archive rows, and asserted
+the exact pass/deferred counts and that every report observation retained `twin`.
+It also started each scenario's `TwinEnergy` adapter and called `get_weather` over
+the horizon: both returned `source: twin`, `source_label: twin (supplied weather)`.
+The initial manual probe omitted `adapter.start()` and correctly raised
+`AdapterUnavailable: Twin adapter is not started.`; rerunning with the existing
+start/close lifecycle passed without any product code change.
+
+Final-snapshot values at 2026-10-14 07:00 America/Chicago, mapped to seed slugs
+using `LoadedScenario.ref("assets", slug)`:
+
+| Zone | Before `temp_f` | After `temp_f` |
+|---|---:|---:|
+| `hvac.living_room` | 57.8514 | 65.8044 |
+| `hvac.guest_room` | 58.6986 | 66.6517 |
+
+The archived overnight air is warmer than the old constant 40 °F, so the RC zones
+cool less. HVAC remains off and no temperature assertion was added or changed.
+These are simulated zone temperatures, not physical measurements or proof of
+comfort enforcement. Full-demo execution and its deferred checks remain owed.
+
+### Required checks
+
+The full suite ran with sandbox escalation for the existing localhost-socket
+tests and uv cache, with `HIRZ_DOGWOOD="$PWD/.tools/dogwood"`; its full output is
+`/private/tmp/hirz-weather-pytest.log`. The existing scenario tests also verified
+repeatable reports. No new remote CI run or integration run is claimed.
+
+```text
+$ uv run pytest
+TOTAL                                      5476    475    91%
+Required test coverage of 80% reached. Total coverage: 91.33%
+================ 875 passed, 61 deselected in 72.56s (0:01:12) =================
+
+$ uv run mypy hirz/ scripts/ alembic/
+Success: no issues found in 79 source files
+
+$ uv run ruff check .
+All checks passed!
+```
+
+All exited 0. Mypy and Ruff used the same writable temporary uv cache.
+
+Formatting after the evidence entry was written:
+
+```text
+$ uv run ruff format --check .
+131 files already formatted
+```
+
+Exit 0; `git diff --check` also passed. Formatting is repeated after recording
+this output so it remains the last verification command before committing.

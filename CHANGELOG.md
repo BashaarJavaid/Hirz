@@ -8,6 +8,10 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- 2026-09-21: Replace the scenarios' constant weather with inline archived Chicago
+  weather while retaining deterministic twin replay
+  ([verification](./docs/verification-log.md#scenario-weather-from-archived-observations)).
+
 - 2026-09-21: Bind a door-unlock ASK's doorbell press to its approval so delayed
   voting/redemption retains visitor context; refuse newer presses without widening
   the autonomous window ([verification](./docs/verification-log.md#doorbell-press-bound-to-approval)).
