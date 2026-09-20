@@ -45,6 +45,7 @@ CAPABILITIES: dict[AdapterDomain, frozenset[str]] = {
     "energy": frozenset(
         {
             "get_prices",
+            "get_supply_history",
             "get_tariff_state",
             "get_weather",
             "get_battery",

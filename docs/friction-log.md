@@ -123,6 +123,19 @@ repeat environment/cache restrictions, not upstream defects or new scored entrie
 References: [uv offline behavior](https://docs.astral.sh/uv/reference/cli/#uv-pip-install--offline)
 and [Docker Compose ps](https://docs.docker.com/reference/cli/docker/compose/ps/).
 
+## Item 14 energy research — 2026-09-20
+
+| # | Date | Tool / service | Goal | Steps / reference | Expected | Actual | Severity | Workaround | Feature request |
+|---|---|---|---|---|---|---|---|---|---|
+| 10 | 2026-09-20 | ComEd day-ahead chart feed | Read credential-free day-ahead history safely | Inspected [price page](https://hourlypricing.comed.com/live-prices/) and its [2026-08-01 request](https://hourlypricing.comed.com/rrtp/ServletFeed?type=daynexttoday&date=20260801) | A documented timestamped data contract | HTTP 200 begins `[[Date.UTC(2026,7,1,0,0,0), 2.8]`; the page calls `eval(series)` and the [public API documentation](https://hourlypricing.comed.com/hp-api/) covers five-minute/current-hour feeds, not this format | Minor | Retain raw responses/page and parse only a restricted grammar; never execute JavaScript | Publish a versioned JSON day-ahead endpoint with UTC timestamps, units and publication time |
+| 11 | 2026-09-20 | ComEd day-ahead DST labels | Map Chicago hours to unambiguous intervals | Read [fall 2025-11-02](https://hourlypricing.comed.com/rrtp/ServletFeed?type=daynexttoday&date=20251102) and [spring 2026-03-08](https://hourlypricing.comed.com/rrtp/ServletFeed?type=daynexttoday&date=20260308) | Distinguishable repeated hours | Fall HTTP 200 includes `[Date.UTC(2025,10,2,1,0,0), 3.3]` once; spring skips hour 2. The fall label supplies neither offset nor fold; no error response or upstream guarantee was observed | Minor | Interpret chart labels as local hours; omit both ambiguous fall intervals and report a two-hour gap | Return UTC timestamps or explicit offset/fold per row |
+| 12 | 2026-09-20 | ComEd delivery PDF | Pin the correct billed-distribution vintage | Reviewed [delivery guide](https://www.comed.com/cdn/assets/v3/assets/blt3ebb3fed6084be2a/blt7904befea93c3525/6a74ab1af8608b565710881f/A_Guide_to_the_Retail_Customer_s_Billed_Delivery_Service_Charges.pdf) pages 1–2 as rendered images and extracted text | One effective-period heading | Tables retain “Resultant Charge beginning with April 2026” alongside “June 2026”; no HTTP error on direct download | Minor | Preserve PDF/hash and record the June label, older heading and calendar-month approximation explicitly in the tariff metadata | Publish unambiguous effective-from/through fields with each billed-charge table |
+
+Sandbox follow-up to entry 8: the initial public-PDF download failed with exact
+`curl: (6) Could not resolve host: www.comed.com`; authorized network escalation
+succeeded. The browsing tool separately returned `Internal Error ()` for the same
+PDF URL, while direct curl succeeded. Neither is evidence of a ComEd outage.
+
 ## Candidates (not yet hit)
 
 - No documented way for an add-on to receive Alexa-side context (device modality, locale, timezone) or to be invoked proactively.

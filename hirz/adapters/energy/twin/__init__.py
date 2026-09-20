@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from hirz.adapters.base import PriceKind, PriceSlot, WeatherSample
+from hirz.adapters.base import PriceKind, PriceSeries, WeatherSeries
 from hirz.graph.models import AdapterDomain, Observation, ObservationState
 from hirz.twin.adapters import TwinAdapter
 from hirz.twin.world import TwinWorld
@@ -21,10 +21,10 @@ class TwinEnergy(TwinAdapter):
 
     async def get_prices(
         self, start: datetime, end: datetime, kind: PriceKind
-    ) -> tuple[PriceSlot, ...]:
+    ) -> PriceSeries:
         self.read()
         w = self.world
-        return w.config.tariff.prices(
+        slots = w.config.tariff.prices(
             start,
             end,
             kind,
@@ -35,12 +35,35 @@ class TwinEnergy(TwinAdapter):
             home=w.household.id,
         )
 
-    async def get_weather(
-        self, start: datetime, end: datetime
-    ) -> tuple[WeatherSample, ...]:
+        return PriceSeries(
+            requested_start=start,
+            requested_end=end,
+            rate_plan="twin",
+            kind=kind,
+            basis="supply_plus_distribution",
+            slots=slots,
+            gaps=(),
+            source="twin",
+            source_label="twin (synthetic tariff)",
+            source_urls=(),
+            tariff_version=None,
+            retrieved_at=None,
+        )
+
+    async def get_weather(self, start: datetime, end: datetime) -> WeatherSeries:
         self.read()
         self.world.check_range(start, end)
-        return self.world.config.weather.between(start, end)
+        return WeatherSeries(
+            requested_start=start,
+            requested_end=end,
+            samples=self.world.config.weather.between(start, end),
+            gaps=(),
+            source="twin",
+            source_label="twin (supplied weather)",
+            source_urls=(),
+            tariff_version=None,
+            retrieved_at=None,
+        )
 
     async def get_tariff_state(self) -> Observation:
         at, _ = self.read()

@@ -16,7 +16,7 @@ The twin is how Hirz demonstrates every capability end to end with no hardware, 
 ---
 
 Item 12 provides the nine async contracts and registry. Item 13 implements the
-in-memory models and eight read adapters (§2.11). Production transports, action
+in-memory models and eight read adapters (§2.11). Item 14 adds credential-free ComEd/Open-Meteo reads (§2.6); action
 execution, observation ingestion and scenario fallback remain later items. New observations require the correct domain
 as well as source; member presence and wearable readings occupy separate streams.
 The graph locations, legacy-row treatment and exact derivation rules are in
@@ -59,6 +59,62 @@ The rate plan is an attribute of the household (`household.rate_plan`), and the 
 - **`comed_time_of_day`** (the demo household's plan). ComEd's residential Time-of-Day rate, full supply-plus-delivery version live since 2026-07-23: four fixed daily periods (Morning, Mid-Day Peak 1 PM to 7 PM, Evening, Overnight 9 PM to 6 AM) with summer and non-summer prices. The rates live in `tariffs/comed-time-of-day.yaml`, a small table transcribed from ComEd's published supply-charge information sheet and delivery-charge guide, each row carrying its source URL and effective date. Labeled `real (published ComEd rate)`: a real rate, not a live feed. Period hours and every price are checked against ComEd's own documents when the file is written (`ROADMAP.md` item 14); nothing in this repo types them from memory.
 - **`comed_hourly`**. ComEd's Hourly Pricing live feed (day-ahead hourly plus 5-minute real-time, no auth) for supply, with the delivery charge added from the same tariff file. Labeled `real`. The feed serves historical ranges (`datestart`/`dateend`, verified 2026-09-17 back to September 2025), which is what the backtest uses.
 - **`twin`**. Time-of-use base with configurable peak windows and stochastic spikes, seeded; day-ahead and real-time series both produced so the planner path is identical to the real feed.
+
+**Implemented scheduling basis (item 14).** Here “all-in” means **supply plus billed
+Distribution Facilities Charge**, in Decimal cents/kWh. It is not the whole bill:
+IEDT, taxes, capacity, other separate bill line items, and fixed customer/metering
+charges are excluded. Preserve the adjustments already present in ComEd's published
+resultant distribution charges (IDUF, EDAF, DSPR, RBAF, TPAF and DGRA); do not add them
+again or replace the resultant with the base charge. Supply retains its published
+uncollectible-cost adjustments. Export prices are null and real energy advertises
+no export-price capability.
+
+Only `residential_single_family_without_electric_space_heat` is supported and must
+be explicitly selected. Time-of-Day uses period-specific billed distribution;
+Hourly Pricing uses the standard flat billed distribution. No asset implies a
+customer class. The canonical YAML retains every row's source URL, document effective
+date, applicable half-open billing period and verification date, and references the
+retained primary PDFs with SHA-256. Supply is valid for June 2026–May 2027 billing
+periods. The delivery guide's resultant tables show “June 2026” alongside an older
+April heading; the pinned vintage is June 2026 (pages 1–2), applied from that month
+until replaced. It is not a live rate check or a guarantee of future bill charges.
+Older dates need supply-only history; they must not receive fabricated delivery.
+The commercial launch date described above is distinct from the sheets' billing
+validity; a pre-launch scenario replay remains a labeled counterfactual.
+
+Billing periods are approximated by calendar months in `America/Chicago`, with
+June–September summer. Daily periods, including weekends, are 06:00–13:00 morning,
+13:00–19:00 mid-day peak, 19:00–21:00 evening, and 21:00–06:00 overnight. Apply local
+DST using UTC traversal, so spring and fall days have 23 and 25 hours. Requests are
+aware, half-open, limited to 366 elapsed days, and clipped to exact requested bounds.
+`day_ahead` uses hourly slots; `realtime` uses five-minute slots, including for the
+static tariff. No interpolation or switching between price kinds is permitted.
+
+**Feed interpretation.** ComEd's [five-minute API](https://hourlypricing.comed.com/hp-api/)
+uses inclusive local request bounds and returned UTC millisecond timestamps. Fetch
+each Chicago calendar day sequentially, including its next-midnight endpoint; collapse
+identical duplicates and filter coverage in UTC. Each quote covers its timestamp
+through five minutes later. These are quoted supply prices, not the finalized hourly
+billing series. Negative values remain negative after the explicit distribution sum.
+The [first-party chart](https://hourlypricing.comed.com/live-prices/) requests
+`/rrtp/ServletFeed?type=daynexttoday&date=YYYYMMDD`; its restricted `Date.UTC(...)`
+array encodes Chicago wall-clock labels, despite its name. Retained spring/fall
+fixtures and page source support this interpretation, not an upstream guarantee.
+Never evaluate the response as JavaScript. A fall-back 1 a.m. label cannot distinguish
+the two occurrences: omit both and report the ambiguity. Historical day-ahead data
+has unknown publication time and does not establish no-hindsight planning.
+Missing/null/unpublished prices are gaps; conflicts, malformed arrays, nonfinite
+numbers, invalid units or a failed daily request make the entire read unavailable.
+
+**Weather.** [Open-Meteo](https://open-meteo.com/en/docs) receives the household's
+coordinates directly, `hourly=temperature_2m,cloud_cover`, `temperature_unit=fahrenheit`,
+`timezone=UTC`, and `forecast_days=16`. The supported window is current UTC midnight
+through midnight 16 days later; no geocoding or archive fallback. Missing coordinates
+remove weather capability without disabling prices. A valid hourly sample covers
+only its hour; for an unaligned start, repeat that hour's value at the requested
+boundary. Missing hours remain gaps, with no carry across them. Twin supplied weather
+retains its declared hold-until-next-sample semantics and uses the same series shape.
+All requests use a ten-second httpx timeout without automatic caching or retries.
 
 ### 2.7 Occupancy and presence
 
@@ -140,7 +196,9 @@ without HVAC. The EV check accepts 100–110 minutes for 34→50%.
 timestamps must be strictly ordered within that coverage. Values hold until the
 next sample (the final sample through coverage end); no extrapolation or fetches.
 A synthetic tariff requires `household.rate_plan=twin`, using an in-memory copy
-when necessary. Require contiguous daily local-time periods covering 00:00–24:00,
+when necessary. In mixed households the twin factory permits that explicit
+rate-plan-only difference and requires every other household field to match.
+Require contiguous daily local-time periods covering 00:00–24:00,
 Decimal import prices, band names, slot minutes, spike probability and nonnegative
 spike range. Negative base prices are valid. Slots are anchored to simulation
 start; their base rate is selected at slot start in household local time. Queries

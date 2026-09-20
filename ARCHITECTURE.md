@@ -680,9 +680,41 @@ transport/authentication is still later work. Device discovery returns entity st
 Price reads take an aware half-open range and `day_ahead | realtime`, using the
 household rate plan. `PriceSlot` contains start/end, Decimal import cents/kWh and
 optional export cents/kWh; negative prices are valid. Weather reads use the household
-location and return timestamped `WeatherSample` values with temperature °F and cloud
+location and retain timestamped `WeatherSample` values with temperature °F and cloud
 cover percent. All documented write methods accept canonical `Action, Decision` and
 return `None`; these are declarations only, not grant verification or execution.
+
+**Item 14 energy series contract.** Both energy implementations now return
+`PriceSeries` from `get_prices` and `WeatherSeries` from `get_weather`, replacing
+bare tuples. Shared fields are `requested_start`, `requested_end`, `gaps`, `source`,
+`source_label`, `source_urls`, nullable `tariff_version`, and nullable `retrieved_at`.
+`PriceSeries` additionally carries `rate_plan`, `kind`, `basis` and ordered `slots`;
+`WeatherSeries` carries ordered `samples`. Each gap has `start`, `end`, and `reason`.
+Slots and gaps partition the requested interval without overlap. Weather values hold
+until the next sample, gap or requested end; each covered segment starts with a
+sample. `complete` is derived, never caller-supplied. Bounds and coverage comparisons
+use UTC instants, including folded Chicago hours. The three existing source values
+are unchanged; static tariffs and twins have no network retrieval timestamp.
+
+`hirz.adapters.energy.real.factories(delivery_class=..., tariff_path=...)` registers
+`energy:real` in the existing factory map. Construction requires the selected class
+and file; `household.rate_plan` selects `comed_time_of_day` or `comed_hourly`.
+Capabilities are price reads and real-only `get_supply_history`, plus weather when
+coordinates exist and tariff state for Time-of-Day only. The latter returns a
+canonical household energy observation with `morning`, `mid_day_peak`, `evening` or
+`overnight`. Real battery/solar reads and writes are unavailable. Explicit twin
+asset bindings remain independent of the real domain default; no implicit fallback
+or household-class inference is performed.
+
+`get_prices` uses `basis=supply_plus_distribution`; `get_supply_history` returns the
+same contract with `basis=supply_only`, permitting older Hourly Pricing history
+without extending the pinned distribution schedule backward. The scheduling basis,
+exclusions, validity and source contracts live in
+[twin §2.6](./docs/twin-and-scenarios.md#26-tariff).
+Invalid input raises `AdapterError`; network/upstream-contract failures raise safe
+`AdapterUnavailable` messages without payloads. A failed daily request fails the
+whole read; valid incomplete responses produce gaps. No caching, retries, ingestion,
+worker polling, planner, execution or finalized hourly billing is built here.
 
 `Registry.stamp()` revalidates a whole observation against its selected binding,
 household, subject, time, domain and trusted per-subject source registration. Sources

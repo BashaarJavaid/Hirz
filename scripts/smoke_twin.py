@@ -199,8 +199,10 @@ async def smoke() -> None:
             prices = await energy.get_prices(
                 START, START + timedelta(hours=2), "realtime"
             )
-            assert len(prices) == 2
-            assert await energy.get_weather(START, START + timedelta(hours=2))
+            assert len(prices.slots) == 2 and prices.complete
+            assert (
+                await energy.get_weather(START, START + timedelta(hours=2))
+            ).complete
             await cast(CalendarAdapter, reg.resolve("calendar")).expected_arrivals(
                 START, START + timedelta(days=1)
             )

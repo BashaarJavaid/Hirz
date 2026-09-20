@@ -1420,3 +1420,223 @@ Post-closeout checks: Ruff reported `All checks passed!`, mypy reported
 only the headings and therefore caught the pre-existing AGENTS-only introductory
 mirror sentence. Normalizing that existing introduction and the two headings
 confirms identical guidance; no unrelated introductory text was changed.
+
+
+## Item 14 — Complete (2026-09-20)
+
+Implemented the approved credential-free energy plan: canonical pinned tariff,
+`energy:real`, explicit series coverage/provenance, recorded feeds, and read-only
+smoke. Interface/time semantics and exclusions are in [ADR-006's item 14
+amendment](./adr/ADR-006-twin-first-adapters.md#item-14-credential-free-energy-amendment--2026-09-20-author-approved)
+and its linked specifications.
+
+Environment: macOS ARM64, Python 3.12.13, uv 0.12.15, pytest 9.1.1; installed project
+dependencies and existing native `.tools/dogwood`. Commands ran from the checkout
+unless stated otherwise. `UV_CACHE_DIR=/private/tmp/hirz-uv-cache` was used for local
+uv checks; the wheel install used the existing user cache with network disabled.
+Sandbox escalation was used for public feed/PDF downloads, the full suite's existing
+local socket test, and disposable wheel-environment installation. No AWS credentials
+or deployment, database migration/ingestion, remote CI dispatch, or device action.
+
+**Primary-source cross-check and recordings.** Retained `tariffs/sources/` PDFs
+were downloaded directly from the exact URLs in the canonical tariff file. Read
+supply page 1 with `pdftotext -layout`; reviewed delivery pages 1–2 with both text
+extraction and rendered `pdftoppm` images. Checked all eight supply values, four
+Time-of-Day distribution values, standard distribution, period hours, seasons,
+validity and resultant-charge vintage against those documents. The YAML records
+per-row dates/URLs, exclusions and the delivery header ambiguity; hashes are tested
+against the retained bytes. Normal tests compare reviewed values without requiring
+PDF tools. `tests/fixtures/energy/manifest.json` retains acquisition UTC timestamps,
+request URLs and hashes for day-ahead, five-minute, spring/fall DST, weather and
+source-page recordings. The evidence does not treat Date.UTC chart labels as a
+public timestamp guarantee or the June delivery vintage as a live rate check.
+
+**Validation commands and actual results.**
+
+```text
+uv run pytest
+777 passed, 52 deselected in 61.87s (0:01:01)
+Required test coverage of 80% reached. Total coverage: 89.87%
+
+uv run ruff check .
+All checks passed!
+
+uv run mypy hirz/ scripts/ alembic/
+Success: no issues found in 74 source files
+
+uv run ruff format --check .
+123 files already formatted
+
+uv build
+Successfully built dist/hirz-0.0.0.tar.gz
+Successfully built dist/hirz-0.0.0-py3-none-any.whl
+```
+
+The 52 deselected tests are the explicitly selected PostgreSQL integration suite;
+there were no database changes and it was not run for this item. The final format
+check is repeated after these completion records. The initial focused run passed
+161 tests; an intermediate full run passed 775 at 89.86%. Final review replaced a
+test-only factory shortcut with actual real/twin factory composition: the twin
+factory permits only the deliberate in-memory rate-plan difference while preserving
+all other household checks. The final suite verifies actual battery/solar reads
+and stamping through those bindings, plus safe overflow/deep-malformed-response
+handling. Early Ruff checks reported formatting/style issues and mypy reported the
+computed-field property decorator diagnostic; formatting and the documented targeted
+mypy suppression resolved them before the final checks. No failing checks remain.
+
+The energy tests cover reviewed tariff values, every period boundary, both seasons,
+calendar billing approximation, effective limits, Decimal sums and negatives,
+export absence, unsupported profiles, UTC clipping, both DST transitions, inclusive
+daily endpoints and duplicates, explicit null/empty/future gaps, malformed and
+JavaScript-shaped input, unit/coordinate/horizon errors, unaligned weather reads,
+missing hours, timeout and partial multi-day failure, lifecycle, household isolation,
+actual mixed bindings, unavailable writes and twin series provenance. Existing twin
+physics and native policy conformance tests passed unchanged in the full suite.
+
+**Default recorded smoke.** Ran `uv run python scripts/smoke_energy.py`, exit 0:
+
+```text
+RECORDED public feed fixtures (no network)
+comed_time_of_day/day_ahead: real (published ComEd rate)
+  requested=[2026-08-01T05:00:00+00:00, 2026-08-02T05:00:00+00:00) count=24 gaps=0 covered_hours=24.000000 complete=True
+  observed_bounds=[2026-08-01T05:00:00+00:00, 2026-08-02T05:00:00+00:00) basis=supply_plus_distribution tariff=comed-2026-06-verified-2026-09-20 retrieved_at=None
+  import_cents_per_kwh: first=6.174 min=6.174 max=28.446 export=None
+comed_time_of_day/realtime: real (published ComEd rate)
+  requested=[2026-08-01T05:00:00+00:00, 2026-08-02T05:00:00+00:00) count=288 gaps=0 covered_hours=24.000000 complete=True
+  observed_bounds=[2026-08-01T05:00:00+00:00, 2026-08-02T05:00:00+00:00) basis=supply_plus_distribution tariff=comed-2026-06-verified-2026-09-20 retrieved_at=None
+  import_cents_per_kwh: first=6.174 min=6.174 max=28.446 export=None
+weather: real (Open-Meteo forecast)
+  requested=[2026-09-20T00:17:00+00:00, 2026-09-20T03:00:00+00:00) count=3 gaps=0 covered_hours=2.716667 complete=True
+comed_hourly/day_ahead: real (ComEd day-ahead forecast; publication time unknown)
+  requested=[2026-08-01T05:00:00+00:00, 2026-08-02T05:00:00+00:00) count=24 gaps=0 covered_hours=24.000000 complete=True
+  observed_bounds=[2026-08-01T05:00:00+00:00, 2026-08-02T05:00:00+00:00) basis=supply_plus_distribution tariff=comed-2026-06-verified-2026-09-20 retrieved_at=2026-09-20 00:00:00+00:00
+  import_cents_per_kwh: first=9.133 min=8.133 max=9.433 export=None
+comed_hourly/realtime: real (ComEd realtime quoted supply; not finalized hourly billing)
+  requested=[2026-08-01T05:00:00+00:00, 2026-08-02T05:00:00+00:00) count=287 gaps=1 covered_hours=23.916667 complete=False
+  observed_bounds=[2026-08-01T05:00:00+00:00, 2026-08-02T05:00:00+00:00) basis=supply_plus_distribution tariff=comed-2026-06-verified-2026-09-20 retrieved_at=2026-09-20 00:00:00+00:00
+  import_cents_per_kwh: first=8.233 min=7.633 max=20.033 export=None
+  gap=[2026-08-02T02:35:00+00:00, 2026-08-02T02:40:00+00:00) missing or unpublished supply price
+```
+
+Recorded smoke retrieval fields use the injected replay clock; actual capture
+metadata lives in the fixture manifest. It does not claim a live read.
+
+**Live smoke.** Ran
+`uv run python scripts/smoke_energy.py --live --history-month 2026-08`, exit 0.
+The first successful read was repeated after correcting the smoke's retrieval
+clock to use actual time and adding an assertion that weather returned data.
+August's requested Chicago calendar month has 744 hours / 8,928 nominal five-minute
+intervals. The actual final read returned 8,848 intervals, 80 missing intervals in
+44 contiguous gaps, 737 hours 20 minutes covered, and 6 hours 40 minutes missing.
+No interpolation or gap-free claim. Returned scheduling prices retain negatives;
+they are not finalized bills, export valuations, planner savings or proof of
+historical forecast publication. Exact final output:
+
+```text
+LIVE public feeds
+comed_time_of_day/day_ahead: real (published ComEd rate)
+  requested=[2026-08-01T05:00:00+00:00, 2026-08-02T05:00:00+00:00) count=24 gaps=0 covered_hours=24.000000 complete=True
+  observed_bounds=[2026-08-01T05:00:00+00:00, 2026-08-02T05:00:00+00:00) basis=supply_plus_distribution tariff=comed-2026-06-verified-2026-09-20 retrieved_at=None
+  import_cents_per_kwh: first=6.174 min=6.174 max=28.446 export=None
+comed_time_of_day/realtime: real (published ComEd rate)
+  requested=[2026-08-01T05:00:00+00:00, 2026-08-02T05:00:00+00:00) count=288 gaps=0 covered_hours=24.000000 complete=True
+  observed_bounds=[2026-08-01T05:00:00+00:00, 2026-08-02T05:00:00+00:00) basis=supply_plus_distribution tariff=comed-2026-06-verified-2026-09-20 retrieved_at=None
+  import_cents_per_kwh: first=6.174 min=6.174 max=28.446 export=None
+weather: real (Open-Meteo forecast)
+  requested=[2026-09-20T15:17:00+00:00, 2026-09-20T18:00:00+00:00) count=3 gaps=0 covered_hours=2.716667 complete=True
+comed_hourly/day_ahead: real (ComEd day-ahead forecast; publication time unknown)
+  requested=[2026-08-01T05:00:00+00:00, 2026-08-02T05:00:00+00:00) count=24 gaps=0 covered_hours=24.000000 complete=True
+  observed_bounds=[2026-08-01T05:00:00+00:00, 2026-08-02T05:00:00+00:00) basis=supply_plus_distribution tariff=comed-2026-06-verified-2026-09-20 retrieved_at=2026-09-20 15:24:52.439951+00:00
+  import_cents_per_kwh: first=9.133 min=8.133 max=9.433 export=None
+comed_hourly/realtime: real (ComEd realtime quoted supply; not finalized hourly billing)
+  requested=[2026-08-01T05:00:00+00:00, 2026-09-01T05:00:00+00:00) count=8848 gaps=44 covered_hours=737.333333 complete=False
+  observed_bounds=[2026-08-01T05:00:00+00:00, 2026-09-01T05:00:00+00:00) basis=supply_plus_distribution tariff=comed-2026-06-verified-2026-09-20 retrieved_at=2026-09-20 15:24:57.318026+00:00
+  import_cents_per_kwh: first=8.233 min=-3.767 max=146.933 export=None
+  gap=[2026-08-02T02:35:00+00:00, 2026-08-02T02:40:00+00:00) missing or unpublished supply price
+  gap=[2026-08-03T09:20:00+00:00, 2026-08-03T09:25:00+00:00) missing or unpublished supply price
+  gap=[2026-08-04T09:05:00+00:00, 2026-08-04T09:10:00+00:00) missing or unpublished supply price
+  gap=[2026-08-04T19:15:00+00:00, 2026-08-04T19:20:00+00:00) missing or unpublished supply price
+  gap=[2026-08-05T08:55:00+00:00, 2026-08-05T09:00:00+00:00) missing or unpublished supply price
+  gap=[2026-08-05T17:15:00+00:00, 2026-08-05T17:20:00+00:00) missing or unpublished supply price
+  gap=[2026-08-06T10:15:00+00:00, 2026-08-06T10:20:00+00:00) missing or unpublished supply price
+  gap=[2026-08-06T18:40:00+00:00, 2026-08-06T18:50:00+00:00) missing or unpublished supply price
+  gap=[2026-08-07T14:25:00+00:00, 2026-08-07T14:35:00+00:00) missing or unpublished supply price
+  gap=[2026-08-07T14:40:00+00:00, 2026-08-07T14:45:00+00:00) missing or unpublished supply price
+  gap=[2026-08-07T15:00:00+00:00, 2026-08-07T15:05:00+00:00) missing or unpublished supply price
+  gap=[2026-08-07T15:10:00+00:00, 2026-08-07T15:15:00+00:00) missing or unpublished supply price
+  gap=[2026-08-07T18:50:00+00:00, 2026-08-07T19:00:00+00:00) missing or unpublished supply price
+  gap=[2026-08-07T20:20:00+00:00, 2026-08-07T20:35:00+00:00) missing or unpublished supply price
+  gap=[2026-08-07T23:40:00+00:00, 2026-08-07T23:45:00+00:00) missing or unpublished supply price
+  gap=[2026-08-08T05:05:00+00:00, 2026-08-08T05:10:00+00:00) missing or unpublished supply price
+  gap=[2026-08-08T13:25:00+00:00, 2026-08-08T13:30:00+00:00) missing or unpublished supply price
+  gap=[2026-08-09T06:10:00+00:00, 2026-08-09T06:15:00+00:00) missing or unpublished supply price
+  gap=[2026-08-09T20:50:00+00:00, 2026-08-09T20:55:00+00:00) missing or unpublished supply price
+  gap=[2026-08-10T08:25:00+00:00, 2026-08-10T08:30:00+00:00) missing or unpublished supply price
+  gap=[2026-08-10T17:10:00+00:00, 2026-08-10T17:20:00+00:00) missing or unpublished supply price
+  gap=[2026-08-11T11:00:00+00:00, 2026-08-11T11:05:00+00:00) missing or unpublished supply price
+  gap=[2026-08-12T05:40:00+00:00, 2026-08-12T05:45:00+00:00) missing or unpublished supply price
+  gap=[2026-08-14T02:15:00+00:00, 2026-08-14T03:00:00+00:00) missing or unpublished supply price
+  gap=[2026-08-17T04:50:00+00:00, 2026-08-17T04:55:00+00:00) missing or unpublished supply price
+  gap=[2026-08-17T17:00:00+00:00, 2026-08-17T17:05:00+00:00) missing or unpublished supply price
+  gap=[2026-08-18T19:05:00+00:00, 2026-08-18T19:20:00+00:00) missing or unpublished supply price
+  gap=[2026-08-19T04:00:00+00:00, 2026-08-19T04:15:00+00:00) missing or unpublished supply price
+  gap=[2026-08-19T06:15:00+00:00, 2026-08-19T06:20:00+00:00) missing or unpublished supply price
+  gap=[2026-08-25T12:30:00+00:00, 2026-08-25T12:35:00+00:00) missing or unpublished supply price
+  gap=[2026-08-25T16:05:00+00:00, 2026-08-25T16:10:00+00:00) missing or unpublished supply price
+  gap=[2026-08-25T16:15:00+00:00, 2026-08-25T16:20:00+00:00) missing or unpublished supply price
+  gap=[2026-08-25T20:55:00+00:00, 2026-08-25T21:10:00+00:00) missing or unpublished supply price
+  gap=[2026-08-26T14:55:00+00:00, 2026-08-26T15:00:00+00:00) missing or unpublished supply price
+  gap=[2026-08-26T19:25:00+00:00, 2026-08-26T20:25:00+00:00) missing or unpublished supply price
+  gap=[2026-08-27T19:05:00+00:00, 2026-08-27T19:10:00+00:00) missing or unpublished supply price
+  gap=[2026-08-27T19:15:00+00:00, 2026-08-27T19:25:00+00:00) missing or unpublished supply price
+  gap=[2026-08-28T14:30:00+00:00, 2026-08-28T14:35:00+00:00) missing or unpublished supply price
+  gap=[2026-08-28T17:20:00+00:00, 2026-08-28T17:25:00+00:00) missing or unpublished supply price
+  gap=[2026-08-28T17:30:00+00:00, 2026-08-28T17:40:00+00:00) missing or unpublished supply price
+  gap=[2026-08-28T17:50:00+00:00, 2026-08-28T18:00:00+00:00) missing or unpublished supply price
+  gap=[2026-08-28T18:40:00+00:00, 2026-08-28T18:45:00+00:00) missing or unpublished supply price
+  gap=[2026-08-28T19:25:00+00:00, 2026-08-28T19:40:00+00:00) missing or unpublished supply price
+  gap=[2026-08-30T16:45:00+00:00, 2026-08-30T16:50:00+00:00) missing or unpublished supply price
+```
+
+**Twin user-path regression.** Ran `uv run python scripts/smoke_twin.py`, exit 0:
+
+```text
+SIMULATED: standalone physics and read adapters; no actions or persistence
+PASS ev_minutes_34_to_50=105.75793184
+PASS warm_45_min_f=4.00089188
+PASS drift_60_min_f=0.98378575
+PASS ev_energy_residual_kwh=0.00000000
+PASS quinn-home: adapters=8 observations=15 source=twin writes=unavailable balance_residual_kwh=0.0000000000
+PASS quinn-parents: adapters=8 observations=6 source=twin writes=unavailable balance_residual_kwh=0.0000000000
+```
+
+**Installed wheel outside the checkout.** Created `/private/tmp/hirz-item14-wheel`
+with `uv venv --python /Users/bashaarjavaid/Projects/Hirz/.venv/bin/python`, then
+installed the wheel and 29 dependencies from the existing cache with
+`uv pip install --python /private/tmp/hirz-item14-wheel/bin/python --offline
+/Users/bashaarjavaid/Projects/Hirz/dist/hirz-0.0.0-py3-none-any.whl`. After the final
+code changes, rebuilt and reinstalled with `--reinstall-package hirz`.
+From `/private/tmp`, ran the reproducible repository smoke with isolated imports
+and an explicitly supplied tariff file:
+
+```bash
+/private/tmp/hirz-item14-wheel/bin/python -I /Users/bashaarjavaid/Projects/Hirz/scripts/smoke_energy.py --tariff-file /Users/bashaarjavaid/Projects/Hirz/tariffs/comed-time-of-day.yaml
+/private/tmp/hirz-item14-wheel/bin/python -I -c 'import hirz; print(hirz.__file__); assert "site-packages" in hirz.__file__'
+```
+
+Both exited 0; recorded counts/gaps matched the default smoke above. Import resolved
+to `/private/tmp/hirz-item14-wheel/lib/python3.12/site-packages/hirz/__init__.py`,
+not the checkout. An additional temporary async wheel probe independently asserted
+24 day-ahead slots per plan, 288 static / 287 recorded realtime slots and two weather
+samples per plan, with all adapters closed:
+
+```text
+PASS installed wheel comed_time_of_day: day_ahead=24 realtime=288 weather=2
+PASS installed wheel comed_hourly: day_ahead=24 realtime=287 weather=2
+```
+
+Third-party friction was checked and recorded as entries 10–12 plus the existing
+sandbox-restriction follow-up in [the friction log](./friction-log.md#item-14-energy-research--2026-09-20).
+No blocked acceptance checks. Item 15 remains next; the development database stays
+unchanged on `0003_pipeline`, item 12's upgrade remains manual, and no new threat-model
+protection or remote CI result is claimed.

@@ -29,6 +29,12 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- 2026-09-20: Completed item 14: credential-free ComEd/Open-Meteo reads, reviewed
+  tariff sources, explicit price/weather coverage and provenance, and recorded/live
+  smoke verification; real prices compose with explicitly bound twin assets
+  ([ADR-006](./docs/adr/ADR-006-twin-first-adapters.md#item-14-credential-free-energy-amendment--2026-09-20-author-approved),
+  [evidence](./docs/verification-log.md#item-14--complete-2026-09-20)).
+
 - 2026-09-19: Completed item 13's in-memory twin models, simulated clock and eight
   read adapters with explicit calibration, deterministic replay and labeled
   observations; action execution remains deferred. Added the credential-free

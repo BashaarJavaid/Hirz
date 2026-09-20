@@ -1,0 +1,168 @@
+version: comed-2026-06-verified-2026-09-20
+delivery_class: residential_single_family_without_electric_space_heat
+timezone: America/Chicago
+unit: cents_per_kwh
+basis: supply_plus_distribution
+billing_period_approximation: Chicago calendar months; summer June through September
+exclusions:
+- IEDT
+- taxes
+- capacity
+- other separate bill line items
+- fixed customer and metering charges
+included_adjustments: Use published resultant distribution charges, preserving IDUF,
+  EDAF, DSPR, RBAF, TPAF and DGRA; supply includes published SBUF and ISUF.
+delivery_vintage_note: June 2026 label on resultant-charge tables, pages 1–2; stale
+  April heading is also printed. Effective day approximated by billing-month start;
+  pinned until replaced, no live rate check.
+sources:
+- file: sources/comed-supply.pdf
+  url: https://azure-na-assets.contentstack.com/v3/assets/blt3ebb3fed6084be2a/blt05c0a20ca37bcb9d/117_Rate%20BEST%20Supply%20Charges_Informational%20Sheet_Info%20Sheet%2070mpt.pdf
+  sha256: 95323a21fb664c331b36c90d18981937fa260dcf346bbb65e03350ae5512530e
+- file: sources/comed-delivery.pdf
+  url: https://www.comed.com/cdn/assets/v3/assets/blt3ebb3fed6084be2a/blt7904befea93c3525/6a74ab1af8608b565710881f/A_Guide_to_the_Retail_Customer_s_Billed_Delivery_Service_Charges.pdf
+  sha256: e8a9fec036ef8f3008b5a3023a206ab07050a3b0b8e4ad29834ef3fdaba5b7da
+rows:
+- component: supply
+  period: morning
+  season: summer
+  start_hour: 6
+  end_hour: 13
+  cents_per_kwh: '3.778'
+  source_url: https://azure-na-assets.contentstack.com/v3/assets/blt3ebb3fed6084be2a/blt05c0a20ca37bcb9d/117_Rate%20BEST%20Supply%20Charges_Informational%20Sheet_Info%20Sheet%2070mpt.pdf
+  document_effective_date: '2026-05-16'
+  billing_start: '2026-06-01'
+  billing_end: '2027-06-01'
+  verified_on: '2026-09-20'
+- component: supply
+  period: morning
+  season: nonsummer
+  start_hour: 6
+  end_hour: 13
+  cents_per_kwh: '4.768'
+  source_url: https://azure-na-assets.contentstack.com/v3/assets/blt3ebb3fed6084be2a/blt05c0a20ca37bcb9d/117_Rate%20BEST%20Supply%20Charges_Informational%20Sheet_Info%20Sheet%2070mpt.pdf
+  document_effective_date: '2026-05-16'
+  billing_start: '2026-06-01'
+  billing_end: '2027-06-01'
+  verified_on: '2026-09-20'
+- component: distribution
+  period: morning
+  season: all
+  start_hour: 6
+  end_hour: 13
+  cents_per_kwh: '4.475'
+  source_url: https://www.comed.com/cdn/assets/v3/assets/blt3ebb3fed6084be2a/blt7904befea93c3525/6a74ab1af8608b565710881f/A_Guide_to_the_Retail_Customer_s_Billed_Delivery_Service_Charges.pdf
+  document_effective_date: '2026-06-01'
+  billing_start: '2026-06-01'
+  billing_end: null
+  verified_on: '2026-09-20'
+- component: supply
+  period: mid_day_peak
+  season: summer
+  start_hour: 13
+  end_hour: 19
+  cents_per_kwh: '16.594'
+  source_url: https://azure-na-assets.contentstack.com/v3/assets/blt3ebb3fed6084be2a/blt05c0a20ca37bcb9d/117_Rate%20BEST%20Supply%20Charges_Informational%20Sheet_Info%20Sheet%2070mpt.pdf
+  document_effective_date: '2026-05-16'
+  billing_start: '2026-06-01'
+  billing_end: '2027-06-01'
+  verified_on: '2026-09-20'
+- component: supply
+  period: mid_day_peak
+  season: nonsummer
+  start_hour: 13
+  end_hour: 19
+  cents_per_kwh: '14.699'
+  source_url: https://azure-na-assets.contentstack.com/v3/assets/blt3ebb3fed6084be2a/blt05c0a20ca37bcb9d/117_Rate%20BEST%20Supply%20Charges_Informational%20Sheet_Info%20Sheet%2070mpt.pdf
+  document_effective_date: '2026-05-16'
+  billing_start: '2026-06-01'
+  billing_end: '2027-06-01'
+  verified_on: '2026-09-20'
+- component: distribution
+  period: mid_day_peak
+  season: all
+  start_hour: 13
+  end_hour: 19
+  cents_per_kwh: '11.852'
+  source_url: https://www.comed.com/cdn/assets/v3/assets/blt3ebb3fed6084be2a/blt7904befea93c3525/6a74ab1af8608b565710881f/A_Guide_to_the_Retail_Customer_s_Billed_Delivery_Service_Charges.pdf
+  document_effective_date: '2026-06-01'
+  billing_start: '2026-06-01'
+  billing_end: null
+  verified_on: '2026-09-20'
+- component: supply
+  period: evening
+  season: summer
+  start_hour: 19
+  end_hour: 21
+  cents_per_kwh: '5.793'
+  source_url: https://azure-na-assets.contentstack.com/v3/assets/blt3ebb3fed6084be2a/blt05c0a20ca37bcb9d/117_Rate%20BEST%20Supply%20Charges_Informational%20Sheet_Info%20Sheet%2070mpt.pdf
+  document_effective_date: '2026-05-16'
+  billing_start: '2026-06-01'
+  billing_end: '2027-06-01'
+  verified_on: '2026-09-20'
+- component: supply
+  period: evening
+  season: nonsummer
+  start_hour: 19
+  end_hour: 21
+  cents_per_kwh: '6.009'
+  source_url: https://azure-na-assets.contentstack.com/v3/assets/blt3ebb3fed6084be2a/blt05c0a20ca37bcb9d/117_Rate%20BEST%20Supply%20Charges_Informational%20Sheet_Info%20Sheet%2070mpt.pdf
+  document_effective_date: '2026-05-16'
+  billing_start: '2026-06-01'
+  billing_end: '2027-06-01'
+  verified_on: '2026-09-20'
+- component: distribution
+  period: evening
+  season: all
+  start_hour: 19
+  end_hour: 21
+  cents_per_kwh: '4.185'
+  source_url: https://www.comed.com/cdn/assets/v3/assets/blt3ebb3fed6084be2a/blt7904befea93c3525/6a74ab1af8608b565710881f/A_Guide_to_the_Retail_Customer_s_Billed_Delivery_Service_Charges.pdf
+  document_effective_date: '2026-06-01'
+  billing_start: '2026-06-01'
+  billing_end: null
+  verified_on: '2026-09-20'
+- component: supply
+  period: overnight
+  season: summer
+  start_hour: 21
+  end_hour: 6
+  cents_per_kwh: '2.829'
+  source_url: https://azure-na-assets.contentstack.com/v3/assets/blt3ebb3fed6084be2a/blt05c0a20ca37bcb9d/117_Rate%20BEST%20Supply%20Charges_Informational%20Sheet_Info%20Sheet%2070mpt.pdf
+  document_effective_date: '2026-05-16'
+  billing_start: '2026-06-01'
+  billing_end: '2027-06-01'
+  verified_on: '2026-09-20'
+- component: supply
+  period: overnight
+  season: nonsummer
+  start_hour: 21
+  end_hour: 6
+  cents_per_kwh: '3.394'
+  source_url: https://azure-na-assets.contentstack.com/v3/assets/blt3ebb3fed6084be2a/blt05c0a20ca37bcb9d/117_Rate%20BEST%20Supply%20Charges_Informational%20Sheet_Info%20Sheet%2070mpt.pdf
+  document_effective_date: '2026-05-16'
+  billing_start: '2026-06-01'
+  billing_end: '2027-06-01'
+  verified_on: '2026-09-20'
+- component: distribution
+  period: overnight
+  season: all
+  start_hour: 21
+  end_hour: 6
+  cents_per_kwh: '3.345'
+  source_url: https://www.comed.com/cdn/assets/v3/assets/blt3ebb3fed6084be2a/blt7904befea93c3525/6a74ab1af8608b565710881f/A_Guide_to_the_Retail_Customer_s_Billed_Delivery_Service_Charges.pdf
+  document_effective_date: '2026-06-01'
+  billing_start: '2026-06-01'
+  billing_end: null
+  verified_on: '2026-09-20'
+- component: distribution
+  period: flat
+  season: all
+  start_hour: 0
+  end_hour: 24
+  cents_per_kwh: '6.333'
+  source_url: https://www.comed.com/cdn/assets/v3/assets/blt3ebb3fed6084be2a/blt7904befea93c3525/6a74ab1af8608b565710881f/A_Guide_to_the_Retail_Customer_s_Billed_Delivery_Service_Charges.pdf
+  document_effective_date: '2026-06-01'
+  billing_start: '2026-06-01'
+  billing_end: null
+  verified_on: '2026-09-20'

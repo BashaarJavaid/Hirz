@@ -468,3 +468,48 @@ uv run --locked pytest -m integration --no-cov
 Item 13 adds no schema revision and does not apply item 12's pending development
 database upgrade. The bundled SVG is original repository artwork and ships in the
 Python wheel; it is visibly labeled as simulated.
+
+## Credential-free energy adapters (item 14)
+
+No database, account credentials or worker is needed. The default smoke reads hashed
+recordings; opt into public network reads explicitly:
+
+```bash
+uv run python scripts/smoke_energy.py
+uv run python scripts/smoke_energy.py --live --history-month 2026-08
+uv run pytest tests/unit/test_energy.py
+```
+
+The live command reads one day of Time-of-Day/day-ahead prices, the requested whole
+month of five-minute quotes, and three hours of current weather. It prints source
+labels, requested/observed bounds, slot counts, explicit gaps, coverage and prices
+derived from returned data. Missing intervals are expected to remain visible;
+acceptance requires returned data, not an invented complete month. Recorded mode
+covers August 1 and the captured weather window, and uses an injected clock; its
+retrieval timestamps are replay-clock values. Actual fixture acquisition timestamps,
+URLs and SHA-256 are in `tests/fixtures/energy/manifest.json`.
+
+Construct `RealEnergy(household, delivery_class=..., tariff_path=...)` with
+`delivery_class="residential_single_family_without_electric_space_heat"` and an
+explicit `Path` to `tariffs/comed-time-of-day.yaml`; call `await start()` before
+reads and `await close()` in `finally`. The wheel intentionally does not discover a
+checkout or silently choose a tariff: distribute the reviewed YAML separately and
+supply its path. The smoke also accepts `--tariff-file /absolute/path/to/file.yaml`.
+The tariff's retained PDFs and hashes support manual cross-checks; normal tests use
+reviewed values without a PDF dependency.
+
+For registry use, merge `hirz.adapters.energy.real.factories(delivery_class=...,
+tariff_path=...)` into the existing factory map and explicitly select `energy:real`.
+Register the household energy subject as `real` for tariff observations. Per-asset
+battery/solar twin bindings continue to select the existing twin factory. Supply
+the twin world with an explicit in-memory copy using `rate_plan="twin"`; its factory
+allows that rate-plan difference while checking all other household fields. A missing
+location disables weather only. There is no implicit twin fallback, asset-derived
+class, ingestion, database mutation, real device read or action execution.
+
+Read `series.slots` / `series.samples`, check `series.complete` and retain `series.gaps`
+and provenance. `get_prices` supplies the scheduling basis; `get_supply_history`
+returns supply-only data for historical research. **Billing exclusions, supply
+validity and the pinned-delivery historical limit are specified in
+[twin §2.6](./twin-and-scenarios.md#26-tariff).** Historical day-ahead retrieval is
+not proof of publication time; five-minute quotes are not finalized hourly bills.

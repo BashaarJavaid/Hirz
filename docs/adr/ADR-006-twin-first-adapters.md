@@ -102,3 +102,51 @@ The author approved the following during explicit planning batches:
 The exact model parameters, interfaces and time semantics live in
 [`docs/twin-and-scenarios.md` §2.11](../twin-and-scenarios.md#211-item-13-in-memory-contract).
 Procedures live in [development](../development.md#twin-models-and-read-adapters-item-13).
+
+## Item 14 credential-free energy amendment — 2026-09-20 (author-approved)
+
+The approved implementation plan fixes these choices:
+
+- One household-bound `energy:real` factory, the existing registry/lifecycle and
+  explicit asset bindings. Missing location disables weather only. Reject other
+  rate plans/classes, real battery/solar reads and every write; no twin fallback.
+  Rejected ingestion, worker polling, database changes and execution in this item.
+- Require a tariff-file path and the Residential Single Family Without Electric
+  Space Heat class explicitly. Scheduling prices are supply plus the published
+  resultant Distribution Facilities Charge, with separate bill items excluded.
+  Time-of-Day uses its four distribution periods; Hourly uses standard flat
+  distribution. Rejected class inference from assets, base-only distribution,
+  fabricated export prices and describing this scheduling basis as a whole bill.
+- Approximate billing periods with Chicago calendar months (summer June–September)
+  and apply daily periods on weekends and DST. Enforce supply validity; retain
+  the delivery vintage from its effective month until replaced, without a live
+  validity claim. Rejected applying today's delivery schedule to older history.
+  `get_supply_history` supports older supply-only research without that fiction.
+- Keep canonical price slots, weather samples and observations. Both real and
+  twin reads return series with bounds, explicit gaps and provenance; completeness
+  follows coverage. Rejected bare tuples and silently filling missing data.
+- Use installed httpx, sequential daily ComEd requests, ten-second request timeouts,
+  no automatic retries/cache, and a 366-day request limit. A daily failure fails
+  the read; valid null/missing data remain gaps. Keep negative Decimal prices;
+  reject malformed/nonfinite/unit-mismatched data and conflicting duplicates.
+- The [documented five-minute API](https://hourlypricing.comed.com/hp-api/)
+  has inclusive bounds and UTC timestamps. Treat quotes as five-minute intervals,
+  not finalized billing. The [first-party price page](https://hourlypricing.comed.com/live-prices/)
+  uses `/rrtp/ServletFeed?type=daynexttoday&date=YYYYMMDD`; its `Date.UTC` values
+  are chart labels for Chicago hours, as supported by the retained source page
+  and DST responses. Parse only that restricted syntax, never JavaScript. Omit
+  both ambiguous fall-back 1 a.m. intervals. Rejected interpreting chart labels
+  as UTC instants, choosing a fold silently, interpolation and price-kind fallback.
+  Historical retrieval proves neither publication time nor no-hindsight planning.
+- Use [Open-Meteo hourly forecasts](https://open-meteo.com/en/docs), declared
+  coordinates, °F, cloud-cover percent, UTC and the current maximum 16-day window.
+  Carry the preceding valid hour to an unaligned start only within that hour;
+  missing hours break coverage. Rejected geocoding and archive fallback.
+- Keep primary PDFs, hashed raw response fixtures and a recorded-default/live-opt-in
+  smoke. Verify the actual August coverage, not an assumed complete month; require
+  live reads and installed-wheel checks before closing. No remote CI dispatch or
+  new threat-model claim.
+
+Interface details live in [architecture §5.11](../../ARCHITECTURE.md#511-adapters),
+rate/time semantics in [twin §2.6](../twin-and-scenarios.md#26-tariff), and commands
+in [development](../development.md#credential-free-energy-adapters-item-14).
