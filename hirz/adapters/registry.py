@@ -1,5 +1,6 @@
 """Explicit household configuration, lifecycle and observation provenance."""
 
+import logging
 import os
 from asyncio import CancelledError
 from collections.abc import Callable, Mapping
@@ -22,6 +23,8 @@ from hirz.graph.models import (
     observation_subject,
     validate_observation_scope,
 )
+
+log = logging.getLogger(__name__)
 
 CAPABILITIES: dict[AdapterDomain, frozenset[str]] = {
     "devices": frozenset(
@@ -96,7 +99,9 @@ class Registry:
         config: str | None = None,
         scenario_mode: bool = False,
         fallback_bindings: tuple[AssetBinding, ...] = (),
+        clock: Callable[[], datetime] = now,
     ):
+        self.clock = clock
         self.household = Household.model_validate(household.model_dump())
         self.members = {m.id: Member.model_validate(m.model_dump()) for m in members}
         self.assets = {a.id: Asset.model_validate(a.model_dump()) for a in assets}
@@ -197,6 +202,7 @@ class Registry:
                 if isinstance(exc, (CancelledError, KeyboardInterrupt, SystemExit)):
                     raise exc
                 # Never expose a factory/transport exception containing credentials.
+                log.error("Registry.start error=%s", type(exc).__name__)
                 raise AdapterError("Adapter startup failed; registry closed.") from None
 
     async def close(self) -> None:
@@ -206,7 +212,8 @@ class Registry:
         for adapter in reversed(tuple(instances.values())):
             try:
                 await adapter.close()
-            except Exception:
+            except Exception as exc:
+                log.error("Registry.close error=%s", type(exc).__name__)
                 failed = True
         if failed:
             raise AdapterError("Adapter cleanup failed.")
@@ -253,16 +260,17 @@ class Registry:
                 "devices",
                 binding.adapter,
                 await adapter.get_state(binding.entity_id),
-                at=now(),
+                at=self.clock(),
             )
             if row.asset_id != asset_id:
                 raise AdapterError("Adapter returned another asset.")
             if row.state.available is False:
                 raise AdapterUnavailable("Adapter unavailable; actual state unknown.")
             return row
-        except AdapterUnavailable:
+        except AdapterUnavailable as exc:
             fallback = self.fallback_bindings.get(asset_id)
             if fallback is None:
+                log.error("Registry.get_state error=%s", type(exc).__name__)
                 raise AdapterUnavailable(
                     "Adapter unavailable; actual state unknown."
                 ) from None
@@ -278,7 +286,7 @@ class Registry:
                 self.household.id,
                 self.members.keys(),
                 {i: a.kind for i, a in self.assets.items()},
-                now(),
+                self.clock(),
             )
             if (
                 row.source != "twin"
@@ -287,7 +295,8 @@ class Registry:
             ):
                 raise ValueError
             return row
-        except (ValueError, KeyError):
+        except (ValueError, KeyError) as exc:
+            log.error("Registry.get_state fallback error=%s", type(exc).__name__)
             raise AdapterError("Invalid scenario fallback provenance.") from None
 
     def stamp(
@@ -325,7 +334,8 @@ class Registry:
             return Observation.model_validate(
                 row.model_dump() | {"domain": domain, "source": source}
             )
-        except (ValueError, KeyError):
+        except (ValueError, KeyError) as exc:
+            log.error("Registry.stamp error=%s", type(exc).__name__)
             raise AdapterError(
                 "Invalid adapter observation; payload withheld."
             ) from None

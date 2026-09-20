@@ -11,12 +11,67 @@ from pathlib import Path
 import pytest
 import yaml
 
+from hirz.adapters.base import AdapterError, AdapterUnavailable
+from hirz.adapters.registry import Registry
 from hirz.constitution.boundary import Dogwood
+from hirz.twin.adapters import factories
 from hirz.twin.scenario import LoadedScenario, instant, run_scenario
+from tests.unit.test_adapters import TestAdapter
 
 ROOT = Path(__file__).resolve().parents[2]
 EVENING = ROOT / "scenarios/demo-evening.yaml"
 PARENTS = ROOT / "scenarios/parents-scam-check.yaml"
+
+
+@pytest.mark.parametrize("fallback", [False, True])
+def test_registry_reads_use_simulated_time(fallback):
+    loaded = LoadedScenario(EVENING)
+    world = loaded.world
+    light = loaded.ref("assets", "light.living_room")
+    reg = loaded.registry
+    if fallback:
+        twin = world.bindings[light]
+        primary = twin.model_copy(update={"adapter": "ha", "entity_id": "light.demo"})
+        ha = TestAdapter(world.household)
+        ha.get_state.side_effect = AdapterUnavailable("offline")
+        reg = Registry(
+            world.household,
+            members=tuple(world.members.values()),
+            assets=tuple(world.assets.values()),
+            bindings=(primary,),
+            factories=factories(world) | {("devices", "ha"): lambda home: ha},
+            sources={("devices", "ha", light): "real"},
+            config="",
+            scenario_mode=True,
+            fallback_bindings=(twin,),
+            clock=world.clock,
+        )
+
+    async def read():
+        await reg.start()
+        try:
+            row = await reg.get_state(light)
+            assert row.source == "twin"
+            assert row.observed_at == world.clock()
+            assert row.observed_at.date().isoformat() == "2026-10-13"
+        finally:
+            await reg.close()
+
+    asyncio.run(read())
+
+
+def test_absent_member_cannot_sleep():
+    loaded = LoadedScenario(EVENING)
+    world = loaded.world
+    member = loaded.ref("members", "mom")
+    zone = loaded.ref("assets", "hvac.guest_room")
+    before = world.read()[1]
+    assert not before.presence[member].present
+    with pytest.raises(AdapterError, match="Absent member cannot sleep"):
+        world.member_event(member, "sleep", zone)
+    assert world.read()[1] == before
+    world.member_event(member, "wake")
+    assert world.read()[1].presence[member] == before.presence[member]
 
 
 def altered(tmp_path, source=EVENING, edit=lambda data: None, patch_edit=None):

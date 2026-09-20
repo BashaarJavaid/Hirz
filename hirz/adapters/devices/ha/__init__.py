@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import logging
 import math
 import re
 from collections.abc import AsyncGenerator
@@ -34,6 +35,8 @@ from hirz.local import LocalError, read_env
 from hirz.pipeline.hashing import ingest
 from hirz.pipeline.models import Action, Decision, EventType
 from hirz.pipeline.service import Pipeline
+
+log = logging.getLogger(__name__)
 
 UNAVAILABLE = "Home Assistant unavailable; actual state unknown."
 
@@ -84,7 +87,8 @@ class HAConfig(Model):
 def load_config(path: Path) -> HAConfig:
     try:
         return HAConfig.model_validate(yaml.load(path.read_text(), Loader=UniqueLoader))
-    except (OSError, ValueError, yaml.YAMLError):
+    except (OSError, ValueError, yaml.YAMLError) as exc:
+        log.error("load_config error=%s", type(exc).__name__)
         raise AdapterError("Invalid non-secret Home Assistant configuration.") from None
 
 
@@ -167,7 +171,8 @@ class HomeAssistant:
                 transport=self.transport,
                 headers={"Authorization": "Bearer " + self._token},
             )
-        except (LocalError, ValueError):
+        except (LocalError, ValueError) as exc:
+            log.error("HomeAssistant.start error=%s", type(exc).__name__)
             raise AdapterError(
                 "Home Assistant requires HA_TOKEN in private .env."
             ) from None
@@ -184,7 +189,8 @@ class HomeAssistant:
             finally:
                 if client is not None:
                     await client.aclose()
-        except Exception:
+        except Exception as exc:
+            log.error("HomeAssistant.close error=%s", type(exc).__name__)
             raise AdapterError("Home Assistant cleanup failed.") from None
 
     def ready(self) -> httpx.AsyncClient:
@@ -197,7 +203,8 @@ class HomeAssistant:
     ) -> Any:
         try:
             response = await self.ready().request(method, path, json=data)
-        except httpx.TransportError:
+        except httpx.TransportError as exc:
+            log.error("HomeAssistant.request error=%s", type(exc).__name__)
             raise AdapterUnavailable(UNAVAILABLE) from None
         if response.status_code in {401, 403}:
             raise AdapterError("Home Assistant authentication refused.")
@@ -207,7 +214,8 @@ class HomeAssistant:
             raise AdapterError("Home Assistant request refused.")
         try:
             return response.json()
-        except ValueError:
+        except ValueError as exc:
+            log.error("HomeAssistant.request error=%s", type(exc).__name__)
             raise AdapterError("Malformed Home Assistant response.") from None
 
     async def raw_state(self, entity: str) -> dict[str, Any]:
@@ -224,7 +232,8 @@ class HomeAssistant:
             at = utc(datetime.fromisoformat(data["last_updated"]))
             if at > now():
                 raise ValueError
-        except (ValueError, KeyError, TypeError):
+        except (ValueError, KeyError, TypeError) as exc:
+            log.error("HomeAssistant.raw_state error=%s", type(exc).__name__)
             raise AdapterError(
                 "Malformed or incorrectly scoped Home Assistant state."
             ) from None
@@ -240,7 +249,8 @@ class HomeAssistant:
             if unit not in {"°C", "°F"}:
                 raise ValueError
             return str(unit)
-        except (KeyError, TypeError, ValueError):
+        except (KeyError, TypeError, ValueError) as exc:
+            log.error("HomeAssistant.temperature_unit error=%s", type(exc).__name__)
             raise AdapterError("Invalid Home Assistant temperature unit.") from None
 
     def binding(self, entity: str) -> AssetBinding:
@@ -316,7 +326,8 @@ class HomeAssistant:
             )
         except AdapterError:
             raise
-        except (ValueError, KeyError, TypeError, OverflowError):
+        except (ValueError, KeyError, TypeError, OverflowError) as exc:
+            log.error("HomeAssistant.get_state error=%s", type(exc).__name__)
             raise AdapterError(
                 "Malformed Home Assistant reading; payload withheld."
             ) from None
@@ -377,9 +388,11 @@ class HomeAssistant:
                     for control, config in self.config.entities.items():
                         if entity in {control, config.power_sensor}:
                             yield await self.get_state(control)
-        except (OSError, TimeoutError, WebSocketException):
+        except (OSError, TimeoutError, WebSocketException) as exc:
+            log.error("HomeAssistant.subscribe error=%s", type(exc).__name__)
             raise AdapterUnavailable(UNAVAILABLE) from None
-        except (ValueError, KeyError, TypeError, AttributeError):
+        except (ValueError, KeyError, TypeError, AttributeError) as exc:
+            log.error("HomeAssistant.subscribe error=%s", type(exc).__name__)
             raise AdapterError(
                 "Invalid Home Assistant subscription; payload withheld."
             ) from None
@@ -426,7 +439,8 @@ class HomeAssistant:
             ):
                 raise ValueError
             return action
-        except (ValueError, TypeError):
+        except (ValueError, TypeError) as exc:
+            log.error("HomeAssistant.write_action error=%s", type(exc).__name__)
             raise AdapterError(
                 "Unsupported or inconsistent Home Assistant action."
             ) from None
@@ -463,7 +477,8 @@ class HomeAssistant:
                     target / step, round(target / step), abs_tol=1e-8, rel_tol=0
                 ):
                     raise ValueError
-        except (ValueError, TypeError, KeyError):
+        except (ValueError, TypeError, KeyError) as exc:
+            log.error("HomeAssistant.climate_params error=%s", type(exc).__name__)
             raise AdapterError(
                 "Unsupported Home Assistant climate setpoint or mode."
             ) from None

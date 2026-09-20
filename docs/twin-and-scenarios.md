@@ -257,6 +257,8 @@ notification transport and the scenario runner remain later roadmap work.
 
 ## 3. Scenario DSL
 
+The two YAML sketches below are targets for items 17, 22 and 35; §3.1 is the only executable syntax today.
+
 Item 16 implements the offline observation-stage contract in §3.1. The longer
 examples below describe the **target full demo**, including services still under
 development; they are illustrative sketches, not the executable YAML syntax.

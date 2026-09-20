@@ -1,6 +1,7 @@
 """Offline scenario inputs and reports. No persistence, authority or tool execution."""
 
 import asyncio
+import logging
 import math
 import re
 from collections.abc import Awaitable, Callable
@@ -44,6 +45,8 @@ from hirz.twin.clock import SimClock
 from hirz.twin.people import ContactScript, InboundCall, local_instant
 from hirz.twin.physics import changed
 from hirz.twin.world import TwinConfig, TwinWorld
+
+log = logging.getLogger(__name__)
 
 TOOLS = frozenset(
     {
@@ -721,7 +724,8 @@ async def run_scenario(
             if assertions
             else "completed_unchecked"
         )
-    except (ValueError, OSError):
+    except (ValueError, OSError) as exc:
+        log.error("run_scenario error=%s", type(exc).__name__)
         report.update(
             status="failed",
             error="Scenario execution failed; input and upstream details withheld.",

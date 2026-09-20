@@ -130,4 +130,5 @@ def registry(world: TwinWorld, config: str | None = None) -> Registry:
         factories=factories(world),
         sources={},
         config=config,
+        clock=world.clock,
     )

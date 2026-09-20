@@ -1,5 +1,6 @@
 """Credential-free household energy reads; no ingestion, actuation, or fallback."""
 
+import logging
 from collections.abc import Callable, Iterator
 from datetime import UTC, datetime, time, timedelta
 from decimal import Decimal
@@ -30,6 +31,8 @@ from hirz.adapters.energy.real.tariff import (
 from hirz.adapters.registry import Factory, Key
 from hirz.graph.models import Household, Observation, ObservationState, now, utc
 from hirz.pipeline.models import Action, Decision
+
+log = logging.getLogger(__name__)
 
 COMED = "https://hourlypricing.comed.com"
 OPEN_METEO = "https://api.open-meteo.com/v1/forecast"
@@ -102,7 +105,8 @@ class RealEnergy:
             response = await self.ready().get(url, params=params)
             response.raise_for_status()
             return response.text, str(response.url)
-        except httpx.HTTPError:
+        except httpx.HTTPError as exc:
+            log.error("RealEnergy.fetch error=%s", type(exc).__name__)
             raise AdapterUnavailable("Energy feed request failed.") from None
 
     async def get_prices(
@@ -171,7 +175,8 @@ class RealEnergy:
                     OverflowError,
                     OSError,
                     RecursionError,
-                ):
+                ) as exc:
+                    log.error("RealEnergy.prices error=%s", type(exc).__name__)
                     raise AdapterUnavailable("Invalid ComEd feed response.") from None
                 day += timedelta(days=1)
         slots: list[PriceSlot] = []
@@ -210,7 +215,8 @@ class RealEnergy:
                 slot = PriceSlot(
                     start=left, end=right, import_cents_per_kwh=supply + distribution
                 )
-            except ValueError:
+            except ValueError as exc:
+                log.error("RealEnergy.prices error=%s", type(exc).__name__)
                 error = AdapterUnavailable if hourly else AdapterError
                 raise error(
                     "ComEd scheduling price exceeds the supported numeric range."
@@ -274,7 +280,8 @@ class RealEnergy:
         )
         try:
             values = feeds.weather(text)
-        except (ValueError, TypeError, KeyError, OverflowError, RecursionError):
+        except (ValueError, TypeError, KeyError, OverflowError, RecursionError) as exc:
+            log.error("RealEnergy.get_weather error=%s", type(exc).__name__)
             raise AdapterUnavailable("Invalid Open-Meteo forecast response.") from None
         samples: list[WeatherSample] = []
         gaps: list[Gap] = []

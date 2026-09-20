@@ -570,6 +570,8 @@ class TwinWorld:
         ):
             raise AdapterError("Unknown scenario member or zone.")
         at, state = self.read()
+        if kind == "sleep" and not state.presence[member].present:
+            raise AdapterError("Absent member cannot sleep.")
         if kind == "recovery":
             recovery = dict(state.recovery)
             recovery[member] = changed(recovery[member], score=score)
@@ -579,6 +581,7 @@ class TwinWorld:
                 dict(weekday=0, minute=0, kind=kind, zone_id=zone, jitter_minutes=0)
             )
             people = dict(state.presence)
+            # Waking a member who is not sleeping may leave presence unchanged.
             people[member] = presence_change(people[member], transition)
             state = changed(state, presence=people)
         self._state, self._at = (

@@ -114,7 +114,7 @@ The verified toolchain and scaffold setup are in `README.md`; use Node 24.
 
 ## Current phase
 
-**Phase 2 item 16's observation gate is verified; item 17 is next.** Both offline scenarios run with explicit later-phase deferrals. Item 15's physical plug and absence checks remain pending. Evidence: `docs/verification-log.md`; procedures: `docs/development.md`. Development remains on `0003_pipeline`; upgrades are manual. General execution, ingestion and scenario persistence remain later work. Three CI jobs remain placeholders; no new remote CI run.
+**Phase 2 item 16's observation gate is verified; item 17 is next.** Both offline scenarios run with explicit later-phase deferrals. Item 15's physical plug and absence checks remain pending. Evidence: `docs/verification-log.md`; procedures: `docs/development.md`. Development is on `0005_execution_attempt`; upgrades remain manual. General execution, ingestion and scenario persistence remain later work. Three CI jobs remain placeholders; no new remote CI run.
 
 ---
 

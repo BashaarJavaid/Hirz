@@ -4,6 +4,8 @@
 
 **Decision:** Each adapter domain declares a `Protocol` and ships a real implementation coded against the vendor API and a twin implementation backed by physics-lite models on a simulated clock. The registry selects per domain at startup; every observation carries `source: real | twin`; every surface shows the label. The scenario DSL drives the twin and doubles as the integration test corpus.
 
+**Amendment (2026-09-21):** Observation `source` has three values: `real`, `real API, demo devices`, and `twin`.
+
 **Reasoning:**
 
 - The author owns no Alexa device, EV, wearable, or smart-home hardware, and the product must demonstrate every capability end to end. Mocks would be dismissed; a labeled, reproducible, physically plausible twin is a product feature (onboarding preview, what-if planning, safe testing of a new constitution).

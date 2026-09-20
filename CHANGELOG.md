@@ -8,6 +8,11 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- 2026-09-21: Phase 2 cleanup batch 1: use the simulation clock for registry
+  reads, retain failure classes in redacted logs, reject absent-member sleep,
+  apply pending development migrations and clarify adapter/scenario docs
+  ([verification](./docs/verification-log.md#phase-2-cleanup-batch-1)).
+
 - 2026-09-18: Quantized graph numeric policy facts to four decimal places before
   strict Cedar range validation, preserving float storage and observation no-ops;
   [verification](./docs/verification-log.md#graph-policy-fact-quantization--2026-09-18).

@@ -167,7 +167,7 @@ def test_environment_and_unregistered_configuration(monkeypatch):
     "failure",
     ["factory", "start", "scope", "capabilities", "method", "close", "cancel"],
 )
-def test_start_failure_cleans_all_resources(failure):
+def test_start_failure_cleans_all_resources(failure, caplog):
     created = []
 
     def factory(home):
@@ -208,6 +208,9 @@ def test_start_failure_cleans_all_resources(failure):
             adapter.close.assert_awaited_once()
 
     asyncio.run(run())
+    if failure == "factory":
+        assert "Registry.start" in caplog.text and "RuntimeError" in caplog.text
+        assert "PRIVATE" not in caplog.text
 
 
 @pytest.mark.parametrize(

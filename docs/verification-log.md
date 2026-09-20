@@ -1951,3 +1951,126 @@ linear timeline scans. Rebuilt/reinstalled the final wheel and reran both scenar
 outside the checkout: evening `item16_observations_passed` with 16 checks, parents
 with 9. No behavioral code changed after the 861-test full run. Final formatting
 was repeated after this appended evidence, as required.
+
+## Phase 2 cleanup batch 1
+
+Verified on 2026-09-20 on `phase-2`, macOS arm64, Python 3.12.13 and native
+`.tools/dogwood`. The changelog entry is dated 2026-09-21 as requested. This is a
+correction to items 12–16, not a new roadmap item.
+
+### Regression proof
+
+Before implementation, ran:
+
+```sh
+uv run pytest tests/unit/test_scenario.py tests/unit/test_adapters.py -k 'registry_reads_use_simulated_time or absent_member_cannot_sleep or (start_failure and factory)' --no-cov
+```
+
+```text
+4 failed, 63 deselected in 0.95s
+```
+
+The demo-evening world was at 2026-10-13 while wall time was 2026-09-20. Its real
+`twin` light adapter, reached through a `devices:ha` stub raising
+`AdapterUnavailable`, failed with `AdapterError: Invalid scenario fallback
+provenance.` The direct twin registry read also failed future-time validation.
+Absent Mom's sleep event did not raise, and the startup-failure test found no
+`Registry.start`/`RuntimeError` log.
+
+Added the Registry clock argument and supplied `world.clock` in the mixed test
+and twin registry helper; both get-state timestamp validations now use it. HA's
+own future `last_updated` check still uses wall time. The absent-member sleep
+check raises before applying an event; the test verifies unchanged world state
+and the permitted no-op wake. Redacted exceptions log only static operation names
+and `type(exc).__name__`, using the pipeline's existing logging pattern. The
+startup test checks that `RuntimeError` is logged and `PRIVATE` is absent.
+
+The same focused command after the corrections returned:
+
+```text
+4 passed, 63 deselected in 0.79s
+```
+
+### Development migrations
+
+Ran the explicitly authorized `uv run alembic upgrade head`: exit 0, no stdout or
+stderr. The two pending revisions are `0004_observation_domains` and
+`0005_execution_attempt`. Then ran these commands in order:
+
+```text
+$ uv run alembic check
+No new upgrade operations detected.
+
+$ uv run hirz doctor
+PASS Postgres: authenticated SELECT 1.
+PASS HA: real API, demo devices (simulated); required entities present.
+PASS Signing key: P-256 private key signs and verifies an in-memory probe.
+PASS Migrations: database matches the sole Alembic head; graph tables and household_context present.
+
+$ uv run alembic current
+0005_execution_attempt (head)
+```
+
+All exited 0. Current phase now states that revision identically in AGENTS.md and
+CLAUDE.md. No reset, reseed, credential replacement or physical device action was
+performed. ADR-006 has a dated source-label amendment, and the scenario sketches
+are explicitly targets for items 17, 22 and 35; §3.1 remains executable syntax.
+
+### Required verification sequence
+
+Ran the following in the requested order; all commands exited 0:
+
+```text
+$ uv run pytest
+TOTAL                                      5448    571    90%
+Required test coverage of 80% reached. Total coverage: 89.52%
+================ 864 passed, 60 deselected in 67.99s (0:01:07) =================
+
+$ uv run pytest -m integration --no-cov
+===================== 60 passed, 864 deselected in 34.29s ======================
+
+$ uv run mypy hirz/ scripts/ alembic/
+Success: no issues found in 79 source files
+
+$ uv run ruff check .
+All checks passed!
+
+$ HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run hirz scenario run scenarios/demo-evening.yaml --headless --assert
+$ HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run hirz scenario run scenarios/parents-scam-check.yaml --headless --assert
+```
+
+The scenario CLIs emitted JSON reports; parsed summaries, with explicit assertions
+on status, count and every check's passing status:
+
+```text
+demo-evening: item16_observations_passed; 16 checks passed; 25 deferred
+parents-scam-check: item16_observations_passed; 9 checks passed; 9 deferred
+```
+
+Local full outputs are `/private/tmp/hirz-cleanup-batch1-pytest.log`,
+`/private/tmp/hirz-cleanup-batch1-integration.log`, and
+`/private/tmp/hirz-cleanup-batch1-{evening,parents}.{json,log}`. Integration tests
+used disposable databases. No remote CI run was requested or claimed. The native
+Dogwood checks ran locally; later-phase scenario assertions remain deferred.
+
+Reviewed all 20 redacted re-raises across Registry, HA and real energy: each logs
+the operation and exception class before raising. Registry cleanup also logs the
+class, and the scenario runner logs it before returning its redacted failed
+report. No exception message, traceback, input payload, URL or credential is
+included by these logs.
+
+The existing uv cache sandbox restriction recurred; the exact error and successful
+escalated retry are recorded in [the friction log](./friction-log.md). No new
+upstream defect was encountered. `git diff --check` passed, and the Current phase
+text matches between AGENTS.md and CLAUDE.md. ROADMAP.md, THREAT_MODEL.md and
+hirz/twin/physics.py are unchanged; item 15 remains Partial. No Phase 3 behavior,
+composition root or real-adapter scenario loading was added.
+
+Final formatting, after the evidence and changelog entries were written:
+
+```text
+$ uv run ruff format --check .
+131 files already formatted
+```
+
+Exit 0; repeated after appending this result so formatting remains the final check.
