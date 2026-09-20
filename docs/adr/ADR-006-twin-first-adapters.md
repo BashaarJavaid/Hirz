@@ -150,3 +150,57 @@ The approved implementation plan fixes these choices:
 Interface details live in [architecture §5.11](../../ARCHITECTURE.md#511-adapters),
 rate/time semantics in [twin §2.6](../twin-and-scenarios.md#26-tariff), and commands
 in [development](../development.md#credential-free-energy-adapters-item-14).
+
+## Item 15 local HA amendment — 2026-09-20 (author-approved)
+
+The approved implementation plan adds local Home Assistant software while leaving
+item 15 partial until the physical energy-monitoring plug gate passes.
+
+- Use the existing household factory map, lifecycle, canonical observations and
+  explicit `asset_bindings`. Non-secret YAML declares the HA origin, control
+  entities, optional power sensors and trusted real/demo provenance. Read the
+  token only from the private local `.env`; move the pinned websockets package to
+  runtime and reuse httpx. Rejected credential-bearing configuration, discovery
+  that expands the binding allowlist, ingestion and another transport framework.
+- Follow [HA WebSocket authentication and subscription acknowledgments](https://developers.home-assistant.io/docs/api/websocket/)
+  and [REST service calls](https://developers.home-assistant.io/docs/api/rest/).
+  One lazy subscription, ten-second connection/authentication/REST deadlines,
+  no reconnect or automatic service retry. Preserve upstream timestamps and
+  units, convert W to kW, and use the older combined observation time. Missing
+  power must not erase known switch state. Rejected optimistic state writes,
+  trusting service-returned state as verification, and raw upstream diagnostics.
+- Permit only unscheduled light/switch on/off and single-target climate changes,
+  using the existing `Action, Decision` signatures and an injected Pipeline.
+  Claim one durable signed execution attempt before dispatch, after checking the
+  stored proposal, hash, household, binding and committed grant no older than ten
+  seconds. Rejected in-memory replay sets, clearing an uncertain claim, accepting
+  proposal-only Decisions, or weakening the pipeline for a smoke test.
+- Record service success and direct HA verification separately; keep uncertain
+  outcomes unknown and poll for at most ten seconds without resending. Verify
+  raw climate readings to 0.000001 °F rather than rounded graph facts. Reject
+  unsupported modes/setpoints, extra parameters and contradictory effects.
+  Rejected scheduling, retries, notification delivery, twin writes and the full
+  executor lifecycle in item 15. Downgrade may not erase attempt evidence.
+- `Registry.get_state(asset_id)` permits only an explicit same-household twin
+  fallback in scenario mode. Preserve primary bindings and write routing; errors
+  in authentication, data or provenance never trigger it. Rejected implicit
+  fallback, relaxed ordinary stamping and using twin readings to verify HA writes.
+- Approve a narrowly isolated bootstrap for uniquely named disposable smoke/test
+  databases: initial HA bindings, explicit synthetic room metadata, and one-time
+  input observations before execution. Seeds remain twin-only, no audit rows are
+  fabricated, and all device writes including restoration require real grants.
+  Verify and retain an audit export before deleting a smoke database; preserve
+  the database on failure. Rejected development migrations or changing seed rules.
+- Runtime inspection found `climate.ecobee` in `heat_cool`, advertising only a
+  ranged target. On 2026-09-20 the author explicitly approved keeping it read-only
+  and testing 72 °F on another supported demo climate. Use `climate.heatpump` in
+  its existing heat mode. Read units from `/api/config.unit_system.temperature`;
+  the [climate contract](https://developers.home-assistant.io/docs/core/entity/climate/)
+  distinguishes single targets, ranges and modes. Rejected mode changes, invented
+  scalar targets for ecobee and silently rounding an unsupported setpoint.
+
+This is `dogwood-local` enforcement. It does not implement the AWS signer/Link
+boundary or earn any additional threat-model row. Physical-device selection and
+purchase remain outside this work. Contracts live in [architecture §5.11](../../ARCHITECTURE.md#511-adapters),
+procedures in [development](../development.md#home-assistant-adapter-item-15), and
+actual checks in [the evidence log](../verification-log.md#item-15--partial-2026-09-20).

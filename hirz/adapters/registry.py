@@ -18,6 +18,7 @@ from hirz.graph.models import (
     Member,
     Observation,
     Source,
+    now,
     observation_subject,
     validate_observation_scope,
 )
@@ -93,6 +94,8 @@ class Registry:
         factories: Mapping[Key, Factory],
         sources: Mapping[tuple[AdapterDomain, str, UUID], Source],
         config: str | None = None,
+        scenario_mode: bool = False,
+        fallback_bindings: tuple[AssetBinding, ...] = (),
     ):
         self.household = Household.model_validate(household.model_dump())
         self.members = {m.id: Member.model_validate(m.model_dump()) for m in members}
@@ -127,10 +130,35 @@ class Registry:
             (ASSET_DOMAINS[self.assets[b.asset_id].kind], b.adapter)
             for b in self.bindings.values()
         )
-        if not self.selected <= self.factories.keys():
+        self.fallback_bindings = {
+            b.asset_id: AssetBinding.model_validate(b.model_dump())
+            for b in fallback_bindings
+        }
+        if (
+            type(scenario_mode) is not bool
+            or fallback_bindings
+            and not scenario_mode
+            or len(self.fallback_bindings) != len(fallback_bindings)
+            or any(
+                b.household_id != household.id
+                or b.adapter != "twin"
+                or b.asset_id not in self.bindings
+                or self.bindings[b.asset_id].adapter == "twin"
+                or ASSET_DOMAINS[self.assets[b.asset_id].kind] != "devices"
+                for b in fallback_bindings
+            )
+        ):
+            raise AdapterError("Invalid scenario fallback binding.")
+        self.fallback_keys: set[Key] = (
+            {("devices", "twin")} if fallback_bindings else set()
+        )
+        if not self.selected | self.fallback_keys <= self.factories.keys():
             raise AdapterError("Selected adapter implementation is not registered.")
         for (domain, implementation, subject), source in self.sources.items():
-            if (domain, implementation) not in self.selected or source not in get_args(
+            if (
+                domain,
+                implementation,
+            ) not in self.selected | self.fallback_keys or source not in get_args(
                 Source
             ):
                 raise AdapterError("Invalid adapter source registration.")
@@ -143,7 +171,7 @@ class Registry:
         if self.started or self.instances:
             raise AdapterError("Registry is already started.")
         try:
-            for key in sorted(self.selected):
+            for key in sorted(self.selected | self.fallback_keys):
                 adapter = self.factories[key](self.household)
                 # Register before start so partial initialization is also closed.
                 self.instances[key] = adapter
@@ -208,6 +236,59 @@ class Registry:
         if capability is not None and capability not in adapter.capabilities:
             raise AdapterUnavailable("Capability is not available in this home.")
         return adapter
+
+    async def get_state(self, asset_id: UUID) -> Observation:
+        """Scenario-only read fallback; resolve() and write routing stay primary."""
+        from hirz.adapters.devices import DevicesAdapter
+
+        adapter = cast(
+            DevicesAdapter,
+            self.resolve("devices", asset_id=asset_id, capability="get_state"),
+        )
+        binding = self.bindings.get(asset_id)
+        if binding is None:
+            raise AdapterError("State reads require an explicit asset binding.")
+        try:
+            row = self.stamp(
+                "devices",
+                binding.adapter,
+                await adapter.get_state(binding.entity_id),
+                at=now(),
+            )
+            if row.asset_id != asset_id:
+                raise AdapterError("Adapter returned another asset.")
+            if row.state.available is False:
+                raise AdapterUnavailable("Adapter unavailable; actual state unknown.")
+            return row
+        except AdapterUnavailable:
+            fallback = self.fallback_bindings.get(asset_id)
+            if fallback is None:
+                raise AdapterUnavailable(
+                    "Adapter unavailable; actual state unknown."
+                ) from None
+        twin = cast(DevicesAdapter, self.instances[("devices", "twin")])
+        if "get_state" not in twin.capabilities:
+            raise AdapterUnavailable("Scenario fallback state unavailable.")
+        try:
+            row = Observation.model_validate(
+                (await twin.get_state(fallback.entity_id)).model_dump()
+            )
+            validate_observation_scope(
+                row,
+                self.household.id,
+                self.members.keys(),
+                {i: a.kind for i, a in self.assets.items()},
+                now(),
+            )
+            if (
+                row.source != "twin"
+                or row.asset_id != asset_id
+                or row.domain != "devices"
+            ):
+                raise ValueError
+            return row
+        except (ValueError, KeyError):
+            raise AdapterError("Invalid scenario fallback provenance.") from None
 
     def stamp(
         self,

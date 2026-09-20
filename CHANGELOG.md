@@ -29,6 +29,13 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- 2026-09-20: Item 15 software: household-bound HA reads/subscriptions, narrow local
+  Pipeline-authorized writes with durable attempt claims, direct verification and
+  scenario-only twin read fallback; recorded/live smokes restore demo state and
+  retain signed audit evidence. The physical plug gate remains outstanding
+  ([ADR-006](./docs/adr/ADR-006-twin-first-adapters.md#item-15-local-ha-amendment--2026-09-20-author-approved),
+  [evidence](./docs/verification-log.md#item-15--partial-2026-09-20)).
+
 - 2026-09-20: Completed item 14: credential-free ComEd/Open-Meteo reads, reviewed
   tariff sources, explicit price/weather coverage and provenance, and recorded/live
   smoke verification; real prices compose with explicitly bound twin assets

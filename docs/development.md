@@ -513,3 +513,88 @@ returns supply-only data for historical research. **Billing exclusions, supply
 validity and the pinned-delivery historical limit are specified in
 [twin §2.6](./twin-and-scenarios.md#26-tariff).** Historical day-ahead retrieval is
 not proof of publication time; five-minute quotes are not finalized hourly bills.
+
+## Home Assistant adapter (item 15)
+
+Item 15's local software is available; its physical plug gate remains outstanding.
+This uses `dogwood-local`, not the AWS signed-command boundary. No worker poller,
+ongoing graph ingestion, scheduler, automatic retry, twin writes or Link execution
+is provided. The development schema is not upgraded by any smoke command.
+
+The default smoke needs no services or credentials:
+
+```bash
+uv run python scripts/smoke_ha.py
+```
+
+For the approved live demo, use the initialized private `.env`, running local
+Postgres and Home Assistant, and the pinned `.tools/dogwood` executable:
+
+```bash
+docker compose -f compose.dev.yml up -d postgres homeassistant
+uv run python scripts/smoke_ha.py --live-demo --audit-output /private/tmp/hirz-ha-demo-audit.json
+```
+
+The output path must not exist. `config/homeassistant/adapter-demo.yaml` explicitly
+maps the demo heatpump, ecobee and bed light to the disposable Quinn home's
+living-room HVAC, guest-room HVAC and light assets. Ecobee is read-only because it
+has a ranged target; the heatpump is tested at 72 °F in its existing heat mode.
+The light is turned on. Subscription observations and direct read-backs must be
+labeled `real API, demo devices`. Separate pipeline actions restore the original
+heatpump target and light state. Restoration failures are printed and fail the
+command; inspect HA before retrying. A request with an uncertain outcome is never
+resent under its old action/grant.
+
+The command creates and migrates a uniquely named `hirz_ha_smoke_*` database.
+The approved test-only bootstrap installs initial HA bindings, explicit `other`
+room metadata for the synthetic light asset, direct HA input observations and
+one-time simulated absent-member observations. This does not change the seed
+loader's twin-only restriction or activate a policy. After native Dogwood grants,
+signed attempts and outcome rows, the whole audit is verified, exported privately
+(mode 0600), and verified offline. Only then is a successful smoke database deleted.
+A failing smoke retains its named database, including when export or restoration
+fails. Do not delete it before preserving/verifying its audit evidence.
+
+For a physical plug, supply a reviewed local YAML file explicitly, with the
+control and its actual power sensor from your HA installation:
+
+```yaml
+url: http://127.0.0.1:8123
+entities:
+  switch.your_explicit_plug:
+    source: real
+    power_sensor: sensor.your_explicit_plug_power
+```
+
+```bash
+uv run python scripts/smoke_ha.py --live-plug --config /private/tmp/my-ha-plug.yaml --audit-output /private/tmp/hirz-ha-plug-audit.json
+```
+
+This mapping must contain exactly one `light.*` or `switch.*` control, `source: real`
+and a `sensor.*` power sensor; the disposable binding maps it to `light.living_room`.
+No hardware is selected automatically. It authorizes on and restoration via the
+Pipeline, requires measured power, checks direct HA state and observes the event
+stream. A physical-device run is not claimed until this has actually passed;
+physical absence still needs the scenario-fallback and ordinary-unavailability
+checks in roadmap item 15. Synthetic outage tests do not close that hardware gate.
+
+Application integration uses
+`hirz.adapters.devices.ha.factories(config_path=..., assets=..., bindings=..., pipeline=...)`
+and the existing `Registry`; omit `pipeline` for read-only adapters. Pass trusted
+per-asset sources to the registry matching the YAML. `HA_TOKEN` is read from `.env`
+only, with the existing regular-file/0600 checks. Never put it in YAML or a binding.
+Only explicitly bound controls are discovered or read. Unknown/unavailable controls
+raise `AdapterUnavailable` with `actual state unknown`; missing power produces null.
+
+For a scenario, give the registry `scenario_mode=True` and explicit
+`fallback_bindings=(...)` naming the same assets with `adapter="twin"`, and register
+the household's existing twin factory. `await registry.get_state(asset_id)` can
+then read its twin on primary unavailability. `resolve()` still selects HA; ordinary
+`stamp()` still rejects the fallback as a primary observation. Authentication,
+malformed payloads and invalid provenance fail without falling back. An ordinary
+household has no fallback and cannot verify a real action from a twin.
+
+Migration `0005_execution_attempt` follows item 12's `0004_observation_domains`.
+Apply upgrades explicitly only when intended; the smokes migrate disposable data.
+Downgrade refuses any claimed attempt or `EXECUTION_ATTEMPTED` row, even if its
+claim pointer was removed. Never erase evidence to force a downgrade.

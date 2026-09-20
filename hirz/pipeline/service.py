@@ -1,4 +1,4 @@
-"""Internal deterministic pipeline. No authentication endpoint or device executor."""
+"""Internal deterministic pipeline and local single-attempt HA execution claims."""
 
 import logging
 from collections.abc import Callable
@@ -13,6 +13,7 @@ import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from hirz import db
+from hirz.audit import Verification
 from hirz.constitution.boundary import BoundaryResult, Dogwood, Event
 from hirz.constitution.compiler import Compiled, boundary_input, compile_policy
 from hirz.constitution.conditions import PolicyFacts
@@ -947,6 +948,152 @@ class Pipeline:
                     {"action_id": action.action_id},
                 )
         return ev
+
+    async def claim_execution(self, action: Action, decision: Decision) -> int:
+        """Commit one local HA dispatch attempt before any service request."""
+        if self.connection.in_transaction():
+            raise PipelineError("Execution requires an idle connection")
+        try:
+            action = ingest(action)
+            decision = Decision.model_validate(decision.model_dump())
+            if (
+                action.scheduled_for is not None
+                or action.target.adapter != "ha"
+                or action.action_class
+                not in {"environment.lights", "energy.hvac_adjust"}
+                or decision.decision != "execute"
+                or decision.event_type != EventType.EXECUTE
+                or decision.action_id != action.action_id
+                or decision.audit_id is None
+            ):
+                raise ValueError
+            async with self.repo.write(self.clock):
+                at = utc(self.clock())
+                row = (
+                    (
+                        await self.connection.execute(
+                            sa.select(db.actions)
+                            .where(
+                                self.scope(db.actions),
+                                db.actions.c.action_id == action.action_id,
+                            )
+                            .with_for_update()
+                        )
+                    )
+                    .mappings()
+                    .one_or_none()
+                )
+                if (
+                    row is None
+                    or row["execution_attempt_seq"] is not None
+                    or row["grant_seq"] != decision.audit_id
+                    or digest(row["proposal"])
+                    != digest(action.model_dump(mode="json", by_alias=True))
+                ):
+                    raise ValueError
+                grant = (
+                    (
+                        await self.connection.execute(
+                            sa.select(db.audit_log).where(
+                                self.scope(db.audit_log),
+                                db.audit_log.c.seq == row["grant_seq"],
+                            )
+                        )
+                    )
+                    .mappings()
+                    .one()
+                )
+                Verification(self.household_id, self.audit.key.public_key()).feed(
+                    dict(grant)
+                )
+                if (
+                    grant["event_type"] != EventType.EXECUTE
+                    or not timedelta(0)
+                    <= at - grant["created_at"]
+                    <= timedelta(seconds=10)
+                    or digest(grant["payload"])
+                    != digest(decision.model_dump(mode="json", by_alias=True))
+                ):
+                    raise ValueError
+                # Bindings remain authoritative even if changed since adapter startup.
+                binding = (
+                    (
+                        await self.connection.execute(
+                            sa.select(db.asset_bindings).where(
+                                self.scope(db.asset_bindings),
+                                db.asset_bindings.c.attributes["adapter"].astext
+                                == "ha",
+                                db.asset_bindings.c.attributes["entity_id"].astext
+                                == action.target.entity,
+                            )
+                        )
+                    )
+                    .mappings()
+                    .one()
+                )
+                if (
+                    action.target.zone is not None
+                    and str(binding["asset_id"]) != action.target.zone
+                ):
+                    raise ValueError
+                seq = await self.audit.append(
+                    self.connection,
+                    self.household_id,
+                    at,
+                    EventType.EXECUTION_ATTEMPTED,
+                    {
+                        "action_id": action.action_id,
+                        "content_hash": action.content_hash,
+                        "grant_seq": decision.audit_id,
+                    },
+                )
+                await self.connection.execute(
+                    db.actions.update()
+                    .where(
+                        self.scope(db.actions),
+                        db.actions.c.action_id == action.action_id,
+                    )
+                    .values(execution_attempt_seq=seq)
+                )
+            return seq
+        except Exception:
+            await self.connection.invalidate()
+            await self.connection.rollback()
+            raise PipelineError(
+                "Execution claim refused; no dispatch authorized"
+            ) from None
+
+    async def execution_outcome(
+        self, action: Action, attempt: int, event: EventType
+    ) -> None:
+        """Append local execution evidence, never raw upstream responses."""
+        if self.connection.in_transaction():
+            raise PipelineError("Execution evidence requires an idle connection")
+        try:
+            async with self.repo.write(self.clock):
+                claimed = await self.connection.scalar(
+                    sa.select(db.actions.c.execution_attempt_seq).where(
+                        self.scope(db.actions),
+                        db.actions.c.action_id == action.action_id,
+                    )
+                )
+                if claimed != attempt or event not in {
+                    EventType.EXECUTED,
+                    EventType.VERIFIED,
+                    EventType.VERIFY_FAILED,
+                }:
+                    raise ValueError
+                await self.audit.append(
+                    self.connection,
+                    self.household_id,
+                    utc(self.clock()),
+                    event,
+                    {"action_id": action.action_id, "execution_attempt_seq": attempt},
+                )
+        except Exception:
+            await self.connection.invalidate()
+            await self.connection.rollback()
+            raise PipelineError("Execution evidence failed; outcome unknown") from None
 
     async def vote(
         self, approval_id: str, principal: Principal, *, approved: bool

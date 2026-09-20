@@ -136,6 +136,18 @@ Sandbox follow-up to entry 8: the initial public-PDF download failed with exact
 succeeded. The browsing tool separately returned `Internal Error ()` for the same
 PDF URL, while direct curl succeeded. Neither is evidence of a ComEd outage.
 
+## Item 15 HA demo contract — 2026-09-20
+
+| # | Date | Tool / service | Goal | Steps / reference | Expected | Actual | Severity | Workaround | Feature request |
+|---|---|---|---|---|---|---|---|---|---|
+| 13 | 2026-09-20 | Home Assistant 2026.9.2 demo climate | Verify the planned 72 °F single-target write on ecobee without mode changes | Read `/api/states/climate.ecobee` and `/api/config`; checked the [climate contract](https://developers.home-assistant.io/docs/core/entity/climate/) and [REST API](https://developers.home-assistant.io/docs/api/rest/) | Planning assumed a scalar target on ecobee | HTTP 200: `state: heat_cool`, `target_temp_low: 70`, `target_temp_high: 75`, `supported_features: 442`; no scalar `temperature` or per-state `temperature_unit`. No upstream error occurred; the planning assumption was wrong | Minor | Author approved ecobee read-only and `climate.heatpump` at 72 °F in its existing heat mode; fetch the instance unit system from `/api/config` | Include a single-target/ranged-target example and the instance-unit lookup in REST climate examples |
+
+The existing sandbox restriction from entry 6 recurred: `permission denied while
+trying to connect to the docker API at unix:///Users/bashaarjavaid/.docker/run/docker.sock`
+and uv's `Operation not permitted (os error 1)` opening its cache. Authorized
+escalation started the existing HA service and ran the checks; no upstream outage
+or new defect is claimed.
+
 ## Candidates (not yet hit)
 
 - No documented way for an add-on to receive Alexa-side context (device modality, locale, timezone) or to be invoked proactively.

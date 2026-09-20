@@ -276,3 +276,85 @@ def test_invalid_registration_and_values():
     assert (
         WeatherSample(at=AT, temp_f=70.123456, cloud_cover_percent=50).temp_f == 70.1235
     )
+
+
+def test_explicit_scenario_fallback_keeps_primary_routing():
+    async def run():
+        asset = ident("assets", "light.living_room")
+        primary = AssetBinding(
+            id=uuid4(),
+            household_id=HOME,
+            asset_id=asset,
+            adapter="ha",
+            entity_id="light.demo",
+        )
+        fallback = primary.model_copy(
+            update={"adapter": "twin", "entity_id": "light.living_room"}
+        )
+        with pytest.raises(AdapterError):
+            registry(bindings=(primary,), fallback_bindings=(fallback,))
+        for invalid in (
+            fallback.model_copy(update={"household_id": uuid4()}),
+            fallback.model_copy(update={"adapter": "ha"}),
+        ):
+            with pytest.raises(AdapterError):
+                registry(
+                    bindings=(primary,),
+                    fallback_bindings=(invalid,),
+                    scenario_mode=True,
+                )
+        reg = registry(
+            bindings=(primary,),
+            fallback_bindings=(fallback,),
+            scenario_mode=True,
+            sources={("devices", "ha", asset): "real"},
+        )
+        await reg.start()
+        try:
+            ha = reg.instances[("devices", "ha")]
+            twin = reg.instances[("devices", "twin")]
+            ha.get_state.side_effect = AdapterUnavailable("outage")
+            twin.get_state.return_value = reading(
+                source="twin", state={"on": True, "available": True}
+            )
+            result = await reg.get_state(asset)
+            assert result.source == "twin" and result.state.on is True
+            assert reg.resolve("devices", asset_id=asset) is ha
+            with pytest.raises(AdapterError):
+                reg.stamp("devices", "twin", result, at=AT)
+            for cause in (AdapterError("authentication"), AdapterError("malformed")):
+                ha.get_state.side_effect = cause
+                with pytest.raises(AdapterError):
+                    await reg.get_state(asset)
+            ha.get_state.side_effect = None
+            ha.get_state.return_value = reading(source="twin")
+            with pytest.raises(AdapterError):
+                await reg.get_state(asset)
+            ha.get_state.return_value = reading(state={"available": False})
+            assert (await reg.get_state(asset)).source == "twin"
+            for bad in (
+                reading(source="real"),
+                reading(source="twin", household_id=uuid4()),
+                reading("hvac.living_room", source="twin"),
+            ):
+                twin.get_state.return_value = bad
+                with pytest.raises(AdapterError):
+                    await reg.get_state(asset)
+        finally:
+            await reg.close()
+        ordinary = registry(
+            bindings=(primary,), sources={("devices", "ha", asset): "real"}
+        )
+        await ordinary.start()
+        try:
+            ordinary.instances[
+                ("devices", "ha")
+            ].get_state.side_effect = AdapterUnavailable("outage")
+            with pytest.raises(
+                AdapterUnavailable, match="unavailable; actual state unknown"
+            ):
+                await ordinary.get_state(asset)
+        finally:
+            await ordinary.close()
+
+    asyncio.run(run())

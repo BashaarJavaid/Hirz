@@ -373,6 +373,12 @@ actions = sa.Table(
     sa.Column("principal", JSONB, nullable=False),
     sa.Column("cost", sa.Text),
     sa.Column("grant_seq", sa.BigInteger),
+    sa.Column("execution_attempt_seq", sa.BigInteger),
+    sa.ForeignKeyConstraint(
+        ["household_id", "execution_attempt_seq"],
+        ["audit_log.household_id", "audit_log.seq"],
+        name="actions_execution_attempt_fk",
+    ),
     sa.ForeignKeyConstraint(
         ["household_id", "grant_seq"], ["audit_log.household_id", "audit_log.seq"]
     ),

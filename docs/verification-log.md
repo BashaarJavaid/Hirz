@@ -1640,3 +1640,153 @@ sandbox-restriction follow-up in [the friction log](./friction-log.md#item-14-en
 No blocked acceptance checks. Item 15 remains next; the development database stays
 unchanged on `0003_pipeline`, item 12's upgrade remains manual, and no new threat-model
 protection or remote CI result is claimed.
+
+## Item 15 — partial (2026-09-20)
+
+**Physical gate not run:** no physical energy-monitoring plug or reviewed local
+mapping was supplied. The real plug's pipeline write, measured state/power,
+physical-absence scenario fallback and ordinary unavailability remain owed. No
+hardware was selected or purchased. No new threat-model protection, AWS/Link
+execution, remote CI result or development-database migration is claimed.
+
+Implementation decisions and the author-approved switch from ecobee to heatpump
+are in [ADR-006](./adr/ADR-006-twin-first-adapters.md#item-15-local-ha-amendment--2026-09-20-author-approved).
+Reproducible operator commands are in [development](./development.md#home-assistant-adapter-item-15).
+Environment: macOS arm64, Python 3.12.13, uv 0.12.15, existing local Postgres,
+pinned Home Assistant 2026.9.2 demo integration and native `.tools/dogwood`.
+Started the existing HA service with
+`docker compose -f compose.dev.yml up -d homeassistant` after authorized sandbox
+escalation. The private `.env` and its original signing key were reused without
+printing or changing them.
+
+**Recorded and adversarial checks.** `uv run python scripts/smoke_ha.py` exited 0:
+
+```text
+recorded=PASS; reads=3; subscription=acknowledged,filtered; read_only_write=refused; network_requests=0
+```
+
+The adapter/fallback targeted suite grew to 62 passing cases before the final
+cleanup-redaction case. It exercises authentication and subscription refusal,
+connect/auth timeout handling, acknowledgment and bound-entity filtering, shutdown,
+W/kW and Celsius conversions, oldest timestamps, missing power with known on/off,
+malformed/nonfinite/scoped data, secret redaction, switch services, read-only
+refusals, unsupported parameters/modes/steps, contradictory effects, precise raw
+verification, direct-unavailable verification and scenario-only provenance checks.
+A twin/canonical read method is never consulted to verify a real write.
+
+`uv run pytest -m integration tests/integration/test_ha_database.py --no-cov --tb=short -q`:
+
+```text
+8 passed in 4.75s
+```
+
+Those tests use native Dogwood with recorded HA transport and disposable PostgreSQL.
+Eight simultaneous independently connected adapters produce exactly one POST and
+seven claim refusals; reconstructing the adapter/Pipeline on another connection
+produces no additional request. Proposal-only/forged Decisions, changed proposals,
+hash mismatches, stale grants, scheduled actions, foreign households and changed
+bindings are refused. Audit/signature/database/commit failures prevent dispatch;
+a timeout after the attempt is committed cannot be retried. Empty migrations
+round-trip; downgrade refuses both a claimed attempt and its audit evidence with
+the claim pointer removed. The successful chain is exactly
+`EXECUTE → EXECUTION_ATTEMPTED → EXECUTED → VERIFIED`.
+
+Full PostgreSQL regressions, `uv run pytest -m integration --no-cov -q`, exited 0:
+
+```text
+60 passed, 815 deselected in 41.97s
+```
+
+Log: `/private/tmp/hirz-item15-postgres.log`. The full service-free suite after
+adding switch/shutdown/direct-unavailability checks, `uv run pytest -q`, exited 0:
+
+```text
+Required test coverage of 80% reached. Total coverage: 89.53%
+818 passed, 60 deselected in 59.46s
+```
+
+Log: `/private/tmp/hirz-item15-unit-final2.log`. A later cleanup-redaction regression
+and its final run are appended below.
+
+**Live user path.** Ran
+`uv run python scripts/smoke_ha.py --live-demo --audit-output /private/tmp/hirz-item15-demo-audit-final.json`,
+exit 0. The command required subscription observations to match the requested
+values, separately verified service effects through REST and restored both devices:
+
+```text
+read=climate.heatpump; source=real API, demo devices; target_f=68.0; on=None; power_kw=None
+read=climate.ecobee; source=real API, demo devices; target_f=None; on=None; power_kw=None
+read=light.bed_light; source=real API, demo devices; target_f=None; on=False; power_kw=None
+write=climate.heatpump; grant=1; boundary=dogwood-local; verified=True
+subscription=climate.heatpump; source=real API, demo devices; power_kw=None; direct_power_kw=None
+write=light.bed_light; grant=5; boundary=dogwood-local; verified=True
+subscription=light.bed_light; source=real API, demo devices; power_kw=None; direct_power_kw=None
+write=light.bed_light; grant=9; boundary=dogwood-local; verified=True
+restoration=light.bed_light; verified=True
+write=climate.heatpump; grant=13; boundary=dogwood-local; verified=True
+restoration=climate.heatpump; verified=True
+audit=valid; rows=16; export=/private/tmp/hirz-item15-demo-audit-final.json; offline=valid
+live_demo=PASS; ecobee=read_only
+disposable_database=dropped; development_database=unchanged
+```
+
+The tested heatpump target was 72 °F; restoration returned it to 68 °F and the
+light to off. All four device writes had independent native grants, attempt claims
+and outcome rows. The private full audit export was retained and verified offline
+against the original key fingerprint before dropping the disposable database.
+An earlier successful run also retained `/private/tmp/hirz-item15-demo-audit-2.json`.
+
+**Failures encountered and corrected.** Initial database tests used an incorrect
+binding lookup key (`GraphError: An exact entity key is required.`), then omitted
+required synthetic room metadata (`DENY_RISK`). The first claim implementation
+queried relational adapter/entity columns rather than the existing JSONB attributes;
+fail-closed `PipelineError: Execution claim refused; no dispatch authorized` prevented
+all requests until corrected. Downgrade tests were adjusted for the existing Alembic
+safe-error wrapper (`Migration failed; check Postgres, .env, and the migration state.
+Credentials and upstream details withheld.`). Two unit assertions initially expected
+the generic malformed-payload error, while nonfinite power correctly returned
+`Invalid Home Assistant numeric value.`; the assertions were corrected. Strict mypy
+required converting SQLAlchemy's RowMapping to a dict for the existing audit verifier.
+
+The first live bootstrap used a timestamp taken after its graph transaction began
+and failed with `GraphError: Future observations are not accepted.` before any action.
+It retained `hirz_ha_smoke_8a73a89e7bfe4c62905344a2072600db`; a separate read-only
+verification found zero audit rows, exported/verified the empty audit at
+`/private/tmp/hirz-item15-aborted-audit.json`, then dropped only that disposable
+database. A read of the development database still returned `0003_pipeline`.
+Subsequent smokes used one captured bootstrap timestamp and passed.
+
+**Static checks and package.** Ruff lint passed and strict mypy reported
+`Success: no issues found in 77 source files`. `uv build` produced the sdist and
+wheel. Created `/private/tmp/hirz-item15-wheel` with `uv venv`, installed the wheel
+and runtime dependencies using `uv pip install --python ...`, then rebuilt and
+reinstalled the final cleanup change using `--reinstall-package hirz`. Ran:
+
+```bash
+/private/tmp/hirz-item15-wheel/bin/python -I /Users/bashaarjavaid/Projects/Hirz/scripts/smoke_ha.py
+/private/tmp/hirz-item15-wheel/bin/python -I -c 'import hirz, websockets; print(hirz.__file__); print(websockets.__version__); assert "site-packages" in hirz.__file__'
+```
+
+The recorded smoke passed; the import resolved to
+`/private/tmp/hirz-item15-wheel/lib/python3.12/site-packages/hirz/__init__.py` and
+websockets reported `17.1`, proving it is a runtime dependency. The final format
+check is recorded below after documentation updates. Third-party friction was
+reviewed and recorded as entry 13 and an existing sandbox-restriction follow-up;
+no upstream HA error or outage was invented.
+
+**Final cleanup regression run (2026-09-20).** After adding redacted shutdown failure
+handling that still closes the REST client, reran `uv run pytest -q`, exit 0:
+
+```text
+Required test coverage of 80% reached. Total coverage: 89.54%
+819 passed, 60 deselected in 59.95s
+```
+
+Final full-suite log: `/private/tmp/hirz-item15-unit-final3.log`. Ruff lint and strict
+mypy also passed after that change; final rebuilt/installed-wheel smoke passed.
+
+**Documentation and final format gate.** Updated the architecture/ADR, operator
+procedure, partial roadmap entry, changelog and mirrored instructions. After those
+records were written, `ruff check .`, strict mypy and `git diff --check` passed;
+`ruff format --check .` reported `128 files already formatted`. No physical gate
+was marked complete and `THREAT_MODEL.md` was left unchanged.

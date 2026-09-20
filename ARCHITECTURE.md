@@ -142,7 +142,8 @@ An approvable `ASK` produces an `Approval` with a TTL and a quorum rule (§5.5);
 a native Dogwood instance, an existing P-256 signing key through `AuditWriter`,
 and an injected clock. `PolicyBundle.validate` validates and compiles before use;
 stored seed policies remain **unvalidated**, with their existing hashes. There is
-no activation, public authentication, MCP mutation surface, adapter or AWS path here.
+no activation, public authentication, MCP mutation surface or AWS path here; item 15 adds
+the narrow local HA claim/outcome methods specified in §5.11.
 
 - `evaluate(action, principal, cost=..., evidence=...)` reads current state and
   returns a Decision without writing actions, approvals, grants or audit rows.
@@ -157,7 +158,8 @@ no activation, public authentication, MCP mutation surface, adapter or AWS path 
   atomically commits the grant. An automatic action needs no approval ID. Only the
   audit row referenced by `actions.grant_seq` is a **committed execution grant**.
   One household/action ID can receive one grant; intentional repetition needs a
-  new ID. No device is operated. Physical execution is item 19.
+  new ID. Redemption itself operates no device; local HA execution is item 15 and the
+  general executor remains item 19.
 
 Trusted `Principal` is an internal input, not a public request body. Caller-supplied
 Action authority is ignored. Each role in the linked/claimed intersection must
@@ -298,7 +300,7 @@ immutable; exact money is serialized as strings.
 }
 ```
 
-`decision` ∈ `execute | ask | deny | verify`. `event_type` is one canonical enum: `EXECUTE`, `ASK_CONSTITUTION`, `ASK_RISK`, `ASK_BUDGET`, `ASK_UNRESOLVED_CONDITION`, `ASK_REQUESTER_CONFIRMATION`, `DENY_CONSTITUTION`, `DENY_RISK`, `DENY_BUDGET`, `DENY_BOUNDARY`, `DENY_APPROVAL_MISMATCH`, `DENY_APPROVAL_EXPIRED`, `DENY_APPROVAL_USED`, `DENY_APPROVAL_UNAUTHORIZED`, `VERIFY`, `APPROVED`, `REJECTED`, `EXPIRED`, `EXECUTED`, `VERIFIED`, `VERIFY_FAILED`, `ROLLED_BACK`, `PLAN_CREATED`, `PLAN_REVISED`, `CONSTITUTION_PROPOSED`, `CONSTITUTION_ACTIVATED`, `POLICY_ERROR`, `ADAPTER_ERROR`, `LINK_REJECTED`, `OUT_OF_BAND_CHANGE`, `AUTONOMY_PAUSED`, `AUTONOMY_RESUMED`, `AUDIT_ANCHORED`, `MEMORY_PROPOSED`, `MEMORY_ACCEPTED`. `boundary.engine` ∈ `agentcore-policy | dogwood-local`.
+`decision` ∈ `execute | ask | deny | verify`. `event_type` is one canonical enum: `EXECUTE`, `ASK_CONSTITUTION`, `ASK_RISK`, `ASK_BUDGET`, `ASK_UNRESOLVED_CONDITION`, `ASK_REQUESTER_CONFIRMATION`, `DENY_CONSTITUTION`, `DENY_RISK`, `DENY_BUDGET`, `DENY_BOUNDARY`, `DENY_APPROVAL_MISMATCH`, `DENY_APPROVAL_EXPIRED`, `DENY_APPROVAL_USED`, `DENY_APPROVAL_UNAUTHORIZED`, `VERIFY`, `APPROVED`, `REJECTED`, `EXPIRED`, `EXECUTION_ATTEMPTED`, `EXECUTED`, `VERIFIED`, `VERIFY_FAILED`, `ROLLED_BACK`, `PLAN_CREATED`, `PLAN_REVISED`, `CONSTITUTION_PROPOSED`, `CONSTITUTION_ACTIVATED`, `POLICY_ERROR`, `ADAPTER_ERROR`, `LINK_REJECTED`, `OUT_OF_BAND_CHANGE`, `AUTONOMY_PAUSED`, `AUTONOMY_RESUMED`, `AUDIT_ANCHORED`, `MEMORY_PROPOSED`, `MEMORY_ACCEPTED`. `boundary.engine` ∈ `agentcore-policy | dogwood-local`.
 
 `risk` is null for pre-scoring denials; `audit_id` is null for read-only evaluation.
 Optional `budget` records local date, class, used/proposed/cap/reserved exact amounts.
@@ -682,7 +684,50 @@ household rate plan. `PriceSlot` contains start/end, Decimal import cents/kWh an
 optional export cents/kWh; negative prices are valid. Weather reads use the household
 location and retain timestamped `WeatherSample` values with temperature °F and cloud
 cover percent. All documented write methods accept canonical `Action, Decision` and
-return `None`; these are declarations only, not grant verification or execution.
+return `None`; item 15 implements the narrow local HA write path described below.
+
+**Item 15 local HA contract.** `devices:ha` uses a validated non-secret origin URL,
+explicit climate/light/switch bindings, optional power sensors and per-entity trusted
+`real | real API, demo devices` labels. Only its private `.env` supplies `HA_TOKEN`.
+Discovery cannot widen the allowlist. Reads emit canonical observations without graph
+ingestion; preserve HA `last_updated`, convert W to kW and use the older timestamp
+when combining readings. Missing power yields null without erasing known on/off.
+Temperature units come from `/api/config`; absent single targets remain null. Invalid,
+nonfinite, unit-incompatible or incorrectly scoped data fails closed.
+
+A lazy WebSocket subscription authenticates and awaits the `state_changed` subscription
+acknowledgment before receiving observations. Only bound control/power events trigger
+rereads. There is one active subscription; disconnect closes and raises. REST requests,
+connection and authentication each have ten-second deadlines. There is no reconnect,
+subscription fallback or automatic service retry.
+
+`Registry.get_state(asset_id)` uses the primary binding. Only constructor options
+`scenario_mode=True` plus explicit same-household/asset `fallback_bindings` allow a
+registered twin on unavailable/missing primary state or transport failure. Fallback
+provenance is checked separately; ordinary stamping still rejects unselected adapters.
+Authentication, malformed data and provenance errors never fall back. `resolve()` and
+writes retain their primary routing. Ordinary outages report `unavailable; actual state
+unknown`. Fallback readings never verify HA writes.
+
+With an injected household Pipeline, `set_light(Action, Decision)` accepts only
+`{on: boolean}` and `set_climate` only `{target_f: finite number}`. Climate writes require
+a single-target heat/cool mode and supported bounds/step; Celsius is converted without
+rounding the requested target. Supplied expected effects must match the request.
+Cover/security, mode/brightness/toggle changes and extra parameters are unavailable.
+Without the Pipeline, the adapter is read-only.
+
+`Pipeline.claim_execution` locks under the existing graph transaction convention,
+recomputes the hash, compares the full stored proposal and supplied Decision, verifies
+the signed committed grant, checks the household/binding and refuses scheduled actions,
+grants older than ten seconds and previous attempts. It appends `EXECUTION_ATTEMPTED`
+and atomically sets `actions.execution_attempt_seq`, committing before one REST service
+request. Database/audit/signing failure prevents dispatch. Crashes and uncertain responses
+never clear that claim. A service success appends `EXECUTED`; independent direct HA reads
+poll at one-second intervals for at most ten seconds, matching on/off exactly or raw
+climate targets within 0.000001 °F. Rounded graph facts and twins cannot verify execution.
+Append `VERIFIED` or `VERIFY_FAILED`; uncertain effects remain unknown. Raw HA payloads
+and credentials never enter outcome audit rows or diagnostics. Full scheduling/executor
+lifecycle and AWS/Link execution remain later work; this is local enforcement only.
 
 **Item 14 energy series contract.** Both energy implementations now return
 `PriceSeries` from `get_prices` and `WeatherSeries` from `get_weather`, replacing
@@ -915,6 +960,14 @@ and reservations are audit payloads, not additional tables.
 Changed pause state uses the graph repository's current version token. No lifecycle
 queue, spend-counter or separate decision table is introduced. Executor transitions
 and public authentication fields remain later work. See [ADR-002](./docs/adr/ADR-002-postgres-over-dynamodb.md#item-9-amendment--2026-09-18).
+
+### 6.3 Item 15 local execution storage (2026-09-20)
+
+Revision `0005_execution_attempt` adds nullable `actions.execution_attempt_seq` with a
+household-scoped foreign key to its signed `EXECUTION_ATTEMPTED` audit row. This is a
+permanent one-attempt claim, not a retry queue. No additional table or executor state
+machine is introduced. Downgrade locks actions/audit and refuses either a non-null claim
+or any attempt audit row, preserving evidence even if a claim pointer was removed.
 
 ---
 
