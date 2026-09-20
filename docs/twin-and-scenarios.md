@@ -257,12 +257,15 @@ notification transport and the scenario runner remain later roadmap work.
 
 ## 3. Scenario DSL
 
-The item 6 seed files use two YAML documents (graph, then unvalidated constitution).
-They bind every initial asset to `twin` and contain no observations; a scenario
-must supply its `initial` state and adapter overrides when item 16 implements the
-runner. The seeded arrival window is schedule context only and never evidence of
-visitor identity. Loader details are in [development procedures](./development.md).
-
+Item 16 implements the offline observation-stage contract in §3.1. The longer
+examples below describe the **target full demo**, including services still under
+development; they are illustrative sketches, not the executable YAML syntax.
+The committed [evening](../scenarios/demo-evening.yaml) and
+[parents](../scenarios/parents-scam-check.yaml) files are the runnable source of
+truth. They retain the full timeline, use explicit all-twin inputs, and list
+future expectations as deferred assertions. Real energy/HA bindings remain later
+integration work. The household seeds are read as graph data plus a constitution;
+no graph rows are written and no stored policy is activated.
 
 Two scenarios carry the demo. They are separate files on purpose: a scenario describes one household, and the DSL is not extended to span two.
 
@@ -366,15 +369,95 @@ Event kinds: `voice`, `app.approve|deny` (a member acting in the companion app; 
 
 ---
 
+### 3.1 Item 16 runnable contract
+
+`hirz.twin.scenario.LoadedScenario(path)` validates one strict YAML document and
+loads its seed, recorded patches, canonical graph records and explicit `TwinConfig`
+into an isolated `TwinWorld`. `run_scenario(...)` is async and returns a JSON-ready
+run report. These are simulation interfaces, not new Action/Decision/AuditEvent
+shapes or execution authority. There is no database, signing key, LLM, external
+feed or device credential. Native Dogwood is required for simulated activation.
+
+Top-level fields are `id`, `seed`, `household`, `clock` (`start`, `end`, `speed`),
+`rate_plan: twin`, explicit `adapters`, `initial`, `timeline`, and `assert`.
+Household and patch paths resolve relative to the scenario file. Member, contact
+and asset references use seed slugs and resolve only within that household.
+`initial` uses the existing TwinConfig fields except start/end/seed, which come
+from the scenario. Its model dictionaries use seed slugs instead of UUIDs;
+zone references are resolved the same way. Required empty collections are
+explicit. Overrides, inbound calls and contact scripts are supplied through the
+timeline; their initial collections must be empty. Existing documented physical
+parameter precedence still applies. Approved concrete values live only in the
+committed fixtures, never in implicit loader defaults.
+
+Times are quoted `HH:MM` or `+Nd HH:MM`, relative to the starting local date,
+inside the inclusive configured horizon. Events must be nondecreasing; ties keep
+file order. Existing folded/gap DST semantics apply. Physics advances to an event
+before that event changes the world. A world mutation commits an event boundary;
+ordinary reads remain projections and do not perturb integration. A clock at zero
+is used internally for exact event injection, independently of terminal pacing.
+
+Implemented events are presence arrive/leave/sleep/wake (member, optional zone;
+sleep requires zone), wearable recovery (member, score), doorbell press/motion
+(explicit entity, classification for motion), private inbound call and contact
+reply, voice scripts, and simulated constitution activation. Doorbell visitor
+hints remain private and cannot establish presence or identity. A call has
+`presented_number` and `claim`; a contact reply has `contact`, `reply`,
+`requested_at`, and `deadline`, with its event time as the reply time. Only one
+check-in model per contact is supported; a no-answer event occurs at its deadline.
+These are private, time-indexed model inputs, never communication or verification
+case mutations. The parents' future courier notification remains deferred.
+
+Voice events require `member`, `text` and a nonempty `script` of known tool names.
+The member names a linked demo account, never an identified speaker. Scripts
+produce deferred tool entries without tool arguments, consumer speech or results.
+The supported vocabulary's remaining events require `deferred` and may carry an
+inert `payload` mapping and linked `member`. Unknown event names or unexpected
+fields fail. Deferred payloads are not executed or exported.
+
+A `constitution.activate` event names the linked owner and `patch`. The patch has
+`base_version`, `version` and full replacement rules under `autonomy`; it does not
+merge fields within a rule. A preceding proposal script from that same owner,
+exact base version and a one-version increment are required. The candidate must
+pass the existing constitution schema, compiler and native Dogwood validation;
+the existing preview derives situation lines. Only then is the in-memory policy
+swapped. Failure leaves the previous policy intact. The report labels this
+recorded/simulated, `authenticated: false`, and `dogwood-local`. No audit row or
+production authentication/activation is implied.
+
+`assert.checks` contains `{at, kind, equals}` entries. Observation checks add
+`domain` and `subject` (seed slug or `household`); `equals` selects canonical
+ObservationState fields, normalized through the existing model. Policy checks
+compare `version`; private call checks compare `count`; private contact checks
+name a contact subject and compare model `status`. All checks at a timestamp run
+after all events at that timestamp. Observation subjects and sources are checked
+explicitly, so a household tariff cannot match a battery's household ID.
+`assert.deferred` entries contain an `expectation` and `reason`; future ordered
+audit occurrences and `never` expectations remain individually visible rather
+than passing without an executor. Future numeric expectations are provisional
+assertions, not calculated or published savings.
+
+Reports contain input SHA-256 hashes, seed, simulated start/end, explicit adapter
+mix, indexed event statuses, canonical observation snapshots, policy version and
+preview, indexed assertion statuses and deferrals. Raw voice/call text, inbound
+numbers, private channel values/hashes and deferred payloads are withheld.
+Contact assertions expose their check result, not private script contents.
+Reports are not audit exports; there is no invented audit range or signature.
+
+---
+
 ## 4. Running scenarios
 
 ```
-hirz scenario run scenarios/demo-evening.yaml --speed 60            # interactive, companion app follows along
-hirz scenario run scenarios/demo-evening.yaml --headless --assert   # CI: scripted host, asserts audit + numbers
+hirz scenario run scenarios/demo-evening.yaml --speed 60            # paced terminal trace
+hirz scenario run scenarios/demo-evening.yaml --headless --assert   # item 16 observations; future checks deferred
 hirz scenario step scenarios/demo-evening.yaml --to "18:40"         # pause before the unexpected visitor for recording
 ```
 
-Scenario runs are recorded (`scenario_runs`) with the seed, the adapter mix, and the resulting audit range, so a demo video can cite the exact run it shows.
+Item 16 exports an in-memory run report with `--output NEW_FILE`, refusing overwrite.
+Persistent `scenario_runs` and genuine audit ranges remain later integration work.
+See [development](./development.md#scenario-runner-item-16) for exit codes, step
+boundaries, validator setup and verification commands.
 
 **Numbers are derived, never typed.** The demo household is on ComEd's Time-of-Day rate, whose all-in Mid-Day Peak price is several times its Overnight price, so the flexible load in the demo (about 12 kWh of EV charging, one home-battery cycle, a dishwasher, HVAC pre-conditioning) is worth dollars a night rather than cents. The assertion range in `plan_summary` is provisional until `ROADMAP.md` item 17 replaces it: the backtest script pulls a year of ComEd hourly history through the feed's date-range parameters, runs the planner on the demo loads for every day on both rate profiles, and writes the observed spread, the annualized saving per profile, the worst spike night avoided, and the hours charged at negative prices. The script and its data are kept in `scripts/` so every figure is reproducible. A reproducible number can still be a weak comparison, so the saving is measured against a timer schedule a careful household already uses, with "do everything now" and the cheapest-slots heuristic beside it, all held to the same comfort, the same energy into the car, and a battery that ends no emptier than it began. On Hourly Pricing the backtest plans from what was knowable at the time and is billed at realized prices; state carries between days; it reports a distribution, including the days on which Hirz adds little, for a home with solar, battery, and car, a home with a car only, and a home with no car; and the Time-of-Day replay before 2026-07-23 is labeled a counterfactual simulation (`ARCHITECTURE.md` §5.4). The scorecard leads with dollars (tonight, then annualized from the backtest); `peak_kwh_avoided` comes second. The `tariff.spike` event remains a twin-only test of the planner under a price spike and is never used to inflate a demo number.
 

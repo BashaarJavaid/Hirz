@@ -598,3 +598,61 @@ Migration `0005_execution_attempt` follows item 12's `0004_observation_domains`.
 Apply upgrades explicitly only when intended; the smokes migrate disposable data.
 Downgrade refuses any claimed attempt or `EXECUTION_ATTEMPTED` row, even if its
 claim pointer was removed. Never erase evidence to force a downgrade.
+
+## Scenario runner (item 16)
+
+This is an offline, in-memory simulation. No database initialization, migration,
+seeding command, `.env`, HA, AWS, LLM or physical device is needed. The scenario
+files supply explicit simulated inputs; their seed files are read without writes.
+The full input/report contract is in [the scenario specification](./twin-and-scenarios.md#31-item-16-runnable-contract).
+
+Build the pinned native Dogwood CLI if it is not already present, then select it
+explicitly. A missing or failing validator refuses simulated activation; there is
+no fallback that silently skips that check.
+
+```sh
+uv run python scripts/build_dogwood.py
+export HIRZ_DOGWOOD="$PWD/.tools/dogwood"
+uv run hirz scenario run scenarios/demo-evening.yaml --headless --assert
+uv run hirz scenario run scenarios/parents-scam-check.yaml --headless --assert
+uv run hirz scenario step scenarios/demo-evening.yaml --to "18:40" --assert
+uv run hirz scenario run scenarios/demo-evening.yaml --step --to "18:40" --assert
+uv run hirz scenario run scenarios/parents-scam-check.yaml --speed 60 --assert
+uv run hirz scenario run scenarios/demo-evening.yaml --headless --assert --output /private/tmp/hirz-evening-new.json
+```
+
+Stdout is the JSON report; event progress is on stderr. `--output` creates a new
+file exclusively and also emits the same report on stdout. Existing paths,
+including symlinks, are refused. Input hashes identify the exact scenario, seed
+and recorded patch bytes. Reports omit private call/channel data and raw speech;
+they have no audit range and are not signed audit exports.
+
+Headless mode jumps directly between event/check times. A normal run paces the
+same simulated instants at the YAML speed or positive finite `--speed` override.
+Step replays from the beginning, advances to the target and exits before events
+at that time; it does not store a resumable session. Checks at/after the target
+are `not_reached`, even if the corresponding pre-event snapshot is exported.
+
+Exit 0 means the requested run/step finished without a failed active check.
+With `--assert`, only a full run can report `item16_observations_passed`; a step
+reports `stopped`. Without the flag, checks are `unchecked` and a full run reports
+`completed_unchecked`. An explicit future assertion remains `deferred` in every
+case. Exit 1 is an input, validator, runtime, assertion or output failure; exit 2
+is CLI usage failure. Inspect the report status rather than interpreting exit 0
+as full demo verification.
+
+```sh
+uv run pytest tests/unit/test_scenario.py --no-cov
+uv run pytest
+uv run pytest -m integration --no-cov
+uv run mypy hirz/ scripts/ alembic/
+uv run ruff check .
+uv build
+```
+
+Run the format check after appending verification evidence. PostgreSQL regressions
+use their existing uniquely named disposable databases; the scenario commands
+never connect to PostgreSQL. For a wheel smoke, install the wheel into a temporary
+venv, leave the checkout, and pass an absolute path to a scenario file (its relative
+household/patch references still resolve from that file). Scenario fixtures are
+repository inputs, not bundled runtime assets.

@@ -805,6 +805,15 @@ hypothetical only: adapter writes and subscriptions remain unavailable, and no
 observation ingestion or scenario runner is introduced. The callable `SimClock`
 fits the existing injected-clock interface without changing pipeline behavior.
 
+Item 16 adds the offline scenario loader, deterministic runner, scripted tool-name
+trace, simulated recorded-policy replacement, observation assertions and JSON
+reports. Its exact contract and approved deferrals live in
+[the scenario specification §3.1](./docs/twin-and-scenarios.md#31-item-16-runnable-contract).
+It uses the in-memory models and read adapters; it grants no authority and writes
+no graph, policy, execution, audit or scenario-run rows. Native Dogwood validates
+recorded candidates, without claiming authenticated activation. Future tool calls
+and full demo assertions are explicit deferrals, not mock success results.
+
 ### 5.13 MCP Server (the Alexa+ surface)
 
 - **Transport.** Streamable HTTP on the official Python SDK, stateless mode by default (AgentCore Runtime adds `Mcp-Session-Id` continuity), stateful mode available for elicitation. Endpoint `/mcp`. Origin/Host validation on every request; 403 on invalid Origin per spec.
@@ -1091,8 +1100,10 @@ runner: PostgreSQL and HA demo onboarding, Hirz readiness, explicit migrations,
 schema-drift check, doctor, authenticated service checks, and live PostgreSQL
 tests. Cleanup removes only that run's resources and generated `.env`.
 
-The scenario, add-on conformance, latency, Cedar conformance, and release jobs
-are explicit successful placeholders. Their logs and job summaries name the
+The scenario job now runs both item 16 offline observation assertion commands
+with native Dogwood and lists the deferred full-demo expectations. The Cedar
+conformance job runs native local checks; AWS comparison remains deferred.
+The add-on conformance, latency, and release jobs are explicit successful placeholders. Their logs and job summaries name the
 deferred work; TypeScript tests and build also disclose absent browser tests
 and frontend bundles. The release placeholder runs on every event and publishes
 nothing. Green scaffold CI does not establish any of these future guarantees.

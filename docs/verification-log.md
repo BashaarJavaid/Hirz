@@ -1790,3 +1790,164 @@ procedure, partial roadmap entry, changelog and mirrored instructions. After tho
 records were written, `ruff check .`, strict mypy and `git diff --check` passed;
 `ruff format --check .` reported `128 files already formatted`. No physical gate
 was marked complete and `THREAT_MODEL.md` was left unchanged.
+
+## Item 16 — Complete (2026-09-20)
+
+**Scope of completion:** the author explicitly approved the item 16 observation
+stage as its completion gate. This is not full demo verification: real scripted
+tool execution, persisted `scenario_runs`, graph ingestion, authenticated policy
+activation, planner/Protect/executor/Link integration and their assertions remain
+owed. Every future assertion is individually deferred, including `never` checks
+that would otherwise pass vacuously. No device action, new threat-model protection,
+remote CI result or development-database migration is claimed. Item 15's physical
+plug and physical-absence gates remain pending.
+
+Approved decisions and rejected alternatives are in
+[ADR-006](./adr/ADR-006-twin-first-adapters.md#item-16-observation-stage-scenarios--2026-09-20-author-approved).
+Input/report semantics live in [the scenario spec](./twin-and-scenarios.md#31-item-16-runnable-contract);
+repeatable procedures live in [development](./development.md#scenario-runner-item-16).
+
+### Environment and implementation failures
+
+macOS 15.7.3 arm64, Python 3.12.13, uv 0.12.15, existing locked `.venv`, native
+`.tools/dogwood`, existing local PostgreSQL. Source checks used
+`UV_CACHE_DIR=/tmp/hirz-uv-cache` and `uv run --locked --no-sync` to reuse the
+installed environment; no manifest or lockfile changed. Scenarios used
+`HIRZ_DOGWOOD="$PWD/.tools/dogwood"`. There was no model, public API or device call.
+
+The first evening run traversed all 20 events but failed its household tariff
+check: the assertion matched a battery sharing the household/domain instead of
+the household-subject observation. Fixed subject matching and retained a
+regression assertion. Its first output was 15 passed checks and 1 failed.
+The parents' first run passed all 9 checks. Initial mypy checks caught typed
+member-account access, a keyword-only registry argument and transition literal
+typing. The first CLI import also caught an evaluated private argparse generic;
+postponed annotation evaluation fixed it.
+
+The first focused suite reported `2 failed, 32 passed`: tests incorrectly tried
+`python -m hirz` instead of the installed CLI entrypoint and rejected the harmless
+word `presented_number` inside a deferred expectation. Corrected those tests to
+exercise the actual CLI and forbid actual private values. The suite then passed
+34 checks, and expanded malformed-input coverage brought it to 42.
+
+The first full suite in the sandbox reported:
+
+```text
+2 failed, 851 passed, 60 deselected in 74.66s (0:01:14)
+Required test coverage of 80% reached. Total coverage: 89.39%
+```
+
+Both failures were existing loopback WebSocket tests denied socket access. The
+first PostgreSQL attempt similarly stopped before any test ran (`853 deselected,
+1 error in 1.58s`). Authorized reruns passed. The temporary-cache offline wheel
+install initially lacked an existing dependency; authorized access to the existing
+cache completed the install offline. Exact environment errors and workarounds are
+recorded once in [the friction follow-up](./friction-log.md#item-16-environment-follow-up--2026-09-20),
+not as new upstream defects.
+
+### Final tests and user-facing runs
+
+```text
+uv run --locked --no-sync pytest tests/unit/test_scenario.py --no-cov -q
+42 passed in 9.35s
+
+uv run --locked --no-sync pytest -q
+861 passed, 60 deselected in 74.33s (0:01:14)
+Required test coverage of 80% reached. Total coverage: 89.44%
+
+uv run --locked --no-sync pytest -m integration --no-cov -q --maxfail=1 --tb=short
+60 passed, 853 deselected in 41.85s
+
+uv run --no-sync mypy hirz/ scripts/ alembic/
+Success: no issues found in 79 source files
+
+uv run --no-sync ruff check .
+All checks passed!
+
+uv build --offline
+Successfully built dist/hirz-0.0.0.tar.gz
+Successfully built dist/hirz-0.0.0-py3-none-any.whl
+```
+
+The integration run preceded the eight added malformed-input unit cases; its
+853 deselections are therefore expected. All databases it created were uniquely
+named disposable test databases. No scenario command connects to PostgreSQL.
+
+The actual CLI commands run were:
+
+```sh
+uv run --locked --no-sync hirz scenario run scenarios/demo-evening.yaml --headless --assert --output /tmp/hirz-item16-evening-final.json
+uv run --locked --no-sync hirz scenario run scenarios/parents-scam-check.yaml --headless --assert --output /tmp/hirz-item16-parents-final.json
+uv run --locked --no-sync hirz scenario step scenarios/demo-evening.yaml --to '18:40' --assert
+uv run --locked --no-sync hirz scenario run scenarios/parents-scam-check.yaml --speed 60 --assert
+```
+
+Each exited 0. JSON stdout and separate stderr traces were retained in temporary
+files; reports are reproducible artifacts, not permanent audit exports.
+
+| Run | Status | Events processed | Active checks | Deferred future checks | Exported observations |
+|---|---|---:|---|---:|---:|
+| Evening | `item16_observations_passed` | 20 | 16 passed | 25 | 288 |
+| Parents | `item16_observations_passed` | 5 | 9 passed | 9 | 42 |
+| Evening step to 18:40 | `stopped` | 6 | 4 passed, 12 not reached | 25 | 112 |
+| Parents paced at 60× | `item16_observations_passed` | 5 | 9 passed | 9 | 42 |
+
+The paced parents report equals the headless report as parsed JSON. The injected
+pacer test also matches and sums to 25 seconds of waits. The step stops before
+both 18:40 events, and the full run preserves their press-before-voice order.
+Repeated runs produce identical parsed reports. All observations have `source:
+twin`. Mom remains absent at the expected-window doorbell press, arrives only at
+her explicit 19:10 event and sleeps at 23:05. The EV remains at 0.34, the doors
+remain locked and the lamp/dishwasher remain off because no commands execute.
+
+Recorded version 7→8 passes native validation and produces the existing
+unexpected-visitor “ask on phone → never” preview plus “Expected arrival: still
+asks on your phone.” It is labeled recorded/simulated and `authenticated: false`.
+Wrong owner, missing proposal, wrong base/increment, invalid security channels and
+missing Dogwood fail while retaining version 7. Redaction, invalid references,
+invalid times, omitted initial fields, unsupported/unmarked events, nonfinite
+speed, duplicate YAML keys, assertion failure, CLI aliases/usage errors, existing
+output files and dangling output symlinks are checked.
+
+### Installed wheel and CI definition
+
+Created `/tmp/hirz-item16-wheel-venv`, installed the built wheel and its existing
+dependencies offline, left the checkout for `/tmp`, and ran both absolute-path
+scenario commands with that environment's `hirz` executable. Verified the imported
+package came from `/private/tmp/hirz-item16-wheel-venv/lib/python3.12/site-packages/`.
+
+```text
+PASS installed wheel evening: events=20 checks=16 deferred=25
+PASS installed wheel parents: events=5 checks=9 deferred=9
+```
+
+The scenario CI placeholder was replaced with pinned setup, native Dogwood and
+both headless assertion commands; its summary names the deferred expectations.
+The YAML parsed and retains all 11 job IDs. No push, workflow dispatch, upload or
+remote CI run occurred. The existing browser/conformance/latency/release limits
+are not earned by this change.
+
+Input SHA-256 values from the final reports:
+
+```text
+evening scenario: 6d51904f5495f7fdb1c52ce1468ea31ab0d350d8818f92e7fb588e15d9112047
+evening household: 20a685ffdeea6597af266790bb732e644644abc4131f9dd2a2c91bff73d2489a
+recorded patch: d538f15ad44f8cc79e0a6590e48888364166a72b0871c3f3f5de1a2d848745e3
+parents scenario: 42a8d0dcc3a7b43e4588c6ab1a372f8b9fa60122b75dc855d00ae943ef2f4a38
+parents household: 4d8dfd01a3b876714141fcb90f5d1a36dc45937fa9c3384016b727ba3592a8a3
+```
+
+### Final record consistency and formatting
+
+After the evidence, roadmap, changelog and mirrored Current phase updates,
+`ruff format --check .` reported `131 files already formatted`; Ruff lint, strict
+mypy (79 source files) and `git diff --check` passed. A whole-file mirror check
+initially flagged the pre-existing AGENTS-specific introductory sentence; comparison
+of all substantive guidance confirms it matches CLAUDE.md exactly. That unrelated
+introductory difference was preserved.
+
+A documentation-only complexity-ceiling comment was added to the runner's small
+linear timeline scans. Rebuilt/reinstalled the final wheel and reran both scenarios
+outside the checkout: evening `item16_observations_passed` with 16 checks, parents
+with 9. No behavioral code changed after the 861-test full run. Final formatting
+was repeated after this appended evidence, as required.

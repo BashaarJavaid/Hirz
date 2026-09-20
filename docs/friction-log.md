@@ -148,6 +148,33 @@ and uv's `Operation not permitted (os error 1)` opening its cache. Authorized
 escalation started the existing HA service and ran the checks; no upstream outage
 or new defect is claimed.
 
+## Item 16 environment follow-up — 2026-09-20
+
+The previously recorded sandbox/cache restrictions recurred (Minor; no new scored
+upstream defect). The initial uv invocation returned:
+
+```text
+error: Failed to initialize cache at `/Users/bashaarjavaid/.cache/uv`
+  cause: failed to open file `/Users/bashaarjavaid/.cache/uv/sdists-v9/.git`: Operation not permitted (os error 1)
+```
+
+Using a writable temporary `UV_CACHE_DIR` plus the existing locked environment
+allowed source checks. Existing socket/database tests required authorized local
+access after these exact errors:
+
+```text
+PermissionError: [Errno 1] error while attempting to bind on address ('127.0.0.1', 0): [errno 1] operation not permitted
+psycopg.OperationalError: connection is bad: connection to server at "127.0.0.1", port 5432 failed: Operation not permitted
+```
+
+The temporary cache did not contain all wheel dependencies; offline installation
+reported `Because websockets==17.1 needs to be downloaded from a registry`.
+Authorized access to the existing uv cache completed the same **offline** install
+into the disposable venv; no dependency or lockfile changed. No service restart,
+network fetch, or upstream outage is claimed. References:
+[uv cache configuration](https://docs.astral.sh/uv/concepts/cache/) and
+[offline installation](https://docs.astral.sh/uv/reference/cli/#uv-pip-install--offline).
+
 ## Candidates (not yet hit)
 
 - No documented way for an add-on to receive Alexa-side context (device modality, locale, timezone) or to be invoked proactively.

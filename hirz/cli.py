@@ -27,6 +27,11 @@ from hirz.local import (
     signing_key,
 )
 from hirz.pipeline.cli import add_decide, decide_command
+from hirz.twin.scenario_cli import (
+    add_scenario,
+    scenario_command,
+    validate_scenario_args,
+)
 
 
 async def check_postgres(values: dict[str, str]) -> str:
@@ -138,6 +143,7 @@ def main() -> int:
     commands = parser.add_subparsers(dest="command", required=True)
     add_commands(commands)
     add_decide(commands)
+    add_scenario(commands)
     commands.add_parser(
         "doctor", help="Check local services, signing key, and migrations"
     )
@@ -160,6 +166,9 @@ def main() -> int:
     preview.add_argument("old", type=Path)
     preview.add_argument("new", type=Path)
     args = parser.parse_args()
+    if args.command == "scenario":
+        validate_scenario_args(args, parser)
+        return asyncio.run(scenario_command(args))
     if args.command == "decide":
         return asyncio.run(decide_command(args))
     if args.command in {"audit", "verify-audit"}:

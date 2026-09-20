@@ -204,3 +204,46 @@ boundary or earn any additional threat-model row. Physical-device selection and
 purchase remain outside this work. Contracts live in [architecture §5.11](../../ARCHITECTURE.md#511-adapters),
 procedures in [development](../development.md#home-assistant-adapter-item-15), and
 actual checks in [the evidence log](../verification-log.md#item-15--partial-2026-09-20).
+
+## Item 16 observation-stage scenarios — 2026-09-20 (author-approved)
+
+The author approved the following choices individually before implementation:
+
+- Run both complete timelines in memory, with explicit deferrals for services and
+  assertions belonging to later items. Reject fabricated tool results, speech,
+  approvals, execution and audit events. The item 16 completion gate is observation
+  verification; real scripted tool execution, `scenario_runs` persistence, and the
+  full demo assertions remain later integration work. Rejected pulling those
+  services forward or replacing the timelines with reduced stories.
+- Commit explicit all-twin inputs, including a synthetic tariff and supplied
+  weather; keep the stored household seeds unchanged. Rejected implicit adapter
+  fallback, real feeds/HA bindings, and unreviewed model initialization. The author
+  approved the exact fixture values and an explicit Mom arrival at 19:10, which
+  is independent of the deferred unlock and the schedule's expected window.
+- Record tool-name scripts directly on voice events with the linked demo account
+  and surface. Calls remain deferred; no guessed wire arguments or LLM selection.
+  Rejected inferring speaker identity or claiming a working MCP host.
+- A recorded patch replaces complete rules, names its base and next version, and
+  changes only the in-memory scenario policy after the linked owner's preceding
+  proposal, schema/compiler/native Dogwood validation, and deterministic preview.
+  Rejected a general patch language, unauthenticated production activation, or a
+  test bootstrap exception for graph policy writes. It is recorded and simulated,
+  never passkey-authenticated; failures retain the previous policy.
+- Keep inbound numbers/claims and contact scripts private to the world. The
+  simulated reply does not create a VerificationCase, send a check-in, or prove a
+  contact authenticated. Rejected copying simulation omniscience into tool input.
+- Use exact event jumps for headless/step and paced terminal traces otherwise.
+  Step replays and exits before events at its target; no persisted resume or
+  terminal session. Relative local times use existing DST semantics, with file
+  order for equal timestamps. Reports are redacted JSON and never overwrite files.
+- Active checks can pass with individually reported future assertions deferred;
+  report only `item16_observations_passed`. Reject vacuous passes for future `never`
+  assertions or calling a stopped/unchecked run complete. Unknown inputs fail.
+- Verify both CLIs, focused/full Python checks, disposable PostgreSQL regressions,
+  installed-wheel execution and final formatting. Replace the scenario CI
+  placeholder without pushing or dispatching a run. No development migration,
+  physical device action, new dependency or threat-model claim.
+
+The contract lives in [the scenario specification](../twin-and-scenarios.md#31-item-16-runnable-contract).
+The committed scenario YAML files are the single home of the approved input
+values. Procedures are in [development](../development.md#scenario-runner-item-16).

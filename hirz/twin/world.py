@@ -555,6 +555,37 @@ class TwinWorld:
         at = self.clock.now()
         return at, self.advance_to(at)
 
+    def member_event(
+        self,
+        member: UUID,
+        kind: str,
+        zone: UUID | None = None,
+        score: int | None = None,
+    ) -> None:
+        """Apply a hypothetical world input, never an adapter action or graph write."""
+        if (
+            member not in self.members
+            or zone is not None
+            and zone not in self.config.zones
+        ):
+            raise AdapterError("Unknown scenario member or zone.")
+        at, state = self.read()
+        if kind == "recovery":
+            recovery = dict(state.recovery)
+            recovery[member] = changed(recovery[member], score=score)
+            state = changed(state, recovery=recovery)
+        else:
+            transition = WeeklyTransition.model_validate(
+                dict(weekday=0, minute=0, kind=kind, zone_id=zone, jitter_minutes=0)
+            )
+            people = dict(state.presence)
+            people[member] = presence_change(people[member], transition)
+            state = changed(state, presence=people)
+        self._state, self._at = (
+            changed(state, events=state.events + ((at, kind, member),)),
+            utc(at),
+        )
+
     def observation(
         self,
         domain: AdapterDomain,

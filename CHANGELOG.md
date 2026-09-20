@@ -29,6 +29,11 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- 2026-09-20: Item 16 offline scenario runner, explicit twin fixtures, scripted
+  deferred tool traces, simulated recorded-policy patches, observation assertions
+  and JSON reports; scenario CI now exercises the approved observation gate
+  ([ADR-006](./docs/adr/ADR-006-twin-first-adapters.md#item-16-observation-stage-scenarios--2026-09-20-author-approved)).
+
 - 2026-09-20: Item 15 software: household-bound HA reads/subscriptions, narrow local
   Pipeline-authorized writes with durable attempt claims, direct verification and
   scenario-only twin read fallback; recorded/live smokes restore demo state and

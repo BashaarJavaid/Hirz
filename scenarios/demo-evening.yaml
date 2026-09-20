@@ -1,0 +1,408 @@
+# Item 16: explicit simulated inputs; deferred checks are not passes.
+id: demo-evening
+seed: 20261013
+household: ../constitutions/quinn-home.yaml
+clock:
+  start: '2026-10-13T17:30:00-05:00'
+  end: '2026-10-14T07:00:00-05:00'
+  speed: 60
+adapters:
+  devices: twin
+  ev: twin
+  energy: twin
+  presence: twin
+  wearable: twin
+  calendar: twin
+  contacts: twin
+  doorbell: twin
+rate_plan: twin
+initial:
+  base_load_kw: 0.4
+  weather:
+    start: '2026-10-13T17:30:00-05:00'
+    end: '2026-10-14T07:00:00-05:00'
+    samples:
+    - at: '2026-10-13T17:30:00-05:00'
+      temp_f: 40
+      cloud_cover_percent: 20
+  tariff:
+    periods:
+    - start_minute: 0
+      end_minute: 1440
+      import_cents_per_kwh: 10
+      band: synthetic-base
+      export_cents_per_kwh: null
+    slot_minutes: 60
+    spike_probability: 0
+    spike_min_cents: 0
+    spike_max_cents: 0
+  evs:
+    ev:
+      soc: 0.34
+      plugged_in: true
+      charging: false
+      charge_limit: 1.0
+  batteries:
+    home_battery:
+      soc: 0.55
+      dispatch_kw: 0
+  zones:
+    hvac.living_room:
+      temp_f: 68
+      target_f: 74
+      mode: 'off'
+      solar_gain_area_m2: 0
+    hvac.guest_room:
+      temp_f: 67
+      target_f: 74
+      mode: 'off'
+      solar_gain_area_m2: 0
+  solar:
+    solar:
+      tilt_degrees: 30
+      orientation_degrees: 180
+  appliances:
+    dishwasher:
+      cycle_minutes: 105
+      cycle_kwh: 1.2
+      noise_dba: 50
+      running: false
+  devices:
+    lock.front_door:
+      state:
+        available: true
+        locked: true
+      delays:
+        lock: 1.5
+        unlock: 1.5
+      fail_next: null
+    doorbell.front_door:
+      state:
+        available: true
+      delays: {}
+      fail_next: null
+    light.living_room:
+      state:
+        available: true
+        'on': false
+      delays:
+        'on': 0.2
+        'off': 0.2
+      fail_next: null
+  presence:
+    malik:
+      present: true
+      sleeping: false
+      zone_id: null
+    mom:
+      present: false
+      sleeping: false
+      zone_id: null
+    dad:
+      present: false
+      sleeping: false
+      zone_id: null
+  weekly:
+    malik: []
+    mom: []
+    dad: []
+  recovery:
+    malik:
+      score: 75
+      mean: 75
+      rho: 0.7
+      noise_sd: 5
+    mom:
+      score: 75
+      mean: 75
+      rho: 0.7
+      noise_sd: 5
+    dad:
+      score: 75
+      mean: 75
+      rho: 0.7
+      noise_sd: 5
+  couplings: []
+  overrides: []
+  contact_scripts: []
+  inbound_calls: []
+timeline:
+- at: '17:30'
+  event: presence.arrive
+  member: malik
+  note: earlier than usual
+- at: '17:31'
+  event: voice
+  member: malik
+  text: From now on, never unlock the door for someone we're not expecting.
+  script:
+  - propose_household_rule
+- at: '17:32'
+  event: constitution.activate
+  member: malik
+  patch: fixtures/patch-never-unexpected-visitor.yaml
+- at: '17:33'
+  event: voice
+  member: malik
+  text: What's going on tonight?
+  script:
+  - get_household_plan
+- at: '17:35'
+  event: voice
+  member: malik
+  text: Don't charge the car past 50. I'm not driving tomorrow.
+  script:
+  - revise_household_plan
+- at: '17:36'
+  event: voice
+  member: malik
+  text: Do it.
+  script:
+  - approve_action
+- at: '18:40'
+  event: doorbell.press
+  entity: doorbell.front_door
+  expected_visitor: null
+- at: '18:40'
+  event: voice
+  member: malik
+  text: Let them in.
+  script:
+  - execute_household_action
+- at: '18:58'
+  event: doorbell.motion
+  entity: doorbell.front_door
+  classification: vehicle
+- at: '19:04'
+  event: doorbell.press
+  entity: doorbell.front_door
+  expected_visitor: mom
+- at: '19:04'
+  event: voice
+  member: malik
+  text: That's my mom, let her in.
+  script:
+  - execute_household_action
+- at: '19:05'
+  event: app.approve
+  member: malik
+  payload:
+    class: security.door_unlock
+  deferred: Authenticated app approval and execution are later work.
+- at: '19:06'
+  event: link.replay
+  payload:
+    of: security.door_unlock
+  deferred: Hirz Link is item 38a; no command exists to replay.
+- at: '19:10'
+  event: presence.arrive
+  member: mom
+  note: Explicit simulation input, independent of deferred unlock.
+- at: '22:40'
+  event: voice
+  member: dad
+  text: Don't run the dishwasher until I'm done in the kitchen at eleven.
+  script:
+  - revise_household_plan
+- at: '23:05'
+  event: presence.sleep
+  member: mom
+  zone: hvac.guest_room
+- at: '23:30'
+  event: voice
+  member: malik
+  text: Optimize energy tonight.
+  script:
+  - get_household_plan
+- at: '23:31'
+  event: voice
+  member: malik
+  text: Yes.
+  script:
+  - approve_action
+- at: +1d 06:45
+  event: wearable.recovery
+  member: malik
+  score: 41
+- at: +1d 07:00
+  event: voice
+  member: malik
+  text: Good morning.
+  script:
+  - get_household_context
+  - get_household_plan
+assert:
+  checks:
+  - at: '17:30'
+    kind: observation
+    equals:
+      present: true
+      sleeping: false
+    domain: presence
+    subject: malik
+  - at: '17:30'
+    kind: observation
+    equals:
+      present: false
+    domain: presence
+    subject: mom
+  - at: '17:31'
+    kind: policy
+    equals:
+      version: 7
+  - at: '17:32'
+    kind: policy
+    equals:
+      version: 8
+  - at: '18:40'
+    kind: observation
+    equals:
+      last_press_at: '2026-10-13T23:40:00Z'
+    domain: doorbell
+    subject: doorbell.front_door
+  - at: '18:58'
+    kind: observation
+    equals:
+      motion_classification: vehicle
+    domain: doorbell
+    subject: doorbell.front_door
+  - at: '19:04'
+    kind: observation
+    equals:
+      last_press_at: '2026-10-14T00:04:00Z'
+    domain: doorbell
+    subject: doorbell.front_door
+  - at: '19:04'
+    kind: observation
+    equals:
+      present: false
+    domain: presence
+    subject: mom
+  - at: '19:10'
+    kind: observation
+    equals:
+      present: true
+      sleeping: false
+    domain: presence
+    subject: mom
+  - at: '23:05'
+    kind: observation
+    equals:
+      present: true
+      sleeping: true
+      zone_id: hvac.guest_room
+    domain: presence
+    subject: mom
+  - at: +1d 06:45
+    kind: observation
+    equals:
+      recovery_score: 41
+    domain: wearable
+    subject: malik
+  - at: +1d 07:00
+    kind: observation
+    equals:
+      soc: 0.34
+      power_kw: 0
+    domain: ev
+    subject: ev
+  - at: +1d 07:00
+    kind: observation
+    equals:
+      locked: true
+    domain: devices
+    subject: lock.front_door
+  - at: +1d 07:00
+    kind: observation
+    equals:
+      'on': false
+    domain: devices
+    subject: light.living_room
+  - at: +1d 07:00
+    kind: observation
+    equals:
+      'on': false
+    domain: devices
+    subject: dishwasher
+  - at: +1d 07:00
+    kind: observation
+    equals:
+      price_band: synthetic-base
+    domain: energy
+    subject: household
+  deferred:
+  - expectation: 'audit_sequence_includes[0]: CONSTITUTION_PROPOSED'
+    reason: Requires actual pipeline/tool/executor integration; simulated model events
+      are not audit rows.
+  - expectation: 'audit_sequence_includes[1]: CONSTITUTION_ACTIVATED'
+    reason: Requires actual pipeline/tool/executor integration; simulated model events
+      are not audit rows.
+  - expectation: 'audit_sequence_includes[2]: PLAN_CREATED'
+    reason: Requires actual pipeline/tool/executor integration; simulated model events
+      are not audit rows.
+  - expectation: 'audit_sequence_includes[3]: PLAN_REVISED'
+    reason: Requires actual pipeline/tool/executor integration; simulated model events
+      are not audit rows.
+  - expectation: 'audit_sequence_includes[4]: APPROVED'
+    reason: Requires actual pipeline/tool/executor integration; simulated model events
+      are not audit rows.
+  - expectation: 'audit_sequence_includes[5]: EXECUTE:energy.battery_dispatch'
+    reason: Requires actual pipeline/tool/executor integration; simulated model events
+      are not audit rows.
+  - expectation: 'audit_sequence_includes[6]: EXECUTE:energy.hvac_adjust'
+    reason: Requires actual pipeline/tool/executor integration; simulated model events
+      are not audit rows.
+  - expectation: 'audit_sequence_includes[7]: DENY_CONSTITUTION:security.door_unlock'
+    reason: Requires actual pipeline/tool/executor integration; simulated model events
+      are not audit rows.
+  - expectation: 'audit_sequence_includes[8]: EXECUTED:environment.lights'
+    reason: Requires actual pipeline/tool/executor integration; simulated model events
+      are not audit rows.
+  - expectation: 'audit_sequence_includes[9]: ASK_CONSTITUTION:security.door_unlock'
+    reason: Requires actual pipeline/tool/executor integration; simulated model events
+      are not audit rows.
+  - expectation: 'audit_sequence_includes[10]: APPROVED'
+    reason: Requires actual pipeline/tool/executor integration; simulated model events
+      are not audit rows.
+  - expectation: 'audit_sequence_includes[11]: EXECUTED:security.door_unlock'
+    reason: Requires actual pipeline/tool/executor integration; simulated model events
+      are not audit rows.
+  - expectation: 'audit_sequence_includes[12]: EXECUTED:security.door_lock'
+    reason: Requires actual pipeline/tool/executor integration; simulated model events
+      are not audit rows.
+  - expectation: 'audit_sequence_includes[13]: LINK_REJECTED'
+    reason: Requires actual pipeline/tool/executor integration; simulated model events
+      are not audit rows.
+  - expectation: 'audit_sequence_includes[14]: PLAN_REVISED'
+    reason: Requires actual pipeline/tool/executor integration; simulated model events
+      are not audit rows.
+  - expectation: 'audit_sequence_includes[15]: ASK_CONSTITUTION:energy.appliance_start'
+    reason: Requires actual pipeline/tool/executor integration; simulated model events
+      are not audit rows.
+  - expectation: 'audit_sequence_includes[16]: APPROVED'
+    reason: Requires actual pipeline/tool/executor integration; simulated model events
+      are not audit rows.
+  - expectation: 'audit_sequence_includes[17]: EXECUTED:energy.ev_charge'
+    reason: Requires actual pipeline/tool/executor integration; simulated model events
+      are not audit rows.
+  - expectation: 'audit_sequence_includes[18]: EXECUTED:energy.appliance_start'
+    reason: Requires actual pipeline/tool/executor integration; simulated model events
+      are not audit rows.
+  - expectation: 'plan_summary.estimated_savings_usd: min 1.00, max 8.00 (provisional)'
+    reason: Planner, backtest, or real execution verification is later work; no vacuous
+      pass.
+  - expectation: 'plan_summary.peak_kwh_avoided: min 5.0'
+    reason: Planner, backtest, or real execution verification is later work; no vacuous
+      pass.
+  - expectation: 'plan_summary.comfort_violations_minutes: max 0'
+    reason: Planner, backtest, or real execution verification is later work; no vacuous
+      pass.
+  - expectation: 'ev_soc_at +1d 06:30: min 0.50'
+    reason: Planner, backtest, or real execution verification is later work; no vacuous
+      pass.
+  - expectation: never EXECUTE:finance.*
+    reason: Planner, backtest, or real execution verification is later work; no vacuous
+      pass.
+  - expectation: never EXECUTE:security.access_code_share
+    reason: Planner, backtest, or real execution verification is later work; no vacuous
+      pass.

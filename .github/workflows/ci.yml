@@ -94,11 +94,39 @@ jobs:
 
   scenarios:
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 20
+    env:
+      HIRZ_LLM: "off"
     steps:
-      - name: Phase 0 placeholder — scenarios not implemented
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version: "0.12.15"
+          enable-cache: false
+      - run: uv python install
+      - run: uv sync --locked
+      - name: Build pinned native Dogwood (required)
         run: |
-          echo 'DEFERRED: No scenario assertions ran. Items 16, 22, and 35 add the runner and scenario corpus.' | tee -a "$GITHUB_STEP_SUMMARY"
+          rustup toolchain install 1.98.1 --profile minimal
+          RUSTUP_TOOLCHAIN=1.98.1 uv run --locked python scripts/build_dogwood.py
+          echo "HIRZ_DOGWOOD=$PWD/.tools/dogwood" >> "$GITHUB_ENV"
+      - name: Item 16 observation assertions (offline, simulated)
+        run: |
+          uv run --locked hirz scenario run scenarios/demo-evening.yaml --headless --assert > "$RUNNER_TEMP/evening.json"
+          uv run --locked hirz scenario run scenarios/parents-scam-check.yaml --headless --assert > "$RUNNER_TEMP/parents.json"
+      - name: Report scoped results and explicit deferrals
+        run: |
+          python - <<'PYTHON'
+          import json, os
+          from pathlib import Path
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              for name in ("evening", "parents"):
+                  result = json.loads((Path(os.environ["RUNNER_TEMP"]) / f"{name}.json").read_text())
+                  print(f"{name}: {result['status']}; checks={len(result['checks'])}; deferred assertions={len(result['deferred'])}", file=summary)
+              print("Only item 16 observations are verified. Tool execution, persistence and full demo assertions remain deferred.", file=summary)
+          PYTHON
 
   ts-lint-types:
     runs-on: ubuntu-24.04
