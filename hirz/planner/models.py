@@ -61,22 +61,56 @@ class Zone(Model):
     upper: tuple[float, ...]
     targets: tuple[float, ...]
     occupants: tuple[int, ...]
+    preferences: tuple[float | None, ...] = Field(
+        default=(), exclude_if=lambda value: not value
+    )
+    held_targets: tuple[float | None, ...] = Field(
+        default=(), exclude_if=lambda value: not value
+    )
+    held_modes: tuple[Literal["heat", "cool", "off"] | None, ...] = Field(
+        default=(), exclude_if=lambda value: not value
+    )
     end_lower: float = 66
     end_upper: float = 76
 
 
 class MemberConstraint(Model):
     provenance: PlanConstraint
-    kind: Literal["ev_not_before", "ev_target", "appliance_not_before"]
+    kind: Literal[
+        "ev_not_before",
+        "ev_target",
+        "appliance_not_before",
+        "ev_ceiling",
+        "ev_deadline",
+        "appliance_deadline",
+        "temperature",
+        "temperature_band",
+        "manual_hold",
+    ]
+    starts_at: AwareDatetime | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
+    ends_at: AwareDatetime | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
     at: AwareDatetime | None = None
     value: float | None = Field(default=None, ge=0, le=0.8)
 
     @model_validator(mode="after")
     def payload(self) -> Self:
-        if (self.kind == "ev_target" and self.value is None) or (
-            self.kind != "ev_target" and self.at is None
+        if self.kind in {"ev_target", "ev_ceiling"} and self.value is None:
+            raise ValueError("Constraint value is missing")
+        if (
+            self.kind
+            in {
+                "ev_not_before",
+                "ev_deadline",
+                "appliance_not_before",
+                "appliance_deadline",
+            }
+            and self.at is None
         ):
-            raise ValueError("Constraint payload is missing")
+            raise ValueError("Constraint time is missing")
         return self
 
 
@@ -109,6 +143,16 @@ class PlannerInput(Model):
                     "Slots must be consecutive and at most fifteen minutes"
                 )
         for zone in self.zones:
+            for values in (zone.preferences, zone.held_targets, zone.held_modes):
+                if values and len(values) != n:
+                    raise ValueError("Coordinator arrays must cover every slot")
+            if bool(zone.held_targets) != bool(zone.held_modes):
+                raise ValueError("Hold needs target and mode")
+            ended = False
+            for target, mode in zip(zone.held_targets, zone.held_modes, strict=True):
+                if (target is None) != (mode is None) or (ended and target is not None):
+                    raise ValueError("Active manual holds must form a prefix")
+                ended = ended or target is None
             if any(
                 len(v) != n
                 for v in (zone.lower, zone.upper, zone.targets, zone.occupants)

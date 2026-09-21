@@ -284,3 +284,13 @@ for item 17's backtest and real households. Rejected live forecasts at run time:
 a fixed-date scenario cannot replay identically in CI, the video and judging,
 and the 16-day forecast window excludes the October scenario at November judging.
 No DSL extension or RealEnergy archive fallback is introduced.
+
+## Explicit manual thermostat events — 2026-09-21
+
+Item 18 accepts current, explicit `source: twin` thermostat observations from a
+linked submitter in the internal coordinator and disposable smoke. The observation
+contract now carries `mode: heat | cool | off` alongside `target_f`; mode requires
+a device observation for an HVAC asset. Pipeline versions the observation and its
+`manual:device` constraint atomically. The submitter is not claimed to be the
+person who touched a thermostat. Real HA/Link detection and scenario event wiring
+remain deferred; no raw device-write method or execution bypass was added.

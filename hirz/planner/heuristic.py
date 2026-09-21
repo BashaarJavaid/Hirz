@@ -58,6 +58,21 @@ def baseline(
     for i in eligible:
         assert p.ev is not None
         ev[i] = min(max(0, need), p.ev.charger_kw * p.slots[i].hours)
+        for c in p.constraints:
+            if c.kind == "ev_ceiling" and c.value is not None:
+                covered = [
+                    j
+                    for j, slot in enumerate(p.slots)
+                    if (c.starts_at is None or slot.start >= c.starts_at)
+                    and (c.ends_at is None or slot.start < c.ends_at)
+                ]
+                if covered and i <= covered[-1]:
+                    capacity = (
+                        (c.value - p.ev.soc) * p.ev.capacity_kwh / p.ev.efficiency
+                    )
+                    ev[i] = min(
+                        ev[i], max(0, capacity - sum(ev[: covered[-1] + 1]) + ev[i])
+                    )
         need -= ev[i]
     windows = appliance_windows(p)
     start = (
@@ -100,6 +115,9 @@ def baseline(
             mode: Literal["heat", "cool", "off"] = (
                 "heat" if passive.temp_f < target_f else "cool"
             )
+            if spec.held_targets and spec.held_targets[i] is not None:
+                target_f = float(spec.held_targets[i] or 0)
+                mode = spec.held_modes[i] or "off"
             after = changed(zone, target_f=target_f, mode=mode).advance(
                 slot.hours * 3600,
                 slot.outdoor_f,

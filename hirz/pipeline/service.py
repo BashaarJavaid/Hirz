@@ -266,6 +266,23 @@ class Pipeline:
             None,
             {},
         )
+        if action.action_class in {
+            "governance.record_constraint",
+            "governance.withdraw_constraint",
+        }:
+            from hirz.planner.coordinator import prepare
+
+            try:
+                await prepare(self, action, at, principal)
+            except ValueError:
+                ev.decision = ev.decision.model_copy(
+                    update={
+                        "explain": Explanation(
+                            rejected=("Invalid or unauthorized constraint mutation",)
+                        )
+                    }
+                )
+                return ev
         snapshot = None
         if preview is not None:
             try:
@@ -860,6 +877,16 @@ class Pipeline:
                 if not matched:
                     ev = result(ev, EventType.DENY_APPROVAL_MISMATCH)
                 elif granted is not None:
+                    if action.action_class in {
+                        "governance.record_constraint",
+                        "governance.withdraw_constraint",
+                    }:
+                        payload = await self.connection.scalar(
+                            sa.select(db.audit_log.c.payload).where(
+                                self.scope(db.audit_log), db.audit_log.c.seq == granted
+                            )
+                        )
+                        return Decision.model_validate(payload)
                     ev = result(ev, EventType.DENY_APPROVAL_USED)
                 elif redeem:
                     ev = await self.authorize(
@@ -953,7 +980,17 @@ class Pipeline:
         )
         if approval:
             await self.status(approval, "redeemed")
-        if action.action_class.startswith("governance."):
+        if action.action_class in {
+            "governance.record_constraint",
+            "governance.withdraw_constraint",
+        }:
+            from hirz.planner.coordinator import commit_constraint
+
+            await commit_constraint(self, ev.action, ev.decision, at, principal)
+        if action.action_class in {
+            "governance.pause_automation",
+            "governance.resume_automation",
+        }:
             paused = action.action_class.endswith("pause_automation")
             current_home = await self.repo.get("households", {})
             assert current_home is not None

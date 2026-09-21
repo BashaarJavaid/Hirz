@@ -197,6 +197,8 @@ class Constitution(Model):
         if action_class in {
             "governance.pause_automation",
             "governance.resume_automation",
+            "governance.record_constraint",
+            "governance.withdraw_constraint",
         }:
             return Rule(
                 mode="auto",

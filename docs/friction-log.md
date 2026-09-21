@@ -241,3 +241,16 @@ not new upstream defects. References: [uv CLI](https://docs.astral.sh/uv/referen
 [HTTPX exceptions](https://www.python-httpx.org/exceptions/), and
 [asyncio servers](https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.loop.create_server).
 No new ComEd, Open-Meteo or SciPy API incompatibility was observed in this task.
+
+
+Item 18 follow-up to the existing sandbox entries (2026-09-21, **Minor**): uv again returned
+`Failed to initialize cache at /Users/bashaarjavaid/.cache/uv` and
+`failed to open file /Users/bashaarjavaid/.cache/uv/sdists-v9/.git: Operation not permitted (os error 1)`.
+Using `UV_CACHE_DIR=/tmp/hirz-uv` reused the installed environment without a new
+install. The initial disposable PostgreSQL checks returned
+`connection to server at "127.0.0.1", port 5432 failed: Operation not permitted`;
+authorized local-socket escalation resolved it. The subsequent tests use
+`--tb=short` to avoid third-party traceback locals containing connection parameters.
+These repeat sandbox workarounds, not new upstream defects. References:
+[uv cache directory](https://docs.astral.sh/uv/reference/cli/#uv--cache-dir) and
+[pytest traceback styles](https://docs.pytest.org/en/stable/how-to/output.html#modifying-python-traceback-printing).

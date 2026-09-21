@@ -47,3 +47,5 @@ communication.contact_trusted_contact: {params: {}}
 communication.contact_emergency_services: {params: {}}
 governance.pause_automation: {params: {}}
 governance.resume_automation: {params: {}}
+governance.record_constraint: {params: {}}
+governance.withdraw_constraint: {params: {}}

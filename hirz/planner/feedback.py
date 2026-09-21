@@ -136,6 +136,13 @@ def simulate(
             upper=tuple(z.upper[i] for i in indices),
             targets=tuple(z.targets[i] for i in indices),
             occupants=tuple(z.occupants[i] for i in indices),
+            preferences=tuple(z.preferences[i] for i in indices)
+            if z.preferences
+            else (),
+            held_targets=tuple(z.held_targets[i] for i in indices)
+            if z.held_targets
+            else (),
+            held_modes=tuple(z.held_modes[i] for i in indices) if z.held_modes else (),
         )
         for z in p.zones
     )
@@ -184,6 +191,9 @@ def simulate(
             mode: Literal["heat", "cool", "off"] = (
                 "heat" if passive.temp_f < target else "cool"
             )
+            if spec.held_targets and spec.held_targets[k] is not None:
+                target = float(spec.held_targets[k] or 0)
+                mode = spec.held_modes[k] or "off"
             after_zone = changed(zone, mode=mode, target_f=target).advance(
                 dt * 3600,
                 current.outdoor_f,

@@ -142,3 +142,15 @@ or outcome-specific exit codes; optional audit writers; new dependencies or
 migrations. Existing invalid stored policies fail without repository-file fallback.
 Local verification uses disposable fixtures, including unactivated v8; no new
 remote CI run is required. [Evidence and local prerequisite limitation](../verification-log.md#item-11--2026-09-18).
+
+## Constraint intake permissions amendment — 2026-09-21
+
+`governance.record_constraint` and `governance.withdraw_constraint` are reserved
+LOW-risk internal operations. The existing compiler emits linked-member permits
+and unknown-member forbids; they cannot be redefined by a household and never
+change pause state. Pipeline additionally enforces record ownership: members may
+withdraw their own requests, owners may withdraw others', and any linked member
+may release or renew a manual hold. A lower claimed role cannot acquire the
+owner-only withdrawal privilege. Neither operation enters the future consumer
+device-action enum. No condition grammar, approval quorum or temporal-policy
+mechanism changes; the catalog now contains 25 classes.

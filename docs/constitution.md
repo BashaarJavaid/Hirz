@@ -478,3 +478,15 @@ pipeline still enforces the original ASK deadline, current eligible-member quoru
 channels, single use and policy/fact bindings. Stored seeds are not activated by
 any of these APIs. Per-class count limits, public authentication and AWS comparison
 remain outstanding; see [ADR-003](./adr/ADR-003-constitution-yaml-to-cedar.md#item-9-amendment--2026-09-18).
+
+
+## Item 18 internal constraint operations — 2026-09-21
+
+The catalog additionally reserves LOW-risk `governance.record_constraint` and
+`governance.withdraw_constraint`. Both require a linked member and use the existing
+Python/native policy agreement; neither toggles pause state or accepts household
+rule overrides. Pipeline enforces own-request/owner withdrawal and linked-member
+manual-hold release inside the same signed transaction. These operations are not
+device actions and must not enter `execute_household_action`'s consumer enum.
+Coordinator quorum reporting reuses per-class `Rule.quorum`, channels and TTL;
+there is no `escalation.quorum` field or separate plan voting system.

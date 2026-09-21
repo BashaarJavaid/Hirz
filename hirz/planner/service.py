@@ -82,6 +82,7 @@ def actions(p: PlannerInput, schedule: Schedule, plan_id: str) -> tuple[Action, 
         changes += [
             ("energy.hvac_adjust", z.entity, {"target_f": t, "mode": mode})
             for z, t, mode in zip(p.zones, control.targets, control.modes, strict=True)
+            if not z.held_targets or z.held_targets[i] is None
         ]
         if control.appliance_start:
             changes.append(("energy.appliance_start", "dishwasher", {}))
@@ -133,7 +134,11 @@ def actions(p: PlannerInput, schedule: Schedule, plan_id: str) -> tuple[Action, 
 
 
 def plan(
-    p: PlannerInput, *, previous: Plan | None = None, cold_start: bool = False
+    p: PlannerInput,
+    *,
+    previous: Plan | None = None,
+    cold_start: bool = False,
+    probe_constraints: bool = True,
 ) -> PlannerResult:
     # Revalidate even models made through model_copy: no trusted construction bypass.
     p = PlannerInput.model_validate(p.model_dump())
@@ -154,7 +159,7 @@ def plan(
     checked = forecast_replay(p, schedule) if schedule is not None else None
     if schedule is None or checked is None or not checked.valid:
         blocking = []
-        if diagnostics.status == "infeasible":
+        if diagnostics.status == "infeasible" and probe_constraints:
             for c in sorted(
                 p.constraints, key=lambda c: c.provenance.recorded_at, reverse=True
             ):
@@ -222,7 +227,12 @@ def plan(
         version=previous.version + 1 if previous else 1,
         supersedes=previous.plan_id if previous else None,
         horizon=PlanHorizon(start=p.slots[0].start, end=p.slots[-1].end),
-        goals=("minimize_cost_and_wear", "comfort", "ev_deadline"),
+        goals=(
+            ("minimize_degree_hours",)
+            if any(any(t is not None for t in z.preferences) for z in p.zones)
+            else ()
+        )
+        + ("minimize_cost_and_wear", "comfort", "ev_deadline"),
         constraints=tuple(c.provenance for c in p.constraints),
         actions=tuple(a.action_id for a in proposed),
         summary=PlanSummary(
@@ -242,6 +252,11 @@ def plan(
             facts=(
                 "Simulated devices; supply plus distribution; zero export credit",
                 *diagnostics.binding,
+                *(
+                    (diagnostics.message,)
+                    if any(any(t is not None for t in z.preferences) for z in p.zones)
+                    else ()
+                ),
             )
         ),
         speakable={

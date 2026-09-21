@@ -132,6 +132,7 @@ def graph_table(name: str, references: dict[str, str]) -> sa.Table:
         "asset_policies": {"asset_id"},
         "schedule_events": {"schedule_id"},
         "preferences": {"member_id"},
+        "constraints": {"member_id", "asset_id"},
     }
     for column, target in references.items():
         table.append_column(
@@ -201,6 +202,22 @@ for name, table, columns, condition in (
 for table in (asset_bindings, asset_policies):
     table.append_constraint(sa.UniqueConstraint("household_id", "asset_id"))
 
+constraints = graph_table("constraints", {"member_id": "members", "asset_id": "assets"})
+for column in (
+    "decision_seq",
+    "recorded_seq",
+    "withdrawn_seq",
+    "withdrawal_decision_seq",
+):
+    constraints.append_column(
+        sa.Column(column, sa.BigInteger, nullable=column.startswith("withdraw"))
+    )
+    constraints.append_constraint(
+        sa.ForeignKeyConstraint(
+            ["household_id", column], ["audit_log.household_id", "audit_log.seq"]
+        )
+    )
+
 GRAPH_TABLES = {
     table.name: table
     for table in (
@@ -217,6 +234,7 @@ GRAPH_TABLES = {
         routines,
         preferences,
         observations,
+        constraints,
     )
 }
 HISTORY_TABLES: dict[str, sa.Table] = {}

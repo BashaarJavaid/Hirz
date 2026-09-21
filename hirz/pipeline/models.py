@@ -128,6 +128,8 @@ class EventType(StrEnum):
     VERIFIED = "VERIFIED"
     VERIFY_FAILED = "VERIFY_FAILED"
     ROLLED_BACK = "ROLLED_BACK"
+    CONSTRAINT_RECORDED = "CONSTRAINT_RECORDED"
+    CONSTRAINT_WITHDRAWN = "CONSTRAINT_WITHDRAWN"
     PLAN_CREATED = "PLAN_CREATED"
     PLAN_REVISED = "PLAN_REVISED"
     CONSTITUTION_PROPOSED = "CONSTITUTION_PROPOSED"
@@ -240,6 +242,7 @@ class PlanHorizon(Model):
 
 
 class PlanConstraint(Model):
+    member_id: UUID | None = Field(default=None, exclude_if=lambda value: value is None)
     source: str
     surface: Literal["alexa", "app", "scheduler"] | None = None
     claimed_author: str | None = None

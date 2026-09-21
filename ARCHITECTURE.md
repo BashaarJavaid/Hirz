@@ -217,7 +217,12 @@ Reserved LOW-risk `governance.pause_automation` and `governance.resume_automatio
 ignore household overrides and pause itself. Any linked member can pause; only an app
 surface can resume. A transition versions household `autonomy_paused` (default false)
 and refreshes the context view with its Decision and AUTONOMY event in one transaction.
-Repeated requests audit the Decision without another transition event.
+Repeated pause/resume requests audit the Decision without another transition event.
+Item 18 also reserves LOW-risk `governance.record_constraint` and
+`governance.withdraw_constraint`. These mutate only constraint/observation history,
+never pause state; ownership checks, idempotency and the atomic evidence contract
+are specified in §5.5. They are internal operations, excluded from the future
+consumer device-action enum.
 
 Mutations own the transaction: graph lock first, then proposal/approval and audit
 pointer locks. Approval consumption, grant reference, reservation, graph history/view,
@@ -409,7 +414,7 @@ The typed model everything reasons over. Stored in Postgres as tables plus JSONB
 
 **Read model.** `ContextService.get_household_context(household_id, scope="all", as_of=None, member_id=None, allow_stale=False)` returns a `ContextSnapshot` (`hirz/graph/context.py`). Current reads query the materialized `household_context` view; historical reads reconstruct from current/history tables in one round trip. Graph writers serialize before mutation and refresh the whole view once in the same transaction; refresh failure rolls back graph/history changes. This is the small-graph implementation, not a measured latency claim (§8).
 
-Item 6 exposes `people`, `member` (UUID required), `energy`, `environment`, and `all`; `constraints`, `plan`, and `security` summaries wait for their subsystems. Snapshots carry household scope, `as_of`, last successful `read_at`, stale status/age, policy status, and typed-validated entity data. Missing facts remain unknown. Account links and private channel/safe-word hashes are excluded by the SQL projection; channel summaries expose only method availability and verification source/time. Scoped private repository reads remain available for later identity/Protect work. Observation sources retain all three labels from `docs/twin-and-scenarios.md` §5; observation age is calculated at the requested instant, and observation time is distinct from recorded time. Future and older-than-current samples are refused.
+Item 6 exposes `people`, `member` (UUID required), `energy`, `environment`, and `all`; item 18 adds `constraints`. `plan` and `security` summaries wait for their subsystems. Snapshots carry household scope, `as_of`, last successful `read_at`, stale status/age, policy status, and typed-validated entity data. Missing facts remain unknown. Account links and private channel/safe-word hashes are excluded by the SQL projection; channel summaries expose only method availability and verification source/time. Scoped private repository reads remain available for later identity/Protect work. Observation sources retain all three labels from `docs/twin-and-scenarios.md` §5; observation age is calculated at the requested instant, and observation time is distinct from recorded time. Future and older-than-current samples are refused.
 
 The last successful current snapshot is cached per household in one service instance. `allow_stale=True` is for read-only callers only: availability failures may return that snapshot with recomputed age and stale status. No cache, historical reads, invalid inputs, missing entities, and malformed database data fail; no disk/shared cache exists. Default callers fail closed. Scalar/state freshness thresholds remain the risk engine's responsibility.
 
@@ -557,8 +562,71 @@ Turns member requests and household facts into constraints and detects conflicts
 - **Constraint intake.** Voice ("don't run the dishwasher until I'm done in the kitchen at eleven") arrives as `revise_household_plan` with a scope, a kind, and a time window. The Coordinator normalizes it to an encoded constraint and attaches its provenance: the linked account it arrived on and the surface, plus `claimed_author` when the sentence names someone else. Alexa does not say who spoke (§7), so "Dad" in the plan means Dad's linked account; the same sentence spoken on Malik's account is shown as "Malik's Echo (said to be from Dad)".
 - **Manual changes are constraints.** When a comfort device changes without a command from Hirz (someone turned the thermostat by hand, §5.17), the Coordinator records a `manual_hold` constraint on that device for a default of two hours, with source `manual:device`, and the planner works around it instead of overwriting it. The hold appears in the plan like any other constraint and can be lifted by voice.
 - **Conflict detection.** Pairwise checks between constraints and goals: infeasible windows (EV deadline unreachable at charger power), contradictory preferences (two expected occupants with disjoint comfort bands in one zone), and constitution collisions (a request that would need an action the constitution marks `never`). Conflicts are returned as data with a suggested resolution and the members involved, never silently dropped. If the solver still reports the problem infeasible, no heuristic can satisfy hard constraints that contradict each other, so the worker keeps the last feasible plan, finds the blocking constraint by re-solving without each member constraint in turn, newest first, and asks for that specific relaxation ("The car can't reach 80 by 6 if it may not charge before 2. Which one gives?").
-- **Quorum and precedence.** The constitution's `escalation.quorum` says who can approve which classes (`any_adult`, `owner`, `all_adults`). For comfort conflicts, precedence is: safety bounds → the member physically present → the member expected soonest → household default. The rule is written down so the Explainer can cite it.
+- **Quorum and precedence.** The constitution's per-class `Rule.quorum` says who can approve which classes (`any_adult`, `owner`, `all_adults`). For comfort conflicts, precedence is: safety bounds → the member physically present → the member expected soonest → household default. The rule is written down so the Explainer can cite it.
 - **Multi-member truth.** The Coordinator never merges two members' constraints into one; each keeps its owner, so "Dad: the kitchen is busy until 11" is attributable, to an account, in the audit trail and the plan explanation.
+
+**Item 18 implementation.** `hirz/planner/coordinator.py` exposes `Coordinator.intake`
+and authenticated `Coordinator.plan`; the pure `coordinate` function receives a
+current complete household snapshot and explicit planner workload. Only constraints
+and manual observations persist. Plans, refresh jobs, execution, automatic HA
+change detection, MCP, UI and full scenario wiring remain later work. Local policy
+bundles remain validated but unactivated; this does not implement policy activation.
+
+Intake accepts English digits/number words through ninety-nine, Fahrenheit, explicit
+AM/PM or 24-hour local times, and explicit ISO dates with a valid household UTC
+offset for DST clarification. It resolves exact household names first, with car/EV
+and kitchen/dishwasher aliases. Examples: `car target to fifty`, `don't charge car
+past 50`, `don't charge car before 21:00`, `car deadline at 8 am`, `kitchen in use
+until 23:00`, `dishwasher deadline at 7 am`, `prefer living room at 72 F`, and
+`keep living room between 68 and 74 F`. Temperature requests may append `until
+TIME`; a target may append `by TIME`. Unqualified requests expire at the supplied
+current horizon's end (at most 25 hours). There is no recurring grammar. Ambiguous
+names, unsupported clauses, dates, missing AM/PM and DST gaps/folds create no
+mutation. The demo explicitly clarifies “eleven” to 23:00.
+
+An optional `Name says …` is `claimed_author` only. The canonical `PlanConstraint`
+now also carries `member_id` for the authenticated submitter, including a hold whose
+source must remain `manual:device`. Each durable record references the household,
+asset, member, request Action, grant Decision and signed recording/withdrawal rows.
+`change …` requires a unique active request of the same kind and device owned by
+that member; an explicit constraint UUID can identify a replacement or withdrawal.
+Members may withdraw their own requests, owners may withdraw any request, and any
+linked member may release a hold. A reduced claimed role never grants owner powers.
+Replacement withdraws and records in one transaction. Conflicting requests stay
+stored. Retry of identical `action_id`/content/principal returns the original signed
+Decision without another mutation; other reuse is refused. The `constraints`
+context scope retains expired and withdrawn records and supports historical reads.
+
+Coordination reports structured requirements, affected members and a specific
+proposed relaxation. Ceilings do not lower EV targets. Incompatible targets/bands,
+unreachable EV deadlines, impossible appliance windows and known constitution
+restrictions produce conflicts; residual MILP infeasibility uses newest-first
+removal probes with a rebuilt workload. No proposed relaxation is applied. The
+previous feasible Plan may be returned only as a labeled reference, with no new
+Actions, authority or saving claim. Per-class quorum/channels/TTL/eligible roles are
+reported from the existing evaluator; Pipeline owns all voting.
+
+Hard requirements survive comfort precedence. Soft requests rank fresh **zone**
+presence, then earliest explicit arrival into that zone within the request window,
+with the household target filling windows without a selected request. Household-only,
+stale, absent or unknown presence gives no request priority. Equal-ranked differing targets
+conflict; compatible requests retain separate provenance. Selected targets minimize
+sum of slot hours × absolute predicted ending-temperature deviation, with equal
+zone weights. Cost/wear refinement follows under the same five-second solver budget.
+Diagnostics and Plan explanation disclose unfinished optimization/refinement.
+
+A manual event must be a current explicit twin thermostat observation, with target
+and mode. The linked account is its submitter; the physical actor is unknown. The
+hold runs on `[observed_at, observed_at + 2 hours)`, renewal restarts it, and explicit
+release ends it. Constraint boundaries split slots while retaining quarter-hour
+forecast values. MILP, baselines and replay share the effective windows and held
+thermal behavior, including its energy. No thermostat adjustment is emitted inside
+a hold, including an unsafe hold: safety/hard-band disagreement produces a conflict.
+Expired or released holds impose no subsequent planning restriction.
+
+Persistence and authorization decisions: [ADR-002](./docs/adr/ADR-002-postgres-over-dynamodb.md#constraint-history-amendment--2026-09-21),
+[ADR-003](./docs/adr/ADR-003-constitution-yaml-to-cedar.md#constraint-intake-permissions-amendment--2026-09-21),
+and [ADR-005](./docs/adr/ADR-005-deterministic-planner.md#coordinator-amendment--2026-09-21).
 
 ### 5.6 Executor and Scheduler
 
@@ -934,7 +1002,8 @@ specified in §6.2.
 | `schedules`, `schedule_events`, `routines`, `preferences` | Graph: time and preferences |
 | `observations` | Latest state per entity with source and freshness; history in `observation_history` (daily partitioning deferred by the item 6 ADR-002 amendment) |
 | `constitution_versions` (yaml, compiled_cedar, hash, analysis_report, activated_at), `constitution_proposals` (sentence, proposed_by, surface, drafted_patch, status) | Constitution history and rules proposed by voice |
-| `plans`, `plan_actions`, `plan_constraints`, `plan_alternatives` | Plans |
+| `constraints`, `constraints_history` | Item 18 member requirements, explicit validity windows, withdrawal/replacement and signed Decision/audit references |
+| `plans`, `plan_actions`, `plan_constraints`, `plan_alternatives` | Plans (persistence deferred) |
 | `actions`, `action_transitions` | Executor lifecycle |
 | `approvals`, `approval_votes` (household/action binding, expiry, state and distinct member votes; §6.2) | Ask outcomes |
 | `verification_cases`, `verification_signals` | Protect |

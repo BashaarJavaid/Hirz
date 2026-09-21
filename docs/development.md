@@ -711,3 +711,50 @@ weather and retain tool, approval, audit and execution deferrals. The Hourly
 counterpart remaps the seed's schedule dates by -365 days and labels its tariff
 counterfactual. See [verification](./verification-log.md#full-offline-reproduction-and-completion--2026-09-21)
 for measured coverage, the raw archive inventory, and subsequent verification runs.
+
+## Item 18 coordinator and audited intake
+
+The interface is `Coordinator(Pipeline(...))` in `hirz/planner/coordinator.py`.
+`intake(principal, action_id=..., text=..., horizon_end=...)` returns a clarification
+without changing constraints for unsupported/ambiguous input, or a canonical
+Pipeline Decision plus the recorded constraint UUID. The principal is the trusted
+linked-account result, never a name supplied in the text. Pass `replaces=UUID` for
+an explicit replacement, or `withdraw=True, replaces=UUID` for withdrawal. A
+`change …` sentence must uniquely match that account's current request of the same
+kind/device. Retry with the same action ID, principal and complete input.
+
+`plan(principal, inputs, previous=None)` resolves membership, reads a current
+snapshot and returns structured conflicts, per-class approval requirements and a
+read-only planner result. Input slot start must equal the explicit Pipeline clock;
+inputs and any previous Plan must belong to that household. A plan remains a
+proposal without execution authority. Grammar and precedence are in
+[architecture §5.5](../ARCHITECTURE.md#55-coordinator).
+
+For an explicit simulated manual event, pass `manual=Observation(...)` with the
+same current clock, HVAC asset, `domain="devices"`, `source="twin"`, target and
+mode. This atomically versions the observation and records its two-hour hold;
+renewal withdraws the earlier hold. `release living room hold` releases a uniquely
+matched current hold. The submitted account is recorded without asserting who
+physically changed a setting. This is not automatic Home Assistant detection.
+
+```sh
+export HIRZ_DOGWOOD="$PWD/.tools/dogwood"
+uv run python scripts/smoke_coordinator.py --audit-output /tmp/hirz-coordinator-audit-NEW.json
+uv run pytest tests/unit/test_coordinator.py --no-cov
+uv run pytest tests/integration/test_coordinator_database.py -m integration --no-cov --tb=short
+```
+
+The smoke needs the existing local PostgreSQL credentials, signing key and native
+Dogwood. It creates and migrates a uniquely named disposable database, explicitly
+clarifies eleven to 23:00, demonstrates all five roadmap checks, verifies the full
+signed chain, writes an exclusive private export and verifies it offline. Success
+drops the disposable database; failures preserve it with its generated name.
+The smoke sends no device commands and does not upgrade the development database.
+
+The migration head is `0006_coordinator_constraints`; the development database stays
+on its existing revision until the operator explicitly runs `uv run alembic upgrade
+head`. `hirz context HOUSEHOLD_UUID --scope constraints` requires the upgraded schema.
+It includes expired/withdrawn history rather than removing evidence. Downgrade is
+refused whenever current records, archived records, or constraint audit events
+exist. Use `--tb=short` for database tests so third-party traceback locals cannot
+print connection parameters. Verification evidence: [item 18](./verification-log.md#item-18--2026-09-21).

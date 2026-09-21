@@ -176,3 +176,39 @@ schedule. Running competing solves or compressing artifacts during a timed solve
 was rejected. The solver still accepts validated timeout incumbents, but a timed
 result is not promised bitwise reproducible across machine loads; retained study
 outputs must independently pass exact reproduction before publication.
+
+## Coordinator amendment — 2026-09-21
+
+Item 18 adds bounded deterministic sentence intake and a read-only coordination
+service. Its grammar, conflict output and physical hold semantics are specified in
+[architecture §5.5](../../ARCHITECTURE.md#55-coordinator). Account ownership comes
+from Pipeline, never from names in sentences. Exact EV targets and ceilings are
+separate requirements; incompatible requests remain stored. Only an explicit
+replacement or a uniquely matched `change` request withdraws an earlier request.
+Known policy prohibitions and bounds use the existing evaluator; unresolved future
+conditions remain pending execution-time evaluation. Quorum reporting uses its
+existing `ApprovalRequirements`; voting remains Pipeline's responsibility.
+
+Selected comfort preferences first minimize slot-duration-weighted absolute
+ending-temperature deviation, equally across zones. A second pass minimizes
+existing electricity and wear costs without increasing the first optimum beyond
+numerical tolerance. Both passes share five seconds, including model construction.
+Only validated incumbents survive, and diagnostics disclose unfinished preference
+optimization or cost refinement. Without preferences, the existing cost objective
+and retained experiment inputs remain unchanged. Hard bands are never relaxed.
+
+Manual twin observations preserve target **and mode** for exactly two hours from
+the event. They identify the submitting account, not the physical actor. A renewal
+withdraws the previous hold and starts another two-hour window; any linked member
+may release it. Environmental values use zero-order holds when slots split at
+request boundaries. Held thermostat heat/cooling follows the existing thermal
+transition, enters every strategy's metering, and produces no thermostat Action
+inside the hold. Unsafe or infeasible holds produce conflicts, never corrective
+Actions. Newest-first removal probes reconstruct the entire effective workload,
+including bands and holds; their proposed relaxation is never applied.
+
+Rejected: an LLM parser, silent target reduction by a ceiling, preference overrides
+of hard bounds, automatic conflict resolution, plan-level voting, recurring rules,
+a cleanup worker, and automatic HA change detection. Plans, jobs, execution, MCP,
+UI and full scenario wiring remain in later items. No published saving changes
+without successful reproduction of the retained experiment.

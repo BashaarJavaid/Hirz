@@ -107,7 +107,9 @@ def project(
     if scope == "all":
         return result
     keep = {"households"}
-    if scope in {"people", "member"}:
+    if scope == "constraints":
+        keep.add("constraints")
+    elif scope in {"people", "member"}:
         keep |= {
             "members",
             "trusted_contacts",

@@ -116,9 +116,9 @@ class Seed:
                             "Bootstrap channel verification must be simulated."
                         )
                     values["verified_at"] = at
-                if name == "observations":
+                if name in {"observations", "constraints"}:
                     raise GraphError(
-                        "Initial observations belong to scenarios, not these seeds."
+                        "Initial observations belong to scenarios; constraints require audited intake."
                     )
                 values["household_id"] = self.household_id
                 result[name].append(MODELS[name].model_validate(values))

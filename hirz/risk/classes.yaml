@@ -21,3 +21,5 @@ finance.change_payee: {impact: 5, reversibility: irreversible, band: CRITICAL, f
 finance.verify_request: {impact: 1, reversibility: reversible, band: LOW, freshness_seconds: 300}
 governance.pause_automation: {impact: 1, reversibility: reversible, band: LOW, freshness_seconds: 300}
 governance.resume_automation: {impact: 1, reversibility: reversible, band: LOW, freshness_seconds: 300}
+governance.record_constraint: {impact: 1, reversibility: reversible, band: LOW, freshness_seconds: 300}
+governance.withdraw_constraint: {impact: 1, reversibility: reversible, band: LOW, freshness_seconds: 300}

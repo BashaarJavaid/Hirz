@@ -147,3 +147,21 @@ contiguity under concurrent requests, not 100 simultaneous database writers or a
 throughput target. Signature/link checks earn only a Partial tampering claim:
 tail-and-pointer rollback, complete erasure and a compromised worker re-signing
 history remain undetectable without independently held evidence.
+
+## Constraint history amendment — 2026-09-21
+
+Migration `0006_coordinator_constraints` adds household-scoped `constraints` and
+`constraints_history` using the existing graph versioning and materialized-view
+pattern. Each record contains its canonical `PlanConstraint`, an explicitly typed
+half-open validity window, submitting member, replacement identity and signed
+Decision/record/withdrawal sequence references. Expiration is derived from time;
+expired and withdrawn evidence remains readable through the `constraints` context
+scope. Migration downgrade refuses current rows, archived rows, or constraint audit
+events. Development upgrades remain explicit and manual.
+
+Intake runs through the existing Pipeline transaction and native boundary. Grant,
+recording, replacement/withdrawal, observation version (for a manual event), signed
+append and context refresh commit together. Identical `action_id` delivery returns
+the original Decision; mismatched content or principal cannot reuse it. A failed
+signed append rolls back the entire mutation. No second transaction manager,
+cleanup process, unaudited write endpoint or plan persistence is introduced.

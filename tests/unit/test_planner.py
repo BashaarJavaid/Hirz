@@ -492,6 +492,8 @@ def test_no_database_or_device_write_imports():
     from pathlib import Path
 
     for source in Path("hirz/planner").glob("*.py"):
+        if source.name == "coordinator.py":
+            continue  # Item 18 intake is audited persistence; solving stays read-only.
         tree = ast.parse(source.read_text())
         imported = [n.module for n in ast.walk(tree) if isinstance(n, ast.ImportFrom)]
         assert not set(imported) & {

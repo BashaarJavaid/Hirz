@@ -2664,3 +2664,176 @@ pre-existing file-specific introductions, and the README table matches the
 retained generated table exactly. Item 17's required local gates are verified;
 item 15's physical plug checks and later-phase execution/persistence remain
 pending. No remote CI result is claimed in this follow-up.
+
+## Item 18 — 2026-09-21
+
+### Implementation and initial local verification
+
+Implemented the approved coordinator plan: deterministic bounded intake, canonical
+provenance, household constraint/history tables, reserved Pipeline operations,
+atomic signed record/withdrawal/replacement, context reads, conflict/precedence and
+quorum reporting, split forecast windows, two-pass comfort/cost optimization and
+explicit twin thermostat holds. Plan persistence, jobs, execution, automatic HA
+change detection, MCP, UI and full scenario wiring remain deferred. No threat-model
+row was promoted, and no remote CI result is claimed.
+
+Commands used `HIRZ_DOGWOOD="$PWD/.tools/dogwood"` and
+`UV_CACHE_DIR=/tmp/hirz-uv`. Local sockets required authorized sandbox escalation;
+credentials were read from the existing `.env`, never changed. PostgreSQL migrations
+and mutations ran only in uniquely named disposable databases. Development remains
+on its previous revision; no `alembic upgrade` was run against it.
+
+Initial failures were corrected rather than treated as completion: contradictory
+bands initially raised planner validation instead of returning a conflict;
+pre-item-18 catalog/count assertions expected 23 classes/56 compiled policies;
+a legacy-migration test tried to read an old context projection with the new schema;
+and the downgrade test initially expected the inner exception rather than Alembic's
+redacted `CommandError`. Updated checks preserve their original guarantees.
+
+Initial full checks (before the final direct-Pipeline authorization review):
+
+```text
+uv run pytest -q --tb=short
+972 passed, 64 deselected in 91.77s (0:01:31)
+Required test coverage of 80% reached. Total coverage: 90.70%
+
+uv run pytest -m integration --no-cov -q --tb=short
+64 passed, 972 deselected in 41.67s
+
+uv run mypy hirz/ scripts/ alembic/
+Success: no issues found in 94 source files
+
+uv run ruff check .
+All checks passed!
+
+uv build
+Successfully built dist/hirz-0.0.0.tar.gz
+Successfully built dist/hirz-0.0.0-py3-none-any.whl
+```
+
+The full Python run includes native Cedar conformance for all catalog classes;
+reserved constraint operations allow linked members on Alexa/app and deny unknown
+members. PostgreSQL checks cover ownership, explicit and uniquely matched
+replacement, duplicate delivery, cross-household requests, lower claimed roles,
+paused-household independence, historical reads, renewal/release and rollback
+when the signed recording append fails. Migration round trips compare metadata;
+a downgrade with retained constraint evidence is refused without losing records.
+
+`uv run python scripts/smoke_coordinator.py --audit-output
+/tmp/hirz-coordinator-audit-20260921-final.json` returned:
+
+```text
+clarification=Please specify AM or PM; scripted answer=23:00
+gate_1=PASS; linked=Malik; claimed_author=Dad
+gate_4=PASS; dishwasher_start=2026-10-14 08:45:00+00:00
+gate_2=PASS; target_f=72; mode=heat; source=manual:device; duration=2h
+gate_3=PASS; Explicitly revise or withdraw 'car target to 60' to match the other target.
+gate_5=PASS; Extend the 2026-10-13T22:45:00+00:00 deadline or explicitly lower the 50% target; no requirement was dropped.
+coordinator=PASS; gates=5/5; audit_rows=12; offline=valid; device_actions=0
+disposable_database=dropped; development_database=unchanged
+```
+
+The export verified against public-key fingerprint
+`385589f309b374189ea1b391f4a3ad193f3674cf7fb6e72e1a97caf76e21912b`.
+The dishwasher time is 03:45 America/Chicago, after the explicitly clarified 23:00.
+The export is a private local artifact, not a committed secret or a published device
+claim. The smoke's explicit twin observation identifies only its linked submitter.
+
+Planner regression: `uv run python scripts/smoke_planner.py` exited 0 with a valid
+optimal replay, 0.6479118750430644 seconds import time, 0.7562074998859316 seconds
+cold total and a valid greedy proposal in 0.038480875082314014 seconds. Both
+`demo-evening.yaml` and `demo-evening-hourly.yaml` exited 0 with
+`item17_planning_and_observations_passed`, each with two passing planning snapshots.
+`parents-scam-check.yaml` exited 0 with `item16_observations_passed`. These are their
+existing staged assertions, not a claim of full tool/execution scenario wiring.
+JSON outputs are in `/tmp/hirz-item18-planner.json` and
+`/tmp/hirz-item18-{demo-evening,demo-evening-hourly,parents-scam-check}.json`.
+
+Final review additionally moved constraint validation/ownership checks into
+Pipeline assessment, so direct previews/proposals cannot report permission to
+withdraw someone else's request. A new integration assertion exercises that path.
+Preference-only incumbents now report no cost optimality gap when cost refinement
+has not produced one. Final test reruns, full retained-backtest reproduction and
+the final format check are still owed at this point; item 18 is not closed by this
+initial entry. The repeated sandbox workarounds are recorded in the friction log.
+
+### Final coordinator checks and backtest mismatch investigation
+
+After the direct-Pipeline authorization review, unavailable zone observations
+were also excluded from comfort priority, and selected preferences were carried
+into baseline thermostat targets. Hold checks now meter the thermal energy for
+heat, cool and off against every comparison. The final focused run passed
+`34 passed, 3 deselected in 1.49s`.
+
+```text
+uv run pytest -q --tb=short
+972 passed, 64 deselected in 112.70s (0:01:52)
+Required test coverage of 80% reached. Total coverage: 90.62%
+
+uv run pytest -m integration --no-cov -q --tb=short
+64 passed, 972 deselected in 50.82s
+
+uv run ruff check .
+All checks passed!
+
+uv run mypy hirz/ scripts/ alembic/
+Success: no issues found in 94 source files
+
+uv build
+Successfully built dist/hirz-0.0.0.tar.gz
+Successfully built dist/hirz-0.0.0-py3-none-any.whl
+```
+
+The fresh coordinator smoke reproduced all five gates above and wrote
+`/tmp/hirz-coordinator-audit-20260921-verified.json`: `audit_rows=12`,
+`offline=valid`, `device_actions=0`, `disposable_database=dropped`,
+`development_database=unchanged`. Logs:
+`/tmp/hirz-item18-{tests,db,smoke,build}-verified.log`.
+
+The first full `uv run python scripts/backtest.py --verify` completed all 18
+replications without a stopped strategy, preserving 365/365 Time-of-Day billing
+days and 194/365 Hourly billing days, but exited 1:
+
+```json
+{"offline_reproduction_matches": false, "derived_artifacts_match": false, "elapsed_seconds": 2541.4559225838166}
+```
+
+No retained output was overwritten. The workload templates match exactly. A
+bounded diagnostic replay of the first seven days of every replication also
+matches the retained daily traces exactly. The failed command's temporary output
+was automatically removed by the existing verifier, so a second full comparison
+is running with a temporary wrapper that retains each regenerated replication
+and reports its first differing field in `/tmp/hirz-item18-backtest-diagnostic/`
+and `/tmp/hirz-item18-backtest-verified.log`. Item 18 remains open until this
+required reproduction gate and the final format check pass.
+
+### Full retained reproduction and local completion
+
+The diagnostic rerun invoked the existing `scripts.backtest.main()` with
+`--verify`, wrapping only `run()` to retain and compare each completed replication;
+solver parameters, inputs, comparison rules and retained published outputs were
+unchanged. Every one of the 18 replication comparisons returned
+`first_difference: null` and `nonoptimal: []`. All 6,570 MILP solves were optimal,
+and all 26,280 strategy-days completed. The final verifier exited 0:
+
+```json
+{"offline_reproduction_matches": true, "derived_artifacts_match": true, "elapsed_seconds": 2906.818982375087}
+```
+
+That elapsed time includes the diagnostic wrapper's extra compression and
+comparison work and is not a planner latency claim. The first failed comparison
+was not reproduced; its exact cause remains unconfirmed because that run's
+regenerated output was discarded by the existing verifier. Both outcomes remain
+recorded above. No comparison was weakened, no retained artifact was replaced,
+and no published figure changed. Hourly billing coverage remains 194/365 days.
+
+The final code has the passing Python, native Cedar, PostgreSQL, signed-smoke,
+planner/scenario regression, lint, type and package-build evidence recorded above.
+`uv run ruff format --check .` returned `151 files already formatted`, and
+`git diff --check` passed; the format check is repeated after the completion-record
+updates. Third-party sandbox friction was checked and recorded. Item 18's required
+local gates are verified. Remote CI is explicitly unverified. Development remains
+on `0005_execution_attempt`; applying `0006_coordinator_constraints` is manual.
+Plan persistence, refresh jobs, execution, automatic HA change detection, MCP/UI
+and full scenario wiring remain later work; item 15's physical plug/absence checks
+remain pending.

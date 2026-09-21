@@ -67,7 +67,7 @@ class TwinAdapter:
         elif ident in state.zones:
             z = state.zones[ident]
             values = ObservationState(
-                temp_f=z.temp_f, target_f=z.target_f, available=True
+                temp_f=z.temp_f, target_f=z.target_f, mode=z.mode, available=True
             )
         elif ident in state.appliances:
             a = state.appliances[ident]

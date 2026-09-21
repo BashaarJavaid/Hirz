@@ -1,7 +1,7 @@
 """Validated graph inputs. No adapter credentials or authority decisions live here."""
 
 from collections.abc import Mapping, Set
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Literal, Self, get_args
 from uuid import UUID
 from zoneinfo import ZoneInfo
@@ -19,6 +19,7 @@ from pydantic import (
 )
 
 from hirz.constitution.conditions import number
+from hirz.pipeline.models import PlanConstraint
 
 
 def policy_number(value: object) -> float:
@@ -71,8 +72,8 @@ ASSET_DOMAINS: dict[AssetKind, AdapterDomain] = {
     "light": "devices",
     "shade": "devices",
 }
-Scope = Literal["all", "people", "member", "energy", "environment"]
-SCOPES = ("all", "people", "member", "energy", "environment")
+Scope = Literal["all", "people", "member", "energy", "environment", "constraints"]
+SCOPES = ("all", "people", "member", "energy", "environment", "constraints")
 
 
 class GraphError(ValueError):
@@ -242,6 +243,7 @@ class ObservationState(Model):
     soc: PolicyNumber | None = Field(default=None, ge=0, le=1)
     temp_f: PolicyNumber | None = None
     target_f: PolicyNumber | None = None
+    mode: Literal["heat", "cool", "off"] | None = None
     power_kw: PolicyNumber | None = None
     present: StrictBool | None = None
     sleeping: StrictBool | None = None
@@ -350,6 +352,14 @@ def validate_observation_scope(
             raise GraphError("Invalid asset observation domain.")
     elif observation.domain is not None and observation.domain != "energy":
         raise GraphError("Invalid household observation domain.")
+    if observation.state.mode is not None and (
+        observation.domain != "devices"
+        or observation.asset_id is None
+        or assets.get(observation.asset_id) != "hvac_zone"
+    ):
+        raise GraphError(
+            "Thermostat mode requires a device observation for an HVAC asset."
+        )
     if observation.state.camera_armed is not None and (
         observation.asset_id is None or assets.get(observation.asset_id) != "camera"
     ):
@@ -363,6 +373,95 @@ def validate_observation_scope(
         and assets.get(observation.state.zone_id) != "hvac_zone"
     ):
         raise GraphError("Zone must be an HVAC asset in this household.")
+
+
+class ConstraintSpec(Model):
+    kind: Literal[
+        "ev_target",
+        "ev_ceiling",
+        "ev_not_before",
+        "ev_deadline",
+        "appliance_not_before",
+        "appliance_deadline",
+        "temperature",
+        "temperature_band",
+        "manual_hold",
+    ]
+    asset_id: UUID
+    starts_at: AwareDatetime
+    ends_at: AwareDatetime
+    at: AwareDatetime | None = None
+    value: float | None = None
+    upper: float | None = None
+    mode: Literal["heat", "cool", "off"] | None = None
+
+    @model_validator(mode="after")
+    def payload(self) -> Self:
+        if utc(self.ends_at) <= utc(self.starts_at):
+            raise ValueError("Constraint window must be positive")
+        timed = self.kind in {
+            "ev_not_before",
+            "ev_deadline",
+            "appliance_not_before",
+            "appliance_deadline",
+        }
+        if timed != (self.at is not None) or timed == (self.value is not None):
+            raise ValueError("Wrong constraint payload")
+        if (
+            self.kind in {"ev_target", "ev_ceiling"}
+            and not 0 <= float(self.value or 0) <= 0.8
+        ):
+            raise ValueError("Supported EV range is zero through eighty percent")
+        if (self.kind == "temperature_band") != (self.upper is not None):
+            raise ValueError("Only a temperature band has an upper bound")
+        if self.upper is not None and (self.value is None or self.value > self.upper):
+            raise ValueError("Temperature band is reversed")
+        if (self.kind == "manual_hold") != (self.mode is not None):
+            raise ValueError("A manual hold requires its observed mode")
+        if self.kind == "manual_hold" and utc(self.ends_at) - utc(
+            self.starts_at
+        ) != timedelta(hours=2):
+            raise ValueError("Manual holds last exactly two hours")
+        return self
+
+
+class ConstraintRecord(Entity):
+    member_id: UUID
+    asset_id: UUID
+    provenance: PlanConstraint
+    action_id: Text
+    decision_seq: int = Field(gt=0)
+    recorded_seq: int = Field(gt=0)
+    withdrawn_at: AwareDatetime | None = None
+    withdrawn_seq: int | None = Field(default=None, gt=0)
+    withdrawal_decision_seq: int | None = Field(default=None, gt=0)
+    replaces: UUID | None = None
+
+    @property
+    def spec(self) -> ConstraintSpec:
+        return ConstraintSpec.model_validate(self.provenance.encoded)
+
+    @model_validator(mode="after")
+    def consistent(self) -> Self:
+        if (
+            self.provenance.member_id is not None
+            and self.provenance.member_id != self.member_id
+        ):
+            raise ValueError("Constraint submitter mismatch")
+        if self.spec.asset_id != self.asset_id:
+            raise ValueError("Constraint asset mismatch")
+        if (
+            len(
+                {
+                    self.withdrawn_at is None,
+                    self.withdrawn_seq is None,
+                    self.withdrawal_decision_seq is None,
+                }
+            )
+            != 1
+        ):
+            raise ValueError("Withdrawal requires signed evidence")
+        return self
 
 
 # Closed table/model mapping: callers cannot supply SQL identifiers or arbitrary models.
@@ -380,4 +479,5 @@ MODELS: dict[str, type[Model]] = {
     "routines": Routine,
     "preferences": Preference,
     "observations": Observation,
+    "constraints": ConstraintRecord,
 }

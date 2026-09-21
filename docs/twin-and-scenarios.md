@@ -511,3 +511,15 @@ executed Actions. Scenario forecast comparisons retain strict schedule replay;
 the baseline thermostat now prepares far enough ahead for its declared occupied
 target using the existing physical power limit. Supplied scenario weather,
 linked-account provenance, observations and execution deferrals remain intact.
+
+
+### Item 18 manual-event boundary
+
+Twin HVAC observations now include `mode: heat | cool | off` together with
+`target_f`. `scripts/smoke_coordinator.py` submits explicit current twin thermostat
+events through a linked account and Pipeline, recording both the observation and
+its two-hour `manual:device` hold atomically. The account is a submitter, not an
+identified physical actor. The planner retains target and mode, meters the held
+thermal behavior in every comparison, and emits no thermostat Action during the
+hold. Automatic HA/Link detection and `device.manual_change` scenario DSL wiring
+remain later work; item 18 does not make that future scenario event executable.

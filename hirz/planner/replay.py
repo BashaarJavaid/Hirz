@@ -17,7 +17,7 @@ def effective(p: PlannerInput) -> tuple[float, datetime, datetime]:
         elif c.kind == "ev_not_before":
             assert c.at is not None
             ev_start = max(ev_start, c.at)
-        else:
+        elif c.kind == "appliance_not_before":
             assert c.at is not None
             release = max(release, c.at)
     return target, ev_start, release
@@ -34,6 +34,17 @@ def replay(p: PlannerInput, schedule: Schedule) -> Replay:
     for i, (slot, control) in enumerate(zip(p.slots, schedule.controls, strict=True)):
         if len(control.targets) != len(zones) or len(control.modes) != len(zones):
             raise ValueError("Controls must cover every zone")
+        for j, held_spec in enumerate(p.zones):
+            if (
+                held_spec.held_targets
+                and held_spec.held_targets[i] is not None
+                and (
+                    abs(control.targets[j] - float(held_spec.held_targets[i] or 0))
+                    > TEMP_TOL
+                    or control.modes[j] != held_spec.held_modes[i]
+                )
+            ):
+                reasons.append("Manual thermostat hold changed")
         seconds = slot.hours * 3600
         load = p.base_load_kw * slot.hours
         if ev is not None:
@@ -50,6 +61,15 @@ def replay(p: PlannerInput, schedule: Schedule) -> Replay:
             if abs(used - control.ev_kwh) > ENERGY_TOL:
                 reasons.append("EV control exceeds charging power or taper limit")
             load += used
+            for c in p.constraints:
+                if (
+                    c.kind == "ev_ceiling"
+                    and (c.starts_at is None or slot.start >= c.starts_at)
+                    and (c.ends_at is None or slot.start < c.ends_at)
+                    and c.value is not None
+                    and ev.soc > c.value + ENERGY_TOL
+                ):
+                    reasons.append("EV ceiling exceeded")
         elif control.ev_kwh > ENERGY_TOL:
             reasons.append("EV control without EV")
         if appliance is not None:
