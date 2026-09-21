@@ -1,7 +1,7 @@
 {
   "milp": {
     "plan": {
-      "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+      "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
       "household_id": "413ef6f6-f221-4d32-aaee-c0b89e1846d7",
       "version": 1,
       "supersedes": null,
@@ -17,115 +17,115 @@
       ],
       "constraints": [],
       "actions": [
-        "act_96b2e7ef6ce292e460d1d4b64620b1b97e58b41d5ed04c66d45563d0e1096b15",
-        "act_8dc2486fca31f2ff414fd95689d10a1d74b61cf89f35fad957b9c8fdeb89eeea",
-        "act_679b806c2f70ace10aa29a13a535322653ff4ddce54cc20748cb2c5364d092f9",
-        "act_6145913e3cec846ba68e796a3977d4cd0e1fe24388be6eb08878177270607ec5",
-        "act_880a5cd7c3147dee39d45319b42280e2948895fef2687168c0a5a776b6386df6",
-        "act_c52df4f66fd8623a19d0759b6c5a362b4b24b438d56b81ff1757dc6e12bf5ac3",
-        "act_cd578de0c19052462c711c5af85f7fcb4365a4852a7bebf469ca610008683c2d",
-        "act_327ff4faf25f1b1de3db5b42b6622d3965e92bbe7e7d7b6bad81002d11a80b09",
-        "act_d0030d0e9bf9c2271f0b86bba556f271a0e80db59119c716a4bd0c43b127ac53",
-        "act_602fe0a1bf3b034b7a176b2f861f33eddac5f97ecfe69fdcdb22e5e389d0dfd5",
-        "act_ab7ec53fba30e8b7491bbb1d3a593b070ee3af07630e87c7a9d76ded4e452f86",
-        "act_c7d625485d028cf027cadfd168ff33ddf604048cf740ff31fc853238331c63bc",
-        "act_8c6efd8d209b62180681ee4fef79effa40caa87b6efd45919137ff905917eb7e",
-        "act_860f707dc7434b601a03b3f4c88de715e566bb39e5e482ed1114762ccdadb1ce",
-        "act_cd8d03f683935d1334af3099ff0cf694a475ed6a5ffae61cf17857bcd55e869b",
-        "act_9004e495142aba67e1a65b2f88662a902f48a0920d72eee5797a812dd18a30ff",
-        "act_94d0f40bca5477b6f316e9236baddf0bed414d61b9a12d7d2623983e44529890",
-        "act_8c5afd654db44fd5ef3fb192c033942dc6594dbee6269236856b70ad24d05a85",
-        "act_4fdcd7b0e773eb8cc48eed197c79cd44e30f497adce67bef7459c7b3d00ffdbd",
-        "act_a7529c56452d9d96eb67df23ffa263ccb769a862d2c3dd6220222ab372f02fed",
-        "act_d3ca97b546ff71c73de8df796bd7d9e6057590c5bd0467f3acd92e0e52f63905",
-        "act_30b480dae24af784a0b678848d34445c3581ca005c187a66f1a61ac38dc2c39c",
-        "act_e1d1a00b4e8d96a976376a24cb8f75b5e62e8a46a279191aa59625229f296b4a",
-        "act_f6755e52b8a5a3dc92048242da45fc50293a84517702a204562b005344519c2d",
-        "act_a1e4fc33cc0aacda66d9f597cfabf5caf8f9d3dfe0af8dd07d5eaaa7faf416cd",
-        "act_dd9bc91f2d21f06614473f9820fcc749a2bbde031cc16154f416eb740f61d7ba",
-        "act_ebcc41f4ef3f51530699f086c9467c1f08223d1842a418840272979c911a72dc",
-        "act_2ee51fa556717d11675b56c55ab696c347f08a1f73c307cbd3d80eaa529a21be",
-        "act_6854638a71cf358742b35a45ff9194651b2cc44a364aa456a9674af4b6a6d3de",
-        "act_d89a64db9a34033d29635a2f2ad5014432c51b8e9c2ef1ce0ffcbfdfe48d8d86",
-        "act_1ac76e2481b6889fe76255bee30dabf3dff6165863883f5065e65b89aa1cbe68",
-        "act_1186d0847307f7b063a37c680add7fd69e484c3fda0e4d7d16a35f3a1164b8ba",
-        "act_1a329bdffc6da992ff63487040dc9684f7ac47c3f103a63dc4e6080d4b9afeca",
-        "act_eeeb94fbcc156081531d51035e4f293536fb4af592903add1140b2075bfc4a93",
-        "act_80fd983f011ed01c26f28f5a116519309fad32691274252dd5c125e0a4b3a271",
-        "act_905034d7e73a6f0d351f040d49ee06f7ad4cffe550c31ff1a1ca3d980d9a3d86",
-        "act_7215f970ed6185cc7fe8b881e38faf139f014937b7df9a584eaebbaae1972ca8",
-        "act_7c2ea4076a08db63af8c0d13091045bb1b4260d924e68080a47679bd4ee0d4b9",
-        "act_51dc9866123f2966ad69350f242d1e4604658553a75661fdafac5185c69e4026",
-        "act_91aeabcb5e3e8e2a422d3a321d46e612c0e56f0ed1d15fbdf4a338d593d070a6",
-        "act_055c31c20105f59b61cf31c601fe4c53d4d9745f78796a8602f6fb2ec8f34e4f",
-        "act_ea5102577790a633fe884564725d41d1ea6b575a4401e9cfc3ea0a9068a4fdd8",
-        "act_0412d8353cd1582988404e2736ce03822d3f74cbbf99d689bc3a54ae8cc3ed05",
-        "act_facd13831eafd3521cf1d6cf2c0164688951cef5c05da22291ee2e4ea5fa0c75",
-        "act_832725e949a142e9bdb7d0d839b5fa31a11cb895d62dd3417880732b68de4613",
-        "act_c07d329384fb37b60e27828299a188c35de06c46acacaa1fb24cfe38daefba63",
-        "act_23c78777c33f7d5bb4573a1349569a80f04b9bb4c212c4e30475ad67a7de500f",
-        "act_91cd5e7a9f446eb4b42b55775cbd7d4ce5844e26a2b51aef3154fc06c6c374e0",
-        "act_a62ef4d606f81da816139f1956578a90939e5ba054dea32cd797fea31967fc88",
-        "act_cfa09f88c0866203452c05fefae57c8905991b2e233cd99ea2dbe92ebece8f43",
-        "act_e09a4a2c3a68fb3771816aa1b47dbf0e8676fc6c765ac7209494daf2bd304c59",
-        "act_cf7447ee59e04f6f365baa5b8ed64ebf8b9dee87c4ec13c1a09bdf1cc75d22f0",
-        "act_4c7e2370000215e97540d76fe3a3a956ac12048c4c562bdbaace5a23234db8eb",
-        "act_1c3b8ddb3b540e7b3a8ec32852c3d393c834f4acbb4c3f4ae16d920e59d3984c",
-        "act_e3c415d5f1357be0cdbd0ea576aeceec4490cd99645a877c70412d5f4bfbbac3",
-        "act_1d2b9c2fb1f129dd077a362acc9888c1abc224f4bcc01a92a13307ebb7a9b59f",
-        "act_967926f1ce8bde0dd8560988a3b6a27f422083231ef095c1871c09b15f587d0e",
-        "act_6b5852b1c7d2ad51e7153b15b2b286c17985973de483019af0e800cf59c9b0eb",
-        "act_35baf1b810065554799eff37959d132820ffceff21b7369ce599b25fa53a1cb7",
-        "act_db3b9168e0b9683e22513a33786fa074e01deeddbc5a1da44e7c5ef257bcdf0d",
-        "act_6cbcbe34872d2ac263a0144394e578022ba0b4efe7c3b5477fec8b6536346f21",
-        "act_1e44832865c69da416a37140184a13fa473a02d21aef61a5677d97b02da22f85",
-        "act_455061d5de4c6be7925060a73ecccd1d9dbf30256b1b0d45be83bfb9681745e1",
-        "act_cdbad064a33722109d859b4d21077d31e0d7c314896cd2ad40e6749387c63329",
-        "act_9b0462287e754837c08b234c26c2feb9d9ffccecfcc176c397af1a2833771664",
-        "act_8b6e667ab6ba8f7cbfc934b1bbc1cea33859b1f20841a69b3f4181c5292f4703",
-        "act_6a8d5ad97bd2536363cf15c59511c737ad0a2ecf911255fd0ce4a6b8ff93ff13",
-        "act_7f0efc263390f9de460196e1fc12bcde2c07faf005c1270c4b30c3217ca9ec4a",
-        "act_0b594f598866d78660db1febe5aa1e5e51d28b81d43ed985145e771fbc9a9ca9",
-        "act_dfc1c65d014be1c6526dfebaaff722df0c8a50dc4e9362239059a7af6d883f1f",
-        "act_7885660a93b8e1609f03e0bc4b43a37fa2b717c1654c7c51ea8935f13d6191b3",
-        "act_c811ae3a6f96cbb4e0e36fa6ecfdfd41a6984bbf92b5c3ae9702e2e971e85310",
-        "act_a72eb505a8ad0d067481e7454bc424604009c78d2e22141053dfad01ddd41b13",
-        "act_6bcc3c93e66a51c754966f4a0ae8ff270360bdcd7182bf4696cc7ea3135881da",
-        "act_3789a67c6ca7838b2656dc05d4abf722c11a765a69d596a4e2a59544762250df",
-        "act_8401113acf0286a971f2cde4400c552ddd0ada0840638ee45b2f524c928b9a33",
-        "act_b49560728a8ff5fa011c2a1a1397cc1b858431103bda4afcd7e851f30a0b41cf",
-        "act_fe8a876f65436e6bd8d4c9821dd68d5eafee8dd942736d1f90d3c34e566eaaa7",
-        "act_b662805c5e48086f420512835102367c0f2cbe497d915f453a2f821dd505beea",
-        "act_1384ac1ecbaf14a6e6be212057a48c6481122cb072bf8f67300e62844e1f19b3",
-        "act_bc268aaa7db4e1bb955238e8d2b1a6bd0b2803ead5207ab21dccdd7260de271c",
-        "act_101852770196f3ed3dc35c5ccae1d761b5ab5f6f22df7c444ddf42ccf666486a",
-        "act_0616b17d1fd89d4beede06145f1f4620515533f01294348a376b1ed39fa5a968",
-        "act_1ef2e0f8797b2de853321212a3e9d2aa4b2c3c36d64a03b054f0f80e9b278110",
-        "act_e8f29ccf71dab655ef8b8db521d81fe3241a87d4ebe9fc67dab0ea9a5f3238c9",
-        "act_632005ef8dca0a67bf4d14df92cc4551f3a9162862c936a72b29d45d76b84c46",
-        "act_418610c99acef7bcd6536ece7ad46c6cc9f307bb9a2b893fe32c1086e08b020f",
-        "act_cc189b23c8ffd499ede8f70b981d4d4748117ef087bafff742965d032afe17e2",
-        "act_2a427f56a3172ffa84c4b75b3e273eac2491319bb7e42317cd30060a2da83059",
-        "act_135e1de04ed7cf114e1dbad4403e4e2c0e89bee97790bd502072d756b846e4f6",
-        "act_1d1f5fe21e1ae2843c3c3a4ec332f428d50a35561d7c7be26dacd04b6271092b",
-        "act_ab2c3b1f87eda7b99dfef6e1d519a7662db7aaec86a62eadc316f872ef3458e4",
-        "act_dfce8dde5079f146ab6ebea03d3b3ac02426cb80a5efcfa5a2c63d9fa7d82705",
-        "act_97538b9d144864904ac5e7f861c37da89be7dbf76f4a83e61d9c2f32e2fbb037",
-        "act_56986b546f2d491c27059392aca91f80610414c3956e97aecf2d7056eacd03e9",
-        "act_1a31ea0a191706b47f5fdb193f582574c880e1183a31e3394b18c4eb03e73292",
-        "act_d8417237aa87e30a2f751d3d8b680eb4e097aed624079efc99edba3f7c067457",
-        "act_4c2aa76cdbaa04ff3158af534cfec4924aecfddfa183431a8c8a1cdd5800738e",
-        "act_8ed6b228f4f17f9154ec269cdcfa5988393e4f12f8257c926876e1e60ac406e4",
-        "act_82b772a44c2878edbb377f738a257effd9e94ce744c15a02f38ffdf8ec4b6e39",
-        "act_a4606ed8fe229c4d6caa2901886d667f8479b15f39e08c2ee97e4309ab1bfc70",
-        "act_e8ef5bc9f114b8791585d2edf6bd0df821e3e35d04152a14159a6cdcaa859a1f",
-        "act_3f304cc6e9d2c83695be97ff94190e237a9669a97a9542146c3974647b1ace9b",
-        "act_33165bf3db6dd3de4008020b7bce1f57bedf38b3fed06880557556c373b2e356",
-        "act_c5d2de9b2e66f753c18c9af36c4fd395f9009b0a63b5c99fa329742c78fac65c"
+        "act_f2c0f29598bf2bd4ab0b19a063ce630d281cb4cc1dfb6573316aadadb99eeffc",
+        "act_9a89f2ede1b0716ed061cb7f5d931dacf430931213925d80137e6b320c9405a3",
+        "act_3b76d5a6307e055dc641fa5e187b07fb1421903790f474a198ac47071750e5dd",
+        "act_acda79c058f8d5f2d1c53828470a4efa669aca330fedaf28ea2ceabdecd38094",
+        "act_574827bc20e0b6e30fcfbb31581327496d8cc9a1c31daba423f62b7ea641920c",
+        "act_7cd703715912797b78a574299f27701fbb002299448363fca6c4ff69a2619878",
+        "act_a5561c88f7cc2e3c27fc6fc417bbf986b8522716bb0e3cc18889976f48cc03e1",
+        "act_dace13b578b9ef801a72c57fbf705d597543a72e4f44f46247bf7a21f6da2942",
+        "act_59d9af3be2d3b5e0948f15a0b3a4da19f3ed55a1d617da6353a0375eb5e21289",
+        "act_caa23ef53ea079ce600a9c99ce15a1f04d4c020413ec7f69458769c9305f08eb",
+        "act_70787004f508c9c04d24d40c05fb15ad2820697815bbeb9ddbed5ee3f082e94f",
+        "act_48d4b34b8ebd388ebe223a6980375aa0b6f152f2dbf77b32f0560f34e88bc5c6",
+        "act_7a01236febf29b9e2d67efeb2f5cc026ec3d699126ea43c3cc5a288a4b077a66",
+        "act_e7de9b391953db624a0b35e9dd63c921257a6cb47e53705dd8991c03d07becfc",
+        "act_7d5da8afc0cf61f70830e1d8a526c5b867da3fa2912d24abff8e239d93b0729f",
+        "act_5269912bfcfe4f9ca2c10ea78ed2944a4e414a08c95ba7080f09f6021f4b465f",
+        "act_396c919347c218632c7b2ba81de5c432c8bce5ae7f9679a932b387287644067a",
+        "act_6223d88c8f16d88662e3aea6f29d8e5f02e37c2501eb90db7e9f0da3ae99772e",
+        "act_22dee68c6fab4d61c0bd19fe3d9101fac01a0690a0d9efc54c0f0e655e6ba758",
+        "act_80429ec7d58df2172805eead400b3ab5fec84608082f5b1313600e10013b371b",
+        "act_efe70a559574a702643f7d727396846d512aeaf9c7e567eec038924a3ddaacb4",
+        "act_2033e503e728e9d5e68887f749bff454f1f740d7824da294fdc64c9f30343442",
+        "act_e113fdfd5a2d7f100a59749e95affa8be29a8b0251d07a3d0002663e1086c4e6",
+        "act_7c4fb86a633dbcc3a8ce0de9950d6801a3d9bec22cb8afc873ff183df06fa0dc",
+        "act_4a8c7a951dce6cbb5dff8241ba7cdaf716b00a7eb77dceed8dd2164f638de447",
+        "act_7d29df525dd2fca6cfd05c2bec5ded9a6238b45b75eaa1d4e21501b714586617",
+        "act_fd74d01d4ebb61096f8d10f463e1b33c07a09e5e4c6631ffa6671b6f7c3156a9",
+        "act_c90710dcc52623f00fcdfa4543cfb7fb90088cfdaf31509b73096160a499aafa",
+        "act_d0a2c47a68f3cb9d36222fd603fc1c8a9b00b03e0473710538278b299f0ab4a7",
+        "act_48fa95edbabd4c351dfb40d88a6bc476b051e7f265c2eec4476a95ac35558400",
+        "act_9c1683f95b562afa716a3c8182b38ab9e7804cf2dffbd6d0dab697aa59c991a1",
+        "act_1cddbbc7543540684b1db5649d3d224b71adbd7b1c93f25ebb4ddfd6adb433ae",
+        "act_161132a33515408457aa6f3ab7688f7bb7be40329bf0f15e543f89f47d00338e",
+        "act_9059ce666b559071949b89bd0835bd566d32df747a2553bf3d165f30e7379e18",
+        "act_ba587dd8cc393c1cb022d7eb634e8fb3e055a5755dc14b4b016aae6b94421c3b",
+        "act_73f5a0236a44860d387a76225994f6b4e7093921c9f52f1729ee831cbbd1c705",
+        "act_bf1bcb6e88877d8197de9383e8283aed30b7876ca3ce527233357cef4e865669",
+        "act_9a234a4b65fb5c6d82837f4647ee34bb428c5e19ef11cb66657144b14830e78c",
+        "act_9557f469b1239c97a9b4f8e0726288af45090bab8870df7bfd2ce4e11b7fe35e",
+        "act_f950e8623d9febad8d280658f1feed1ff9d23e918c02b61d07f6fd0d22176606",
+        "act_7732bad462a1acca1b62cf7b3df4dba54f5035eafc9cf3ff59be2207c810622e",
+        "act_034430b8ebb645ef93bc5d167b4a01d78c628e7dfaadbfa33f7b0540108d4d70",
+        "act_d6f7273b8fa2309c15bbc4971a1ba97de991c6f224e13b7f63f5be51157c69ae",
+        "act_ab85dcf1c2525657cc22e4bc3af945d91e0f47d6527e68ea2e8cbf600dbd8fdf",
+        "act_82d1d36d355f2b05c22a1dea0cdb18819a786152378fee83a9bc6eb5fd5c893f",
+        "act_7fa12762074336f7a02d6c888f9d998171e499431578296ce3491175417c8a03",
+        "act_57a4c9307121031def2785f6c66492554afa9869b4768fc9b9f753a041b54586",
+        "act_0bde316e20d46fdf7b273204934d71024abed6e76839d20da0c68fb8890f4666",
+        "act_0a9a41edf30a58f9bab2211aee440fd67bfbe8e1e01e0d2d0824ec52b28b8772",
+        "act_d158b3484c582123b07e8d62d3aed9ba900690202eb4db0788272e10406695e1",
+        "act_5336cdc4373c141634244b9be6da6cc71a4d67701d3bd5d8cd4b723b8e761f39",
+        "act_a2f9a280ffa70a53dfd816de9cd413db4bd8fd2c4372e9a4188ca9439fde9ec9",
+        "act_309ea991d51be7bed4eb82422e16bae6788e0e70e244cd25d16cbf0c6cfee7a8",
+        "act_e70df1aa36733d94e6e94802f1ba74e7ada5d7d68ce8e038658e21c0f0941d78",
+        "act_60e9d81722c19c688cbabf4da0b049fc167fec4c3a52c5fd8ff88b16d04e8505",
+        "act_f67a0a2f1dc5390f2972def34935abcc7384d9d5a6636493cea10fbde8b6a73a",
+        "act_85a4af236fb9c056db584469825063f8f0166f8ad44620ede4d9c6c41ee01038",
+        "act_f9dd643f06aa5303e683ee510e902e588e2a43d38eebb76f2ab15bd47e623bad",
+        "act_998d7cb6d6d6c155dfabc4d9d82b28e0d5e5f7feb113675b94b06c513919b041",
+        "act_dc2988256aaeec3c3d5882d4797397b9cfc85293a61c98bf775463f0ba121440",
+        "act_ef703e5dfaced5400bd2fb1648a4143dc38d267322e3a26468532b3a8f14c2e4",
+        "act_46f6cb8822071ca4474db8b4bddf54b33ad29742462199b6eecb81a14074c0fe",
+        "act_24763969dd051db1dccef0d83c7c2375163faddbfe38974f2afe00908f3f5cb5",
+        "act_d046d425d6a2ffb4b968647699c433a1b0a12da7be3f1d352994ad3ad8add2a3",
+        "act_58ddeda82a07062e215f5fe53422e221646dba572e6d9daf71cfde30fc90fbe1",
+        "act_2452e06cf92bbbfd615bdcb2fbd36b1117609cd0e347123d5dafef541b8b4f38",
+        "act_245db346e6416251b6ce64e4d2a9b138e6b026cda8e84b758e75556b2b50f3e6",
+        "act_b2b74d58e3560046201781fdf9ecb9ebba569481c9a3657847732bad336e92c8",
+        "act_5f3f404424967676434432d2f98cad86e739b1505b78b63ab724ccbc91c17b59",
+        "act_8b9f68674686cb6dc1394eccc306a5162c22f7c0ce1a16759268e4827fd6119c",
+        "act_29d60f429e5e67f23c632ec7cbdb4c24dddc26876817b3c5ee49225e653d9b23",
+        "act_8d4c771826a7db8e780113f216a934f23e4dd69836cf8c7b2f868c20bbbff250",
+        "act_ea285619beba7ce57d2a2a29e22d2c97645a17656592c63773e7056f65b96dfa",
+        "act_98e1f129b0867f05f215ef6cfc77c22484f73541ba695770d25b210f43617420",
+        "act_31f727f781104d9e30e3ea6590337aca0bb0dbeda8a1fc537efdaf853a7c7c9c",
+        "act_b7d629834adb341a3363e18912e87d4ee2fca757b540d099bc19372b8a9bce22",
+        "act_883644a5790c2e20bf4ec636a285efdb82d263102fa04ebdf087df9323de1fe3",
+        "act_19b4fccbf843eef671636ec9c3976484cd1b3fe799b102096ffb07e676e16f2f",
+        "act_75b7278fff447a479d9472ba9dd50a552f3b655e1d59a1ec376b5be1c509944e",
+        "act_71fe456081ea2dbc54016feb8332534efdffa476a3c50da37b8edf3bb496fd40",
+        "act_36888191f16a0d20c90ac29b8eb2a6d5f8b6ea4a2f9d1f3b146e78f9495e17f5",
+        "act_801d9b9b032fc10b3adf4846034d69a94dc479376bb5f008e46ba48a192d1972",
+        "act_526e96ce5fc0bc86eebb53b0f0379bb0fc8d408583eb1a50cb28c5ffa98c4462",
+        "act_c35cd4a37dac7fb7e06ee25b9a07195b0ff53edff11673e542361d034a52dadb",
+        "act_9ca5c528a2a1511073dc2dab42dd9830d13c8b507ae5b1015235d4b07e940c7d",
+        "act_e8b3e9ed6e2c830303aff67e69b3b60b999b7d0d587986aa6892afe60814cbcc",
+        "act_a9a4356c413a83ee7217ff681a7a495ef9fa12c8f9e8b40c31657f1f231a8282",
+        "act_deca88af852a00bf357f9f397b516459775492762ee4f941b2fed83ac06bbd97",
+        "act_4c598dd17a33edf341f7f7bb95e0b6589abc791ff27e9303dd6079e75d633146",
+        "act_f69f02ec882b5ad8703aaa174794d68a92c4e3a18bf2afcac28df6b9f9ceaaab",
+        "act_c40ddbbe579407db10c2660755e47390eeeb045e77be6b4780cb2f565dcfdc77",
+        "act_98144b9ab29c56b5c1b1da4f69f5d65e1200fa9eda7f967d73878148e937ae33",
+        "act_41710869c2f746f71bf6663f20b737fa883f69d7d2e51532b91e11d2a417fe84",
+        "act_df875b8b6b925974f5de2e41049f7e3ff55387f81ac0d89dd1045b0e75e352e0",
+        "act_85b80d9d5d20a3719f907bbe86c9cedded341b6b60fe6ce14d2f80f07461031d",
+        "act_7d518ef31fe2aece3aea9f92530837af21056a813f0e1a11818891538056b128",
+        "act_c2031d144ecaf9ef4febedfe0604291953a06b4df3d726e51f800212f2e2bcdb",
+        "act_a8b55840e8b3b3140d1e786f85c3d15469e16a46e8f8620c1310f37579daf1fe",
+        "act_9500cf1e5cb2dd7c163531b70a7b4ac5e34fc7bae119ce58630612c6e774e99f",
+        "act_cf1b318a0d74d238bd647ceaf3907c0b440c19c664ba9c00d9851a98dac24996",
+        "act_1b39bead0d75697a6eaeff95802da8a1e8aeec62b166df6db7a97bac89b603a3",
+        "act_ede51ea546508c71e16ac3f24b5d80c1b2b0c819a31d6d212cfe0201f3a6e789",
+        "act_20fffec5df5e9bf4b971fd4e0c60990ca20994d47391372dd3445e3fbc21a79f",
+        "act_edfb44ec9c62ce4bac4f7cb97b9cc28be02ac445b483ab257e0048efc77861d5",
+        "act_759b0644a8839a2120f5f5bf89484c0d2efe5695c60632f3f4c1c3257e28f1d4"
       ],
       "summary": {
-        "estimated_savings_usd": 0.36790210798445583,
-        "peak_kwh_avoided": -1.9456658506555868e-14,
+        "estimated_savings_usd": 0.36847966982794383,
+        "peak_kwh_avoided": -1.9012569296705806e-14,
         "grid_kwh": 48.645188720455565,
         "solar_kwh": 0.15154277752369996,
         "exported_kwh": 4.413136522884997e-15,
@@ -136,7 +136,7 @@
       "alternatives": [
         {
           "label": "timer",
-          "cost_delta_usd": 0.36790210798445583,
+          "cost_delta_usd": 0.36847966982794383,
           "why_rejected": "Same EV deadline, comfort bands, appliance workload and ending battery energy",
           "validity": {
             "valid": true,
@@ -145,7 +145,7 @@
         },
         {
           "label": "immediate",
-          "cost_delta_usd": 2.794596018245007,
+          "cost_delta_usd": 2.8721348114435368,
           "why_rejected": "Same EV deadline, comfort bands, appliance workload and ending battery energy",
           "validity": {
             "valid": true,
@@ -154,7 +154,7 @@
         },
         {
           "label": "greedy",
-          "cost_delta_usd": 0.3296973251728013,
+          "cost_delta_usd": 0.3302410040048243,
           "why_rejected": "Same EV deadline, comfort bands, appliance workload and ending battery energy",
           "validity": {
             "valid": true,
@@ -287,7 +287,7 @@
     },
     "actions": [
       {
-        "action_id": "act_96b2e7ef6ce292e460d1d4b64620b1b97e58b41d5ed04c66d45563d0e1096b15",
+        "action_id": "act_f2c0f29598bf2bd4ab0b19a063ce630d281cb4cc1dfb6573316aadadb99eeffc",
         "action_class": "energy.ev_charge",
         "target": {
           "adapter": "twin",
@@ -306,13 +306,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-13T22:33:00Z",
         "expected_effect": null,
         "content_hash": "sha256:bb6e2c6b84d7e26d64858e77ffc1d81ec0b948b7c0dd4f62021f353383b8aacc"
       },
       {
-        "action_id": "act_8dc2486fca31f2ff414fd95689d10a1d74b61cf89f35fad957b9c8fdeb89eeea",
+        "action_id": "act_9a89f2ede1b0716ed061cb7f5d931dacf430931213925d80137e6b320c9405a3",
         "action_class": "energy.battery_dispatch",
         "target": {
           "adapter": "twin",
@@ -330,13 +330,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-13T22:33:00Z",
         "expected_effect": null,
         "content_hash": "sha256:b849c7b0808a9b083dea073f94b8563cf0e3eb1c58d8d7870382eb51bfc26b07"
       },
       {
-        "action_id": "act_679b806c2f70ace10aa29a13a535322653ff4ddce54cc20748cb2c5364d092f9",
+        "action_id": "act_3b76d5a6307e055dc641fa5e187b07fb1421903790f474a198ac47071750e5dd",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -355,13 +355,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-13T22:33:00Z",
         "expected_effect": null,
         "content_hash": "sha256:617448ad5164608d0da413c4809e6a2f82771ecd914f37eb796b96407ad60271"
       },
       {
-        "action_id": "act_6145913e3cec846ba68e796a3977d4cd0e1fe24388be6eb08878177270607ec5",
+        "action_id": "act_acda79c058f8d5f2d1c53828470a4efa669aca330fedaf28ea2ceabdecd38094",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -380,13 +380,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-13T22:33:00Z",
         "expected_effect": null,
         "content_hash": "sha256:abd19a137b8e681a1c3f5283f015e1e76c213a09a8c790346325c5cfc653e17b"
       },
       {
-        "action_id": "act_880a5cd7c3147dee39d45319b42280e2948895fef2687168c0a5a776b6386df6",
+        "action_id": "act_574827bc20e0b6e30fcfbb31581327496d8cc9a1c31daba423f62b7ea641920c",
         "action_class": "energy.battery_dispatch",
         "target": {
           "adapter": "twin",
@@ -404,13 +404,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-13T22:45:00Z",
         "expected_effect": null,
         "content_hash": "sha256:8df8df6f1cc627ab385c5f2aa584f8bf5c11129b0a1278e74ea8f4876570271e"
       },
       {
-        "action_id": "act_c52df4f66fd8623a19d0759b6c5a362b4b24b438d56b81ff1757dc6e12bf5ac3",
+        "action_id": "act_7cd703715912797b78a574299f27701fbb002299448363fca6c4ff69a2619878",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -429,13 +429,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-13T22:45:00Z",
         "expected_effect": null,
         "content_hash": "sha256:a436677fc8826d8ab29adcc35cf78ae1e8ed199357ae781b3662590eafa1888a"
       },
       {
-        "action_id": "act_cd578de0c19052462c711c5af85f7fcb4365a4852a7bebf469ca610008683c2d",
+        "action_id": "act_a5561c88f7cc2e3c27fc6fc417bbf986b8522716bb0e3cc18889976f48cc03e1",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -454,13 +454,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-13T22:45:00Z",
         "expected_effect": null,
         "content_hash": "sha256:56a5048300fd022d74ecc3817cddb3dd90772a82fa61db2ec0faed8d20c3975c"
       },
       {
-        "action_id": "act_327ff4faf25f1b1de3db5b42b6622d3965e92bbe7e7d7b6bad81002d11a80b09",
+        "action_id": "act_dace13b578b9ef801a72c57fbf705d597543a72e4f44f46247bf7a21f6da2942",
         "action_class": "energy.battery_dispatch",
         "target": {
           "adapter": "twin",
@@ -478,13 +478,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-13T23:00:00Z",
         "expected_effect": null,
         "content_hash": "sha256:bfd83709ccc0725a2bea34c60783d6df6fa62583ba17637706d06ee3878c7a30"
       },
       {
-        "action_id": "act_d0030d0e9bf9c2271f0b86bba556f271a0e80db59119c716a4bd0c43b127ac53",
+        "action_id": "act_59d9af3be2d3b5e0948f15a0b3a4da19f3ed55a1d617da6353a0375eb5e21289",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -503,13 +503,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-13T23:00:00Z",
         "expected_effect": null,
         "content_hash": "sha256:72fcc6b7da1c9aac1716ecc3ce2d48ad25c5e60252772fbdccac52ea8ccec4d9"
       },
       {
-        "action_id": "act_602fe0a1bf3b034b7a176b2f861f33eddac5f97ecfe69fdcdb22e5e389d0dfd5",
+        "action_id": "act_caa23ef53ea079ce600a9c99ce15a1f04d4c020413ec7f69458769c9305f08eb",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -528,13 +528,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-13T23:00:00Z",
         "expected_effect": null,
         "content_hash": "sha256:763a1c2c3e882c1d40ae736268054d9f2ff280e873a3c1da92a29f6078e75d1f"
       },
       {
-        "action_id": "act_ab7ec53fba30e8b7491bbb1d3a593b070ee3af07630e87c7a9d76ded4e452f86",
+        "action_id": "act_70787004f508c9c04d24d40c05fb15ad2820697815bbeb9ddbed5ee3f082e94f",
         "action_class": "energy.battery_dispatch",
         "target": {
           "adapter": "twin",
@@ -552,13 +552,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-13T23:15:00Z",
         "expected_effect": null,
         "content_hash": "sha256:dd00df5025542ff57302324949bb7ea8ef43e29091c2333019cabc2dea801b87"
       },
       {
-        "action_id": "act_c7d625485d028cf027cadfd168ff33ddf604048cf740ff31fc853238331c63bc",
+        "action_id": "act_48d4b34b8ebd388ebe223a6980375aa0b6f152f2dbf77b32f0560f34e88bc5c6",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -577,13 +577,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-13T23:15:00Z",
         "expected_effect": null,
         "content_hash": "sha256:3420efedcb3ef8116a944bc416d16095a644a71e83bf1fd829d9aad46c072e4c"
       },
       {
-        "action_id": "act_8c6efd8d209b62180681ee4fef79effa40caa87b6efd45919137ff905917eb7e",
+        "action_id": "act_7a01236febf29b9e2d67efeb2f5cc026ec3d699126ea43c3cc5a288a4b077a66",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -602,13 +602,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-13T23:15:00Z",
         "expected_effect": null,
         "content_hash": "sha256:6f3540642f51a3c4ad46d491e83fd61664a5b03b42c9270ac08b21b48f5cc8f2"
       },
       {
-        "action_id": "act_860f707dc7434b601a03b3f4c88de715e566bb39e5e482ed1114762ccdadb1ce",
+        "action_id": "act_e7de9b391953db624a0b35e9dd63c921257a6cb47e53705dd8991c03d07becfc",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -627,13 +627,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-13T23:30:00Z",
         "expected_effect": null,
         "content_hash": "sha256:1d3bb8a4ca616ba394cadef4f9602dacc3c7a63a628fb43c2eed49c5a2064867"
       },
       {
-        "action_id": "act_cd8d03f683935d1334af3099ff0cf694a475ed6a5ffae61cf17857bcd55e869b",
+        "action_id": "act_7d5da8afc0cf61f70830e1d8a526c5b867da3fa2912d24abff8e239d93b0729f",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -652,13 +652,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-13T23:30:00Z",
         "expected_effect": null,
         "content_hash": "sha256:d8668f295fd5619a94d1c382c4b08c110fb59add48b2fe62726e94fc9e88b6e2"
       },
       {
-        "action_id": "act_9004e495142aba67e1a65b2f88662a902f48a0920d72eee5797a812dd18a30ff",
+        "action_id": "act_5269912bfcfe4f9ca2c10ea78ed2944a4e414a08c95ba7080f09f6021f4b465f",
         "action_class": "energy.battery_dispatch",
         "target": {
           "adapter": "twin",
@@ -676,13 +676,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-13T23:45:00Z",
         "expected_effect": null,
         "content_hash": "sha256:bd03d50169e6fb9f6ac5f945415c53fbd9e8672990ea9a26b45de7de6e79f562"
       },
       {
-        "action_id": "act_94d0f40bca5477b6f316e9236baddf0bed414d61b9a12d7d2623983e44529890",
+        "action_id": "act_396c919347c218632c7b2ba81de5c432c8bce5ae7f9679a932b387287644067a",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -701,13 +701,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-13T23:45:00Z",
         "expected_effect": null,
         "content_hash": "sha256:3ab409e6111ddedfd00a5c0aa53727a74f1e08d2c11de6d6de4058ac8325aad6"
       },
       {
-        "action_id": "act_8c5afd654db44fd5ef3fb192c033942dc6594dbee6269236856b70ad24d05a85",
+        "action_id": "act_6223d88c8f16d88662e3aea6f29d8e5f02e37c2501eb90db7e9f0da3ae99772e",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -726,13 +726,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-13T23:45:00Z",
         "expected_effect": null,
         "content_hash": "sha256:80435665be069ba71742007748c11d8c8ed9b77c3438a7514051ac7ba9fa1a81"
       },
       {
-        "action_id": "act_4fdcd7b0e773eb8cc48eed197c79cd44e30f497adce67bef7459c7b3d00ffdbd",
+        "action_id": "act_22dee68c6fab4d61c0bd19fe3d9101fac01a0690a0d9efc54c0f0e655e6ba758",
         "action_class": "energy.battery_dispatch",
         "target": {
           "adapter": "twin",
@@ -750,13 +750,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T00:00:00Z",
         "expected_effect": null,
         "content_hash": "sha256:ab9d8607b153f607a3d63e685c28cda1677ad28a310a8de318221610ea654674"
       },
       {
-        "action_id": "act_a7529c56452d9d96eb67df23ffa263ccb769a862d2c3dd6220222ab372f02fed",
+        "action_id": "act_80429ec7d58df2172805eead400b3ab5fec84608082f5b1313600e10013b371b",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -775,13 +775,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T00:00:00Z",
         "expected_effect": null,
         "content_hash": "sha256:7f57aa0f0ac2e144867562236cc02fbe5211c141211f7ce522628b59234a72c2"
       },
       {
-        "action_id": "act_d3ca97b546ff71c73de8df796bd7d9e6057590c5bd0467f3acd92e0e52f63905",
+        "action_id": "act_efe70a559574a702643f7d727396846d512aeaf9c7e567eec038924a3ddaacb4",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -800,13 +800,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T00:00:00Z",
         "expected_effect": null,
         "content_hash": "sha256:73b5d0caf5e4150268398884a56a3d291c7b775d5e04d81da20a9a31f172f0d1"
       },
       {
-        "action_id": "act_30b480dae24af784a0b678848d34445c3581ca005c187a66f1a61ac38dc2c39c",
+        "action_id": "act_2033e503e728e9d5e68887f749bff454f1f740d7824da294fdc64c9f30343442",
         "action_class": "energy.battery_dispatch",
         "target": {
           "adapter": "twin",
@@ -824,13 +824,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T00:15:00Z",
         "expected_effect": null,
         "content_hash": "sha256:7a12ecd869763d3e19ef92e420d45bb32e385dc7073119a7e307ca6cbb1a0dbd"
       },
       {
-        "action_id": "act_e1d1a00b4e8d96a976376a24cb8f75b5e62e8a46a279191aa59625229f296b4a",
+        "action_id": "act_e113fdfd5a2d7f100a59749e95affa8be29a8b0251d07a3d0002663e1086c4e6",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -849,13 +849,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T00:15:00Z",
         "expected_effect": null,
         "content_hash": "sha256:283149717899453b3c69150354da0e2cc99e670d688944a0f7a109ce4d902431"
       },
       {
-        "action_id": "act_f6755e52b8a5a3dc92048242da45fc50293a84517702a204562b005344519c2d",
+        "action_id": "act_7c4fb86a633dbcc3a8ce0de9950d6801a3d9bec22cb8afc873ff183df06fa0dc",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -874,13 +874,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T00:30:00Z",
         "expected_effect": null,
         "content_hash": "sha256:6700c6753c3dccdef309e917cb9c4155da559a472fc5e22faef77b41a1362d67"
       },
       {
-        "action_id": "act_a1e4fc33cc0aacda66d9f597cfabf5caf8f9d3dfe0af8dd07d5eaaa7faf416cd",
+        "action_id": "act_4a8c7a951dce6cbb5dff8241ba7cdaf716b00a7eb77dceed8dd2164f638de447",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -899,13 +899,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T00:45:00Z",
         "expected_effect": null,
         "content_hash": "sha256:02c925d691505d8eae22f30902e8c69e2fce2a0d45d8459ba581cce2d053a6b4"
       },
       {
-        "action_id": "act_dd9bc91f2d21f06614473f9820fcc749a2bbde031cc16154f416eb740f61d7ba",
+        "action_id": "act_7d29df525dd2fca6cfd05c2bec5ded9a6238b45b75eaa1d4e21501b714586617",
         "action_class": "energy.battery_dispatch",
         "target": {
           "adapter": "twin",
@@ -923,13 +923,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T01:00:00Z",
         "expected_effect": null,
         "content_hash": "sha256:d79321058f30d14d28a9236edd48f7a373d21c37c454688a1a419bf149acdd79"
       },
       {
-        "action_id": "act_ebcc41f4ef3f51530699f086c9467c1f08223d1842a418840272979c911a72dc",
+        "action_id": "act_fd74d01d4ebb61096f8d10f463e1b33c07a09e5e4c6631ffa6671b6f7c3156a9",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -948,13 +948,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T01:00:00Z",
         "expected_effect": null,
         "content_hash": "sha256:7f0d5232c7212f68136353ca999df5676e664f0eac2110ac77d50bd6b0474ce9"
       },
       {
-        "action_id": "act_2ee51fa556717d11675b56c55ab696c347f08a1f73c307cbd3d80eaa529a21be",
+        "action_id": "act_c90710dcc52623f00fcdfa4543cfb7fb90088cfdaf31509b73096160a499aafa",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -973,13 +973,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T01:15:00Z",
         "expected_effect": null,
         "content_hash": "sha256:8fe84f8f42d5e79e5ab172e1a3edc928db721ba75347fc4e36c9b5c46f6e02f6"
       },
       {
-        "action_id": "act_6854638a71cf358742b35a45ff9194651b2cc44a364aa456a9674af4b6a6d3de",
+        "action_id": "act_d0a2c47a68f3cb9d36222fd603fc1c8a9b00b03e0473710538278b299f0ab4a7",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -998,13 +998,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T01:30:00Z",
         "expected_effect": null,
         "content_hash": "sha256:d9fb9e72cf37459b2a62520979dad7f3d027ce160e8c0ca7a7d7470b2e01a306"
       },
       {
-        "action_id": "act_d89a64db9a34033d29635a2f2ad5014432c51b8e9c2ef1ce0ffcbfdfe48d8d86",
+        "action_id": "act_48fa95edbabd4c351dfb40d88a6bc476b051e7f265c2eec4476a95ac35558400",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -1023,13 +1023,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T01:45:00Z",
         "expected_effect": null,
         "content_hash": "sha256:18868130eb8be3930e0e95fece0124ed8d1875be2789b45869f0dab177c074c5"
       },
       {
-        "action_id": "act_1ac76e2481b6889fe76255bee30dabf3dff6165863883f5065e65b89aa1cbe68",
+        "action_id": "act_9c1683f95b562afa716a3c8182b38ab9e7804cf2dffbd6d0dab697aa59c991a1",
         "action_class": "energy.battery_dispatch",
         "target": {
           "adapter": "twin",
@@ -1047,13 +1047,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T02:00:00Z",
         "expected_effect": null,
         "content_hash": "sha256:9ecddd0dc66d55822c52a22ed82e1cee0777d9872f125e9b24c943f990b2c1ae"
       },
       {
-        "action_id": "act_1186d0847307f7b063a37c680add7fd69e484c3fda0e4d7d16a35f3a1164b8ba",
+        "action_id": "act_1cddbbc7543540684b1db5649d3d224b71adbd7b1c93f25ebb4ddfd6adb433ae",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -1072,13 +1072,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T02:00:00Z",
         "expected_effect": null,
         "content_hash": "sha256:e33178cbba19c34461b5eec06fb31db8a3b10686ba6816d517aaf86d6823bb38"
       },
       {
-        "action_id": "act_1a329bdffc6da992ff63487040dc9684f7ac47c3f103a63dc4e6080d4b9afeca",
+        "action_id": "act_161132a33515408457aa6f3ab7688f7bb7be40329bf0f15e543f89f47d00338e",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -1097,13 +1097,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T02:15:00Z",
         "expected_effect": null,
         "content_hash": "sha256:04f3a7bd8b5d3b0ba07ec5e7b66a137eaab32da6d2c18e85c16631377afc1d54"
       },
       {
-        "action_id": "act_eeeb94fbcc156081531d51035e4f293536fb4af592903add1140b2075bfc4a93",
+        "action_id": "act_9059ce666b559071949b89bd0835bd566d32df747a2553bf3d165f30e7379e18",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -1122,13 +1122,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T02:30:00Z",
         "expected_effect": null,
         "content_hash": "sha256:abdb2291c6eec852801df7768962041640c5a6e6f124d32473befc7801a944cf"
       },
       {
-        "action_id": "act_80fd983f011ed01c26f28f5a116519309fad32691274252dd5c125e0a4b3a271",
+        "action_id": "act_ba587dd8cc393c1cb022d7eb634e8fb3e055a5755dc14b4b016aae6b94421c3b",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -1147,13 +1147,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T02:45:00Z",
         "expected_effect": null,
         "content_hash": "sha256:2580de10c5962a1795c15e9ee04372fe1d62399720fe2d906ca78a5718d89679"
       },
       {
-        "action_id": "act_905034d7e73a6f0d351f040d49ee06f7ad4cffe550c31ff1a1ca3d980d9a3d86",
+        "action_id": "act_73f5a0236a44860d387a76225994f6b4e7093921c9f52f1729ee831cbbd1c705",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -1172,13 +1172,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T03:00:00Z",
         "expected_effect": null,
         "content_hash": "sha256:17060afe6d45f0a8d780bd7163952ceef51d8bfbcf317c232200316bd43ca43d"
       },
       {
-        "action_id": "act_7215f970ed6185cc7fe8b881e38faf139f014937b7df9a584eaebbaae1972ca8",
+        "action_id": "act_bf1bcb6e88877d8197de9383e8283aed30b7876ca3ce527233357cef4e865669",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -1197,13 +1197,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T03:15:00Z",
         "expected_effect": null,
         "content_hash": "sha256:513e962f3993ae9ad2f93fe44c51592e5699d87fe567850e0e4ea78ce7718004"
       },
       {
-        "action_id": "act_7c2ea4076a08db63af8c0d13091045bb1b4260d924e68080a47679bd4ee0d4b9",
+        "action_id": "act_9a234a4b65fb5c6d82837f4647ee34bb428c5e19ef11cb66657144b14830e78c",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -1222,13 +1222,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T03:30:00Z",
         "expected_effect": null,
         "content_hash": "sha256:8ec716f48642a9e4e879a6f6b26e2e34813fd595d381c8cdd8b2a945a28361c8"
       },
       {
-        "action_id": "act_51dc9866123f2966ad69350f242d1e4604658553a75661fdafac5185c69e4026",
+        "action_id": "act_9557f469b1239c97a9b4f8e0726288af45090bab8870df7bfd2ce4e11b7fe35e",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -1247,13 +1247,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T03:45:00Z",
         "expected_effect": null,
         "content_hash": "sha256:66ab3c4fccc611382481c0e62175e6c3b0b1a36c297591a53013e81b00bd5b1c"
       },
       {
-        "action_id": "act_91aeabcb5e3e8e2a422d3a321d46e612c0e56f0ed1d15fbdf4a338d593d070a6",
+        "action_id": "act_f950e8623d9febad8d280658f1feed1ff9d23e918c02b61d07f6fd0d22176606",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -1272,13 +1272,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T04:00:00Z",
         "expected_effect": null,
         "content_hash": "sha256:675adbfc89266d2f44e632916cd2e33f51bbd17644cb066043626284261c27b3"
       },
       {
-        "action_id": "act_055c31c20105f59b61cf31c601fe4c53d4d9745f78796a8602f6fb2ec8f34e4f",
+        "action_id": "act_7732bad462a1acca1b62cf7b3df4dba54f5035eafc9cf3ff59be2207c810622e",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -1297,13 +1297,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T04:15:00Z",
         "expected_effect": null,
         "content_hash": "sha256:450e9889b3cd6cd4b2d9d04ddd6a7bd3ab8908df8293b7bdf63b48f3d377257f"
       },
       {
-        "action_id": "act_ea5102577790a633fe884564725d41d1ea6b575a4401e9cfc3ea0a9068a4fdd8",
+        "action_id": "act_034430b8ebb645ef93bc5d167b4a01d78c628e7dfaadbfa33f7b0540108d4d70",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -1322,13 +1322,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T04:30:00Z",
         "expected_effect": null,
         "content_hash": "sha256:251bbb4346e788f57612b88a87ba52171f0034add77b6b646d91f7d3a133c9a2"
       },
       {
-        "action_id": "act_0412d8353cd1582988404e2736ce03822d3f74cbbf99d689bc3a54ae8cc3ed05",
+        "action_id": "act_d6f7273b8fa2309c15bbc4971a1ba97de991c6f224e13b7f63f5be51157c69ae",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -1347,13 +1347,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T04:45:00Z",
         "expected_effect": null,
         "content_hash": "sha256:977087bf98d300aeeec3a8e68a2f4bf8ecdf064858ce91bc08c2ab02713275a3"
       },
       {
-        "action_id": "act_facd13831eafd3521cf1d6cf2c0164688951cef5c05da22291ee2e4ea5fa0c75",
+        "action_id": "act_ab85dcf1c2525657cc22e4bc3af945d91e0f47d6527e68ea2e8cbf600dbd8fdf",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -1372,13 +1372,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T05:00:00Z",
         "expected_effect": null,
         "content_hash": "sha256:0f5ac8166b37f4c02dd140bcb820479e0d5bd87d9f0184dda0bdb21788a9035a"
       },
       {
-        "action_id": "act_832725e949a142e9bdb7d0d839b5fa31a11cb895d62dd3417880732b68de4613",
+        "action_id": "act_82d1d36d355f2b05c22a1dea0cdb18819a786152378fee83a9bc6eb5fd5c893f",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -1397,13 +1397,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T05:15:00Z",
         "expected_effect": null,
         "content_hash": "sha256:f64d71e5ccac13da5ad0f1888a043b56a3ec5cc16c4c7df3e2ffadcf8f38f54a"
       },
       {
-        "action_id": "act_c07d329384fb37b60e27828299a188c35de06c46acacaa1fb24cfe38daefba63",
+        "action_id": "act_7fa12762074336f7a02d6c888f9d998171e499431578296ce3491175417c8a03",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -1422,13 +1422,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T05:30:00Z",
         "expected_effect": null,
         "content_hash": "sha256:ddeea84b2e833f67b1b67d0c5dbe8cbecd3f636e87c8cfc2f3768173ed2da4a0"
       },
       {
-        "action_id": "act_23c78777c33f7d5bb4573a1349569a80f04b9bb4c212c4e30475ad67a7de500f",
+        "action_id": "act_57a4c9307121031def2785f6c66492554afa9869b4768fc9b9f753a041b54586",
         "action_class": "energy.ev_charge",
         "target": {
           "adapter": "twin",
@@ -1447,13 +1447,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T05:45:00Z",
         "expected_effect": null,
         "content_hash": "sha256:4d7c1c0f69fe9ab653a8c793586c174b66a77f6119dd7869184119d69342c65d"
       },
       {
-        "action_id": "act_91cd5e7a9f446eb4b42b55775cbd7d4ce5844e26a2b51aef3154fc06c6c374e0",
+        "action_id": "act_0bde316e20d46fdf7b273204934d71024abed6e76839d20da0c68fb8890f4666",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -1472,13 +1472,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T05:45:00Z",
         "expected_effect": null,
         "content_hash": "sha256:0237056c1537943fcb1940f6b4feaf48a59408106e016d22b65f1f252a81cc65"
       },
       {
-        "action_id": "act_a62ef4d606f81da816139f1956578a90939e5ba054dea32cd797fea31967fc88",
+        "action_id": "act_0a9a41edf30a58f9bab2211aee440fd67bfbe8e1e01e0d2d0824ec52b28b8772",
         "action_class": "energy.ev_charge",
         "target": {
           "adapter": "twin",
@@ -1497,13 +1497,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T06:00:00Z",
         "expected_effect": null,
         "content_hash": "sha256:b9f5f1f4f4ed70b7bde0672e0fbef3feb56e1142982f39f3ef2a96fdd378e245"
       },
       {
-        "action_id": "act_cfa09f88c0866203452c05fefae57c8905991b2e233cd99ea2dbe92ebece8f43",
+        "action_id": "act_d158b3484c582123b07e8d62d3aed9ba900690202eb4db0788272e10406695e1",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -1522,13 +1522,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T06:00:00Z",
         "expected_effect": null,
         "content_hash": "sha256:db5011ec343f099a575a5560446f48dc47cf5b9428810985d50f727124b8ca54"
       },
       {
-        "action_id": "act_e09a4a2c3a68fb3771816aa1b47dbf0e8676fc6c765ac7209494daf2bd304c59",
+        "action_id": "act_5336cdc4373c141634244b9be6da6cc71a4d67701d3bd5d8cd4b723b8e761f39",
         "action_class": "energy.ev_charge",
         "target": {
           "adapter": "twin",
@@ -1547,13 +1547,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T06:15:00Z",
         "expected_effect": null,
         "content_hash": "sha256:c878e0bd7dbf77268960ddd09c148df6375c7183eab025e63f4cbbaefa41d550"
       },
       {
-        "action_id": "act_cf7447ee59e04f6f365baa5b8ed64ebf8b9dee87c4ec13c1a09bdf1cc75d22f0",
+        "action_id": "act_a2f9a280ffa70a53dfd816de9cd413db4bd8fd2c4372e9a4188ca9439fde9ec9",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -1572,13 +1572,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T06:15:00Z",
         "expected_effect": null,
         "content_hash": "sha256:8ce96a30ce1c2eca05d1e557986586634ed58ee68f7cba3b7bc8158e030d650a"
       },
       {
-        "action_id": "act_4c7e2370000215e97540d76fe3a3a956ac12048c4c562bdbaace5a23234db8eb",
+        "action_id": "act_309ea991d51be7bed4eb82422e16bae6788e0e70e244cd25d16cbf0c6cfee7a8",
         "action_class": "energy.ev_charge",
         "target": {
           "adapter": "twin",
@@ -1597,13 +1597,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T06:30:00Z",
         "expected_effect": null,
         "content_hash": "sha256:cebe4c38520a5b4c4bcac0c09647d3c06ecbb53ed44d06e660ec58816d5f226d"
       },
       {
-        "action_id": "act_1c3b8ddb3b540e7b3a8ec32852c3d393c834f4acbb4c3f4ae16d920e59d3984c",
+        "action_id": "act_e70df1aa36733d94e6e94802f1ba74e7ada5d7d68ce8e038658e21c0f0941d78",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -1622,13 +1622,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T06:30:00Z",
         "expected_effect": null,
         "content_hash": "sha256:799228e747a90910ca4bdb3e19a2d3d03e4cf9a9ded9954996eb1c7e800fbf6d"
       },
       {
-        "action_id": "act_e3c415d5f1357be0cdbd0ea576aeceec4490cd99645a877c70412d5f4bfbbac3",
+        "action_id": "act_60e9d81722c19c688cbabf4da0b049fc167fec4c3a52c5fd8ff88b16d04e8505",
         "action_class": "energy.ev_charge",
         "target": {
           "adapter": "twin",
@@ -1647,13 +1647,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T06:45:00Z",
         "expected_effect": null,
         "content_hash": "sha256:a1d2f1b93f686e851c13310b52fb63fef59ff61f56244d562d26a6cf4312185d"
       },
       {
-        "action_id": "act_1d2b9c2fb1f129dd077a362acc9888c1abc224f4bcc01a92a13307ebb7a9b59f",
+        "action_id": "act_f67a0a2f1dc5390f2972def34935abcc7384d9d5a6636493cea10fbde8b6a73a",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -1672,13 +1672,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T06:45:00Z",
         "expected_effect": null,
         "content_hash": "sha256:cd65e42b544a96b0d42ef8f27d6582a9aae506fa48dbd9bb6e045c5c91473894"
       },
       {
-        "action_id": "act_967926f1ce8bde0dd8560988a3b6a27f422083231ef095c1871c09b15f587d0e",
+        "action_id": "act_85a4af236fb9c056db584469825063f8f0166f8ad44620ede4d9c6c41ee01038",
         "action_class": "energy.appliance_start",
         "target": {
           "adapter": "twin",
@@ -1694,13 +1694,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T06:45:00Z",
         "expected_effect": null,
         "content_hash": "sha256:4d0768f9f9fb358079dcd10111c2e7be7e8c3f29dfe1ecf123c7414ee1aed04a"
       },
       {
-        "action_id": "act_6b5852b1c7d2ad51e7153b15b2b286c17985973de483019af0e800cf59c9b0eb",
+        "action_id": "act_f9dd643f06aa5303e683ee510e902e588e2a43d38eebb76f2ab15bd47e623bad",
         "action_class": "energy.ev_charge",
         "target": {
           "adapter": "twin",
@@ -1719,13 +1719,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T07:00:00Z",
         "expected_effect": null,
         "content_hash": "sha256:64287728fe42af3a228ebc72fe533a3565fa2d4ca3b18c33184cb3f3c178f845"
       },
       {
-        "action_id": "act_35baf1b810065554799eff37959d132820ffceff21b7369ce599b25fa53a1cb7",
+        "action_id": "act_998d7cb6d6d6c155dfabc4d9d82b28e0d5e5f7feb113675b94b06c513919b041",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -1744,13 +1744,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T07:00:00Z",
         "expected_effect": null,
         "content_hash": "sha256:9f2be019420e9b77586dec2dc4e81ad9d0ee4f181640bfd3edd7cb0f1bac67a7"
       },
       {
-        "action_id": "act_db3b9168e0b9683e22513a33786fa074e01deeddbc5a1da44e7c5ef257bcdf0d",
+        "action_id": "act_dc2988256aaeec3c3d5882d4797397b9cfc85293a61c98bf775463f0ba121440",
         "action_class": "energy.ev_charge",
         "target": {
           "adapter": "twin",
@@ -1769,13 +1769,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T07:15:00Z",
         "expected_effect": null,
         "content_hash": "sha256:587227e3610e86fffeccc8847b3039ed0ff4e12e66f5ae3669510e51fd1c68ed"
       },
       {
-        "action_id": "act_6cbcbe34872d2ac263a0144394e578022ba0b4efe7c3b5477fec8b6536346f21",
+        "action_id": "act_ef703e5dfaced5400bd2fb1648a4143dc38d267322e3a26468532b3a8f14c2e4",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -1794,13 +1794,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T07:15:00Z",
         "expected_effect": null,
         "content_hash": "sha256:2103872b83cdaa98962313e39df1a9e60a925931acda03c213372607af7c8d26"
       },
       {
-        "action_id": "act_1e44832865c69da416a37140184a13fa473a02d21aef61a5677d97b02da22f85",
+        "action_id": "act_46f6cb8822071ca4474db8b4bddf54b33ad29742462199b6eecb81a14074c0fe",
         "action_class": "energy.ev_charge",
         "target": {
           "adapter": "twin",
@@ -1819,13 +1819,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T07:30:00Z",
         "expected_effect": null,
         "content_hash": "sha256:3b199c48834f031c38945bc9647d5107c0b7896b8a9893479aa275ddf0089056"
       },
       {
-        "action_id": "act_455061d5de4c6be7925060a73ecccd1d9dbf30256b1b0d45be83bfb9681745e1",
+        "action_id": "act_24763969dd051db1dccef0d83c7c2375163faddbfe38974f2afe00908f3f5cb5",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -1844,13 +1844,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T07:30:00Z",
         "expected_effect": null,
         "content_hash": "sha256:90c956dafcc8327902885c1d4b25996009de5ebcc416b38f0fd9cf220d191d85"
       },
       {
-        "action_id": "act_cdbad064a33722109d859b4d21077d31e0d7c314896cd2ad40e6749387c63329",
+        "action_id": "act_d046d425d6a2ffb4b968647699c433a1b0a12da7be3f1d352994ad3ad8add2a3",
         "action_class": "energy.ev_charge",
         "target": {
           "adapter": "twin",
@@ -1869,13 +1869,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T07:45:00Z",
         "expected_effect": null,
         "content_hash": "sha256:bf452f27990efa1babecfb7cbfd5a6b2a076f8bb9f3e6143e5295533676dedb1"
       },
       {
-        "action_id": "act_9b0462287e754837c08b234c26c2feb9d9ffccecfcc176c397af1a2833771664",
+        "action_id": "act_58ddeda82a07062e215f5fe53422e221646dba572e6d9daf71cfde30fc90fbe1",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -1894,13 +1894,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T07:45:00Z",
         "expected_effect": null,
         "content_hash": "sha256:7b951b8f65713905694b97ad5344f44fd8cec72be2b1463bbc02ff32bff92079"
       },
       {
-        "action_id": "act_8b6e667ab6ba8f7cbfc934b1bbc1cea33859b1f20841a69b3f4181c5292f4703",
+        "action_id": "act_2452e06cf92bbbfd615bdcb2fbd36b1117609cd0e347123d5dafef541b8b4f38",
         "action_class": "energy.ev_charge",
         "target": {
           "adapter": "twin",
@@ -1919,13 +1919,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T08:00:00Z",
         "expected_effect": null,
         "content_hash": "sha256:20f71694216f26b6da949661a1b93af0ab2397ee8cd3b5a9d8f19e756c907ec1"
       },
       {
-        "action_id": "act_6a8d5ad97bd2536363cf15c59511c737ad0a2ecf911255fd0ce4a6b8ff93ff13",
+        "action_id": "act_245db346e6416251b6ce64e4d2a9b138e6b026cda8e84b758e75556b2b50f3e6",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -1944,13 +1944,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T08:00:00Z",
         "expected_effect": null,
         "content_hash": "sha256:36b49c8c8e3e193fb54cf7fd939e5b21ad19d0fb3ce40f696ec6489edf83a3df"
       },
       {
-        "action_id": "act_7f0efc263390f9de460196e1fc12bcde2c07faf005c1270c4b30c3217ca9ec4a",
+        "action_id": "act_b2b74d58e3560046201781fdf9ecb9ebba569481c9a3657847732bad336e92c8",
         "action_class": "energy.ev_charge",
         "target": {
           "adapter": "twin",
@@ -1969,13 +1969,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T08:15:00Z",
         "expected_effect": null,
         "content_hash": "sha256:31daa03b0afcb7e1d8300e79550e3d3236a36af521185f132db52202b39ddf9d"
       },
       {
-        "action_id": "act_0b594f598866d78660db1febe5aa1e5e51d28b81d43ed985145e771fbc9a9ca9",
+        "action_id": "act_5f3f404424967676434432d2f98cad86e739b1505b78b63ab724ccbc91c17b59",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -1994,13 +1994,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T08:15:00Z",
         "expected_effect": null,
         "content_hash": "sha256:e95dde1ef634a608f4f3266843476519869dc597ff4f1ac58c74856de1829218"
       },
       {
-        "action_id": "act_dfc1c65d014be1c6526dfebaaff722df0c8a50dc4e9362239059a7af6d883f1f",
+        "action_id": "act_8b9f68674686cb6dc1394eccc306a5162c22f7c0ce1a16759268e4827fd6119c",
         "action_class": "energy.ev_charge",
         "target": {
           "adapter": "twin",
@@ -2019,13 +2019,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T08:30:00Z",
         "expected_effect": null,
         "content_hash": "sha256:4b1beed1be99d0a7512791f1f59d66206c64943d0cd80b633da21df39e78a751"
       },
       {
-        "action_id": "act_7885660a93b8e1609f03e0bc4b43a37fa2b717c1654c7c51ea8935f13d6191b3",
+        "action_id": "act_29d60f429e5e67f23c632ec7cbdb4c24dddc26876817b3c5ee49225e653d9b23",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -2044,13 +2044,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T08:30:00Z",
         "expected_effect": null,
         "content_hash": "sha256:6bb1e36d08765bd65c5d982b8254004698057150741b22e74a35d05afb8878ad"
       },
       {
-        "action_id": "act_c811ae3a6f96cbb4e0e36fa6ecfdfd41a6984bbf92b5c3ae9702e2e971e85310",
+        "action_id": "act_8d4c771826a7db8e780113f216a934f23e4dd69836cf8c7b2f868c20bbbff250",
         "action_class": "energy.ev_charge",
         "target": {
           "adapter": "twin",
@@ -2069,13 +2069,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T08:45:00Z",
         "expected_effect": null,
         "content_hash": "sha256:5918053828f75ebefe5bf986cebd74e1c811f13a2c47dc74207e81f03ae4a7f5"
       },
       {
-        "action_id": "act_a72eb505a8ad0d067481e7454bc424604009c78d2e22141053dfad01ddd41b13",
+        "action_id": "act_ea285619beba7ce57d2a2a29e22d2c97645a17656592c63773e7056f65b96dfa",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -2094,13 +2094,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T08:45:00Z",
         "expected_effect": null,
         "content_hash": "sha256:521129d90e0018b9430651a6639b3301e737d2e20ea37545693c2cf6910ff7f9"
       },
       {
-        "action_id": "act_6bcc3c93e66a51c754966f4a0ae8ff270360bdcd7182bf4696cc7ea3135881da",
+        "action_id": "act_98e1f129b0867f05f215ef6cfc77c22484f73541ba695770d25b210f43617420",
         "action_class": "energy.ev_charge",
         "target": {
           "adapter": "twin",
@@ -2119,13 +2119,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T09:00:00Z",
         "expected_effect": null,
         "content_hash": "sha256:f3a90ec1308206327ed846eb1465dafc2d8c675bb1f53eccfc287eccf88ee5ac"
       },
       {
-        "action_id": "act_3789a67c6ca7838b2656dc05d4abf722c11a765a69d596a4e2a59544762250df",
+        "action_id": "act_31f727f781104d9e30e3ea6590337aca0bb0dbeda8a1fc537efdaf853a7c7c9c",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -2144,13 +2144,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T09:00:00Z",
         "expected_effect": null,
         "content_hash": "sha256:53e734929db108cf15341c91140ca99e8c9a66b3c54fd6595f73d9c1ef49779d"
       },
       {
-        "action_id": "act_8401113acf0286a971f2cde4400c552ddd0ada0840638ee45b2f524c928b9a33",
+        "action_id": "act_b7d629834adb341a3363e18912e87d4ee2fca757b540d099bc19372b8a9bce22",
         "action_class": "energy.ev_charge",
         "target": {
           "adapter": "twin",
@@ -2169,13 +2169,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T09:15:00Z",
         "expected_effect": null,
         "content_hash": "sha256:0a007312f45bec5b20bd9130c99a50b6d005dac7297926b542c8370d1da75ee1"
       },
       {
-        "action_id": "act_b49560728a8ff5fa011c2a1a1397cc1b858431103bda4afcd7e851f30a0b41cf",
+        "action_id": "act_883644a5790c2e20bf4ec636a285efdb82d263102fa04ebdf087df9323de1fe3",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -2194,13 +2194,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T09:15:00Z",
         "expected_effect": null,
         "content_hash": "sha256:8a5703a59faf3984a5fee48088e642de9589a182abca38828f2d14f1f0817cfe"
       },
       {
-        "action_id": "act_fe8a876f65436e6bd8d4c9821dd68d5eafee8dd942736d1f90d3c34e566eaaa7",
+        "action_id": "act_19b4fccbf843eef671636ec9c3976484cd1b3fe799b102096ffb07e676e16f2f",
         "action_class": "energy.ev_charge",
         "target": {
           "adapter": "twin",
@@ -2219,13 +2219,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T09:30:00Z",
         "expected_effect": null,
         "content_hash": "sha256:c8af6370f0bbbd009d562690d954f4cb390c4d0cf5db55f4dce9cc3caf69962e"
       },
       {
-        "action_id": "act_b662805c5e48086f420512835102367c0f2cbe497d915f453a2f821dd505beea",
+        "action_id": "act_75b7278fff447a479d9472ba9dd50a552f3b655e1d59a1ec376b5be1c509944e",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -2244,13 +2244,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T09:30:00Z",
         "expected_effect": null,
         "content_hash": "sha256:b54b8de8618463ccfdcf850166ddac7d7388871f8f430a1565b9c213cf4d992b"
       },
       {
-        "action_id": "act_1384ac1ecbaf14a6e6be212057a48c6481122cb072bf8f67300e62844e1f19b3",
+        "action_id": "act_71fe456081ea2dbc54016feb8332534efdffa476a3c50da37b8edf3bb496fd40",
         "action_class": "energy.ev_charge",
         "target": {
           "adapter": "twin",
@@ -2269,13 +2269,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T09:45:00Z",
         "expected_effect": null,
         "content_hash": "sha256:7aa50cee73e36fa5c254875881956aa67b0362671f3339506b30a0979cff1da2"
       },
       {
-        "action_id": "act_bc268aaa7db4e1bb955238e8d2b1a6bd0b2803ead5207ab21dccdd7260de271c",
+        "action_id": "act_36888191f16a0d20c90ac29b8eb2a6d5f8b6ea4a2f9d1f3b146e78f9495e17f5",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -2294,13 +2294,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T09:45:00Z",
         "expected_effect": null,
         "content_hash": "sha256:13d91a59499f36b3b5bce942115d500abcefcaed13d97d186f852a14078f5c87"
       },
       {
-        "action_id": "act_101852770196f3ed3dc35c5ccae1d761b5ab5f6f22df7c444ddf42ccf666486a",
+        "action_id": "act_801d9b9b032fc10b3adf4846034d69a94dc479376bb5f008e46ba48a192d1972",
         "action_class": "energy.ev_charge",
         "target": {
           "adapter": "twin",
@@ -2319,13 +2319,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T10:00:00Z",
         "expected_effect": null,
         "content_hash": "sha256:6453f44961cfe1a4a6ca392b274a729862f176140281dd46eb6eaee9387a143d"
       },
       {
-        "action_id": "act_0616b17d1fd89d4beede06145f1f4620515533f01294348a376b1ed39fa5a968",
+        "action_id": "act_526e96ce5fc0bc86eebb53b0f0379bb0fc8d408583eb1a50cb28c5ffa98c4462",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -2344,13 +2344,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T10:00:00Z",
         "expected_effect": null,
         "content_hash": "sha256:95d03a68c1f7ee6577f31c4842333dc569517873202f237badfbaa62decb014d"
       },
       {
-        "action_id": "act_1ef2e0f8797b2de853321212a3e9d2aa4b2c3c36d64a03b054f0f80e9b278110",
+        "action_id": "act_c35cd4a37dac7fb7e06ee25b9a07195b0ff53edff11673e542361d034a52dadb",
         "action_class": "energy.ev_charge",
         "target": {
           "adapter": "twin",
@@ -2369,13 +2369,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T10:15:00Z",
         "expected_effect": null,
         "content_hash": "sha256:94a90da8d91be58a3ecf6e85a682624f3f8a38c232885cf96a88e6720f678c3c"
       },
       {
-        "action_id": "act_e8f29ccf71dab655ef8b8db521d81fe3241a87d4ebe9fc67dab0ea9a5f3238c9",
+        "action_id": "act_9ca5c528a2a1511073dc2dab42dd9830d13c8b507ae5b1015235d4b07e940c7d",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -2394,13 +2394,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T10:15:00Z",
         "expected_effect": null,
         "content_hash": "sha256:c4354c9c4cc4e4585d2cd39cfb529635bb7e220187eaf9cc64dbea1c61c049e9"
       },
       {
-        "action_id": "act_632005ef8dca0a67bf4d14df92cc4551f3a9162862c936a72b29d45d76b84c46",
+        "action_id": "act_e8b3e9ed6e2c830303aff67e69b3b60b999b7d0d587986aa6892afe60814cbcc",
         "action_class": "energy.ev_charge",
         "target": {
           "adapter": "twin",
@@ -2419,13 +2419,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T10:30:00Z",
         "expected_effect": null,
         "content_hash": "sha256:887f7e038a3215e9b0eae0c58866828d8a550809d131987aea8499fbc6d3dd0b"
       },
       {
-        "action_id": "act_418610c99acef7bcd6536ece7ad46c6cc9f307bb9a2b893fe32c1086e08b020f",
+        "action_id": "act_a9a4356c413a83ee7217ff681a7a495ef9fa12c8f9e8b40c31657f1f231a8282",
         "action_class": "energy.battery_dispatch",
         "target": {
           "adapter": "twin",
@@ -2443,13 +2443,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T10:30:00Z",
         "expected_effect": null,
         "content_hash": "sha256:5709c785de25797ddf719b2f4f523fc644930c151a992f9f83d0e8c4ce110261"
       },
       {
-        "action_id": "act_cc189b23c8ffd499ede8f70b981d4d4748117ef087bafff742965d032afe17e2",
+        "action_id": "act_deca88af852a00bf357f9f397b516459775492762ee4f941b2fed83ac06bbd97",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -2468,13 +2468,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T10:30:00Z",
         "expected_effect": null,
         "content_hash": "sha256:b9a0c7032c9683bf59e68f688bb0fa42ee67558de889d0c0ab5c473ae280a5ca"
       },
       {
-        "action_id": "act_2a427f56a3172ffa84c4b75b3e273eac2491319bb7e42317cd30060a2da83059",
+        "action_id": "act_4c598dd17a33edf341f7f7bb95e0b6589abc791ff27e9303dd6079e75d633146",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -2493,13 +2493,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T10:30:00Z",
         "expected_effect": null,
         "content_hash": "sha256:7f26fa9722e69b6220f105795a353dbd6daa7683027739132c39713fb1a8d69a"
       },
       {
-        "action_id": "act_135e1de04ed7cf114e1dbad4403e4e2c0e89bee97790bd502072d756b846e4f6",
+        "action_id": "act_f69f02ec882b5ad8703aaa174794d68a92c4e3a18bf2afcac28df6b9f9ceaaab",
         "action_class": "energy.ev_charge",
         "target": {
           "adapter": "twin",
@@ -2518,13 +2518,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T10:45:00Z",
         "expected_effect": null,
         "content_hash": "sha256:5878c0af76fe2da3aa478f07ba4d1f1bce7be7f5cb8b0a34c2d1a7104f0a8274"
       },
       {
-        "action_id": "act_1d1f5fe21e1ae2843c3c3a4ec332f428d50a35561d7c7be26dacd04b6271092b",
+        "action_id": "act_c40ddbbe579407db10c2660755e47390eeeb045e77be6b4780cb2f565dcfdc77",
         "action_class": "energy.battery_dispatch",
         "target": {
           "adapter": "twin",
@@ -2542,13 +2542,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T10:45:00Z",
         "expected_effect": null,
         "content_hash": "sha256:68a409f12fe74f32ed84bd14382e855487aaa2f030b907593ef08727a0a3659c"
       },
       {
-        "action_id": "act_ab2c3b1f87eda7b99dfef6e1d519a7662db7aaec86a62eadc316f872ef3458e4",
+        "action_id": "act_98144b9ab29c56b5c1b1da4f69f5d65e1200fa9eda7f967d73878148e937ae33",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -2567,13 +2567,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T10:45:00Z",
         "expected_effect": null,
         "content_hash": "sha256:e0ef862749dfbefb3929dd956b87275d8fc8032b1c6fe7ab3505bcd0d08c24bb"
       },
       {
-        "action_id": "act_dfce8dde5079f146ab6ebea03d3b3ac02426cb80a5efcfa5a2c63d9fa7d82705",
+        "action_id": "act_41710869c2f746f71bf6663f20b737fa883f69d7d2e51532b91e11d2a417fe84",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -2592,13 +2592,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T10:45:00Z",
         "expected_effect": null,
         "content_hash": "sha256:777de6b11a8fb3f9f2df0f292ec2cc8989627e1d8d6dcc2a195a0b011e36a5e6"
       },
       {
-        "action_id": "act_97538b9d144864904ac5e7f861c37da89be7dbf76f4a83e61d9c2f32e2fbb037",
+        "action_id": "act_df875b8b6b925974f5de2e41049f7e3ff55387f81ac0d89dd1045b0e75e352e0",
         "action_class": "energy.ev_charge",
         "target": {
           "adapter": "twin",
@@ -2617,13 +2617,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T11:00:00Z",
         "expected_effect": null,
         "content_hash": "sha256:ea252a896bddeb6153927919c9eb2508d1104501be77b8f120d75bae7a9cec00"
       },
       {
-        "action_id": "act_56986b546f2d491c27059392aca91f80610414c3956e97aecf2d7056eacd03e9",
+        "action_id": "act_85b80d9d5d20a3719f907bbe86c9cedded341b6b60fe6ce14d2f80f07461031d",
         "action_class": "energy.battery_dispatch",
         "target": {
           "adapter": "twin",
@@ -2641,13 +2641,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T11:00:00Z",
         "expected_effect": null,
         "content_hash": "sha256:05832eec38a18cc854efb1690827d2387e4290050a0eb8c832bc6b0db69d452f"
       },
       {
-        "action_id": "act_1a31ea0a191706b47f5fdb193f582574c880e1183a31e3394b18c4eb03e73292",
+        "action_id": "act_7d518ef31fe2aece3aea9f92530837af21056a813f0e1a11818891538056b128",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -2666,13 +2666,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T11:00:00Z",
         "expected_effect": null,
         "content_hash": "sha256:0c07a119d7925f93bacbcaad11c2f4dfb7964453612204c3620f1a14ebe0df7c"
       },
       {
-        "action_id": "act_d8417237aa87e30a2f751d3d8b680eb4e097aed624079efc99edba3f7c067457",
+        "action_id": "act_c2031d144ecaf9ef4febedfe0604291953a06b4df3d726e51f800212f2e2bcdb",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -2691,13 +2691,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T11:00:00Z",
         "expected_effect": null,
         "content_hash": "sha256:a2498749d17e7b11240c2a2dbe20554bab84c70f2d90f179f9b500991f161cce"
       },
       {
-        "action_id": "act_4c2aa76cdbaa04ff3158af534cfec4924aecfddfa183431a8c8a1cdd5800738e",
+        "action_id": "act_a8b55840e8b3b3140d1e786f85c3d15469e16a46e8f8620c1310f37579daf1fe",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -2716,13 +2716,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T11:15:00Z",
         "expected_effect": null,
         "content_hash": "sha256:c34c66c3bc6536762a9fb0294aa4bbcf300d328ef711ffd934e7daf10df8b466"
       },
       {
-        "action_id": "act_8ed6b228f4f17f9154ec269cdcfa5988393e4f12f8257c926876e1e60ac406e4",
+        "action_id": "act_9500cf1e5cb2dd7c163531b70a7b4ac5e34fc7bae119ce58630612c6e774e99f",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -2741,13 +2741,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T11:15:00Z",
         "expected_effect": null,
         "content_hash": "sha256:732120dcf6b72d7baf338a63b40616f74ca4514f513c90d8301c3270ff27135b"
       },
       {
-        "action_id": "act_82b772a44c2878edbb377f738a257effd9e94ce744c15a02f38ffdf8ec4b6e39",
+        "action_id": "act_cf1b318a0d74d238bd647ceaf3907c0b440c19c664ba9c00d9851a98dac24996",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -2766,13 +2766,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T11:30:00Z",
         "expected_effect": null,
         "content_hash": "sha256:e0dfaa1c74becfff5fdbf978f487b7eeaed4f30a8b15c3c13104acc87da4cca2"
       },
       {
-        "action_id": "act_a4606ed8fe229c4d6caa2901886d667f8479b15f39e08c2ee97e4309ab1bfc70",
+        "action_id": "act_1b39bead0d75697a6eaeff95802da8a1e8aeec62b166df6db7a97bac89b603a3",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -2791,13 +2791,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T11:30:00Z",
         "expected_effect": null,
         "content_hash": "sha256:aa630a1d7b3fa10ad8f341ab8298e0082d27a5285cd1145bcfbfb8124b1bc928"
       },
       {
-        "action_id": "act_e8ef5bc9f114b8791585d2edf6bd0df821e3e35d04152a14159a6cdcaa859a1f",
+        "action_id": "act_ede51ea546508c71e16ac3f24b5d80c1b2b0c819a31d6d212cfe0201f3a6e789",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -2816,13 +2816,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T11:45:00Z",
         "expected_effect": null,
         "content_hash": "sha256:be3e1974b3fbfec51c3dd704bc005d84c073f984f4732efa171e8a21c0efb148"
       },
       {
-        "action_id": "act_3f304cc6e9d2c83695be97ff94190e237a9669a97a9542146c3974647b1ace9b",
+        "action_id": "act_20fffec5df5e9bf4b971fd4e0c60990ca20994d47391372dd3445e3fbc21a79f",
         "action_class": "energy.hvac_adjust",
         "target": {
           "adapter": "twin",
@@ -2841,13 +2841,13 @@
           "claimed_author": null
         },
         "reason": "Read-only simulated energy proposal; requires pipeline authorization",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T11:45:00Z",
         "expected_effect": null,
         "content_hash": "sha256:7f58574d01d761602d87953abf9ffc811c4f8b48dbd8a72a2844c5e2ae98ad22"
       },
       {
-        "action_id": "act_33165bf3db6dd3de4008020b7bce1f57bedf38b3fed06880557556c373b2e356",
+        "action_id": "act_edfb44ec9c62ce4bac4f7cb97b9cc28be02ac445b483ab257e0048efc77861d5",
         "action_class": "energy.ev_charge",
         "target": {
           "adapter": "twin",
@@ -2865,13 +2865,13 @@
           "claimed_author": null
         },
         "reason": "End hypothetical schedule",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T12:00:00Z",
         "expected_effect": null,
         "content_hash": "sha256:144f44b1a55206c5e58af07836fd4f4c3f475a940b89212ae8e7a0c1dad4ec78"
       },
       {
-        "action_id": "act_c5d2de9b2e66f753c18c9af36c4fd395f9009b0a63b5c99fa329742c78fac65c",
+        "action_id": "act_759b0644a8839a2120f5f5bf89484c0d2efe5695c60632f3f4c1c3257e28f1d4",
         "action_class": "energy.battery_dispatch",
         "target": {
           "adapter": "twin",
@@ -2889,7 +2889,7 @@
           "claimed_author": null
         },
         "reason": "End hypothetical schedule",
-        "plan_id": "plan_f27a0994e6a13f5b9d54c3005129553480068fbbf4c1a0f79b6e5087c7a834aa",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
         "scheduled_for": "2026-10-14T12:00:00Z",
         "expected_effect": null,
         "content_hash": "sha256:575e6f856f2eb558236e17b10a8b5335afca86519a000518090f5deafc3ae4b0"
@@ -3789,13 +3789,15 @@
         "elapsed_seconds": 6300.0,
         "energy_kwh": 1.2,
         "completions": 1
-      }
+      },
+      "applied_controls": [],
+      "control_boundaries": []
     },
     "baselines": {
       "timer": {
         "valid": true,
         "reasons": [],
-        "electricity_usd": 3.577162981921663,
+        "electricity_usd": 3.577740543765151,
         "wear_usd": 0.12150000000000002,
         "grid_kwh": [
           6.938893903907228e-18,
@@ -3803,11 +3805,11 @@
           0.0,
           0.0,
           0.0,
-          0.0,
+          4.440892098500626e-16,
           0.0,
           0.0,
           3.608224830031759e-16,
-          0.005683083159127383,
+          0.011348786940640926,
           0.1625,
           0.1625,
           0.1625,
@@ -3859,7 +3861,7 @@
           6.938893903907228e-17,
           1.1102230246251565e-16,
           1.1102230246251565e-16,
-          5.551115123125783e-16,
+          0.0,
           1.1102230246251565e-16,
           8.326672684688674e-17,
           0.0,
@@ -3911,7 +3913,7 @@
         ],
         "ev_delivered_kwh": 34.500000000000014,
         "battery_end_kwh": 7.425000000000001,
-        "battery_loss_kwh": 0.6403612261840967,
+        "battery_loss_kwh": 0.6403612261840972,
         "ev_loss_kwh": 2.999999999999994,
         "throughput_kwh": 12.150000000000002,
         "comfort_violations_minutes": 0.0,
@@ -3937,8 +3939,8 @@
           "soc": 0.55,
           "dispatch_kw": 0.0,
           "input_kwh": 6.403612261840969,
-          "output_kwh": 5.763251035656872,
-          "loss_kwh": 0.6403612261840967,
+          "output_kwh": 5.76325103565687,
+          "loss_kwh": 0.6403612261840972,
           "throughput_kwh": 12.150000000000002
         },
         "zones": [
@@ -3952,9 +3954,9 @@
             "temp_f": 70.0,
             "target_f": 70.0,
             "mode": "heat",
-            "electricity_kwh": 3.5195442708333333,
-            "heat_kwh": 1.7876432291666682,
-            "passive_kwh": -1.787643229166666
+            "electricity_kwh": 3.525209974614846,
+            "heat_kwh": 1.7933089329481808,
+            "passive_kwh": -1.7933089329481786
           },
           {
             "thermal_mass_kwh_per_f": 0.46875,
@@ -3979,21 +3981,23 @@
           "elapsed_seconds": 6300.0,
           "energy_kwh": 1.1999999999999997,
           "completions": 1
-        }
+        },
+        "applied_controls": [],
+        "control_boundaries": []
       },
       "immediate": {
         "valid": true,
         "reasons": [],
-        "electricity_usd": 6.003856892182214,
+        "electricity_usd": 6.081395685380744,
         "wear_usd": 0.12150000000000007,
         "grid_kwh": [
           1.2538161470675209,
           1.5820335668219108,
           1.6054200085868682,
           1.2004992177682698,
-          1.1597400357717005,
-          2.641741071428573,
-          2.6417410714285725,
+          1.370874489553219,
+          2.901116071428567,
+          2.1768973214285725,
           2.0397544642857106,
           2.0054687500000017,
           2.0054687500000017,
@@ -4141,9 +4145,9 @@
             "temp_f": 70.0,
             "target_f": 70.0,
             "mode": "heat",
-            "electricity_kwh": 3.5195442708333333,
-            "heat_kwh": 1.7876432291666682,
-            "passive_kwh": -1.787643229166666
+            "electricity_kwh": 3.525209974614846,
+            "heat_kwh": 1.7933089329481808,
+            "passive_kwh": -1.7933089329481786
           },
           {
             "thermal_mass_kwh_per_f": 0.46875,
@@ -4168,13 +4172,15 @@
           "elapsed_seconds": 6300.0,
           "energy_kwh": 1.1999999999999997,
           "completions": 1
-        }
+        },
+        "applied_controls": [],
+        "control_boundaries": []
       },
       "greedy": {
         "valid": true,
         "reasons": [],
-        "electricity_usd": 3.550433407284526,
-        "wear_usd": 0.11002479182548253,
+        "electricity_usd": 3.550857642593233,
+        "wear_usd": 0.11014423534879861,
         "grid_kwh": [
           0.0,
           0.0,
@@ -4182,7 +4188,7 @@
           2.220446049250313e-16,
           0.0,
           0.0,
-          1.1102230246251565e-16,
+          1.3877787807814457e-16,
           3.608224830031759e-16,
           3.608224830031759e-16,
           3.608224830031759e-16,
@@ -4194,7 +4200,7 @@
           3.4518973214285724,
           3.4518973214285724,
           3.4518973214285715,
-          3.0038380090019032,
+          3.0101332354258066,
           2.205022321428573,
           2.205022321428573,
           2.033593749999996,
@@ -4236,7 +4242,7 @@
           6.938893903907228e-17,
           0.0,
           0.0,
-          1.942890293094024e-16,
+          1.6653345369377348e-16,
           2.220446049250313e-16,
           0.0,
           0.0,
@@ -4289,9 +4295,9 @@
         ],
         "ev_delivered_kwh": 34.500000000000014,
         "battery_end_kwh": 7.425000000000001,
-        "battery_loss_kwh": 0.5798815687573331,
+        "battery_loss_kwh": 0.5805110913997238,
         "ev_loss_kwh": 2.999999999999994,
-        "throughput_kwh": 11.002479182548253,
+        "throughput_kwh": 11.01442353487986,
         "comfort_violations_minutes": 0.0,
         "appliance_completions": 1,
         "ev": {
@@ -4314,10 +4320,10 @@
           "reserve_soc": 0.1,
           "soc": 0.55,
           "dispatch_kw": 0.0,
-          "input_kwh": 5.798815687573331,
-          "output_kwh": 5.218934118815996,
-          "loss_kwh": 0.5798815687573331,
-          "throughput_kwh": 11.002479182548253
+          "input_kwh": 5.805110913997234,
+          "output_kwh": 5.224599822597509,
+          "loss_kwh": 0.5805110913997238,
+          "throughput_kwh": 11.01442353487986
         },
         "zones": [
           {
@@ -4330,9 +4336,9 @@
             "temp_f": 70.0,
             "target_f": 70.0,
             "mode": "heat",
-            "electricity_kwh": 3.5195442708333333,
-            "heat_kwh": 1.7876432291666682,
-            "passive_kwh": -1.787643229166666
+            "electricity_kwh": 3.525209974614846,
+            "heat_kwh": 1.7933089329481808,
+            "passive_kwh": -1.7933089329481786
           },
           {
             "thermal_mass_kwh_per_f": 0.46875,
@@ -4357,12 +4363,14 @@
           "elapsed_seconds": 6300.0,
           "energy_kwh": 1.2,
           "completions": 1
-        }
+        },
+        "applied_controls": [],
+        "control_boundaries": []
       }
     },
     "diagnostics": {
       "status": "optimal",
-      "elapsed_seconds": 0.030419542221352458,
+      "elapsed_seconds": 0.02991091599687934,
       "gap": 3.68815973117686e-05,
       "message": "Optimization terminated successfully. (HiGHS Status 7: Optimal)",
       "binding": [
@@ -4473,15 +4481,15 @@
     "unresolved_conflict": false,
     "previous_feasible_reference": null,
     "reference_label": null,
-    "input_hash": "e0de3dc2846cbe4da797904e6e47a8dd43add0f5da40e0d9335c7980394903f8",
+    "input_hash": "6f91582feb423a66132660e25fb4e3431abf416ffa831faa08911a08c3912cc8",
     "provenance": [
       "Approved synthetic workload; simulated devices",
       "Pinned 2026 tariff counterfactual: supply plus distribution"
     ]
   },
-  "import_seconds": 0.5744565417990088,
-  "cold_seconds": 0.659368374850601,
-  "greedy_seconds": 0.02792016603052616,
+  "import_seconds": 0.5799127500504255,
+  "cold_seconds": 0.6646711670327932,
+  "greedy_seconds": 0.0277769579552114,
   "greedy_valid": true,
   "live": null
 }

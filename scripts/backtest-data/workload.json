@@ -873,6 +873,7 @@
       "appliance_deadline": "2025-09-02T07:00:00-05:00",
       "base_load_kw": 0.4,
       "wear_per_kwh": 0.01,
+      "causal_controls": true,
       "constraints": [],
       "provenance": [
         "Approved synthetic workload; simulated devices",
@@ -1741,6 +1742,7 @@
       "appliance_deadline": "2025-09-02T07:00:00-05:00",
       "base_load_kw": 0.4,
       "wear_per_kwh": 0.01,
+      "causal_controls": true,
       "constraints": [],
       "provenance": [
         "Approved synthetic workload; simulated devices",
@@ -2608,6 +2610,7 @@
       "appliance_deadline": "2025-09-02T07:00:00-05:00",
       "base_load_kw": 0.4,
       "wear_per_kwh": 0.01,
+      "causal_controls": true,
       "constraints": [],
       "provenance": [
         "Approved synthetic workload; simulated devices",
@@ -2624,5 +2627,6 @@
     0.02
   ],
   "export_credit_usd_per_kwh": 0,
-  "battery_baseline": "self-consumption; restore opening SoC 21:00\u201306:00; surplus limited to remaining forecast self-consumption to satisfy terminal equality"
+  "battery_baseline": "self-consumption; restore opening SoC 21:00\u201306:00; causal terminal-energy protection shared by all strategies",
+  "feedback": "current-observation thermostat with occupied-target preparation; no-export battery with terminal reachable-energy bounds from base load and installed clear-sky PV; split at EV/appliance stop times"
 }

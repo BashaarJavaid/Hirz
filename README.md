@@ -62,30 +62,30 @@ Same lock, two outcomes. *Never*, because the family said so an hour ago. *Ask*,
 
 Every one of those sentences is backed by a structured record: what Hirz did, why, under which rule of the household constitution, at what risk band, and who approved it. Every number Hirz speaks comes from a cited scenario run. The demo household is on ComEd's published Time-of-Day rate, where the all-in peak price is several times the overnight price; a historical counterpart is also run on ComEd's archived Hourly feed, and the backtest table below shows both. Nothing here is typed by hand.
 
-The headline saving is measured against what a careful household already does: the car on a timer after 9 PM, the battery on its default self-consumption mode, the dishwasher on delay start. "Do everything now" and a simple cheapest-slots strategy are shown beside it. Every strategy delivers the same comfort, the same energy into the car, and ends with the battery no emptier than it started. On Hourly Pricing the backtest decides with the prices that were knowable at the time and is billed at the prices that actually happened. It also runs a home with a car and no solar or battery, and it reports the days on which Hirz adds little.
+The headline saving is measured against what a careful household already does: the car on a timer after 9 PM, the battery on its default self-consumption mode, the dishwasher on delay start. "Do everything now" and a simple cheapest-slots strategy are shown beside it. Every strategy delivers the same comfort, the same energy into the car, and ends with the battery at its opening state of charge. On Hourly Pricing the backtest decides with the prices that were knowable at the time and is billed at the prices that actually happened. It also runs a home with a car and no solar or battery, and it reports the days on which Hirz adds little.
 
-**Item 17 remains partial.** The requested 365-day study stopped when replay
-violated hard constraints. The EV-only rows have just 2 eligible days; the
-solar/battery rows have none. These are retained partial results, not evidence of
-annual performance. Both profiles apply the pinned 2026 tariff counterfactually;
-Hourly costs are feed-based supply-plus-distribution estimates, not reconciled
-bills. Annualized values extrapolate the eligible-day mean × 365 and may be
-strongly biased by the stopped runs.
+The retained simulation covers **2025-09-01 17:30 through 2026-09-01 17:30,
+America/Chicago**, carrying every strategy's physical state across all 365 days.
+Both profiles apply the pinned 2026 tariff counterfactually. Hourly costs are
+feed-based supply-plus-distribution estimates, not reconciled bills; missing
+quotes leave **194/365 eligible days**. The table includes battery wear at
+$0.01 per internal-throughput kWh and preserves negative savings. Annualized
+values extrapolate the eligible-day mean × 365; missing data may bias them.
 
 | Rate | Household | Net saving vs timer: median (p10–p90) | vs immediate: median | vs greedy: median | Annualized extrapolation | Eligible/total |
 |---|---|---|---|---|---|---|
-| Time-of-Day | solar + battery + EV | unavailable (unavailable–unavailable) | unavailable | unavailable | unavailable | 0/365 |
-| Time-of-Day | EV only | $0.45 ($0.24–$0.67) | $3.00 | $0.45 | $165.15 | 2/365 |
-| Time-of-Day | solar + battery, no EV | unavailable (unavailable–unavailable) | unavailable | unavailable | unavailable | 0/365 |
-| Hourly | solar + battery + EV | unavailable (unavailable–unavailable) | unavailable | unavailable | unavailable | 0/365 |
-| Hourly | EV only | $0.47 ($0.43–$0.51) | $1.05 | $0.29 | $171.24 | 2/365 |
-| Hourly | solar + battery, no EV | unavailable (unavailable–unavailable) | unavailable | unavailable | unavailable | 0/365 |
+| Time-of-Day | solar + battery + EV | $-0.24 ($-1.29–$0.52) | $1.32 | $-0.24 | $-124.47 | 365/365 |
+| Time-of-Day | EV only | $0.25 ($-0.60–$0.94) | $2.64 | $0.25 | $66.68 | 365/365 |
+| Time-of-Day | solar + battery, no EV | $-0.16 ($-1.36–$0.51) | $-0.16 | $-0.16 | $-103.11 | 365/365 |
+| Hourly | solar + battery + EV | $0.21 ($-0.52–$0.73) | $0.48 | $0.14 | $60.02 | 194/365 |
+| Hourly | EV only | $0.20 ($-0.56–$0.67) | $0.38 | $0.13 | $38.19 | 194/365 |
+| Hourly | solar + battery, no EV | $0.14 ($-0.57–$0.50) | $0.14 | $0.14 | $24.82 | 194/365 |
 
 Generated from [retained results](./scripts/backtest-data/results.json), including
 wear sensitivity, observed electricity and wear costs, exclusions, losses,
 exported energy, worst timer day, negative-price charging durations and coverage.
-See [verification](./docs/verification-log.md#item-17--partial-2026-09-21) for failed
-gates and [reproduction procedures](./docs/development.md#item-17-planner-and-backtest).
+See [verification](./docs/verification-log.md#full-offline-reproduction-and-completion--2026-09-21)
+and [reproduction procedures](./docs/development.md#item-17-planner-and-backtest).
 
 ## Why existing agents fall short
 

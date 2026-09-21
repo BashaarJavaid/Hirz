@@ -6,7 +6,7 @@ One file per consequential decision, each with the alternatives that were reject
 - [`ADR-002-postgres-over-dynamodb.md`](./ADR-002-postgres-over-dynamodb.md) — PostgreSQL as the graph of record; AgentCore Memory for conversational memory
 - [`ADR-003-constitution-yaml-to-cedar.md`](./ADR-003-constitution-yaml-to-cedar.md) — YAML constitution with a constrained grammar, compiled to Cedar and enforced twice
 - [`ADR-004-no-ml-risk-scoring.md`](./ADR-004-no-ml-risk-scoring.md) — Table-driven risk bands, no formula, no model
-- [`ADR-005-deterministic-planner.md`](./ADR-005-deterministic-planner.md) — MILP on HiGHS; the LLM only narrates; item 17 read-only proposals, strict comparison gates and archived historical experiment
+- [`ADR-005-deterministic-planner.md`](./ADR-005-deterministic-planner.md) — MILP on HiGHS; the LLM only narrates; item 17 read-only proposals, strict comparison gates, shared causal simulation controls and archived historical experiment
 - [`ADR-006-twin-first-adapters.md`](./ADR-006-twin-first-adapters.md) — Every adapter ships real and twin behind one interface; the twin is product, not test scaffolding; credential-free energy feeds with explicit coverage and tariff provenance; local HA single-attempt execution and scenario-only read fallback
 - [`ADR-007-alexa-surface-strategy.md`](./ADR-007-alexa-surface-strategy.md) — Build to the real add-on contract; demo through an emulated host; one read-only clip through the community Skill bridge
 - [`ADR-008-agentcore-topology.md`](./ADR-008-agentcore-topology.md) — Runtime hosts the MCP server; Gateway + Policy is the second enforcement point; cost posture

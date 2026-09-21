@@ -412,6 +412,9 @@ def test_small_offline_study_carries_state_and_missing_bills(profile, configurat
         assert report["days"][0]["billing_complete"] is False
         assert report["days"][0]["savings"]["timer"] is None
     assert len(report["days"]) == 2
+    assert not report["stopped"], list(report["stopped"])
+    assert set(report["physical_days"].values()) == {2}
+    assert report["metrics"]["eligible_days"] == (1 if profile == "comed_hourly" else 2)
     ev = report["final_states"]["timer"]["ev"]
     if configuration != "solar_battery":
         assert ev["driven_kwh"] == 24
@@ -534,3 +537,276 @@ def test_hourly_planning_scenario_has_no_future_kitchen_constraint():
         )
         assert "kitchen" not in str(result["plan"]["constraints"])
     assert all(event.starts_at.year == 2025 for event in loaded.world.calendar)
+
+
+def test_feedback_prevents_export_at_ev_stop_and_restores_terminal_energy():
+    from hirz.planner.feedback import simulate
+
+    p = tiny(
+        (0.4, 0.1),
+        battery=Battery(
+            capacity_kwh=2,
+            power_kw=4,
+            efficiency=1,
+            reserve_soc=0,
+            soc=0.5,
+            dispatch_kw=0,
+        ),
+    )
+    p = changed(p, slots=tuple(changed(s, solar_max_kw=0) for s in p.slots))
+    schedule = Schedule(
+        method="milp",
+        controls=(
+            Control(
+                ev_kwh=0.5, battery_kw=2, targets=(), modes=(), appliance_start=False
+            ),
+            Control(
+                ev_kwh=0.5, battery_kw=-2, targets=(), modes=(), appliance_start=False
+            ),
+        ),
+    )
+    assert replay(p, schedule).valid
+    result = simulate(p, schedule, p.slots)
+    assert result.valid, result.reasons
+    assert len(result.applied_controls) == 4
+    assert result.applied_controls[1].battery_kw == 0  # EV has stopped.
+    assert sum(result.export_kwh) == 0
+    assert result.battery_end_kwh == pytest.approx(1, abs=1e-6)
+    assert result.ev_delivered_kwh == pytest.approx(1, abs=1e-6)
+    assert result.wear_usd == pytest.approx(result.throughput_kwh * 0.01)
+
+
+def test_feedback_is_causal_and_prices_do_not_control_devices():
+    from hirz.planner.feedback import simulate
+
+    p = tiny(
+        (0.4, 0.1),
+        ev=None,
+        base_load_kw=2,
+        battery=Battery(
+            capacity_kwh=2,
+            power_kw=2,
+            efficiency=1,
+            reserve_soc=0,
+            soc=0.5,
+            dispatch_kw=0,
+        ),
+    )
+    p = changed(p, slots=tuple(changed(s, solar_max_kw=5) for s in p.slots))
+    schedule, _ = solver.solve(p)
+    first = simulate(p, schedule, p.slots)
+    actual = (
+        changed(p.slots[0], price=-100),
+        changed(p.slots[1], solar_kw=5, outdoor_f=-20),
+    )
+    second = simulate(p, schedule, actual)
+    assert first.applied_controls[0] == second.applied_controls[0]
+    assert first.valid and second.valid
+    assert second.battery_end_kwh == pytest.approx(first.battery_end_kwh, abs=1e-6)
+    assert sum(second.export_kwh) > 0  # Only solar, never battery.
+    assert second.electricity_usd != first.electricity_usd
+
+
+def test_feedback_changes_thermostat_mode_but_does_not_invent_capacity():
+    from hirz.planner.feedback import simulate
+
+    z = Zone(
+        entity="room",
+        physical=ThermalZone(temp_f=70, target_f=70, mode="heat", solar_gain_area_m2=0),
+        lower=(69, 69),
+        upper=(71, 71),
+        targets=(70, 70),
+        occupants=(0, 0),
+        end_lower=69,
+        end_upper=71,
+    )
+    p = tiny(ev=None, zones=(z,))
+    c = Control(
+        ev_kwh=0, battery_kw=0, targets=(70,), modes=("heat",), appliance_start=False
+    )
+    s = Schedule(controls=(c, c), method="milp")
+    hot = tuple(changed(slot, outdoor_f=95) for slot in p.slots)
+    result = simulate(p, s, hot)
+    assert result.valid and all(c.modes == ("cool",) for c in result.applied_controls)
+    later_cold = simulate(p, s, (hot[0], changed(hot[1], outdoor_f=-20)))
+    assert later_cold.applied_controls[0] == result.applied_controls[0]
+    impossible = tuple(changed(slot, outdoor_f=1000) for slot in p.slots)
+    bad = simulate(p, s, impossible)
+    assert not bad.valid and compare(result, bad)[1] is None
+    assert "Hard comfort band missed" in bad.reasons
+
+
+def test_feedback_rejects_misaligned_observations():
+    from hirz.planner.feedback import simulate
+
+    p = tiny()
+    s = baseline(p)
+    with pytest.raises(ValueError, match="boundaries"):
+        simulate(p, s, p.slots[:-1])
+
+
+@pytest.mark.parametrize("day", ["2025-09-01", "2025-11-30", "2026-01-25"])
+def test_retained_export_and_cold_comfort_failures(day):
+    import gzip
+    import json
+    from datetime import date
+    from pathlib import Path
+
+    from hirz.adapters.base import WeatherSample
+    from scripts.backtest import run
+
+    raw = json.loads(
+        gzip.decompress(
+            Path("tests/fixtures/energy/planner-feedback.json.gz").read_bytes()
+        )
+    )
+    prices = {datetime.fromisoformat(k): v for k, v in raw["prices"].items()}
+    samples = [WeatherSample.model_validate(w) for w in raw["weather"]]
+    start = date.fromisoformat(day)
+    report = run(
+        "comed_time_of_day",
+        "solar_battery_ev",
+        0.01,
+        prices,
+        {w.at: w for w in samples},
+        start,
+        start + timedelta(days=1),
+    )
+    assert not report["stopped"], list(report["stopped"])
+    assert report["metrics"]["eligible_days"] == 1
+    assert set(report["physical_days"].values()) == {1}
+    for state in report["final_states"].values():
+        assert state["ev"]["driven_kwh"] == 12
+        assert state["battery_end_kwh"] == pytest.approx(7.425, abs=1e-6)
+
+
+@pytest.mark.parametrize("day,slots", [("2025-11-01", 100), ("2026-03-07", 92)])
+def test_feedback_study_dst_boundaries(day, slots):
+    from datetime import date
+
+    from hirz.adapters.base import WeatherSample
+    from scripts.backtest import run
+
+    start = date.fromisoformat(day)
+    left = datetime.combine(start, datetime.min.time(), UTC) - timedelta(days=8)
+    times = [left + timedelta(hours=i) for i in range(24 * 11)]
+    prices = dict.fromkeys(times, 0.03)
+    weather = {t: WeatherSample(at=t, temp_f=55, cloud_cover_percent=60) for t in times}
+    report = run(
+        "comed_hourly",
+        "solar_battery_ev",
+        0.01,
+        prices,
+        weather,
+        start,
+        start + timedelta(days=1),
+    )
+    assert not report["stopped"], list(report["stopped"])
+    assert report["metrics"]["eligible_days"] == 1
+    for r in report["days"][0]["strategies"].values():
+        assert len(r["grid_kwh"]) == slots
+        assert r["ev_delivered_kwh"] == pytest.approx(12, abs=1e-6)
+
+
+def test_causal_plan_accounts_for_terminal_guard_before_optimization():
+    from hirz.planner.feedback import battery_envelope, simulate
+
+    p = tiny(
+        (0.1, 0.4),
+        ev=None,
+        base_load_kw=4,
+        causal_controls=True,
+        battery=Battery(
+            capacity_kwh=2,
+            power_kw=4,
+            efficiency=1,
+            reserve_soc=0,
+            soc=0.5,
+            dispatch_kw=0,
+        ),
+    )
+    p = changed(p, slots=tuple(changed(s, solar_max_kw=4) for s in p.slots))
+    lower, upper = battery_envelope(p)
+    assert upper == [1, 1, 1]
+    assert lower[-1] == 1
+    schedule, diagnostic = solver.solve(p)
+    assert diagnostic.status == "optimal"
+    assert all(abs(c.battery_kw) < 1e-6 for c in schedule.controls)
+    forecast, actual = replay(p, schedule), simulate(p, schedule, p.slots)
+    assert forecast.valid and actual.valid
+    assert forecast.electricity_usd == pytest.approx(0.5)
+    assert actual.electricity_usd == pytest.approx(forecast.electricity_usd)
+
+
+@pytest.mark.parametrize("resistance", [0.25, 0.125])
+def test_comfort_preparation_preserves_explicit_physical_parameters(resistance):
+    from hirz.planner.feedback import simulate
+
+    z = Zone(
+        entity="room",
+        physical=ThermalZone(
+            temp_f=70,
+            target_f=70,
+            mode="off",
+            thermal_mass_kwh_per_f=1,
+            resistance_f_per_kw=resistance,
+            solar_gain_area_m2=0,
+        ),
+        lower=(69, 69),
+        upper=(71, 71),
+        targets=(70, 70),
+        occupants=(0, 0),
+        end_lower=69,
+        end_upper=71,
+    )
+    p = tiny(ev=None, zones=(z,), causal_controls=True)
+    schedule, _ = solver.solve(p)
+    assert schedule is not None
+    result = simulate(p, schedule, p.slots)
+    assert result.valid, result.reasons
+    assert result.zones[0].resistance_f_per_kw == resistance
+
+
+def test_reproduction_excludes_measurements_but_compares_device_clocks():
+    import json
+
+    from scripts.backtest import same_output
+
+    first = {
+        "archive_manifest_hash": "archive",
+        "elapsed_seconds": 1,
+        "runs": [
+            {
+                "solver": SolverDiagnostics(
+                    status="optimal", elapsed_seconds=1
+                ).model_dump(),
+                "appliance": {"elapsed_seconds": 6300},
+            }
+        ],
+    }
+    second = json.loads(json.dumps(first))  # Also checks tuple/list equivalence.
+    second["elapsed_seconds"] = 2
+    second["runs"][0]["solver"]["elapsed_seconds"] = 3
+    assert same_output(first, second)
+    second["runs"][0]["appliance"]["elapsed_seconds"] = 1
+    assert not same_output(first, second)
+    assert not same_output([1, 2], [1])
+
+
+def test_reproduction_requires_retained_output_before_loading_history(
+    monkeypatch, tmp_path, capsys
+):
+    from scripts import backtest
+
+    monkeypatch.setattr(
+        "sys.argv", ["backtest.py", "--verify", "--output", str(tmp_path)]
+    )
+
+    def unexpected_history(*args):
+        pytest.fail("Missing reference must fail before the historical run")
+
+    monkeypatch.setattr(backtest, "load_history", unexpected_history)
+    with pytest.raises(SystemExit) as exc:
+        backtest.main()
+    assert exc.value.code == 2
+    assert "requires retained results.json.gz" in capsys.readouterr().err

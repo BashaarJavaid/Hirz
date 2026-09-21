@@ -5,6 +5,7 @@ from datetime import timedelta
 from typing import Literal
 
 from hirz.adapters.energy.real.tariff import CHICAGO
+from hirz.planner.feedback import battery_envelope, comfort_envelope
 from hirz.planner.models import Control, PlannerInput, Schedule
 from hirz.planner.replay import effective
 from hirz.twin.physics import changed
@@ -74,6 +75,7 @@ def baseline(
     battery = p.battery
     controls = []
     net_load = []
+    envelopes = [comfort_envelope(z, p.slots) for z in p.zones]
     for i, slot in enumerate(p.slots):
         targets: list[float] = []
         modes: list[Literal["heat", "cool", "off"]] = []
@@ -85,11 +87,10 @@ def baseline(
         for j, spec in enumerate(p.zones):
             zone = zones[j]
             target_f = spec.targets[i]
-            # Anticipate the next hard band: it applies at the shared boundary.
-            if i + 1 < len(p.slots):
-                target_f = min(spec.upper[i + 1], max(spec.lower[i + 1], target_f))
-            else:
-                target_f = min(spec.end_upper, max(spec.end_lower, target_f))
+            lower, upper = envelopes[j]
+            target_f = min(
+                upper[i + 1], spec.upper[i], max(lower[i + 1], spec.lower[i], target_f)
+            )
             passive = changed(zone, mode="off").advance(
                 slot.hours * 3600,
                 slot.outdoor_f,
@@ -134,6 +135,9 @@ def baseline(
                 else 0
             )
             ceiling[i] = min(battery.capacity_kwh, ceiling[i + 1] + dischargeable)
+        if p.causal_controls:
+            _, reachable = battery_envelope(p)
+            ceiling = [min(a, b) for a, b in zip(ceiling, reachable, strict=True)]
         for i, slot in enumerate(p.slots):
             energy = battery.soc * battery.capacity_kwh
             local = slot.start.astimezone(CHICAGO)

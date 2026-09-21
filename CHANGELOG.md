@@ -14,6 +14,12 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- 2026-09-21: Fix historical planner replay with shared causal simulated thermostat
+  and battery controls; verify the full year and wear sensitivities without
+  relaxing constraints or extending execution authority
+  ([ADR-005 amendment](./docs/adr/ADR-005-deterministic-planner.md#causal-historical-replay-amendment--2026-09-21),
+  [completion evidence](./docs/verification-log.md#full-offline-reproduction-and-completion--2026-09-21)).
+
 - 2026-09-21: Replace the scenarios' constant weather with inline archived Chicago
   weather while retaining deterministic twin replay
   ([verification](./docs/verification-log.md#scenario-weather-from-archived-observations)).

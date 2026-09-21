@@ -42,6 +42,9 @@ class Slot(Model):
     price: float = Field(allow_inf_nan=False)  # dollars per grid kWh
     outdoor_f: float = Field(allow_inf_nan=False)
     solar_kw: float = Field(ge=0, allow_inf_nan=False)
+    # Installed PV geometry at zero cloud, known before the decision. None
+    # means no guaranteed future self-consumption, not a perfect PV forecast.
+    solar_max_kw: float | None = Field(default=None, ge=0, allow_inf_nan=False)
     irradiance: float = Field(default=0, ge=0, allow_inf_nan=False)
     price_source: AwareDatetime | None = None
     weather_source: AwareDatetime | None = None
@@ -91,6 +94,7 @@ class PlannerInput(Model):
     appliance_deadline: AwareDatetime
     base_load_kw: float = Field(ge=0, allow_inf_nan=False)
     wear_per_kwh: float = Field(default=0.01, ge=0, allow_inf_nan=False)
+    causal_controls: bool = False  # Explicit hypothetical study-device behavior.
     constraints: tuple[MemberConstraint, ...] = ()
     provenance: tuple[str, ...]
 
@@ -166,6 +170,8 @@ class Replay(Model):
     battery: Battery | None
     zones: tuple[ThermalZone, ...]
     appliance: Appliance | None
+    applied_controls: tuple[Control, ...] = ()
+    control_boundaries: tuple[AwareDatetime, ...] = ()
 
 
 class SolverDiagnostics(Model):

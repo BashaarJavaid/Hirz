@@ -12,6 +12,7 @@ from scipy.optimize import (  # type: ignore[import-untyped]
 )
 from scipy.sparse import coo_matrix  # type: ignore[import-untyped]
 
+from hirz.planner.feedback import battery_envelope, comfort_envelope
 from hirz.planner.heuristic import appliance_windows
 from hirz.planner.models import Control, PlannerInput, Schedule, SolverDiagnostics
 from hirz.planner.replay import effective
@@ -82,6 +83,10 @@ def solve(p: PlannerInput) -> tuple[Schedule | None, SolverDiagnostics]:
             0 if p.battery is None else p.battery.reserve_soc * p.battery.capacity_kwh
         )
         m.upper[v] = 0 if p.battery is None else p.battery.capacity_kwh
+    if p.causal_controls:
+        lower, upper = battery_envelope(p)
+        for i, v in enumerate(energy):
+            m.lower[v], m.upper[v] = lower[i], upper[i]
     m.lower[energy[0]] = m.upper[energy[0]] = opening
     m.lower[energy[-1]] = m.upper[energy[-1]] = opening
     temperatures, heating, cooling = [], [], []
@@ -96,10 +101,13 @@ def solve(p: PlannerInput) -> tuple[Schedule | None, SolverDiagnostics]:
         heating.append(heat)
         cooling.append(cool)
         z = spec.physical
+        reachable = comfort_envelope(spec, p.slots) if p.causal_controls else None
         m.lower[temp[0]] = m.upper[temp[0]] = z.temp_f
         for i, s in enumerate(p.slots):
             lo = max(spec.lower[i], spec.lower[i + 1] if i + 1 < n else spec.end_lower)
             hi = min(spec.upper[i], spec.upper[i + 1] if i + 1 < n else spec.end_upper)
+            if reachable is not None:
+                lo, hi = max(lo, reachable[0][i + 1]), min(hi, reachable[1][i + 1])
             m.row({temp[i + 1]: 1}, lo, hi, f"{spec.entity} comfort {i}")
             m.row(
                 {temp[i]: 1},

@@ -15,6 +15,7 @@ from hirz.pipeline.models import (
     PlanSummary,
     Target,
 )
+from hirz.planner.feedback import forecast_replay
 from hirz.planner.heuristic import baseline
 from hirz.planner.models import (
     PlannerInput,
@@ -23,7 +24,6 @@ from hirz.planner.models import (
     Schedule,
     SolverDiagnostics,
 )
-from hirz.planner.replay import replay
 from hirz.planner.solver import solve
 
 
@@ -151,7 +151,7 @@ def plan(
         schedule, diagnostics = solve(p)
         if schedule is None and diagnostics.status == "timeout":
             schedule = baseline(p)
-    checked = replay(p, schedule) if schedule is not None else None
+    checked = forecast_replay(p, schedule) if schedule is not None else None
     if schedule is None or checked is None or not checked.valid:
         blocking = []
         if diagnostics.status == "infeasible":
@@ -162,7 +162,10 @@ def plan(
                     update={"constraints": tuple(x for x in p.constraints if x != c)}
                 )
                 replacement, _ = solve(candidate)
-                if replacement is not None and replay(candidate, replacement).valid:
+                if (
+                    replacement is not None
+                    and forecast_replay(candidate, replacement).valid
+                ):
                     blocking.append(c.provenance)
         return PlannerResult(
             plan=None,
@@ -179,7 +182,8 @@ def plan(
             provenance=p.provenance,
         )
     baselines = {
-        name: replay(p, baseline(p, name)) for name in ("timer", "immediate", "greedy")
+        name: forecast_replay(p, baseline(p, name))
+        for name in ("timer", "immediate", "greedy")
     }
     alternatives = []
     for name, other in baselines.items():

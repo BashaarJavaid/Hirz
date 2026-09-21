@@ -673,20 +673,31 @@ uv run python scripts/backtest.py --verify
 The smoke separates SciPy import/cold timing, solve timing, and greedy proposal
 timing. `--live-weather` reads the existing Open-Meteo adapter and is explicitly
 excluded from historical figures. Smoke exits nonzero if a plan or either latency
-gate fails. The study replays retained inputs offline by default. `--fetch` is the
+gate fails. The study replays retained inputs offline by default. Replications run
+sequentially so other study solves and artifact compression do not compete with
+the five-second solver budget. `--fetch` is the
 explicit public-network operation: archive day-ahead and five-minute responses
 sequentially, including lookback and ending coverage, and fetch archived weather.
 It resumes existing checksummed downloads without refreshing them. A network
 failure leaves completed responses and their manifest intact. `--start` and
 `--end` accept ISO dates; `--output` selects a generated-artifact directory.
 
-`results.json` retains per-strategy failures, selected forecast timestamps,
-physical state, comparison exclusions, eligible-day metrics and wear sensitivity.
-`daily.csv`, `readme-table.md` and `workload.json` are derived artifacts. Study
-exit 1 means required coverage is incomplete; inspect `stopped` and eligible/total
-days before interpreting any figures. `--verify` makes no downloads and compares
-a fresh replay to retained results, excluding elapsed-time measurements; exit 0
-means reproduction, **not** that the experiment's acceptance gate passed.
+`results.json` is the readable metrics/final-state summary; `results.json.gz`
+retains the full daily record, selected forecast timestamps, comparison exclusions,
+requested schedules, applied controls and their segment boundaries. `daily.csv`,
+`readme-table.md` and `workload.json` are derived artifacts. Study exit 1 means a
+strategy failed to complete the requested physical horizon; inspect `stopped` and
+`physical_days`. Missing billing quotes alone exclude savings for that day and
+reduce eligible/total coverage, without resetting state or failing physical
+completion. Aggregate cost, wear, loss and export totals use eligible
+timer-comparison days; the full daily record retains physical energy on days
+with missing bills. `--verify` makes no downloads and compares a fresh replay
+to the full retained record and regenerates the summary, CSV, publication table and workload
+configuration, excluding only solver/run timing measurements (physical cycle
+clocks are compared); exit 0 means reproduction,
+**not** that every requested day had a valid cost comparison. The shared simulated
+feedback contract and its conservative terminal-energy bound are in
+[ADR-005](./adr/ADR-005-deterministic-planner.md#causal-historical-replay-amendment--2026-09-21).
 
 ```sh
 uv run hirz scenario run scenarios/demo-evening.yaml --headless --assert
@@ -698,5 +709,5 @@ Planning snapshots are separate from the observation world and do not charge the
 scenario car or change its thermostat. The two planning scenarios supply their
 weather and retain tool, approval, audit and execution deferrals. The Hourly
 counterpart remaps the seed's schedule dates by -365 days and labels its tariff
-counterfactual. See [verification](./verification-log.md#item-17--partial-2026-09-21)
-for measured coverage, the raw archive inventory, and the failed year-long gate.
+counterfactual. See [verification](./verification-log.md#full-offline-reproduction-and-completion--2026-09-21)
+for measured coverage, the raw archive inventory, and subsequent verification runs.

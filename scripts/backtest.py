@@ -3,10 +3,12 @@
 import argparse
 import asyncio
 import csv
+import gzip
 import json
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from time import perf_counter
 from typing import Any, Literal, cast
 
@@ -15,6 +17,7 @@ import numpy as np
 from hirz.adapters.energy.real import feeds
 from hirz.adapters.energy.real.tariff import CHICAGO, load_tariff
 from hirz.pipeline.hashing import digest
+from hirz.planner.feedback import forecast_replay, simulate
 from hirz.planner.heuristic import baseline
 from hirz.planner.history import (
     END,
@@ -26,7 +29,6 @@ from hirz.planner.history import (
     read_raw,
 )
 from hirz.planner.models import Replay, Slot, boundaries
-from hirz.planner.replay import replay
 from hirz.planner.service import compare, peak
 from hirz.planner.solver import solve
 from hirz.planner.workload import CONFIGURATIONS, Configuration, workload
@@ -97,6 +99,9 @@ def inputs(
                     if configuration == "ev_only"
                     else solar.kw_peak
                     * solar.irradiance(left, 41.88, -87.63, w.cloud_cover_percent),
+                    solar_max_kw=0
+                    if configuration == "ev_only"
+                    else solar.kw_peak * solar.irradiance(left, 41.88, -87.63, 0),
                     price_source=price_source if collection is forecast else None,
                     weather_source=weather_source if collection is forecast else None,
                 )
@@ -249,7 +254,10 @@ def run(
                     zones=state.zones,
                     appliance=state.appliance,
                 )
-            p = workload(forecast, configuration, wear=wear, **kwargs)
+            p = changed(
+                workload(forecast, configuration, wear=wear, **kwargs),
+                causal_controls=True,
+            )
             diagnostic = None
             if strategy == "milp":
                 schedule, diagnostic = solve(p)
@@ -259,7 +267,7 @@ def run(
                 schedule = baseline(
                     p, cast(Literal["timer", "immediate", "greedy"], strategy)
                 )
-            check = replay(p, schedule) if schedule is not None else None
+            check = forecast_replay(p, schedule) if schedule is not None else None
             if check is None or not check.valid:
                 stopped[strategy] = {
                     "date": day.isoformat(),
@@ -273,7 +281,7 @@ def run(
                 continue
             assert schedule is not None
             realized_p = p.model_copy(update={"slots": actual})
-            result = replay(realized_p, schedule)
+            result = simulate(p, schedule, actual)
             if result.ev is not None:
                 # No charging is allowed after 08:00; this drive is at that departure.
                 result = result.model_copy(
@@ -285,11 +293,27 @@ def run(
                 )
             states[strategy] = result
             row["strategies"][strategy] = result.model_dump(
-                mode="json", exclude={"ev", "battery", "zones", "appliance"}
+                mode="json",
+                exclude={
+                    "ev",
+                    "battery",
+                    "zones",
+                    "appliance",
+                    "applied_controls",
+                    "control_boundaries",
+                },
             )
             row["strategies"][strategy]["schedule_hash"] = digest(
                 schedule.model_dump(mode="json")
             )
+            row["strategies"][strategy]["applied_controls_hash"] = digest(
+                [c.model_dump(mode="json") for c in result.applied_controls]
+            )
+            row["strategies"][strategy]["controls"] = {
+                "requested": schedule.model_dump(mode="json"),
+                "applied": [c.model_dump(mode="json") for c in result.applied_controls],
+                "boundaries": [t.isoformat() for t in result.control_boundaries],
+            }
             if not billing_complete:
                 row["strategies"][strategy]["electricity_usd"] = None
             if diagnostic:
@@ -305,16 +329,23 @@ def run(
             else:
                 day_results[strategy] = result
                 if strategy == "milp":
-                    row["negative_supply_charging_hours"] = sum(
-                        c.ev_kwh / p.ev.charger_kw
-                        for c, s in zip(schedule.controls, supply, strict=True)
-                        if p.ev and s is not None and s < 0
-                    )
-                    row["negative_total_charging_hours"] = sum(
-                        c.ev_kwh / p.ev.charger_kw
-                        for c, s in zip(schedule.controls, actual, strict=True)
-                        if p.ev and s.price < 0
-                    )
+                    row["negative_supply_charging_hours"] = 0.0
+                    row["negative_total_charging_hours"] = 0.0
+                    i = 0
+                    for c, left, right in zip(
+                        result.applied_controls,
+                        result.control_boundaries,
+                        result.control_boundaries[1:],
+                    ):
+                        while actual[i].end <= left:
+                            i += 1
+                        if c.ev_kwh > 1e-6 or c.battery_kw < -1e-6:
+                            hours = (right - left).total_seconds() / 3600
+                            supply_price = supply[i]
+                            if supply_price is not None and supply_price < 0:
+                                row["negative_supply_charging_hours"] += hours
+                            if actual[i].price < 0:
+                                row["negative_total_charging_hours"] += hours
         optimized = day_results.get("milp")
         for strategy in STRATEGIES[1:]:
             other = day_results.get(strategy)
@@ -346,13 +377,30 @@ def run(
         "metrics": metrics(rows, (end - start).days),
         "days": rows,
         "stopped": stopped,
-        "final_states": {s: r.model_dump(mode="json") for s, r in states.items()},
+        "physical_days": {
+            s: sum(r["strategies"].get(s, {}).get("valid", False) for r in rows)
+            for s in STRATEGIES
+        },
+        "final_states": {
+            s: r.model_dump(
+                mode="json", exclude={"applied_controls", "control_boundaries"}
+            )
+            for s, r in states.items()
+        },
     }
 
 
 def publish(report: dict[str, Any], root: Path) -> None:
+    (root / "results.json.gz").write_bytes(
+        gzip.compress(
+            json.dumps(report, separators=(",", ":"), allow_nan=False).encode(), mtime=0
+        )
+    )
+    summary = report | {
+        "runs": [{k: v for k, v in r.items() if k != "days"} for r in report["runs"]]
+    }
     (root / "results.json").write_text(
-        json.dumps(report, indent=2, allow_nan=False) + "\n"
+        json.dumps(summary, indent=2, allow_nan=False) + "\n"
     )
     with (root / "daily.csv").open("w") as f:
         writer = csv.writer(f)
@@ -407,6 +455,26 @@ def publish(report: dict[str, Any], root: Path) -> None:
     (root / "readme-table.md").write_text("\n".join(lines) + "\n")
 
 
+def same_output(a: Any, b: Any) -> bool:
+    """Compare without copying annual traces; exclude measurements, not device clocks."""
+    if isinstance(a, dict) and isinstance(b, dict):
+        timing = (
+            {"elapsed_seconds"}
+            if (
+                {"runs", "archive_manifest_hash"} <= a.keys()
+                or {"status", "gap", "message", "binding"} <= a.keys()
+            )
+            else set()
+        )
+        keys = a.keys() - timing
+        return keys == b.keys() - timing and all(same_output(a[k], b[k]) for k in keys)
+    if isinstance(a, (list, tuple)) and isinstance(b, (list, tuple)):
+        return len(a) == len(b) and all(
+            same_output(x, y) for x, y in zip(a, b, strict=True)
+        )
+    return bool(a == b)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--fetch", action="store_true")
@@ -421,9 +489,8 @@ def main() -> int:
     args = parser.parse_args()
     if args.fetch and args.verify:
         parser.error("--verify is offline; do not combine it with --fetch")
-    previous = (
-        json.loads((args.output / "results.json").read_text()) if args.verify else None
-    )
+    if args.verify and not (args.output / "results.json.gz").is_file():
+        parser.error("--verify requires retained results.json.gz at --output")
     if args.fetch:
         asyncio.run(fetch_archive(ROOT / "raw", args.start, args.end))
     began = perf_counter()
@@ -446,9 +513,9 @@ def main() -> int:
         forecast, _, _ = inputs(
             args.start, "comed_time_of_day", configuration, prices, weather
         )
-        templates[configuration] = workload(forecast, configuration).model_dump(
-            mode="json", exclude={"slots"}
-        )
+        templates[configuration] = changed(
+            workload(forecast, configuration), causal_controls=True
+        ).model_dump(mode="json", exclude={"slots"})
     config = {
         "templates": templates,
         "ev_drive_kwh_at_0800": 12,
@@ -456,11 +523,13 @@ def main() -> int:
         "forecast": "nearest matching Chicago hour in preceding seven days, ended at least 24h before decision",
         "wear_sensitivity": [0, 0.01, 0.02],
         "export_credit_usd_per_kwh": 0,
-        "battery_baseline": "self-consumption; restore opening SoC 21:00–06:00; surplus limited to remaining forecast self-consumption to satisfy terminal equality",
+        "battery_baseline": "self-consumption; restore opening SoC 21:00–06:00; causal terminal-energy protection shared by all strategies",
+        "feedback": "current-observation thermostat with occupied-target preparation; no-export battery with terminal reachable-energy bounds from base load and installed clear-sky PV; split at EV/appliance stop times",
     }
     if not args.verify:
         (args.output / "workload.json").write_text(json.dumps(config, indent=2) + "\n")
     report["workload_hash"] = digest(config)
+    # Keep timed solves isolated from other replications and artifact compression.
     for wear in (0.01, 0, 0.02):
         for profile in ("comed_time_of_day", "comed_hourly"):
             for configuration in CONFIGURATIONS:
@@ -485,24 +554,39 @@ def main() -> int:
     report["elapsed_seconds"] = perf_counter() - began
     if not args.verify:
         publish(report, args.output)
-    if previous is not None:
-
-        def stable(value: Any) -> Any:
-            if isinstance(value, dict):
-                return {
-                    k: stable(v) for k, v in value.items() if k != "elapsed_seconds"
+    if args.verify:
+        with gzip.open(args.output / "results.json.gz", "rt") as source:
+            previous = json.load(source)
+        matched = same_output(previous, report)
+        with TemporaryDirectory(prefix="hirz-backtest-verify-") as directory:
+            regenerated = Path(directory)
+            publish(report, regenerated)
+            artifacts_match = (
+                all(
+                    (regenerated / name).read_bytes()
+                    == (args.output / name).read_bytes()
+                    for name in ("daily.csv", "readme-table.md")
+                )
+                and same_output(
+                    json.loads((regenerated / "results.json").read_text()),
+                    json.loads((args.output / "results.json").read_text()),
+                )
+                and config == json.loads((args.output / "workload.json").read_text())
+            )
+        print(
+            json.dumps(
+                {
+                    "offline_reproduction_matches": matched,
+                    "derived_artifacts_match": artifacts_match,
+                    "elapsed_seconds": report["elapsed_seconds"],
                 }
-            if isinstance(value, (list, tuple)):
-                return [stable(v) for v in value]
-            return value
-
-        matched = stable(previous) == stable(report)
-        print(json.dumps({"offline_reproduction_matches": matched}))
-        return 0 if matched else 1
+            )
+        )
+        return 0 if matched and artifacts_match else 1
     return (
         0
         if all(
-            r["metrics"]["eligible_days"] == r["metrics"]["total_days"]
+            not r["stopped"] and len(r["days"]) == r["metrics"]["total_days"]
             for r in report["runs"]
         )
         else 1

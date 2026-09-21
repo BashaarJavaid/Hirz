@@ -20,12 +20,12 @@ planning:
 - at: "17:33"
   member: malik
   ev_target: 0.8
-  expected_savings: 0.7579348122944097
-  expected_peak: -5.527522883852498e-14
+  expected_savings: 0.7585123741378973
+  expected_peak: -5.505318423359995e-14
 - at: "17:35"
   member: malik
   ev_target: 0.5
-  expected_savings: 0.7576057558520851
+  expected_savings: 0.7581833176955727
   expected_peak: -6.39280295366973e-14
 initial:
   base_load_kw: 0.4

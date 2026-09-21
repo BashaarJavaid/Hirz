@@ -107,3 +107,72 @@ and retains its state and failure evidence. Fixed forecast-derived controls are
 not silently replaced with a feedback controller to rescue a historical figure.
 Actual coverage and the remaining acceptance failures are in the
 [item 17 verification entry](../verification-log.md#item-17--partial-2026-09-21).
+
+### Causal historical replay amendment — 2026-09-21
+
+The author approved fixing the stopped historical runs now, within item 17. This
+amends the earlier decision to retain fixed forecast-derived controls during
+realized replay. The economic MILP still runs once per local day. Its proposed
+Actions, their hashes, and their lack of execution authority are unchanged.
+`replay` remains a strict validator; `feedback.simulate` supplies hypothetical
+applied controls and then passes them through that same validator. This is not
+coordinator intake, a live controller, or an exception to Pipeline authorization.
+
+Every study strategy uses the same causal device protection. The thermostat
+selects the existing heat/cool mode from current temperature and the current
+weather observation. It prepares for a tightening comfort window at that window's
+already-declared occupied target. Backward reachability uses the configured
+thermal mass, resistance, occupants and rated power. In forecast baseline
+construction it uses forecast weather; during replay it holds the current
+observation constant for this local prediction. It never reads later realized
+weather. An unachievable band still fails validation; no capacity, tolerance or
+comfort requirement is relaxed.
+
+The simulated battery follows the requested dispatch for MILP, or the approved
+self-consumption/restoration policy for the three baselines, subject to the same
+no-export and terminal-energy protection. Discharge cannot exceed present net
+household demand. The reachable lower energy bound reserves enough remaining
+charging time to restore opening energy. The upper bound permits excess stored
+energy only when remaining **guaranteed** self-consumption can remove it: base
+load minus the installed PV model's zero-cloud upper bound, limited by battery
+power and efficiency. This bound is known before the decision and does not use
+realized future load, weather or prices. With no supplied PV bound, guaranteed
+future self-consumption is conservatively zero. Scheduled EV and HVAC consumption
+are deliberately omitted from this guarantee. Any curtailed or corrective
+charging/discharging is metered, loses energy normally, and incurs normal wear.
+There is no terminal state reset or unmetered energy adjustment.
+
+Historical inputs explicitly select `causal_controls`. The same reachable battery
+bounds and occupied-target preparation are included in the MILP and baseline
+construction before solving, so a schedule cannot rely on energy the controller
+will predictably curtail. Forecast acceptance first checks the requested schedule
+strictly, then simulates its declared device behavior. The fixed-control input
+mode remains available for existing scenario snapshots; there is no inference of
+controller capabilities from the availability of a PV forecast.
+
+Environmental samples retain the declared quarter-hour zero-order hold. Replay
+splits at EV charge-limit and appliance completion times; each segment's HVAC
+power follows the existing explicit thermal transition from its opening state
+and current forcing. Battery dispatch responds to those current commanded loads,
+not a subsequently observed interval total. Requested schedules, applied controls
+and segment boundaries are retained in compressed JSON. Reported grid energy is
+aggregated back to the original slots. Supply-negative and total-price-negative
+charging durations count the union of EV and battery charging, without counting
+simultaneous charging twice.
+
+**Rejected alternatives:** clipping battery export without restoring terminal
+energy; resetting SoC; giving the optimizer later weather or prices; replanning
+against realized prices; relaxing comfort or energy tolerances; granting more
+HVAC power; allowing the optimizer feedback that baselines lack; and making
+missing billing prices stop a physically valid run. Physical completion and
+eligible cost-comparison coverage are separate gates. Missing billing hours
+still suppress savings, and missing forecasts or physical failures still stop
+and retain the affected run. Compression is for retained evidence size; offline
+reproduction compares the unrounded numerical output, excluding timing only.
+
+Annual replications run sequentially. A concurrent trial reached the five-second
+limit on one day, while a repeat reached the requested gap with a different
+schedule. Running competing solves or compressing artifacts during a timed solve
+was rejected. The solver still accepts validated timeout incumbents, but a timed
+result is not promised bitwise reproducible across machine loads; retained study
+outputs must independently pass exact reproduction before publication.

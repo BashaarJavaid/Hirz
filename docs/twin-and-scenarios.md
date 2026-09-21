@@ -503,3 +503,11 @@ observation status. This status does not assert that the year-long study passed.
 The snapshot's expected savings and peak values are derived from retained
 `../scripts/backtest-data/demo-evening*.json` reports. They replace the provisional
 planning-only assertions; full execution expectations still belong to item 22.
+
+Historical replay keeps the same once-daily proposals but applies the shared
+causal simulation controls specified in the [ADR-005 amendment](./adr/ADR-005-deterministic-planner.md#causal-historical-replay-amendment--2026-09-21).
+These controls are internal hypothetical transitions, not scenario events or
+executed Actions. Scenario forecast comparisons retain strict schedule replay;
+the baseline thermostat now prepares far enough ahead for its declared occupied
+target using the existing physical power limit. Supplied scenario weather,
+linked-account provenance, observations and execution deferrals remain intact.

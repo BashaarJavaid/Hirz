@@ -2484,3 +2484,183 @@ Success: no issues found in 90 source files
 The final format check was run after the evidence, roadmap, changelog and
 synchronized instruction-file edits. The historical coverage failure remains;
 passing code checks and exact reproduction do not close item 17.
+
+### Causal replay follow-up — 2026-09-21
+
+The author approved fixing item 17's stopped historical runs within the existing
+read-only boundary. The [ADR-005 amendment](./adr/ADR-005-deterministic-planner.md#causal-historical-replay-amendment--2026-09-21)
+records the shared simulated controls and rejected alternatives. Economic planning
+remains once daily; no executor, coordinator intake, endpoint, database table,
+real-device write or new authority path was added. Physical parameters, hard
+comfort bands, energy tolerances, tariff validity checks and forecast cutoffs are
+preserved. The original partial run above remains historical evidence.
+
+The first controller probes exposed cold-weather preparation failures on
+2025-11-30 and 2026-01-25. Preparing for the declared occupied target with the
+existing power limit fixed them. The same reachable-energy and preparation bounds
+are included in historical MILP inputs, rather than allowing the optimizer to
+rely on charging that its controller would predictably curtail. These probes were
+not accepted as publication runs.
+
+The first complete annual matrix, using the retained archive without downloads:
+
+```text
+.venv/bin/python scripts/backtest.py
+exit 0
+18 replications × 365 physical days × 4 strategies = 26,280 strategy-days
+No stopped strategies; Time-of-Day 365/365 eligible days, Hourly 194/365
+Full study generation: 1861.6711827500258 seconds
+```
+
+All three household configurations completed both tariffs at $0, $0.01 and $0.02
+per internal-throughput kWh. Each Hourly replication excludes 171 days with
+incomplete realized billing hours while carrying physical state through them.
+Across sensitivity replications there are 5,031 eligible comparison-days out of
+6,570 requested days. This is a full physical year, not a complete Hourly bill.
+Annualized values remain eligible-day means × 365, with missing-data bias disclosed.
+Negative savings, including the Time-of-Day solar-household results, are retained.
+Observed aggregate cost, wear, loss and export totals use eligible comparison days;
+full daily records retain physical energy for every simulated day.
+
+An independent arithmetic/state audit confirmed equal EV delivery, terminal
+battery energy, one appliance completion per day, zero comfort violations, and
+null costs/savings on incomplete billing days. Maximum daily EV-energy error was
+**8.145434549078345e-09 kWh** and battery-energy error was
+**8.881784197001252e-16 kWh**, both below **0.000001 kWh**. Each strategy ends with
+365 completed cycles (438 kWh); EV runs retain 4,380 kWh driven and the original
+34% opening SoC after the final drive. Battery input minus output equals loss
+within the same energy tolerance. Requested and applied controls, including
+intra-slot completion boundaries, are retained in `results.json.gz`; the readable
+`results.json` contains metrics and final states.
+
+There were **6,569 optimal-status solves and one validated timeout incumbent**:
+Hourly, solar/battery/EV, zero wear, **2026-01-28**, achieved gap
+**0.0036811719670481616**. Its diagnostic says
+`Time limit reached. (HiGHS Status 13: Time limit reached)`; this is not claimed
+optimal. The five-second limit and requested 0.001 relative gap remain unchanged.
+Five annual replications also matched earlier sequential runs exactly apart from
+timing. A short, independent two-day matrix reproduced its full output, summary,
+CSV, table and workload configuration. The full independent reproduction is
+recorded in a subsequent entry; the annual matrix alone does not close item 17.
+
+Local gates after the implementation and verifier regression:
+
+```text
+HIRZ_DOGWOOD="$PWD/.tools/dogwood" .venv/bin/pytest --tb=short
+921 passed, 61 deselected in 161.10s
+Required test coverage of 80% reached. Total coverage: 91.96%
+
+.venv/bin/pytest tests/unit/test_planner.py --no-cov -q --tb=short
+46 passed in 8.58s
+
+HIRZ_DOGWOOD="$PWD/.tools/dogwood" .venv/bin/pytest -m integration --no-cov --tb=short
+61 passed, 917 deselected in 53.80s
+
+.venv/bin/ruff check .
+All checks passed!
+.venv/bin/mypy hirz/ scripts/ alembic/
+Success: no issues found in 91 source files
+```
+
+The two planning scenarios pass with 16 observation checks, two planning snapshots
+and 22 explicit deferrals each; the parents scenario passes with nine observation
+checks and nine deferrals. Updated expectations come from the retained reports.
+Linked-account provenance, the absence of the later kitchen request, and the
+separate observation world remain verified. The isolated planner smoke exited 0:
+**0.02991091599687934 s** solve, **0.0277769579552114 s** greedy proposal and
+**0.6646711670327932 s** cold start. Earlier concurrent measurements of 0.073003 s
+and 0.051419 s missed the greedy gate; the retained measurement ran after the
+annual solver work and artifact writer exited, without changing the gate.
+
+`uv build` produced the sdist and wheel. Installing the wheel in the disposable
+`/private/tmp/hirz-item17-wheel` environment and leaving the checkout verified a
+causal forecast replay and canonical Action hashes. No development migration or
+physical plug check was performed. No new third-party API incompatibility was
+observed; the previously documented sandbox escalations were reused. Final
+formatting and the full offline reproduction remain closing checks below.
+
+#### Independent reproduction failure and isolation — 2026-09-21
+
+The first full `scripts/backtest.py --verify` replay completed all physical days
+in 1,753.7478462501895 seconds but exited 1:
+`offline_reproduction_matches: false`, `derived_artifacts_match: false`. Seventeen
+of eighteen annual replications matched exactly apart from measured timing. The
+remaining replication first differed on the recorded 2026-01-28 zero-wear Hourly
+solar/battery/EV timeout: the fresh run reached optimal status in
+2.9627819159068167 seconds, gap 0.0007238771401596331. Eleven daily records differed,
+including propagated floating-point differences. No comparison tolerance or
+solver budget was relaxed. The fresh complete output has 6,570 optimal-status
+solves and is retained as the new reference. Concurrent replications were removed
+and the prior report is now loaded only after solving, reducing resource
+contention. A further full offline verification follows below; this failure does
+not satisfy the reproduction gate.
+
+#### Full offline reproduction and completion — 2026-09-21
+
+The sequential full-year verification exited 0:
+
+```text
+.venv/bin/python scripts/backtest.py --verify
+offline_reproduction_matches: true
+derived_artifacts_match: true
+elapsed_seconds: 2563.174393416848
+```
+
+All 18 annual replications match the retained complete reference exactly apart
+from solver/run timing measurements: requested schedules, applied controls,
+physical states (including appliance clocks), unrounded costs and savings. The
+regenerated summary, CSV, README table and workload configuration also match. No
+downloads, numerical comparison tolerance, hard-constraint relaxation or solver
+budget change was used. The retained reference is the second complete run
+(1,753.7478462501895 seconds); this isolated verification reports
+2,563.174393416848 seconds for historical loading and replay, before final output
+comparison/compression. The earlier timeout and failed reproduction remain
+recorded above.
+
+The study completes 26,280 strategy-days. Every Time-of-Day replication has
+365/365 eligible days; every Hourly replication has 194/365. The other 171 Hourly
+days preserve physical state but make no cost or savings claim. Headline and
+sensitivity results, including negative savings, remain unrounded in the retained
+outputs. README rows are copied from the generated table; annualized results are
+eligible-day mean × 365 extrapolations with missing-data bias disclosed.
+
+The reproduction command now checks for a retained reference before loading
+history, preserving prompt failure for a missing `--output/results.json.gz` while
+avoiding the reference's memory cost during timed solves. The timing/reproduction
+workaround earned [friction entry 14](./friction-log.md); it is documented timeout
+behavior, not a claimed upstream defect. Final local checks follow below.
+
+A second independent arithmetic/state audit of the current reference passed:
+26,280 strategy-days, 5,031 eligible
+replication-days, and 6,570 optimal-status
+solves. Maximum achieved gap is 0.0009989678086036007; maximum recorded solve time is
+3.8145930408500135 seconds. Maximum daily EV-energy error is
+8.145434549078345e-09 kWh; battery-energy error is
+8.881784197001252e-16 kWh. All comfort checks, 365 cycles per
+strategy, cumulative EV driving, equal terminal battery energy and cumulative
+battery losses passed; incomplete billing days contain null costs and savings.
+
+Final service-free regression run, including the new missing-reference check:
+
+```text
+HIRZ_DOGWOOD="$PWD/.tools/dogwood" .venv/bin/pytest --tb=short
+922 passed, 61 deselected in 84.54s
+Required test coverage of 80% reached. Total coverage: 91.96%
+```
+
+The 61 PostgreSQL regressions, all three scenario commands, canonical-hash wheel
+check and isolated demo/greedy performance gates recorded above remain applicable;
+no pipeline, database, device adapter or scenario runner changed in this follow-up.
+Ruff passed and mypy reported no issues in 91 source files. The final packaging
+and post-documentation format check are recorded below.
+
+Final packaging produced `dist/hirz-0.0.0.tar.gz` and
+`dist/hirz-0.0.0-py3-none-any.whl`; every planner source in the wheel matches the
+checkout. Final Ruff lint passed, mypy checked 91 source files without issues,
+and `ruff format --check .` reported **146 files already formatted**. The format
+check was repeated after this evidence append. Git's whitespace check passed
+with CSV CRLF endings recognized. The instruction bodies match apart from their
+pre-existing file-specific introductions, and the README table matches the
+retained generated table exactly. Item 17's required local gates are verified;
+item 15's physical plug checks and later-phase execution/persistence remain
+pending. No remote CI result is claimed in this follow-up.
