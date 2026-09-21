@@ -2307,3 +2307,180 @@ $ uv run ruff format --check .
 
 Exit 0; `git diff --check` also passed. Formatting is repeated after recording
 this output so it remains the last verification command before committing.
+
+## Item 17 — partial (2026-09-21)
+
+**Not complete: the year-long acceptance gate failed.** All requested profile,
+household and wear combinations were attempted, but fixed forecast-derived
+controls could not continue within hard constraints against realized weather.
+No constraints were relaxed, no physical states reset, and no savings were
+claimed for invalid comparisons. The retained outputs and generated six-row
+README table explicitly report coverage. Item 17 remains the current work item;
+no threat-model row or later execution item was advanced.
+
+### Implementation and experiment boundary
+
+`hirz/planner/` implements a sparse MILP, the canonical proposed Plan and matching
+Actions, timer/immediate/greedy schedules, strict pure-twin replay, comparison
+validity, incumbent validation, timeout fallback and newest-first infeasibility
+probes. The API is read-only, with no database/device mutation path. Consequential
+choices and rejected alternatives are in
+[ADR-005](./adr/ADR-005-deterministic-planner.md#read-only-planner-and-historical-experiment--2026-09-21).
+The installed solver is SciPy 1.18.0 (HiGHS), with five seconds and 0.001 relative
+gap. Workload settings and expanded physical parameters are retained in
+[`workload.json`](../scripts/backtest-data/workload.json).
+
+Public data were downloaded sequentially with explicit network authorization,
+then replayed offline. The archive contains **751 checksummed responses**: 375
+ComEd day-ahead daily responses, 375 five-minute daily responses, and one weather
+archive response. Coverage includes the eight-day lookback and ending dates.
+Parsed responses contain **8,987 observed billing-hour buckets, 8,661 complete
+12-quote hours**, and **9,000 weather samples**. Missing complete hours are not
+filled. Raw contents, source URLs, UTC retrieval timestamps and uncompressed
+SHA-256 hashes are in [`raw/manifest.json`](../scripts/backtest-data/raw/manifest.json).
+These are feed-based estimates and pinned-2026-tariff counterfactuals; production
+tariff validity checks are unchanged. Day-ahead values never enter planning.
+
+### Historical gate and independent reproduction
+
+```text
+.venv/bin/python scripts/backtest.py
+18 profile/household/wear runs; requested 365 daily boundaries per run
+Exit 1: incomplete coverage, stopped-run evidence retained
+Retained replay elapsed_seconds: 25.921181208919734
+
+.venv/bin/python scripts/backtest.py --verify
+{"offline_reproduction_matches": true}
+Exit 0: every retained non-timing result reproduced offline
+```
+
+The six primary comparison rows are generated in
+[`readme-table.md`](../scripts/backtest-data/readme-table.md); full nightly data,
+electricity and wear costs, losses, exports, selected forecast timestamps,
+near-zero counts, negative-price durations, worst timer day, quantiles and
+extrapolations are in [`results.json`](../scripts/backtest-data/results.json) and
+[`daily.csv`](../scripts/backtest-data/daily.csv). The three wear settings are
+$0, $0.01 and $0.02 per internal-throughput kWh. No historical figure uses live
+forecast weather.
+
+For both tariffs and all three wear settings, solar/battery MILP strategies stop
+on **2025-09-01** with `Battery discharge to grid prohibited` during realized
+replay. EV-only MILP strategies have **2/365 eligible days**, then stop on
+**2025-09-03** with `Terminal comfort band missed` and `Hard comfort band missed`.
+Other strategies continue independently until their own stopping condition;
+states and failure-day forecast inputs, schedules and replay evidence are retained.
+The zero-coverage solar/battery rows say unavailable. The EV-only results are
+published with their 2/365 coverage and explicit extrapolation/missing-data bias,
+not presented as annual performance. A feedback controller or robustness policy
+was not silently introduced to rescue the results; that requires further design
+and implementation before the year-long gate can pass.
+
+### User-facing commands and timing
+
+```text
+.venv/bin/python scripts/smoke_planner.py
+Exit 0: MILP proposal and greedy proposal both validated
+solve_seconds: 0.030419542221352458 (< 2 seconds)
+greedy_seconds: 0.02792016603052616 (< 50 ms; includes proposal construction)
+cold_seconds: 0.659368374850601 (includes imports and first proposal)
+```
+
+Measurements are retained in [`smoke-planner.json`](../scripts/backtest-data/smoke-planner.json).
+The separate `--live-weather` smoke used the existing RealEnergy forecast adapter:
+**25 samples, complete coverage**, labeled live smoke only and excluded from the
+study (`live-weather-smoke.json`). The live smoke was authorized after the network
+sandbox restriction; no device credential or state change was involved.
+
+All three scenario CLIs were rerun using native `.tools/dogwood`:
+
+```text
+hirz scenario run scenarios/demo-evening.yaml --headless --assert
+item17_planning_and_observations_passed: 16 observation checks, 2 planning snapshots, 22 explicit deferrals
+hirz scenario run scenarios/demo-evening-hourly.yaml --headless --assert
+item17_planning_and_observations_passed: 16 observation checks, 2 planning snapshots, 22 explicit deferrals
+hirz scenario run scenarios/parents-scam-check.yaml --headless --assert
+item16_observations_passed: 9 observation checks, 0 planning snapshots, 9 explicit deferrals
+```
+
+The two planning snapshots preserve Malik's linked account, with no future Dad
+kitchen constraint. Forecast comparisons pass; observation-world devices remain
+unchanged. Derived snapshot savings/peak expectations replace the three
+provisional planning-only deferrals. At 17:33/17:35 respectively, retained ToD
+savings are **$0.7579348122944097 / $0.7576057558520851**, and Hourly counterfactual
+forecast savings are **$1.3655137437287528 / $1.2592157160035298**. Peak avoidance is
+zero within the 0.000001 kWh validation tolerance (stored residuals are about
+−5e−14 kWh); the former provisional minimum 5 kWh claim was not earned.
+Reports: [`demo-evening.json`](../scripts/backtest-data/demo-evening.json),
+[`demo-evening-hourly.json`](../scripts/backtest-data/demo-evening-hourly.json),
+[`parents-scam-check.json`](../scripts/backtest-data/parents-scam-check.json).
+
+### Tests, packaging and failures reported faithfully
+
+Environment: CPython **3.12.13**, **macOS 15.7.3 arm64**, SciPy **1.18.0**, NumPy
+**2.5.3**. Normal tests perform no downloads or year-long replay. Small cases cover
+both profiles, all three household configurations, missing billing data with
+state carry, DST, partial slots, persistence cutoff/ambiguity, future realized
+weather/price independence, tiny hand-computed optima, conservation and export
+limits, failed comparisons, infeasibility, fallback/incumbent validation,
+canonical hashes, household isolation and linked-account provenance.
+
+```text
+.venv/bin/pytest -q --tb=short
+908 passed, 61 deselected in 80.58s
+Required test coverage of 80% reached. Total coverage: 91.78%
+
+.venv/bin/pytest -m integration --no-cov -q
+61 passed, 906 deselected in 40.39s
+
+.venv/bin/pytest tests/unit/test_planner.py tests/unit/test_scenario.py --no-cov -q --tb=short
+78 passed in 12.61s
+
+.venv/bin/ruff check .
+All checks passed!
+.venv/bin/mypy hirz/ scripts/ alembic/
+Success: no issues found in 90 source files
+
+git diff --check
+(no errors)
+
+uv build
+Successfully built dist/hirz-0.0.0.tar.gz
+Successfully built dist/hirz-0.0.0-py3-none-any.whl
+```
+
+The final focused run followed limiting the Hourly scenario's archive reads to
+its eight-day input window and regenerating all three scenario reports. The wheel
+was installed in a separate `/private/tmp/hirz-item17-wheel` environment for an
+out-of-repository forecast-plan and Action-hash smoke; its outcome is appended
+below. Final format verification is run after this evidence/documentation edit.
+
+Earlier attempts were not green: the sandbox suite reported two local-socket
+permission failures and was interrupted; a stale scenario redaction/count
+assertion failed after adding canonical provenance and removing provisional
+deferrals, and was corrected; the first PostgreSQL attempt had **61 setup errors**
+with `connection to server at "127.0.0.1", port 5432 failed: ... Connection refused`.
+Starting the existing Compose PostgreSQL service (no development migration/reset)
+allowed all disposable-database regressions to pass. A reproduction attempt
+initially compared in-memory tuples with JSON lists; normalizing sequence types
+fixed the verifier, and the next independent offline run matched exactly.
+Sandbox/tool friction is recorded as follow-up to existing entries in
+[`friction-log.md`](./friction-log.md). No new remote CI run was made.
+
+Final packaging/format follow-up (same run, 2026-09-21):
+
+```text
+/private/tmp/hirz-item17-wheel/bin/python  # cwd=/private/tmp; retained forecast input
+Installed wheel: validated forecast plan, canonical Action hashes, no database/device writes
+/private/tmp/hirz-item17-wheel/lib/python3.12/site-packages/hirz/planner/service.py
+
+.venv/bin/ruff check .
+All checks passed!
+.venv/bin/mypy hirz/ scripts/ alembic/
+Success: no issues found in 90 source files
+.venv/bin/ruff format --check .
+145 files already formatted
+```
+
+The final format check was run after the evidence, roadmap, changelog and
+synchronized instruction-file edits. The historical coverage failure remains;
+passing code checks and exact reproduction do not close item 17.

@@ -98,18 +98,29 @@ def run(path=EVENING, **kwargs):
 
 
 @pytest.mark.parametrize(
-    "path,events,checks,deferred", [(EVENING, 20, 16, 25), (PARENTS, 5, 9, 9)]
+    "path,events,checks,deferred", [(EVENING, 20, 16, 22), (PARENTS, 5, 9, 9)]
 )
 def test_full_scenarios_are_repeatable_and_honest(path, events, checks, deferred):
     first = run(path)
     assert first == run(path)
-    assert first["status"] == "item16_observations_passed"
+    assert first["status"] == (
+        "item17_planning_and_observations_passed"
+        if path == EVENING
+        else "item16_observations_passed"
+    )
     assert len(first["events"]) == events
     assert len(first["checks"]) == checks
     assert all(c["status"] == "passed" for c in first["checks"])
     assert len(first["deferred"]) == deferred
     assert all(
-        r["source"] == "twin" for s in first["snapshots"] for r in s["observations"]
+        r["source"]
+        == (
+            "real"
+            if path == EVENING and r["domain"] == "energy" and r["asset_id"] is None
+            else "twin"
+        )
+        for s in first["snapshots"]
+        for r in s["observations"]
     )
     assert all(
         e["status"] == "deferred"
@@ -121,11 +132,17 @@ def test_full_scenarios_are_repeatable_and_honest(path, events, checks, deferred
         "+1 312 555 0199",
         "five hundred dollars",
         "value_hash",
-        "claimed_author",
         '"audit_range"',
     ):
         assert private not in text
     if path == EVENING:
+        assert len(first["planning"]) == 2
+        assert all(p["status"] == "passed" for p in first["planning"])
+        assert all(
+            c["claimed_author"] is None
+            for p in first["planning"]
+            for c in p["result"]["plan"]["constraints"]
+        )
         activation = first["events"][2]
         assert activation["recorded"] and activation["authenticated"] is False
         assert (

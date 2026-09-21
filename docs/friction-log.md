@@ -225,3 +225,18 @@ Priority per Devpost: `Critical`, `Important`, `Nice-to-have`.
 | Proactive add-on invocation or a notifications API | A household agent cannot tell the member a scheduled action came due or an approval is waiting | Important |
 | Alexa+ simulator access for hackathon participants | Participants have no simulator access, so each builds an emulated host to test against. Hirz's host harness and an add-on conformance checker are published as a separate open-source project so the next developer does not start from zero | Important |
 | AgentCore Policy natural-language authoring exposed via API for third-party UIs | A household app could draft Cedar through the same path the console uses | Nice-to-have |
+
+Item 17 follow-up to entries 6 and 8 (2026-09-21): the pinned SciPy install and
+packaging command again encountered uv's existing cache sandbox restriction:
+`error: Failed to initialize cache at /Users/bashaarjavaid/.cache/uv`, caused by
+`failed to open file /Users/bashaarjavaid/.cache/uv/sdists-v9/.git: Operation not permitted (os error 1)`.
+Authorized escalation completed both operations. Public archive fetching first
+returned `httpx.ConnectError: [Errno 8] nodename nor servname provided, or not known`
+in the network sandbox; the authorized sequential download then succeeded.
+The initial full test run's local WebSocket fixtures returned
+`PermissionError: [Errno 1] error while attempting to bind on address ('127.0.0.1', 0): [errno 1] operation not permitted`;
+local-socket escalation resolved it. These reuse the existing sandbox workarounds,
+not new upstream defects. References: [uv CLI](https://docs.astral.sh/uv/reference/cli/),
+[HTTPX exceptions](https://www.python-httpx.org/exceptions/), and
+[asyncio servers](https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.loop.create_server).
+No new ComEd, Open-Meteo or SciPy API incompatibility was observed in this task.

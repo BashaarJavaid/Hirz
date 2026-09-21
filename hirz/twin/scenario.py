@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from hashlib import sha256
 from pathlib import Path
 from typing import Annotated, Any, Literal, Self, cast
-from uuid import UUID
+from uuid import UUID, uuid5
 from zoneinfo import ZoneInfo
 
 import yaml
@@ -169,13 +169,23 @@ class Assertions(Model):
     deferred: tuple[DeferredCheck, ...]
 
 
+class PlanningSnapshot(Model):
+    at: Text
+    member: Text
+    ev_target: float = Field(ge=0, le=0.8)
+    expected_savings: float | None = None
+    expected_peak: float | None = None
+
+
 class Scenario(Model):
     id: Text
     seed: StrictInt
     household: Text
     clock: Clock
-    rate_plan: Literal["twin"]
-    adapters: dict[AdapterDomain, Literal["twin"]] = Field(min_length=1)
+    rate_plan: Literal["twin", "comed_time_of_day", "comed_hourly"]
+    adapters: dict[AdapterDomain, Literal["twin", "real"]] = Field(min_length=1)
+    planning: tuple[PlanningSnapshot, ...] = ()
+    schedule_date_shift_days: int = 0
     initial: dict[str, Any]
     timeline: tuple[Event, ...]
     assertions: Assertions = Field(alias="assert")
@@ -200,6 +210,13 @@ class LoadedScenario:
     def __init__(self, path: Path):
         raw = path.read_bytes()
         self.spec = spec = Scenario.model_validate(yaml.load(raw, Loader=UniqueLoader))
+        if any(
+            adapter != "twin" and domain != "energy"
+            for domain, adapter in spec.adapters.items()
+        ):
+            raise ValueError("Only energy can use a real scenario adapter")
+        if (spec.rate_plan != "twin") != (spec.adapters.get("energy") == "real"):
+            raise ValueError("Real rate plan requires energy: real")
         seed_path = path.parent / spec.household
         seed = read_seed(seed_path)
         self.hashes = {
@@ -219,6 +236,10 @@ class LoadedScenario:
             str(cast(MemberAccount, row).member_id) for row in rows["member_accounts"]
         }
         self.timezone = household.timezone
+        for planning in spec.planning:
+            if str(self.ref("members", planning.member)) not in self.accounts:
+                raise ValueError("Planning requires a linked account")
+            self.time(planning.at)
         self.times = tuple(self.time(event.at) for event in spec.timeline)
         if list(self.times) != sorted(self.times):
             raise ValueError("Scenario timeline must be nondecreasing.")
@@ -338,7 +359,20 @@ class LoadedScenario:
                 ChannelSummary.model_validate(c.model_dump(exclude={"value_hash"}))
                 for c in rows["contact_channels"]
             ),
-            calendar=tuple(cast(ScheduleEvent, s) for s in rows["schedule_events"]),
+            calendar=tuple(
+                changed(
+                    cast(ScheduleEvent, s),
+                    starts_at=cast(ScheduleEvent, s).starts_at
+                    + timedelta(days=spec.schedule_date_shift_days),
+                    ends_at=cast(ScheduleEvent, s).ends_at
+                    + timedelta(days=spec.schedule_date_shift_days),
+                    expected_at=None
+                    if cast(ScheduleEvent, s).expected_at is None
+                    else cast(datetime, cast(ScheduleEvent, s).expected_at)
+                    + timedelta(days=spec.schedule_date_shift_days),
+                )
+                for s in rows["schedule_events"]
+            ),
             config=config,
             clock=SimClock(spec.clock.start, 0),
         )
@@ -456,8 +490,40 @@ class LoadedScenario:
             wearable = cast(TwinWearable, reg.resolve("wearable"))
             for member in world.members:
                 readings.append(await wearable.get_recovery(member))
+        if self.spec.adapters.get("energy") == "real":
+            from hirz.adapters.energy.real.tariff import load_tariff, period
+
+            tariff = load_tariff(Path("tariffs/comed-time-of-day.yaml"))
+            at = world.clock.now()
+            if self.spec.rate_plan == "comed_time_of_day":
+                tariff.row(at, "supply")
+                tariff.row(at, "distribution")
+            readings = [
+                r
+                for r in readings
+                if r.asset_id is not None
+                or r.member_id is not None
+                or r.domain != "energy"
+            ]
+            readings.append(
+                Observation(
+                    id=uuid5(world.household.id, "published-tariff"),
+                    household_id=world.household.id,
+                    domain="energy",
+                    observed_at=at,
+                    source="real",
+                    state=ObservationState(
+                        price_band=period(at)
+                        if self.spec.rate_plan == "comed_time_of_day"
+                        else "hourly",
+                        available=True,
+                    ),
+                )
+            )
         return tuple(
-            reg.stamp(
+            row
+            if row.source == "real"
+            else reg.stamp(
                 cast(AdapterDomain, row.domain), "twin", row, at=world.clock.now()
             )
             for row in readings
@@ -508,7 +574,12 @@ class LoadedScenario:
                 ),
                 None,
             )
-            if row is None or row.source != "twin":
+            if row is None or row.source != (
+                "real"
+                if check.subject == "household"
+                and self.spec.adapters.get("energy") == "real"
+                else "twin"
+            ):
                 return False
             actual = row.state.model_dump(mode="json")
             if expected.get("zone_id") is not None:
@@ -628,11 +699,12 @@ async def run_scenario(
         "end": stop.isoformat(),
         "events": [],
         "snapshots": [],
+        "planning": [],
         "checks": [],
         "deferred": [check.model_dump() for check in spec.assertions.deferred],
         "limitations": [
             "No tool execution, device actions, authentication or audit.",
-            "No persistence; prices and weather are synthetic.",
+            "No persistence; devices are simulated; weather is supplied; rate provenance is explicit.",
         ],
     }
     proposals: set[UUID] = set()
@@ -642,6 +714,7 @@ async def run_scenario(
             stop,
             *[t for t in loaded.times if t <= stop],
             *[t for t in loaded.check_times if t <= stop],
+            *[loaded.time(p.at) for p in spec.planning if loaded.time(p.at) <= stop],
         }
     )
     await loaded.registry.start()
@@ -679,6 +752,12 @@ async def run_scenario(
                             progress(
                                 f"{at.isoformat()} {event_result['event']}: {event_result['status']}"
                             )
+            if spec.planning and (to is None or at < stop):
+                from hirz.planner.scenario import snapshot
+
+                for planning in spec.planning:
+                    if loaded.time(planning.at) == at:
+                        report["planning"].append(snapshot(loaded, planning))
             readings = await loaded.observations()
             report["snapshots"].append(
                 {
@@ -717,9 +796,14 @@ async def run_scenario(
         )
         report["status"] = (
             "failed"
-            if any(c["status"] == "failed" for c in report["checks"])
+            if any(
+                c["status"] == "failed"
+                for c in [*report["checks"], *report["planning"]]
+            )
             else "stopped"
             if to is not None
+            else "item17_planning_and_observations_passed"
+            if assertions and spec.planning
             else "item16_observations_passed"
             if assertions
             else "completed_unchecked"

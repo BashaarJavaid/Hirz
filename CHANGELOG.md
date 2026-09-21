@@ -8,6 +8,8 @@ All notable changes are documented here. The format follows
 
 ### Changed
 
+- 2026-09-21: Add read-only MILP proposals, strict twin-replayed baseline comparisons, archived historical replay and planning snapshots; publish partial coverage rather than unsupported annual claims ([item 17 evidence](./docs/verification-log.md#item-17--partial-2026-09-21), [ADR-005 amendment](./docs/adr/ADR-005-deterministic-planner.md#read-only-planner-and-historical-experiment--2026-09-21)).
+
 - 2026-09-21: Record [terminal HA dispatch attempts and fresh-action retries](./docs/adr/ADR-006-twin-first-adapters.md#terminal-ha-dispatch-attempts--2026-09-21-author-approved) and the Phase 2 review's [Phase 3 carry-overs and ordered-plug follow-up](./ROADMAP.md).
 
 ### Fixed

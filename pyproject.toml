@@ -18,6 +18,7 @@ dependencies = [
     "uvicorn==0.53.0",
     "rfc8785==0.1.4",
     "websockets==17.1",
+    "scipy==1.18.0",
 ]
 
 [project.scripts]

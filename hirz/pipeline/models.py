@@ -3,7 +3,7 @@
 from datetime import date, datetime
 from decimal import Decimal
 from enum import StrEnum
-from typing import Literal
+from typing import Literal, Self
 from uuid import UUID
 
 from pydantic import (
@@ -14,6 +14,7 @@ from pydantic import (
     JsonValue,
     StrictBool,
     field_validator,
+    model_validator,
 )
 
 from hirz.risk import CLASSES, RiskBand
@@ -224,3 +225,95 @@ class AuditEvent(Model):
     key_fingerprint: str = Field(pattern=r"^[0-9a-f]{64}$")
     signature: bytes = Field(min_length=1)
     created_at: AwareDatetime
+
+
+class PlanHorizon(Model):
+    start: AwareDatetime
+    end: AwareDatetime
+    slot_minutes: Literal[15] = 15
+
+    @model_validator(mode="after")
+    def ordered(self) -> Self:
+        if self.end.timestamp() <= self.start.timestamp():
+            raise ValueError("Plan horizon must be positive")
+        return self
+
+
+class PlanConstraint(Model):
+    source: str
+    surface: Literal["alexa", "app", "scheduler"] | None = None
+    claimed_author: str | None = None
+    recorded_at: AwareDatetime
+    text: str
+    encoded: dict[str, JsonValue]
+
+
+class ComparisonValidity(Model):
+    valid: bool
+    reasons: tuple[str, ...] = ()
+
+
+class PlanAlternative(Model):
+    model_config = ConfigDict(allow_inf_nan=False)
+
+    label: Literal["timer", "immediate", "greedy"]
+    cost_delta_usd: float | None
+    why_rejected: str
+    validity: ComparisonValidity
+
+    @model_validator(mode="after")
+    def honest_delta(self) -> Self:
+        if not self.validity.valid and self.cost_delta_usd is not None:
+            raise ValueError("Invalid comparison cannot claim savings")
+        return self
+
+
+class PlanSummary(Model):
+    model_config = ConfigDict(allow_inf_nan=False)
+
+    estimated_savings_usd: float | None
+    peak_kwh_avoided: float | None
+    grid_kwh: float
+    solar_kwh: float
+    exported_kwh: float
+    electricity_usd: float
+    wear_usd: float
+    comfort_violations_minutes: float
+
+
+class Plan(Model):
+    """A proposal is data, never a Pipeline grant or approval."""
+
+    plan_id: str
+    household_id: UUID
+    version: int = Field(ge=1)
+    supersedes: str | None = None
+    horizon: PlanHorizon
+    goals: tuple[str, ...]
+    constraints: tuple[PlanConstraint, ...]
+    actions: tuple[str, ...]
+    summary: PlanSummary
+    alternatives: tuple[PlanAlternative, ...]
+    explain: Explanation
+    speakable: dict[str, JsonValue]
+    status: Literal[
+        "proposed",
+        "refreshing",
+        "approved",
+        "active",
+        "superseded",
+        "completed",
+        "abandoned",
+    ] = "proposed"
+    method: Literal["milp", "timeout_incumbent", "greedy"]
+    optimality_gap: float | None = Field(default=None, ge=0)
+    comparison_validity: ComparisonValidity
+
+    @model_validator(mode="after")
+    def honest_summary(self) -> Self:
+        if not self.comparison_validity.valid and (
+            self.summary.estimated_savings_usd is not None
+            or self.summary.peak_kwh_avoided is not None
+        ):
+            raise ValueError("Invalid comparison cannot claim savings or avoided peak")
+        return self

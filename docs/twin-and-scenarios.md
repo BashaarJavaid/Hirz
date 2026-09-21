@@ -475,3 +475,31 @@ Every observation carries `source`, one of three values. `real`: a live feed or 
 Cards show two visual states so a judge or a household can read them at a glance (`docs/design.md`): **live** (`real`) and **simulated** (`twin` and `real API, demo devices`, the more conservative reading). The full three-way source stays on every observation in the data, in the companion app's detail view, in the audit trail, and in the MCP `get_household_context` output (`data.sources`). The demo video shows the badges; honesty here is a scoring asset, not a liability.
 
 **Public demo households are simulated only.** A household created by the hosted demo's "Start demo" button (`ARCHITECTURE.md` §5.14) can bind only `twin` adapters; the registry refuses any real binding for it, and a test asserts that.
+
+### Item 17 read-only planning snapshots (2026-09-21)
+
+`planning` is an optional array of `{at, member, ev_target, expected_savings,
+expected_peak}`. Each snapshot uses the current simulated physical state, the
+linked member account, explicit supplied weather, and a horizon ending at the
+next Chicago 17:30. The two demo snapshots are 17:33 (80%) and 17:35 (50%), due
+08:00. The 22:40 kitchen request is absent from both inputs. These are hypothetical
+proposals; the observation world's EV remains uncharged and tool execution,
+approvals, audit rows and device actions remain deferred. The report has a
+separate `planning` section with canonical proposals, actions, solver status,
+comparison validity and assertions. Wall-clock timings are omitted here to keep
+scenario reports deterministic; the planner smoke records them.
+
+`energy: real` is allowed only for the rate input; physical assets still use twin
+bindings and supplied weather remains simulated. The Time-of-Day scenario checks
+production tariff validity and labels prices `real (published ComEd rate)`.
+`demo-evening-hourly.yaml` uses the 2025-10-13–14 counterpart and a pinned-2026-tariff
+counterfactual with the lagged persistence supply forecast. Its explicit
+`schedule_date_shift_days: -365` remaps seed schedule events. Both start the living
+room at 70°F, and planning weather extends to the next 17:30 from the same retained
+48-hour fixture. Successful planning/observation reports use
+`item17_planning_and_observations_passed`; the parents scenario retains its item 16
+observation status. This status does not assert that the year-long study passed.
+
+The snapshot's expected savings and peak values are derived from retained
+`../scripts/backtest-data/demo-evening*.json` reports. They replace the provisional
+planning-only assertions; full execution expectations still belong to item 22.

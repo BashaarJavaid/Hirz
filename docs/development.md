@@ -656,3 +656,47 @@ never connect to PostgreSQL. For a wheel smoke, install the wheel into a tempora
 venv, leave the checkout, and pass an absolute path to a scenario file (its relative
 household/patch references still resolve from that file). Scenario fixtures are
 repository inputs, not bundled runtime assets.
+
+## Item 17 planner and backtest
+
+The planner is a read-only Python API: `hirz.planner.service.plan(PlannerInput)`.
+Its proposed Actions confer no execution authority. Run from the repository root:
+
+```sh
+uv sync --locked
+uv run python scripts/smoke_planner.py
+uv run python scripts/smoke_planner.py --live-weather
+uv run python scripts/backtest.py
+uv run python scripts/backtest.py --verify
+```
+
+The smoke separates SciPy import/cold timing, solve timing, and greedy proposal
+timing. `--live-weather` reads the existing Open-Meteo adapter and is explicitly
+excluded from historical figures. Smoke exits nonzero if a plan or either latency
+gate fails. The study replays retained inputs offline by default. `--fetch` is the
+explicit public-network operation: archive day-ahead and five-minute responses
+sequentially, including lookback and ending coverage, and fetch archived weather.
+It resumes existing checksummed downloads without refreshing them. A network
+failure leaves completed responses and their manifest intact. `--start` and
+`--end` accept ISO dates; `--output` selects a generated-artifact directory.
+
+`results.json` retains per-strategy failures, selected forecast timestamps,
+physical state, comparison exclusions, eligible-day metrics and wear sensitivity.
+`daily.csv`, `readme-table.md` and `workload.json` are derived artifacts. Study
+exit 1 means required coverage is incomplete; inspect `stopped` and eligible/total
+days before interpreting any figures. `--verify` makes no downloads and compares
+a fresh replay to retained results, excluding elapsed-time measurements; exit 0
+means reproduction, **not** that the experiment's acceptance gate passed.
+
+```sh
+uv run hirz scenario run scenarios/demo-evening.yaml --headless --assert
+uv run hirz scenario run scenarios/demo-evening-hourly.yaml --headless --assert
+uv run hirz scenario run scenarios/parents-scam-check.yaml --headless --assert
+```
+
+Planning snapshots are separate from the observation world and do not charge the
+scenario car or change its thermostat. The two planning scenarios supply their
+weather and retain tool, approval, audit and execution deferrals. The Hourly
+counterpart remaps the seed's schedule dates by -365 days and labels its tariff
+counterfactual. See [verification](./verification-log.md#item-17--partial-2026-09-21)
+for measured coverage, the raw archive inventory, and the failed year-long gate.
