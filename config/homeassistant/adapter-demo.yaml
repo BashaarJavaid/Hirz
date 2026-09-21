@@ -1,0 +1,9 @@
+# Non-secret, local demo mapping. asset_bindings must explicitly match these entities.
+url: http://127.0.0.1:8123
+entities:
+  climate.heatpump:
+    source: real API, demo devices
+  climate.ecobee:
+    source: real API, demo devices
+  light.bed_light:
+    source: real API, demo devices

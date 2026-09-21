@@ -142,7 +142,8 @@ An approvable `ASK` produces an `Approval` with a TTL and a quorum rule (§5.5);
 a native Dogwood instance, an existing P-256 signing key through `AuditWriter`,
 and an injected clock. `PolicyBundle.validate` validates and compiles before use;
 stored seed policies remain **unvalidated**, with their existing hashes. There is
-no activation, public authentication, MCP mutation surface, adapter or AWS path here.
+no activation, public authentication, MCP mutation surface or AWS path here; item 15 adds
+the narrow local HA claim/outcome methods specified in §5.11.
 
 - `evaluate(action, principal, cost=..., evidence=...)` reads current state and
   returns a Decision without writing actions, approvals, grants or audit rows.
@@ -157,7 +158,8 @@ no activation, public authentication, MCP mutation surface, adapter or AWS path 
   atomically commits the grant. An automatic action needs no approval ID. Only the
   audit row referenced by `actions.grant_seq` is a **committed execution grant**.
   One household/action ID can receive one grant; intentional repetition needs a
-  new ID. No device is operated. Physical execution is item 19.
+  new ID. Redemption itself operates no device; local HA execution is item 15 and the
+  general executor remains item 19.
 
 Trusted `Principal` is an internal input, not a public request body. Caller-supplied
 Action authority is ignored. Each role in the linked/claimed intersection must
@@ -170,14 +172,16 @@ Facts come from a fresh complete graph read under the existing graph transaction
 lock; stale fallback is disabled. Devices resolve to exactly one household binding;
 zone UUIDs must name household HVAC zones. Aggregate optimize/comfort actions use
 all assets; member and contact operations use their respective household entities.
-Whole latest observations are selected without backfilling missing fields; conflicting
-simultaneous observations fail closed. Occupancy completeness is required to conclude
-absence or no sleeping occupants. Only an unambiguous linked requester's temperature
-preference is a baseline. Scoped, timestamped, source-labeled supplemental evidence
-supplies absent facts and cannot contradict graph facts.
-[Roadmap item 12](./ROADMAP.md) will define graph homes so `extract()` derives real-household facts (one presence observation per member → occupancy completeness/guests, dropping the completeness flag; doorbell `last_press_at` against `schedule_events` → unexpected visitor; doorbell `available` → online; `Asset.room_kind` → bedroom; tariff adapter household-subject observation → price band; deterministic Protect `scam_pattern` remains caller input), with `hirz decide --evidence` translating evidence into those in-memory observations.
-Ages and source labels for
-used observations are retained in the hashed context; governance needs no observations.
+Whole latest observations are selected per subject and adapter domain without
+backfilling missing fields; conflicting simultaneous observations fail closed.
+Item 12's graph homes and derivation rules are specified in §5.11. Legacy untagged
+observations remain readable but cannot supply decision facts. Occupancy completeness
+comes from explicit member presence readings, never a caller flag. Only an
+unambiguous linked requester's temperature preference is a baseline. The only
+supplemental caller fact is scoped, timestamped, source-labeled deterministic Protect
+`scam_pattern`; graph previews are accepted only by `evaluate(..., preview=...)`.
+Used observation ages, sources, domain tags, target room metadata and arrival windows
+remain in the hashed context. No adapter polling or ingestion occurs in a decision call.
 
 Approval TTL begins at ASK creation and repeated calls/votes never extend it.
 Bindings include the action hash, immutable requester/cost, full policy and compiled
@@ -187,6 +191,20 @@ request and asks afresh; cleared/less restrictive gates can use the original req
 Unresolved facts cannot be approved. Expiry is `now >= expires_at`, checked again after
 the boundary call. Native events retain vote-before-action order even within one
 second. Boundary failure leaves the approval retryable within its original TTL.
+
+For `security.door_unlock`, an ASK using a press within 60 seconds stores
+`doorbell: {asset_id, last_press_at, expected}` in `approvals.binding`, without an
+image or visitor hint. Voting and redemption derive `context.unexpected_visitor`
+from this bound press; occupancy, sleeping, doorbell availability, observation ages
+and the action hash remain live checks. A newer `last_press_at` returns
+`DENY_APPROVAL_MISMATCH` with reason "a newer doorbell press", without approving the
+new press; approval expiry still wins. The bound press is included in
+`Facts.policy.values` alongside the derived Boolean: `boundary_check()` hashes
+these values into the audit Decision's `boundary.context_hash`, and
+`boundary_input()` projects the same Boolean to Dogwood. This uses the existing
+fact-hash path without changing the graph snapshot schema or hash algorithm.
+Autonomous evaluation and read-only previews retain the 60-second window;
+approvals without a doorbell binding retain their previous behavior.
 
 Daily dollar usage is the sum of reservation evidence on committed grant audit rows,
 per household/class and local calendar date. Missing estimates deny budgeted actions.
@@ -227,8 +245,12 @@ class, adapter, entity and JSON parameters, with an optional zone UUID. The pipe
 resolves the account's stored role; unresolved accounts remain unknown. This is
 hypothetical identity, not authentication. An explicit confirmation flag supplies
 only hypothetical requester confirmation, never a passkey or approval. Optional
-typed supplemental evidence must be labeled `twin` and retains existing scope,
-time and conflict checks. There is no graph, budget, role or policy override input.
+`--evidence` is a strict object containing `observations`, `asset_rooms` and
+`scam_pattern` (§5.11). Observations require explicit IDs/domains and `source: twin`.
+The overlay only fills missing data in a copied fresh snapshot: identical canonical
+readings are no-ops, differing readings conflict, and observation fields are never
+merged. Room metadata fills null values only. New membership, schedules, assets,
+bindings, budgets, roles and policies cannot be supplied. The input never persists.
 
 The canonical Action receives a generated ID, recomputed hash and fixed preview
 reason; plan, schedule and expected effect remain null. Optional cost is an exact
@@ -292,7 +314,7 @@ immutable; exact money is serialized as strings.
 }
 ```
 
-`decision` ∈ `execute | ask | deny | verify`. `event_type` is one canonical enum: `EXECUTE`, `ASK_CONSTITUTION`, `ASK_RISK`, `ASK_BUDGET`, `ASK_UNRESOLVED_CONDITION`, `ASK_REQUESTER_CONFIRMATION`, `DENY_CONSTITUTION`, `DENY_RISK`, `DENY_BUDGET`, `DENY_BOUNDARY`, `DENY_APPROVAL_MISMATCH`, `DENY_APPROVAL_EXPIRED`, `DENY_APPROVAL_USED`, `DENY_APPROVAL_UNAUTHORIZED`, `VERIFY`, `APPROVED`, `REJECTED`, `EXPIRED`, `EXECUTED`, `VERIFIED`, `VERIFY_FAILED`, `ROLLED_BACK`, `PLAN_CREATED`, `PLAN_REVISED`, `CONSTITUTION_PROPOSED`, `CONSTITUTION_ACTIVATED`, `POLICY_ERROR`, `ADAPTER_ERROR`, `LINK_REJECTED`, `OUT_OF_BAND_CHANGE`, `AUTONOMY_PAUSED`, `AUTONOMY_RESUMED`, `AUDIT_ANCHORED`, `MEMORY_PROPOSED`, `MEMORY_ACCEPTED`. `boundary.engine` ∈ `agentcore-policy | dogwood-local`.
+`decision` ∈ `execute | ask | deny | verify`. `event_type` is one canonical enum: `EXECUTE`, `ASK_CONSTITUTION`, `ASK_RISK`, `ASK_BUDGET`, `ASK_UNRESOLVED_CONDITION`, `ASK_REQUESTER_CONFIRMATION`, `DENY_CONSTITUTION`, `DENY_RISK`, `DENY_BUDGET`, `DENY_BOUNDARY`, `DENY_APPROVAL_MISMATCH`, `DENY_APPROVAL_EXPIRED`, `DENY_APPROVAL_USED`, `DENY_APPROVAL_UNAUTHORIZED`, `VERIFY`, `APPROVED`, `REJECTED`, `EXPIRED`, `EXECUTION_ATTEMPTED`, `EXECUTED`, `VERIFIED`, `VERIFY_FAILED`, `ROLLED_BACK`, `PLAN_CREATED`, `PLAN_REVISED`, `CONSTITUTION_PROPOSED`, `CONSTITUTION_ACTIVATED`, `POLICY_ERROR`, `ADAPTER_ERROR`, `LINK_REJECTED`, `OUT_OF_BAND_CHANGE`, `AUTONOMY_PAUSED`, `AUTONOMY_RESUMED`, `AUDIT_ANCHORED`, `MEMORY_PROPOSED`, `MEMORY_ACCEPTED`. `boundary.engine` ∈ `agentcore-policy | dogwood-local`.
 
 `risk` is null for pre-scoring denials; `audit_id` is null for read-only evaluation.
 Optional `budget` records local date, class, used/proposed/cap/reserved exact amounts.
@@ -370,11 +392,11 @@ The typed model everything reasons over. Stored in Postgres as tables plus JSONB
 | `Household` | name, timezone, locale, address (for weather/prices), constitution_version |
 | `Member` | display name, role (`owner`, `adult`, `teen`, `child`, `guest`, `caregiver`), linked accounts (Amazon `sub`, Hirz login), presence source, preferences (temperature band, lighting, quiet hours, accessibility), verification methods, `is_trusted_contact` |
 | `TrustedContact` | may or may not be a member; verified channels (phone, email, Hirz app), safe word hash, relationship, last verified |
-| `Asset` | kind (`ev`, `home_battery`, `solar`, `appliance`, `hvac_zone`, `lock`, `camera`, `light`, `doorbell`, `shade`), owner, adapter binding, capabilities, physical parameters (battery kWh, charger kW, zone thermal params), policies (`ev.soc_min`, `needed_by`) |
+| `Asset` | kind (`ev`, `home_battery`, `solar`, `appliance`, `hvac_zone`, `lock`, `camera`, `light`, `doorbell`, `shade`), owner, adapter binding, optional `room_kind` (`bedroom`/`other`), capabilities, physical parameters (battery kWh, charger kW, zone thermal params), policies (`ev.soc_min`, `needed_by`) |
 | `Schedule` | calendar events, expected arrivals/departures, routines (weekday morning, recovery morning), quiet hours |
 | `Preference` | typed key/value with owner member, scope (household or member), source (`declared`, `learned_accepted`), confidence |
 | `Policy` | pointer to the active constitution version plus per-member overrides |
-| `Observation` | live state snapshot from adapters with `observed_at`, `source` (`real`/`twin`), `staleness_seconds` |
+| `Observation` | state snapshot with adapter `domain`, `observed_at`, three-way `source` (§5.11), `staleness_seconds`; legacy domain=null is read-only and excluded from decision facts |
 
 **Versioning.** Current rows keep stable identity keys; prior versions live in matching history tables with UTC half-open `valid_from`/`valid_to` intervals. This reconstructs what was recorded at a past instant, not retroactive effective time. Updates require the expected `valid_from`; changed same-instant versions and backdated household writes are refused. No-op writes preserve their version. New facts start when recorded; existing scaffold rows start history at migration time. Deletion and retroactive corrections are deferred. Constitution versions are separate (§5.2).
 
@@ -631,13 +653,17 @@ all database tampering. Trust and format choices: [ADR-002](./docs/adr/ADR-002-p
 
 ### 5.11 Adapters
 
-Ports-and-adapters. One Python package per domain; each declares a `Protocol` and ships at least two implementations: `real/` and `twin/`. The registry (`hirz/adapters/registry.py`) instantiates one implementation per domain from `HIRZ_ADAPTERS` configuration and stamps every observation with `source: real | twin` so the UI can label it.
+One Python package per domain declares an async `Protocol`. Item 12 implements the
+contracts and household-bound registry; production implementations remain items 13–15
+and later adapter items. The table below describes the intended implementations,
+not a claim that they exist. No empty implementation packages or vendor dependencies
+are installed by item 12.
 
 | Domain | Interface (abridged) | Real | Twin |
 |---|---|---|---|
 | `devices` | `list_entities`, `get_state`, `set_climate`, `set_light`, `set_cover`, `subscribe` | Home Assistant WebSocket + REST (long-lived token). In AWS mode the token stays in the house: Hirz Link holds it, streams state up, and executes only signed commands (§5.17); locally the adapter talks to Home Assistant directly on the Compose network. HA's demo integration provides simulated climate, lights, covers, sensors with real HA semantics (labeled `real API, demo devices`); one physical energy-monitoring smart plug on a local HA integration is bound to `light.living_room` and labeled `real`, with its power reading as a real observation | Thermal zones, lights, locks, cameras from the twin models |
 | `ev` | `get_charge_state`, `set_charge_limit`, `start_charge`, `stop_charge`, `set_schedule` | Smartcar (sandbox simulated vehicles behind the production API) or Tesla Fleet API; evcc REST for local chargers | Battery model with charger curve |
-| `energy` | `get_prices(day_ahead, realtime)` (all-in, per the household's rate plan), `get_weather`, `get_battery`, `dispatch_battery`, `get_solar` | ComEd Time-of-Day published rate table (`tariffs/comed-time-of-day.yaml`, labeled `real (published ComEd rate)`), ComEd Hourly Pricing API (no auth, serves history), Open-Meteo (no auth); real battery/solar via HA entities | Tariff generator (TOU + spikes), battery and PV models |
+| `energy` | `get_prices(start, end, kind)` (all-in, per the household's rate plan), `get_weather`, `get_battery`, `dispatch_battery`, `get_solar` | ComEd Time-of-Day published rate table (`tariffs/comed-time-of-day.yaml`, labeled `real (published ComEd rate)`), ComEd Hourly Pricing API (no auth, serves history), Open-Meteo (no auth); real battery/solar via HA entities | Tariff generator (TOU + spikes), battery and PV models |
 | `wearable` | `get_recovery(member)` | Oura API v2 (OAuth), Whoop API (OAuth), Bee CLI/MCP | Recovery series generator |
 | `calendar` | `list_events(range)`, `expected_arrivals` | Google Calendar (OAuth) or ICS URL | Scenario timeline |
 | `contacts` | `verified_channels`, `send_checkin`, `callback` | Hirz-native (companion app push, email); telephony provider later | Simulated confirmations from the scenario |
@@ -647,11 +673,161 @@ Ports-and-adapters. One Python package per domain; each declares a `Protocol` an
 
 **Credentials.** Real adapters read secrets from AgentCore Identity's credential vault in AWS and from `.env` locally. No adapter credential is ever in the constitution, the graph, or an audit payload. **Who may fetch what is IAM, not convention:** write-capable credentials (Smartcar control scopes, any credential that can change the world) sit under providers only the `hirz-actions` Lambda's role can read; the worker's role is explicitly denied them and gets read-only credentials for polling. The Home Assistant token is in neither place: it never leaves the house (§5.17).
 
-**Capability discovery.** Each adapter reports capabilities at startup (`can_set_charge_limit`, `has_export_price`). The planner and the tool catalog adapt: a tool whose backing capability is absent returns a graceful "not available in this home" rather than an error.
+**Capability discovery.** Each adapter reports a frozen set of capabilities at startup (method names such as `set_charge_limit`, plus `has_export_price`). The planner and the tool catalog adapt: a tool whose backing capability is absent returns a graceful "not available in this home" rather than an error.
+
+**Item 12 contract.** Each instance belongs to one household, with async `start()`
+and `close()`. The registry uses a plain `(domain, implementation)` factory map,
+initializes each selected pair once, and closes initialized adapters on boot failure.
+`HIRZ_ADAPTERS` is a comma-separated `domain:implementation` list; omitted domains
+are unavailable. Malformed entries, duplicates and unregistered selections fail.
+Asset bindings override domain defaults. EV maps to `ev`, battery/solar to `energy`,
+doorbell to `doorbell`, and the other asset kinds to `devices`. There is no automatic
+fallback in item 12. Capability/adapter absence raises `AdapterUnavailable`; malformed
+contracts raise `AdapterError`, without private payloads.
+
+The protocols use entity strings and member/contact UUIDs. State, battery, solar,
+recovery and presence reads return canonical `Observation` objects; presence includes
+explicit absent readings. `subscribe()` returns an async iterator. Calendar reads
+return `ScheduleEvent` tuples, and contact reads return redacted `ChannelSummary`
+tuples. Doorbell events accept raw bytes and headers and return observation tuples;
+its snapshot returns bytes or null, and live-view returns a URL or null. Ring
+transport/authentication is still later work. Device discovery returns entity strings.
+
+Price reads take an aware half-open range and `day_ahead | realtime`, using the
+household rate plan. `PriceSlot` contains start/end, Decimal import cents/kWh and
+optional export cents/kWh; negative prices are valid. Weather reads use the household
+location and retain timestamped `WeatherSample` values with temperature °F and cloud
+cover percent. All documented write methods accept canonical `Action, Decision` and
+return `None`; item 15 implements the narrow local HA write path described below.
+
+**Item 15 local HA contract.** `devices:ha` uses a validated non-secret origin URL,
+explicit climate/light/switch bindings, optional power sensors and per-entity trusted
+`real | real API, demo devices` labels. Only its private `.env` supplies `HA_TOKEN`.
+Discovery cannot widen the allowlist. Reads emit canonical observations without graph
+ingestion; preserve HA `last_updated`, convert W to kW and use the older timestamp
+when combining readings. Missing power yields null without erasing known on/off.
+Temperature units come from `/api/config`; absent single targets remain null. Invalid,
+nonfinite, unit-incompatible or incorrectly scoped data fails closed.
+
+A lazy WebSocket subscription authenticates and awaits the `state_changed` subscription
+acknowledgment before receiving observations. Only bound control/power events trigger
+rereads. There is one active subscription; disconnect closes and raises. REST requests,
+connection and authentication each have ten-second deadlines. There is no reconnect,
+subscription fallback or automatic service retry.
+
+`Registry.get_state(asset_id)` uses the primary binding. Only constructor options
+`scenario_mode=True` plus explicit same-household/asset `fallback_bindings` allow a
+registered twin on unavailable/missing primary state or transport failure. Fallback
+provenance is checked separately; ordinary stamping still rejects unselected adapters.
+Authentication, malformed data and provenance errors never fall back. `resolve()` and
+writes retain their primary routing. Ordinary outages report `unavailable; actual state
+unknown`. Fallback readings never verify HA writes.
+
+With an injected household Pipeline, `set_light(Action, Decision)` accepts only
+`{on: boolean}` and `set_climate` only `{target_f: finite number}`. Climate writes require
+a single-target heat/cool mode and supported bounds/step; Celsius is converted without
+rounding the requested target. Supplied expected effects must match the request.
+Cover/security, mode/brightness/toggle changes and extra parameters are unavailable.
+Without the Pipeline, the adapter is read-only.
+
+`Pipeline.claim_execution` locks under the existing graph transaction convention,
+recomputes the hash, compares the full stored proposal and supplied Decision, verifies
+the signed committed grant, checks the household/binding and refuses scheduled actions,
+grants older than ten seconds and previous attempts. It appends `EXECUTION_ATTEMPTED`
+and atomically sets `actions.execution_attempt_seq`, committing before one REST service
+request. Database/audit/signing failure prevents dispatch. Crashes and uncertain responses
+never clear that claim; item 19's scheduler retries through the full pipeline with a fresh
+Action and a new id (see [ADR-006](./docs/adr/ADR-006-twin-first-adapters.md#terminal-ha-dispatch-attempts--2026-09-21-author-approved)). A service success appends `EXECUTED`; independent direct HA reads
+poll at one-second intervals for at most ten seconds, matching on/off exactly or raw
+climate targets within 0.000001 °F. Rounded graph facts and twins cannot verify execution.
+Append `VERIFIED` or `VERIFY_FAILED`; uncertain effects remain unknown. Raw HA payloads
+and credentials never enter outcome audit rows or diagnostics. Full scheduling/executor
+lifecycle and AWS/Link execution remain later work; this is local enforcement only.
+
+**Item 14 energy series contract.** Both energy implementations now return
+`PriceSeries` from `get_prices` and `WeatherSeries` from `get_weather`, replacing
+bare tuples. Shared fields are `requested_start`, `requested_end`, `gaps`, `source`,
+`source_label`, `source_urls`, nullable `tariff_version`, and nullable `retrieved_at`.
+`PriceSeries` additionally carries `rate_plan`, `kind`, `basis` and ordered `slots`;
+`WeatherSeries` carries ordered `samples`. Each gap has `start`, `end`, and `reason`.
+Slots and gaps partition the requested interval without overlap. Weather values hold
+until the next sample, gap or requested end; each covered segment starts with a
+sample. `complete` is derived, never caller-supplied. Bounds and coverage comparisons
+use UTC instants, including folded Chicago hours. The three existing source values
+are unchanged; static tariffs and twins have no network retrieval timestamp.
+
+`hirz.adapters.energy.real.factories(delivery_class=..., tariff_path=...)` registers
+`energy:real` in the existing factory map. Construction requires the selected class
+and file; `household.rate_plan` selects `comed_time_of_day` or `comed_hourly`.
+Capabilities are price reads and real-only `get_supply_history`, plus weather when
+coordinates exist and tariff state for Time-of-Day only. The latter returns a
+canonical household energy observation with `morning`, `mid_day_peak`, `evening` or
+`overnight`. Real battery/solar reads and writes are unavailable. Explicit twin
+asset bindings remain independent of the real domain default; no implicit fallback
+or household-class inference is performed.
+
+`get_prices` uses `basis=supply_plus_distribution`; `get_supply_history` returns the
+same contract with `basis=supply_only`, permitting older Hourly Pricing history
+without extending the pinned distribution schedule backward. The scheduling basis,
+exclusions, validity and source contracts live in
+[twin §2.6](./docs/twin-and-scenarios.md#26-tariff).
+Invalid input raises `AdapterError`; network/upstream-contract failures raise safe
+`AdapterUnavailable` messages without payloads. A failed daily request fails the
+whole read; valid incomplete responses produce gaps. No caching, retries, ingestion,
+worker polling, planner, execution or finalized hourly billing is built here.
+
+`Registry.stamp()` revalidates a whole observation against its selected binding,
+household, subject, time, domain and trusted per-subject source registration. Sources
+remain `real`, `real API, demo devices`, and `twin`; a twin cannot be relabeled.
+Missing provenance or a conflicting adapter stamp fails. Stamping does not persist
+anything. Observation ingestion, hosted-demo eligibility and verify-after-act retain
+their scheduled roadmap work.
+
+**Fact locations and derivation.** New graph writes require a domain. Domain,
+`Asset.room_kind`, and the new state fields use existing JSONB attributes. Migration
+`0004_observation_domains` changes the three current-observation unique indexes to
+include `COALESCE(domain, '')`, without rewriting current/history data. Subject and
+domain are immutable for an observation ID. Legacy rows stay visible to context
+reads but are excluded from decisions; replacement readings use new IDs. Downgrade
+is refused whenever tagged current or historical observations exist.
+
+| Fact | Graph home and derivation |
+|---|---|
+| Occupancy/guests | Member `presence` observations. Completeness requires Boolean `present` for every member, without `available=false`; guests are present members whose stored role is `guest`. Missing facts stay unknown. Explicitly absent members need no sleep/zone fields. Observation age still feeds existing risk thresholds. |
+| Recovery | Member `wearable` observations coexist with presence; neither replaces the other. |
+| Bedroom | Bound target asset's `room_kind`: `bedroom` → true, `other` → false, null → unknown; no name inference. |
+| Doorbell online | The sole household doorbell's `doorbell` observation, `state.available`; zero/multiple doorbells leave it unknown. |
+| Unexpected visitor | `state.last_press_at` no later than observation time and at most 60 seconds old. Expected iff an arrival interval contains the press (`starts_at <= press < ends_at`). No/old press or ambiguous doorbell → unknown. An ASK binds the press for voting/redemption beyond 60 seconds, subject to approval expiry and refusal on a newer press (§3.4). A stranger inside the window gets the same phone approval requirement; no identity inference. |
+| Price band | Household-subject `energy` observation with nonempty `state.price_band`. Used, including freshness, only when the action's parsed conditions/overrides reference it. The energy context scope includes these observations. Band assignment remains tariff-adapter work. |
+| Scam pattern | Scoped, timestamped deterministic Protect supplemental evidence; never an LLM decision input. |
+
+Scope/time/domain checks are shared by graph writes, registry stamping and previews.
+The decision extractor also validates stored observations. Shipped seed data is
+unchanged. The approved choices and rejected alternatives are recorded in
+[ADR-006's item 12 amendment](./docs/adr/ADR-006-twin-first-adapters.md#item-12-contract-amendment--2026-09-19-author-approved).
 
 ### 5.12 Digital Twin and Scenario Engine
 
 Full detail in [`docs/twin-and-scenarios.md`](./docs/twin-and-scenarios.md). The twin is a subsystem of the product, not test scaffolding: physics-lite models (thermal RC zones, EV and home battery with efficiency, PV from sun position and cloud cover, appliance cycles, occupancy schedules, wearable recovery), a `SimClock` that can run at any speed or jump, and a YAML **scenario DSL** describing a household, its constitution, initial state, and a timeline of events (arrivals, calls, doorbell presses, price spikes, voice requests). The demo evening is a scenario. Every scenario is also an integration test that asserts the audit trail it should produce.
+
+Item 13 implements the in-memory model/read portion. The exact clock, calibration,
+configuration and eight-adapter contracts live in
+[`docs/twin-and-scenarios.md` §2.11](./docs/twin-and-scenarios.md#211-item-13-in-memory-contract).
+`EnergyAdapter.get_tariff_state()` supplies the canonical household price-band
+observation. Camera, shade and doorbell motion fields extend `ObservationState`
+inside existing JSONB attributes; no migration is required. Model controls are
+hypothetical only: adapter writes and subscriptions remain unavailable, and no
+observation ingestion or scenario runner is introduced. The callable `SimClock`
+fits the existing injected-clock interface without changing pipeline behavior.
+
+Item 16 adds the offline scenario loader, deterministic runner, scripted tool-name
+trace, simulated recorded-policy replacement, observation assertions and JSON
+reports. Its exact contract and approved deferrals live in
+[the scenario specification §3.1](./docs/twin-and-scenarios.md#31-item-16-runnable-contract).
+It uses the in-memory models and read adapters; it grants no authority and writes
+no graph, policy, execution, audit or scenario-run rows. Native Dogwood validates
+recorded candidates, without claiming authenticated activation. Future tool calls
+and full demo assertions are explicit deferrals, not mock success results.
 
 ### 5.13 MCP Server (the Alexa+ surface)
 
@@ -809,6 +985,14 @@ Changed pause state uses the graph repository's current version token. No lifecy
 queue, spend-counter or separate decision table is introduced. Executor transitions
 and public authentication fields remain later work. See [ADR-002](./docs/adr/ADR-002-postgres-over-dynamodb.md#item-9-amendment--2026-09-18).
 
+### 6.3 Item 15 local execution storage (2026-09-20)
+
+Revision `0005_execution_attempt` adds nullable `actions.execution_attempt_seq` with a
+household-scoped foreign key to its signed `EXECUTION_ATTEMPTED` audit row. This is a
+permanent one-attempt claim, not a retry queue. No additional table or executor state
+machine is introduced. Downgrade locks actions/audit and refuses either a non-null claim
+or any attempt audit row, preserving evidence even if a claim pointer was removed.
+
 ---
 
 ## 7. Identity and the multi-member model
@@ -931,8 +1115,10 @@ runner: PostgreSQL and HA demo onboarding, Hirz readiness, explicit migrations,
 schema-drift check, doctor, authenticated service checks, and live PostgreSQL
 tests. Cleanup removes only that run's resources and generated `.env`.
 
-The scenario, add-on conformance, latency, Cedar conformance, and release jobs
-are explicit successful placeholders. Their logs and job summaries name the
+The scenario job now runs both item 16 offline observation assertion commands
+with native Dogwood and lists the deferred full-demo expectations. The Cedar
+conformance job runs native local checks; AWS comparison remains deferred.
+The add-on conformance, latency, and release jobs are explicit successful placeholders. Their logs and job summaries name the
 deferred work; TypeScript tests and build also disclose absent browser tests
 and frontend bundles. The release placeholder runs on every event and publishes
 nothing. Green scaffold CI does not establish any of these future guarantees.

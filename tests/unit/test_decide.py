@@ -66,7 +66,7 @@ def test_bad_inputs_precede_configuration(change, capsys):
     "text",
     [
         "PRIVATE",
-        "{}",
+        "[]",
         '[{"PRIVATE":true}]',
         '[{"source":"real"}]',
         '[{"household_id":"'

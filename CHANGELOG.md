@@ -6,7 +6,24 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- 2026-09-21: Record [terminal HA dispatch attempts and fresh-action retries](./docs/adr/ADR-006-twin-first-adapters.md#terminal-ha-dispatch-attempts--2026-09-21-author-approved) and the Phase 2 review's [Phase 3 carry-overs and ordered-plug follow-up](./ROADMAP.md).
+
 ### Fixed
+
+- 2026-09-21: Replace the scenarios' constant weather with inline archived Chicago
+  weather while retaining deterministic twin replay
+  ([verification](./docs/verification-log.md#scenario-weather-from-archived-observations)).
+
+- 2026-09-21: Bind a door-unlock ASK's doorbell press to its approval so delayed
+  voting/redemption retains visitor context; refuse newer presses without widening
+  the autonomous window ([verification](./docs/verification-log.md#doorbell-press-bound-to-approval)).
+
+- 2026-09-21: Phase 2 cleanup batch 1: use the simulation clock for registry
+  reads, retain failure classes in redacted logs, reject absent-member sleep,
+  apply pending development migrations and clarify adapter/scenario docs
+  ([verification](./docs/verification-log.md#phase-2-cleanup-batch-1)).
 
 - 2026-09-18: Quantized graph numeric policy facts to four decimal places before
   strict Cedar range validation, preserving float storage and observation no-ops;
@@ -28,6 +45,37 @@ All notable changes are documented here. The format follows
   to include item 9's pause/resume actions; [verification](./docs/verification-log.md#item-9-ci-build-check--2026-09-18).
 
 ### Added
+
+- 2026-09-20: Item 16 offline scenario runner, explicit twin fixtures, scripted
+  deferred tool traces, simulated recorded-policy patches, observation assertions
+  and JSON reports; scenario CI now exercises the approved observation gate
+  ([ADR-006](./docs/adr/ADR-006-twin-first-adapters.md#item-16-observation-stage-scenarios--2026-09-20-author-approved)).
+
+- 2026-09-20: Item 15 software: household-bound HA reads/subscriptions, narrow local
+  Pipeline-authorized writes with durable attempt claims, direct verification and
+  scenario-only twin read fallback; recorded/live smokes restore demo state and
+  retain signed audit evidence. The physical plug gate remains outstanding
+  ([ADR-006](./docs/adr/ADR-006-twin-first-adapters.md#item-15-local-ha-amendment--2026-09-20-author-approved),
+  [evidence](./docs/verification-log.md#item-15--partial-2026-09-20)).
+
+- 2026-09-20: Completed item 14: credential-free ComEd/Open-Meteo reads, reviewed
+  tariff sources, explicit price/weather coverage and provenance, and recorded/live
+  smoke verification; real prices compose with explicitly bound twin assets
+  ([ADR-006](./docs/adr/ADR-006-twin-first-adapters.md#item-14-credential-free-energy-amendment--2026-09-20-author-approved),
+  [evidence](./docs/verification-log.md#item-14--complete-2026-09-20)).
+
+- 2026-09-19: Completed item 13's in-memory twin models, simulated clock and eight
+  read adapters with explicit calibration, deterministic replay and labeled
+  observations; action execution remains deferred. Added the credential-free
+  smoke and corrected the derived EV timing in the twin spec
+  ([ADR-006 amendment](./docs/adr/ADR-006-twin-first-adapters.md#item-13-models-and-read-adapters-amendment--2026-09-19-author-approved),
+  [verification](./docs/verification-log.md#item-13--complete-2026-09-19)).
+
+- 2026-09-19: Completed item 12's nine adapter contracts, registry/source stamping,
+  separate observation domains and graph-derived policy/risk facts; the CLI now
+  accepts explicit fill-only simulated facts. Legacy observations are preserved,
+  and production adapters remain later work ([ADR-006 amendment](./docs/adr/ADR-006-twin-first-adapters.md#item-12-contract-amendment--2026-09-19-author-approved),
+  [verification](./docs/verification-log.md#item-12--complete-2026-09-19)).
 
 - 2026-09-18: Recorded plan-approver authority for scheduled actions and autonomous
   re-plans, with an execution prohibition for unapproved plans;

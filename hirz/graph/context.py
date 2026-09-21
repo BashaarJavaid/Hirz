@@ -153,6 +153,13 @@ def project(
                 if r.get("asset_id") in assets
                 or (
                     name == "observations"
+                    and scope == "energy"
+                    and not r.get("member_id")
+                    and not r.get("asset_id")
+                    and r.get("domain") == "energy"
+                )
+                or (
+                    name == "observations"
                     and scope == "environment"
                     and r.get("member_id")
                 )

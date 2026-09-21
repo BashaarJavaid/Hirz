@@ -122,6 +122,7 @@ class EventType(StrEnum):
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"
     EXPIRED = "EXPIRED"
+    EXECUTION_ATTEMPTED = "EXECUTION_ATTEMPTED"
     EXECUTED = "EXECUTED"
     VERIFIED = "VERIFIED"
     VERIFY_FAILED = "VERIFY_FAILED"
@@ -157,14 +158,7 @@ class SupplementalEvidence(Model):
     household_id: UUID
     observed_at: AwareDatetime
     source: Literal["real", "real API, demo devices", "twin"]
-    subject_id: UUID | None = None
-    occupancy_complete: StrictBool | None = None
-    guest_present: StrictBool | None = None
-    target_is_bedroom: StrictBool | None = None
-    price_band: str | None = None
-    unexpected_visitor: StrictBool | None = None
-    doorbell_online: StrictBool | None = None
-    scam_pattern: StrictBool | None = None
+    scam_pattern: StrictBool
 
 
 class ConstitutionEvidence(Model):

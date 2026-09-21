@@ -1,7 +1,8 @@
 """Validated graph inputs. No adapter credentials or authority decisions live here."""
 
+from collections.abc import Mapping, Set
 from datetime import UTC, datetime
-from typing import Annotated, Literal, Self
+from typing import Annotated, Literal, Self, get_args
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
@@ -12,6 +13,7 @@ from pydantic import (
     ConfigDict,
     Field,
     JsonValue,
+    StrictBool,
     field_validator,
     model_validator,
 )
@@ -30,6 +32,19 @@ def policy_number(value: object) -> float:
 PolicyNumber = Annotated[float, BeforeValidator(policy_number)]
 Text = Annotated[str, Field(min_length=1)]
 Source = Literal["real", "real API, demo devices", "twin"]
+AdapterDomain = Literal[
+    "devices",
+    "ev",
+    "energy",
+    "wearable",
+    "calendar",
+    "contacts",
+    "doorbell",
+    "notify",
+    "presence",
+]
+ADAPTER_DOMAINS = get_args(AdapterDomain)
+RoomKind = Literal["bedroom", "other"]
 Role = Literal["owner", "adult", "teen", "child", "guest", "caregiver"]
 RatePlan = Literal["comed_time_of_day", "comed_hourly", "twin"]
 AssetKind = Literal[
@@ -44,6 +59,18 @@ AssetKind = Literal[
     "doorbell",
     "shade",
 ]
+ASSET_DOMAINS: dict[AssetKind, AdapterDomain] = {
+    "ev": "ev",
+    "home_battery": "energy",
+    "solar": "energy",
+    "doorbell": "doorbell",
+    "appliance": "devices",
+    "hvac_zone": "devices",
+    "lock": "devices",
+    "camera": "devices",
+    "light": "devices",
+    "shade": "devices",
+}
 Scope = Literal["all", "people", "member", "energy", "environment"]
 SCOPES = ("all", "people", "member", "energy", "environment")
 
@@ -144,6 +171,7 @@ class PhysicalParameters(Model):
 class Asset(Entity):
     name: Text
     kind: AssetKind
+    room_kind: RoomKind | None = None
     owner_member_id: UUID | None = None
     capabilities: tuple[Text, ...] | None = None
     physical: PhysicalParameters | None = None
@@ -215,17 +243,24 @@ class ObservationState(Model):
     temp_f: PolicyNumber | None = None
     target_f: PolicyNumber | None = None
     power_kw: PolicyNumber | None = None
-    present: bool | None = None
-    sleeping: bool | None = None
+    present: StrictBool | None = None
+    sleeping: StrictBool | None = None
     zone_id: UUID | None = None
     plugged_in: bool | None = None
-    available: bool | None = None
+    available: StrictBool | None = None
     locked: bool | None = None
     on: bool | None = None
     recovery_score: int | None = Field(default=None, ge=0, le=100)
+    last_press_at: AwareDatetime | None = None
+    price_band: Text | None = None
+    camera_armed: StrictBool | None = None
+    cover_position_percent: PolicyNumber | None = Field(default=None, ge=0, le=100)
+    motion_classification: Literal["human", "animal", "vehicle"] | None = None
+    last_motion_at: AwareDatetime | None = None
 
 
 class Observation(Entity):
+    domain: AdapterDomain | None = None
     member_id: UUID | None = None
     asset_id: UUID | None = None
     observed_at: AwareDatetime
@@ -236,7 +271,98 @@ class Observation(Entity):
     def one_subject(self) -> Self:
         if self.member_id is not None and self.asset_id is not None:
             raise ValueError("An observation has only one subject")
+        if (
+            self.state.last_press_at is not None
+            and self.state.last_press_at > self.observed_at
+        ):
+            raise ValueError("A press cannot follow its observation")
+        # Legacy rows remain readable without assigning them an inferred domain.
+        if self.domain is not None:
+            state = self.state
+            if (
+                state.last_motion_at is not None
+                and state.last_motion_at > self.observed_at
+            ):
+                raise ValueError("Motion cannot follow its observation")
+            if (state.last_motion_at is None) != (state.motion_classification is None):
+                raise ValueError("Motion requires both timestamp and classification")
+            if state.last_motion_at is not None and (
+                self.domain != "doorbell" or self.asset_id is None
+            ):
+                raise ValueError("Motion requires a doorbell observation")
+            if (
+                state.camera_armed is not None
+                or state.cover_position_percent is not None
+            ) and (self.domain != "devices" or self.asset_id is None):
+                raise ValueError("Camera and shade state require device observations")
+            if any(
+                v is not None for v in (state.present, state.sleeping, state.zone_id)
+            ):
+                if self.domain != "presence" or self.member_id is None:
+                    raise ValueError(
+                        "Presence facts require a member presence observation"
+                    )
+            if state.recovery_score is not None:
+                if self.domain != "wearable" or self.member_id is None:
+                    raise ValueError("Recovery requires a member wearable observation")
+            if state.last_press_at is not None:
+                if self.domain != "doorbell" or self.asset_id is None:
+                    raise ValueError("Presses require a doorbell observation")
+            if state.price_band is not None:
+                if (
+                    self.domain != "energy"
+                    or self.member_id is not None
+                    or self.asset_id is not None
+                ):
+                    raise ValueError(
+                        "Price bands require a household energy observation"
+                    )
         return self
+
+
+def observation_subject(observation: Observation) -> UUID:
+    return observation.asset_id or observation.member_id or observation.household_id
+
+
+def validate_observation_scope(
+    observation: Observation,
+    household_id: UUID,
+    members: Set[UUID],
+    assets: Mapping[UUID, AssetKind],
+    at: datetime,
+) -> None:
+    """Shared household/time/domain checks for graph, registry and previews."""
+    if observation.household_id != household_id or observation.observed_at > utc(at):
+        raise GraphError("Invalid observation scope or time.")
+    if observation.member_id is not None:
+        if observation.member_id not in members:
+            raise GraphError("Unknown observation member.")
+        if observation.domain is not None and observation.domain not in {
+            "presence",
+            "wearable",
+        }:
+            raise GraphError("Invalid member observation domain.")
+    elif observation.asset_id is not None:
+        kind = assets.get(observation.asset_id)
+        if kind is None:
+            raise GraphError("Unknown observation asset.")
+        if observation.domain is not None and observation.domain != ASSET_DOMAINS[kind]:
+            raise GraphError("Invalid asset observation domain.")
+    elif observation.domain is not None and observation.domain != "energy":
+        raise GraphError("Invalid household observation domain.")
+    if observation.state.camera_armed is not None and (
+        observation.asset_id is None or assets.get(observation.asset_id) != "camera"
+    ):
+        raise GraphError("Camera state requires a camera asset.")
+    if observation.state.cover_position_percent is not None and (
+        observation.asset_id is None or assets.get(observation.asset_id) != "shade"
+    ):
+        raise GraphError("Cover position requires a shade asset.")
+    if (
+        observation.state.zone_id is not None
+        and assets.get(observation.state.zone_id) != "hvac_zone"
+    ):
+        raise GraphError("Zone must be an HVAC asset in this household.")
 
 
 # Closed table/model mapping: callers cannot supply SQL identifiers or arbitrary models.

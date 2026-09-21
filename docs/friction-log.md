@@ -77,6 +77,128 @@ service change was needed. These are repeats of the existing environment frictio
 not new upstream defects. References: [uv CLI](https://docs.astral.sh/uv/reference/cli/)
 and [Docker context/socket configuration](https://docs.docker.com/engine/manage-resources/contexts/).
 
+Item 12 follow-up to entries 6 and 8 (2026-09-19): the same default uv cache
+restriction recurred:
+
+```text
+error: Failed to initialize cache at `/Users/bashaarjavaid/.cache/uv`
+  cause: failed to open file `/Users/bashaarjavaid/.cache/uv/sdists-v9/.git`: Operation not permitted (os error 1)
+```
+
+`UV_CACHE_DIR=/private/tmp/hirz-uv-cache` and locked offline runs resolved it.
+Local PostgreSQL tests also required sandbox escalation. The first escalated
+attempt then reported the genuinely stopped prerequisite:
+
+```text
+connection failed: connection to server at "127.0.0.1", port 5432 failed: could not receive data from server: Connection refused
+```
+
+`docker compose -f compose.dev.yml ps --all` returned no services. Starting only
+PostgreSQL with `up -d --no-deps --wait postgres`, preserving its volume, enabled
+the disposable-database checks. These repeat environment restrictions and a stopped
+local service are not a new upstream defect or a new scored friction entry.
+References: [uv CLI](https://docs.astral.sh/uv/reference/cli/) and
+[Docker Compose up](https://docs.docker.com/reference/cli/docker/compose/up/).
+
+Item 13 follow-up to entries 6 and 8 (2026-09-19): local Compose inspection
+and the full suite again encountered the same sandbox restrictions:
+
+```text
+permission denied while trying to connect to the docker API at unix:///Users/bashaarjavaid/.docker/run/docker.sock
+PermissionError: [Errno 1] error while attempting to bind on address ('127.0.0.1', 0): [errno 1] operation not permitted
+```
+
+Authorized escalation allowed service inspection and disposable socket/database
+checks; PostgreSQL was already healthy and no service change was required.
+The isolated wheel install's first offline attempt also reported:
+
+```text
+error: No solution found when resolving dependencies
+  cause: Because rfc8785 was not found in the cache and hirz==0.0.0 depends on rfc8785==0.1.4, we can conclude that hirz==0.0.0 cannot be used.
+```
+
+An authorized online install into a disposable `/private/tmp` environment supplied
+that existing dependency; the source manifest/lockfile were unchanged. These are
+repeat environment/cache restrictions, not upstream defects or new scored entries.
+References: [uv offline behavior](https://docs.astral.sh/uv/reference/cli/#uv-pip-install--offline)
+and [Docker Compose ps](https://docs.docker.com/reference/cli/docker/compose/ps/).
+
+## Item 14 energy research — 2026-09-20
+
+| # | Date | Tool / service | Goal | Steps / reference | Expected | Actual | Severity | Workaround | Feature request |
+|---|---|---|---|---|---|---|---|---|---|
+| 10 | 2026-09-20 | ComEd day-ahead chart feed | Read credential-free day-ahead history safely | Inspected [price page](https://hourlypricing.comed.com/live-prices/) and its [2026-08-01 request](https://hourlypricing.comed.com/rrtp/ServletFeed?type=daynexttoday&date=20260801) | A documented timestamped data contract | HTTP 200 begins `[[Date.UTC(2026,7,1,0,0,0), 2.8]`; the page calls `eval(series)` and the [public API documentation](https://hourlypricing.comed.com/hp-api/) covers five-minute/current-hour feeds, not this format | Minor | Retain raw responses/page and parse only a restricted grammar; never execute JavaScript | Publish a versioned JSON day-ahead endpoint with UTC timestamps, units and publication time |
+| 11 | 2026-09-20 | ComEd day-ahead DST labels | Map Chicago hours to unambiguous intervals | Read [fall 2025-11-02](https://hourlypricing.comed.com/rrtp/ServletFeed?type=daynexttoday&date=20251102) and [spring 2026-03-08](https://hourlypricing.comed.com/rrtp/ServletFeed?type=daynexttoday&date=20260308) | Distinguishable repeated hours | Fall HTTP 200 includes `[Date.UTC(2025,10,2,1,0,0), 3.3]` once; spring skips hour 2. The fall label supplies neither offset nor fold; no error response or upstream guarantee was observed | Minor | Interpret chart labels as local hours; omit both ambiguous fall intervals and report a two-hour gap | Return UTC timestamps or explicit offset/fold per row |
+| 12 | 2026-09-20 | ComEd delivery PDF | Pin the correct billed-distribution vintage | Reviewed [delivery guide](https://www.comed.com/cdn/assets/v3/assets/blt3ebb3fed6084be2a/blt7904befea93c3525/6a74ab1af8608b565710881f/A_Guide_to_the_Retail_Customer_s_Billed_Delivery_Service_Charges.pdf) pages 1–2 as rendered images and extracted text | One effective-period heading | Tables retain “Resultant Charge beginning with April 2026” alongside “June 2026”; no HTTP error on direct download | Minor | Preserve PDF/hash and record the June label, older heading and calendar-month approximation explicitly in the tariff metadata | Publish unambiguous effective-from/through fields with each billed-charge table |
+
+Sandbox follow-up to entry 8: the initial public-PDF download failed with exact
+`curl: (6) Could not resolve host: www.comed.com`; authorized network escalation
+succeeded. The browsing tool separately returned `Internal Error ()` for the same
+PDF URL, while direct curl succeeded. Neither is evidence of a ComEd outage.
+
+## Item 15 HA demo contract — 2026-09-20
+
+| # | Date | Tool / service | Goal | Steps / reference | Expected | Actual | Severity | Workaround | Feature request |
+|---|---|---|---|---|---|---|---|---|---|
+| 13 | 2026-09-20 | Home Assistant 2026.9.2 demo climate | Verify the planned 72 °F single-target write on ecobee without mode changes | Read `/api/states/climate.ecobee` and `/api/config`; checked the [climate contract](https://developers.home-assistant.io/docs/core/entity/climate/) and [REST API](https://developers.home-assistant.io/docs/api/rest/) | Planning assumed a scalar target on ecobee | HTTP 200: `state: heat_cool`, `target_temp_low: 70`, `target_temp_high: 75`, `supported_features: 442`; no scalar `temperature` or per-state `temperature_unit`. No upstream error occurred; the planning assumption was wrong | Minor | Author approved ecobee read-only and `climate.heatpump` at 72 °F in its existing heat mode; fetch the instance unit system from `/api/config` | Include a single-target/ranged-target example and the instance-unit lookup in REST climate examples |
+
+The existing sandbox restriction from entry 6 recurred: `permission denied while
+trying to connect to the docker API at unix:///Users/bashaarjavaid/.docker/run/docker.sock`
+and uv's `Operation not permitted (os error 1)` opening its cache. Authorized
+escalation started the existing HA service and ran the checks; no upstream outage
+or new defect is claimed.
+
+## Item 16 environment follow-up — 2026-09-20
+
+The previously recorded sandbox/cache restrictions recurred (Minor; no new scored
+upstream defect). The initial uv invocation returned:
+
+```text
+error: Failed to initialize cache at `/Users/bashaarjavaid/.cache/uv`
+  cause: failed to open file `/Users/bashaarjavaid/.cache/uv/sdists-v9/.git`: Operation not permitted (os error 1)
+```
+
+Using a writable temporary `UV_CACHE_DIR` plus the existing locked environment
+allowed source checks. Existing socket/database tests required authorized local
+access after these exact errors:
+
+```text
+PermissionError: [Errno 1] error while attempting to bind on address ('127.0.0.1', 0): [errno 1] operation not permitted
+psycopg.OperationalError: connection is bad: connection to server at "127.0.0.1", port 5432 failed: Operation not permitted
+```
+
+The temporary cache did not contain all wheel dependencies; offline installation
+reported `Because websockets==17.1 needs to be downloaded from a registry`.
+Authorized access to the existing uv cache completed the same **offline** install
+into the disposable venv; no dependency or lockfile changed. No service restart,
+network fetch, or upstream outage is claimed. References:
+[uv cache configuration](https://docs.astral.sh/uv/concepts/cache/) and
+[offline installation](https://docs.astral.sh/uv/reference/cli/#uv-pip-install--offline).
+
+Phase 2 cleanup batch 1 follow-up to entry 6 (2026-09-20, Minor): the initial
+`uv run pytest` again returned:
+
+```text
+error: Failed to initialize cache at `/Users/bashaarjavaid/.cache/uv`
+  cause: failed to open file `/Users/bashaarjavaid/.cache/uv/sdists-v9/.git`: Operation not permitted (os error 1)
+```
+
+Authorized sandbox escalation used the existing cache successfully; this repeats
+the recorded sandbox restriction, not an upstream defect. Reference:
+[uv cache configuration](https://docs.astral.sh/uv/concepts/cache/).
+
+Doorbell approval correction follow-up to entry 6 (2026-09-20, Minor): the
+initial regression command hit the same sandbox cache restriction:
+
+```text
+error: Failed to initialize cache at `/Users/bashaarjavaid/.cache/uv`
+  cause: failed to open file `/Users/bashaarjavaid/.cache/uv/sdists-v9/.git`: Operation not permitted (os error 1)
+```
+
+Authorized sandbox escalation used the existing cache and local PostgreSQL;
+no upstream defect or dependency change. Reference:
+[uv cache configuration](https://docs.astral.sh/uv/concepts/cache/).
+
 ## Candidates (not yet hit)
 
 - No documented way for an add-on to receive Alexa-side context (device modality, locale, timezone) or to be invoked proactively.

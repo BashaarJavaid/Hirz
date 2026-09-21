@@ -175,7 +175,9 @@ def test_all_catalog_cases_and_roles(name):
         st.sampled_from(["65.9999", "66", "72", "76", "76.0001", "72.00001"]),
         st.integers(64, 78).map(str),
     ),
-    presence=st.sampled_from(["missing", "null", "empty", "sleeping", "adjacent"]),
+    presence=st.sampled_from(
+        ["missing", "null", "empty", "sleeping", "adjacent", "absent"]
+    ),
     with_approval=st.booleans(),
 )
 def test_property_bounds_missing_null_roles_and_sleeping(
@@ -185,6 +187,7 @@ def test_property_bounds_missing_null_roles_and_sleeping(
         "missing": {},
         "null": {"members": None},
         "empty": {"members": []},
+        "absent": {"members": [{"member_id": "resident", "present": False}]},
         "sleeping": {
             "members": [
                 {

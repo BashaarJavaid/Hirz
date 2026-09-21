@@ -1,0 +1,16 @@
+# Recorded, simulated version replacement; never authenticates an activation.
+base_version: 7
+version: 8
+autonomy:
+  security:
+    door_unlock:
+      allowed_requesters:
+      - owner
+      - adult
+      ask_channels:
+      - app_push
+      max_open_minutes: 10
+      mode: ask
+      quorum: any_adult
+      never_for:
+      - unexpected_visitor

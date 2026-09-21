@@ -1,0 +1,12 @@
+{
+  "climate.demo": {
+    "entity_id": "climate.demo", "state": "heat", "last_updated": "2026-09-18T17:00:00+00:00",
+    "attributes": {"current_temperature": 73, "temperature": 68, "min_temp": 45, "max_temp": 95, "supported_features": 1}
+  },
+  "light.demo": {
+    "entity_id": "light.demo", "state": "off", "last_updated": "2026-09-18T17:00:00+00:00", "attributes": {}
+  },
+  "sensor.power": {
+    "entity_id": "sensor.power", "state": "123.4", "last_updated": "2026-09-18T16:59:00+00:00", "attributes": {"unit_of_measurement": "W"}
+  }
+}

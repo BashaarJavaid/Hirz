@@ -1,0 +1,42 @@
+{
+  "dayahead-20260801.txt": {
+    "url": "https://hourlypricing.comed.com/rrtp/ServletFeed?type=daynexttoday&date=20260801",
+    "retrieved_at": "2026-09-20T15:09:12.375262+00:00",
+    "sha256": "904af843e3ea163ae6da098c7154863c934c61e01ba2c99e523ecc1635162a89"
+  },
+  "dayahead-spring.txt": {
+    "url": "https://hourlypricing.comed.com/rrtp/ServletFeed?type=daynexttoday&date=20260308",
+    "retrieved_at": "2026-09-20T15:09:12.492154+00:00",
+    "sha256": "49c948e604720b46bedab3ec7285f83673d692ad534a13667e8d8beebd198b6b"
+  },
+  "dayahead-fall.txt": {
+    "url": "https://hourlypricing.comed.com/rrtp/ServletFeed?type=daynexttoday&date=20251102",
+    "retrieved_at": "2026-09-20T15:09:12.610276+00:00",
+    "sha256": "3e4873c25c87bf357cccee6304fec40821f41a332e2043997fd4a133d5552f33"
+  },
+  "realtime-20260801.json": {
+    "url": "https://hourlypricing.comed.com/api?type=5minutefeed&datestart=202608010000&dateend=202608020000",
+    "retrieved_at": "2026-09-20T15:09:12.782308+00:00",
+    "sha256": "141161cec1619b8fe4d3c07ccfeb4dc9ed6ae6fc3cd6e5dc977337a6beca3e5f"
+  },
+  "realtime-spring.json": {
+    "url": "https://hourlypricing.comed.com/api?type=5minutefeed&datestart=202603080000&dateend=202603090000",
+    "retrieved_at": "2026-09-20T15:09:12.923556+00:00",
+    "sha256": "beb6fcaa121e895e86ba2154b3448e343b090bc1a04fcaf1c32ab2aeef36b8aa"
+  },
+  "realtime-fall.json": {
+    "url": "https://hourlypricing.comed.com/api?type=5minutefeed&datestart=202511020000&dateend=202511030000",
+    "retrieved_at": "2026-09-20T15:09:13.065292+00:00",
+    "sha256": "28778373a320ed58f9208fa6ccb5655ce1f4bfd9963a90aaf3a0204a739727d0"
+  },
+  "weather.json": {
+    "url": "https://api.open-meteo.com/v1/forecast?latitude=41.8781&longitude=-87.6298&hourly=temperature_2m,cloud_cover&temperature_unit=fahrenheit&timezone=UTC&forecast_days=16",
+    "retrieved_at": "2026-09-20T15:09:13.888964+00:00",
+    "sha256": "07c6eef32639a03aff1f7d877bcd6dd19008e4f30c1d1ec5ca49d3384bdfe8c4"
+  },
+  "prices-page.html": {
+    "url": "https://hourlypricing.comed.com/live-prices/",
+    "retrieved_at": "2026-09-20T15:09:14.491708+00:00",
+    "sha256": "942df01246a7c8ca1bf0ecc1dc1228de017a5e3cd3f012a2d7032f3257c3771b"
+  }
+}

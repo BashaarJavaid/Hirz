@@ -1,0 +1,7 @@
+{
+  "weather-chicago-2025-10-13.json": {
+    "url": "https://archive-api.open-meteo.com/v1/archive?latitude=41.88&longitude=-87.63&start_date=2025-10-13&end_date=2025-10-14&hourly=temperature_2m,cloud_cover&temperature_unit=fahrenheit&timezone=America/Chicago",
+    "retrieved_at": "2026-09-20T23:16:01.214224+00:00",
+    "sha256": "a32b0dfccb3ba5619b24101d72fd14ac77f32b4b2b541706ce2471ef81c9a7c3"
+  }
+}

@@ -197,7 +197,10 @@ zone identifiers are household-scoped. Missing occupancy/schedule collections ar
 unknown; explicitly empty collections assert nobody present, sleeping, or expected.
 The internal pipeline requires occupancy completeness evidence before constructing
 a negative occupancy fact.
-Optional `action.target.zone` and `context.unexpected_visitor` are supplied facts.
+Optional `action.target.zone` is a scoped target input. Item 12 derives
+`context.unexpected_visitor` from the sole doorbell's recent press and stored arrival
+windows (`ARCHITECTURE.md` §5.11), never from a caller's Boolean. Explicitly absent
+members do not require sleep or zone fields for `occupancy.sleeping_in`.
 The `unexpected_visitor` veto exists only when the household writes `never_for`.
 
 Not in the grammar, on purpose: loops, recursion, user functions, string manipulation, arithmetic beyond literal comparison, and any way to reference another rule.

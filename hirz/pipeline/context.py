@@ -4,11 +4,18 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Any
+from uuid import UUID
 from zoneinfo import ZoneInfo
 
-from hirz.constitution.conditions import PolicyFacts
+from hirz.constitution.conditions import PolicyFacts, parse
 from hirz.constitution.schema import Constitution
 from hirz.graph.context import ContextSnapshot
+from hirz.graph.models import (
+    ASSET_DOMAINS,
+    Observation,
+    observation_subject,
+    validate_observation_scope,
+)
 from hirz.pipeline.models import Action, SupplementalEvidence
 from hirz.risk.engine import RiskFacts
 
@@ -16,6 +23,10 @@ DAYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
 
 
 class ContextError(ValueError):
+    pass
+
+
+class NewerDoorbellPress(ContextError):
     pass
 
 
@@ -51,6 +62,7 @@ def extract(
     action: Action,
     evidence: tuple[SupplementalEvidence, ...],
     used: Decimal,
+    bound_press: dict[str, Any] | None = None,
 ) -> Facts:
     if snapshot.stale or snapshot.scope != "all":
         raise ContextError("A complete fresh snapshot is required")
@@ -106,67 +118,68 @@ def extract(
             raise ContextError("Invalid household contact target")
     else:
         raise ContextError("Unsupported target")
-    # Select a whole observation; never fill missing fields with an older reading.
-    observations: dict[str, dict[str, Any]] = {}
-    for row in data["observations"]:
-        subject = (
-            row.get("asset_id") or row.get("member_id") or str(snapshot.household_id)
+    # Domain streams coexist; never fill missing fields from an older reading.
+    streams: dict[tuple[str, str], dict[str, Any]] = {}
+    member_ids = {UUID(m) for m in members}
+    asset_kinds = {UUID(k): a["kind"] for k, a in assets.items()}
+    for raw in data["observations"]:
+        row = Observation.model_validate(
+            {
+                k: v
+                for k, v in raw.items()
+                if k not in {"valid_from", "valid_to", "staleness_seconds"}
+            }
         )
-        observed = datetime.fromisoformat(row["observed_at"])
-        if observed > at or subject not in {
-            *assets,
-            *members,
-            str(snapshot.household_id),
-        }:
-            raise ContextError("Invalid observation scope or time")
-        previous = observations.get(subject)
-        if (
-            previous
-            and datetime.fromisoformat(previous["observed_at"]) == observed
-            and (
-                previous["state"] != row["state"] or previous["source"] != row["source"]
-            )
-        ):
-            raise ContextError("Conflicting simultaneous observations")
-        if previous is None or observed > datetime.fromisoformat(
-            previous["observed_at"]
-        ):
-            observations[subject] = row
-    extras: dict[str, Any] = {}
+        validate_observation_scope(
+            row,
+            snapshot.household_id,
+            member_ids,
+            asset_kinds,
+            at,
+        )
+        if row.domain is None:
+            continue
+        key = (str(observation_subject(row)), row.domain)
+        value = row.model_dump(mode="json", exclude_none=True)
+        previous = streams.get(key)
+        if previous:
+            previous_at = datetime.fromisoformat(previous["observed_at"])
+            if previous_at == row.observed_at and (
+                previous["state"] != value["state"] or previous["source"] != row.source
+            ):
+                raise ContextError("Conflicting simultaneous observations")
+            if previous_at >= row.observed_at:
+                continue
+        streams[key] = value
+    observations = {
+        subject: streams[(subject, domain)]
+        for subject, domain in (
+            *((k, ASSET_DOMAINS[r["kind"]]) for k, r in assets.items()),
+            *((k, "presence") for k in members),
+        )
+        if (subject, domain) in streams
+    }
+    scam_pattern = None
     ages: list[float] = []
     for supplied in evidence:
         item = SupplementalEvidence.model_validate(supplied.model_dump())
         if item.household_id != snapshot.household_id or item.observed_at > at:
             raise ContextError("Invalid supplemental scope or time")
-        for key, value in item.model_dump().items():
-            if (
-                key in {"household_id", "observed_at", "source", "subject_id"}
-                or value is None
-            ):
-                continue
-            if key == "target_is_bedroom":
-                if target_asset is None or str(item.subject_id) != target_asset:
-                    raise ContextError("Bedroom evidence must name the bound asset")
-            elif key == "doorbell_online":
-                doorbells = [k for k, r in assets.items() if r["kind"] == "doorbell"]
-                if (
-                    item.subject_id is not None
-                    and str(item.subject_id) not in doorbells
-                ):
-                    raise ContextError("Invalid doorbell evidence")
-            elif item.subject_id is not None:
-                raise ContextError("Household evidence cannot name another subject")
-            if key in extras and extras[key] != value:
-                raise ContextError("Conflicting supplemental facts")
-            extras[key] = value
+        if scam_pattern is not None and scam_pattern != item.scam_pattern:
+            raise ContextError("Conflicting supplemental facts")
+        scam_pattern = item.scam_pattern
         ages.append((at - item.observed_at).total_seconds())
     occupancy: dict[str, Any] = {}
     people = [observations[m] for m in members if m in observations]
-    complete = extras.get("occupancy_complete") is True and len(people) == len(members)
-    rows = [dict(r["state"], member_id=r["member_id"]) for r in people]
-    for r in rows:
-        if r.get("zone_id") is not None and r["zone_id"] not in zones:
-            raise ContextError("Invalid observation zone")
+    rows = [
+        dict(r["state"], member_id=r["member_id"])
+        for r in people
+        if r["state"].get("available") is not False
+    ]
+    complete = len(rows) == len(members) and all(
+        type(r.get("present")) is bool for r in rows
+    )
+    at_home = [r for r in rows if r.get("present") is True]
 
     def any_known(
         field: str, selected: list[dict[str, Any]], complete_set: bool
@@ -177,29 +190,71 @@ def extract(
             return False
         return None
 
-    sleeping = any_known("sleeping", rows, complete)
+    sleeping = any_known("sleeping", at_home, complete)
     zone_sleeping = None
     if action.target.zone:
         zone_sleeping = any_known(
             "sleeping",
-            [r for r in rows if r.get("zone_id") == action.target.zone],
-            complete and all(r.get("zone_id") in zones for r in rows),
+            [r for r in at_home if r.get("zone_id") == action.target.zone],
+            complete and all(r.get("zone_id") in zones for r in at_home),
         )
     if sleeping is not None:
         occupancy["sleeping_any"] = sleeping
-    if complete and all(type(r.get("present")) is bool for r in rows):
+    if complete:
         occupancy["present_members"] = [r["member_id"] for r in rows if r["present"]]
         occupancy["members"] = rows
-    # Include ages of all observations used for policy/risk, even if not target state.
     required.update(r["member_id"] for r in people)
-    doorbell = extras.get("doorbell_online")
+    doorbell = None
+    context_extra: dict[str, Any] = {}
+    arrivals = [r for r in data["schedule_events"] if r["kind"] == "arrival"]
     bells = [k for k, r in assets.items() if r["kind"] == "doorbell"]
-    if name == "security.door_unlock" and len(bells) == 1 and bells[0] in observations:
+    press_binding = None
+    if bound_press is not None and (
+        name != "security.door_unlock"
+        or bells != [bound_press["asset_id"]]
+        or type(bound_press["expected"]) is not bool
+    ):
+        raise ContextError("Invalid bound doorbell press")
+    if name == "security.door_unlock" and len(bells) == 1:
         required.add(bells[0])
-        graph_value = observations[bells[0]]["state"].get("available")
-        if doorbell is not None and graph_value is not None and doorbell != graph_value:
-            raise ContextError("Supplemental fact conflicts with graph")
-        doorbell = graph_value if graph_value is not None else doorbell
+        bell = observations.get(bells[0], {}).get("state", {})
+        doorbell = bell.get("available")
+        press_text = bell.get("last_press_at")
+        press = datetime.fromisoformat(press_text) if press_text else None
+        if bound_press is not None:
+            bound_at = datetime.fromisoformat(bound_press["last_press_at"])
+            if bound_at > at:
+                raise ContextError("Future bound doorbell press")
+            if press is not None and press > bound_at:
+                raise NewerDoorbellPress("a newer doorbell press")
+            press_binding = bound_press
+        elif press is not None and 0 <= (at - press).total_seconds() <= 60:
+            press_binding = {
+                "asset_id": bells[0],
+                "last_press_at": press_text,
+                "expected": any(
+                    datetime.fromisoformat(r["starts_at"])
+                    <= press
+                    < datetime.fromisoformat(r["ends_at"])
+                    for r in arrivals
+                ),
+            }
+        if press_binding is not None:
+            context_extra["unexpected_visitor"] = not press_binding["expected"]
+    rule = policy.rule(name, action.requested_by.role)
+    needs_price = any(
+        node.kind == "attr" and node.value == "context.price_band"
+        for expression in (*rule.conditions, *(o.when for o in rule.overrides))
+        for node in parse(expression).walk()
+    )
+    if needs_price and (tariff := streams.get((str(snapshot.household_id), "energy"))):
+        observations[str(snapshot.household_id)] = tariff
+        required.add(str(snapshot.household_id))
+        if (
+            tariff["state"].get("available") is not False
+            and tariff["state"].get("price_band") is not None
+        ):
+            context_extra["price_band"] = tariff["state"]["price_band"]
     missing = not required <= observations.keys()
     for subject in sorted(required & observations.keys()):
         ages.append(
@@ -222,23 +277,24 @@ def extract(
             "weekday": DAYS[local.weekday()],
             "time": local.strftime("%H:%M"),
             "is_quiet_hours": quiet,
-            **{
-                k: extras[k]
-                for k in ("price_band", "unexpected_visitor")
-                if k in extras
-            },
+            **context_extra,
         },
         "occupancy": occupancy,
-        "asset": {"state": state, "policy": policies[0] if len(policies) == 1 else {}},
+        "asset": {
+            "state": state,
+            "policy": policies[0] if len(policies) == 1 else {},
+            "room_kind": assets.get(target_asset, {}).get("room_kind"),
+        },
         "household": {"budget_used_today": used},
         "schedule": {
+            "arrival_windows": arrivals,
             "arrivals": [
                 dict(member_id=r["member_id"], expected_at=r["expected_at"])
                 for r in data["schedule_events"]
                 if r["kind"] == "arrival"
                 and r.get("expected_at")
                 and r.get("member_id")
-            ]
+            ],
         },
     }
     graph_guest = any_known(
@@ -246,27 +302,23 @@ def extract(
         [r for r in rows if members[r["member_id"]]["role"] == "guest"],
         complete,
     )
-    if (
-        graph_guest is not None
-        and extras.get("guest_present") is not None
-        and graph_guest != extras["guest_present"]
-    ):
-        raise ContextError("Supplemental fact conflicts with graph")
     values["observations"] = [
         observations[k] for k in sorted(required & observations.keys())
     ]
+    if press_binding is not None:
+        values["doorbell"] = press_binding
     values["supplemental"] = [e.model_dump(mode="json") for e in evidence]
     risk = RiskFacts(
         observation_ages_seconds=None if missing else tuple(ages),
         sleeping_any=sleeping,
         sleeping_in_target_zone=zone_sleeping,
-        target_is_bedroom=extras.get("target_is_bedroom"),
-        guest_present=graph_guest
-        if graph_guest is not None
-        else extras.get("guest_present"),
+        target_is_bedroom=(assets[target_asset]["room_kind"] == "bedroom")
+        if target_asset and assets[target_asset].get("room_kind") is not None
+        else None,
+        guest_present=graph_guest,
         doorbell_online=doorbell,
         baseline_target_f=prefs[0] if len(prefs) == 1 else None,
-        scam_pattern=extras.get("scam_pattern"),
+        scam_pattern=scam_pattern,
     )
     return Facts(
         PolicyFacts(policy.household, at, values, tuple(members), zones),

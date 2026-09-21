@@ -1149,3 +1149,1161 @@ sandbox escalation without a new failure or workaround, so no new friction entry
 was earned. No requested local verification remains outstanding. Phase 2 was not
 started; no push, deployment, remote CI run, activation migration, or doctor
 clock check was performed.
+
+
+## Item 12 — Complete (2026-09-19)
+
+Implemented the individually author-approved plan: all nine typed async adapter
+protocols, household-bound registry/configuration/capabilities/source validation,
+separate observation domains, graph-derived facts, and explicit fill-only CLI
+preview inputs. Decisions and rejected alternatives are in
+[ADR-006](./adr/ADR-006-twin-first-adapters.md#item-12-contract-amendment--2026-09-19-author-approved);
+interfaces and behavior are specified in `ARCHITECTURE.md` §5.11, and procedures
+have one home in [development](./development.md#adapter-contracts-and-graph-facts-item-12).
+
+Environment: macOS ARM64, Python 3.12.13, uv 0.12.15; existing locked dependencies
+and checkout `.tools/dogwood` discovered by `tests/conftest.py`. Commands used
+`UV_CACHE_DIR=/private/tmp/hirz-uv-cache`; `uv run` used `--locked --offline`.
+No dependency/lockfile changes were required. Native Dogwood was required, not
+skipped. PostgreSQL integration tests created and dropped only uniquely named
+`hirz_test_*` databases using the existing fixture and credentials without printing
+them. The full suite's disposable socket tests and PostgreSQL connections ran
+with authorized sandbox escalation.
+
+### Failures and corrections during implementation
+
+- The first uv checks hit the known default-cache sandbox permission failure;
+  the temporary cache resolved it. The first integration attempt produced 36
+  connection setup errors under the sandbox. The first escalated retry stopped
+  after one setup error: PostgreSQL refused the connection on port 5432.
+  Compose `ps --all` showed no services. `docker compose -f compose.dev.yml up -d
+  --no-deps --wait postgres` started only PostgreSQL and reported it healthy,
+  preserving the named volume. The friction log records the exact errors and
+  repeat-environment classification; these are not new upstream defects.
+- The initial focused suite returned `19 failed, 74 passed in 2.16s`: fixtures
+  still used aggregate supplemental facts, untagged observation writes and the
+  old evidence-list format. Converting them to explicit domain observations and
+  graph facts produced `93 passed in 1.40s`.
+- The new migration test initially returned `1 failed, 1 passed in 1.29s` because
+  it tried to call the current seed loader while deliberately on an old schema.
+  The fixture now seeds on current head, downgrades before writing any tagged
+  observations, and constructs its synthetic legacy rows. The corrected run
+  returned `2 passed in 1.45s`.
+- Review found that a sleep reading without Boolean presence must remain unknown.
+  Extraction now considers only explicitly present members for positive sleeping
+  facts. A regression case covers this, and native generated conformance also
+  includes absent members without sleep/zone fields. The exact documented light
+  preview was added as a CLI integration case.
+
+Before those final additions, the broad suites returned `625 passed, 50 deselected
+in 54.56s` at `86.22%` coverage and `50 passed, 625 deselected in 31.80s` for
+PostgreSQL. Final results below supersede those intermediate counts.
+
+### Final commands and outputs
+
+| Command (temporary uv cache; sandbox escalation where described) | Actual output / result, exit 0 |
+|---|---|
+| `uv run --locked --offline pytest -q --tb=short` | `626 passed, 51 deselected in 57.12s`; `Required test coverage of 80% reached. Total coverage: 86.24%` (3307 statements, 455 missed) |
+| `uv run --locked --offline pytest -m integration --no-cov -q --tb=short` | `51 passed, 626 deselected in 32.43s` |
+| `uv run --locked --offline pytest tests/unit/test_adapters.py -k mixed_boot --no-cov -s -q` | `1 passed, 20 deselected in 0.62s`; all four labeled observations below |
+| `uv run --locked --offline pytest tests/integration/test_decide_database.py tests/integration/test_adapter_database.py -m integration --no-cov -s -q --tb=short` | `19 passed in 10.55s`; printed CLI and migration evidence below |
+| `uv run --locked --offline ruff check .` | `All checks passed!` |
+| `uv run --locked --offline mypy hirz/ scripts/ alembic/` | `Success: no issues found in 54 source files` |
+| `uv run --locked --offline ruff format --check .` | `101 files already formatted`; repeated after the evidence/closeout records |
+| `uv build --offline` | Built `dist/hirz-0.0.0.tar.gz` and `dist/hirz-0.0.0-py3-none-any.whl` |
+| `git diff --check` | No whitespace errors |
+
+### Registry and CLI proof
+
+The mixed boot test instantiated selected adapters, resolved per-entity overrides,
+checked lifecycle/capabilities and validated/stamped each observation. Every
+implementation was explicitly synthetic; no physical device or real API was used:
+
+```text
+TEST IMPLEMENTATION: devices:ha; light.living_room; source=real
+TEST IMPLEMENTATION: devices:ha; hvac.living_room; source=real API, demo devices
+TEST IMPLEMENTATION: devices:twin; hvac.guest_room; source=twin
+TEST IMPLEMENTATION: ev:twin; ev; source=twin
+```
+
+Actual argparse dispatch, stored unactivated policy loading, native Dogwood and
+pipeline evaluation produced these outputs with database fingerprints unchanged:
+
+```text
+daytime_hvac: EXECUTE; audit=null; approval=null; database=unchanged
+sleeping_hvac: ASK_CONSTITUTION; audit=null; approval=null; database=unchanged
+teen_unlock: DENY_CONSTITUTION; audit=null; approval=null; database=unchanged
+unexpected_v7: ASK_CONSTITUTION; audit=null; approval=null; database=unchanged
+unexpected_v8: DENY_CONSTITUTION; audit=null; approval=null; database=unchanged
+expected_arrival: ASK_CONSTITUTION; audit=null; approval=null; database=unchanged
+stranger_in_window: ASK_CONSTITUTION; audit=null; approval=null; database=unchanged
+suspicious_request: VERIFY; audit=null; approval=null; database=unchanged
+budget_exceeded: DENY_BUDGET; audit=null; approval=null; database=unchanged
+overlay missing: DENY_RISK; database=unchanged
+overlay fill: EXECUTE; database=unchanged
+overlay conflict: DENY_CONSTITUTION; database=unchanged
+overlay foreign: DENY_CONSTITUTION; database=unchanged
+overlay future: DENY_CONSTITUTION; database=unchanged
+documented light preview: EXECUTE; dogwood-local=allow; audit=null; approval=null; database=unchanged
+```
+
+The last case parses the exact JSON and shell example from `docs/development.md`,
+substituting only its temporary evidence path, disposable database and test key.
+`EXECUTE` is a hypothetical result here; it creates no execution grant or operation.
+
+Migration verification printed:
+
+```text
+Migration: legacy current/history preserved; presence+wearable coexist; duplicate rejected; tagged current/history downgrade refused
+```
+
+The tests also verified SQLAlchemy metadata agreement, uniqueness after migration,
+immutable observation subject/domain, household/domain validation, the energy
+context projection, and rollback with only legacy data. Explicit read-only
+inspection of the existing development database after testing returned:
+
+```text
+Development migration: 0003_pipeline
+```
+
+No migration or reset was applied to that database, no seed file was changed, and
+no signing key was generated or replaced. PostgreSQL was started for verification
+and left running. The new revision must be applied explicitly before an operator
+uses item 12 against the development database.
+
+### Limits
+
+Item 12 proves contracts, configuration, fact derivation and hypothetical previews.
+It implements no production adapter, twin physics, runtime observation ingestion,
+activation, device operation, automatic fallback, hosted-demo eligibility or AWS
+enforcement. No threat-model row changed. No remote CI run, workflow change, commit,
+push or deployment was performed; the existing placeholder CI jobs remain placeholders.
+
+Final record review: an initial strict instruction-file comparison reported
+`AssertionError` because the existing AGENTS introduction names its CLAUDE mirror.
+The diff confirmed that only the pre-existing heading/introduction differ; the
+substantive guidance, including both item 12 edits, matches. The post-record Ruff
+check passed and the final format check reported `101 files already formatted`.
+
+## Item 13 — Complete (2026-09-19)
+
+Implemented the author-approved in-memory twin models, forward-only `SimClock`,
+independent seeded inputs, canonical observations, and eight polling/read adapters.
+The decisions and rejected alternatives are in
+[ADR-006](./adr/ADR-006-twin-first-adapters.md#item-13-models-and-read-adapters-amendment--2026-09-19-author-approved).
+Exact model and interface behavior has one home in
+[the twin spec](./twin-and-scenarios.md#211-item-13-in-memory-contract);
+the runnable procedure is in [development](./development.md#twin-models-and-read-adapters-item-13).
+
+Environment: Darwin arm64, Python 3.12.13, uv 0.12.15 (Homebrew 2026-09-15).
+Python checks used `UV_CACHE_DIR=/private/tmp/hirz-uv-cache` and locked offline
+project runs. Native Dogwood was discovered by the existing `tests/conftest.py`
+and ran inside the full suite; it was not skipped. PostgreSQL was already healthy.
+Its tests created and dropped only the existing fixture's uniquely named disposable
+databases. The development database was neither migrated nor reset; item 12's
+manual upgrade remains outstanding. Source manifests and lockfiles are unchanged.
+
+### Failures found and corrected
+
+- Strict mypy initially reported 13 errors (optional UUID lookup, heterogeneous
+  model collections, class-variable annotations, and a reused key variable), then
+  10 after the smoke was added (including Decimal constructor annotations), then
+  one heterogeneous storage-loop annotation. All were corrected. Ruff also caught
+  a misplaced test import and an incorrectly renamed local variable.
+- The first focused run was `1 failed, 21 passed in 1.15s`. It exposed a real
+  configuration-precedence bug: copying a model materialized omitted defaults as
+  explicit overrides, masking graph calibration. The shared validated-copy helper
+  now preserves explicit-field provenance. The regression then passed with
+  `22 passed in 1.04s`; later expanded focused runs passed 25 and finally 27 tests.
+- The initial full run reported `3 failed, 645 passed, 51 deselected in 53.73s`,
+  coverage 89.11%: two existing localhost WebSocket tests could not bind under
+  the sandbox, and the same configuration-precedence regression failed. Authorized
+  escalation resolved the socket restriction; no production socket behavior changed.
+- Intermediate full runs passed `651 passed, 52 deselected in 56.68s` at 89.09%
+  and `652 passed, 52 deselected in 56.44s` at 88.60%. Review added explicit range
+  checks so a longer weather input cannot extend the world's query horizon, and
+  a regression preventing backward direct reads within an uncommitted minute.
+  The final run below supersedes these intermediate snapshots.
+- The new PostgreSQL round-trip test first reported `1 failed, 51 passed,
+  651 deselected in 31.98s`: the test passed context-only `staleness_seconds`
+  metadata into canonical `Observation`. Excluding that metadata fixed the test;
+  the implementation required no database change.
+- The first isolated wheel install could not find existing `rfc8785==0.1.4` in the
+  temporary offline cache. Authorized online installation into a disposable venv
+  supplied the existing dependency; subsequent wheel reinstalls worked offline.
+  A helper edit also initially used a relative repository path while its command
+  was running from `/private/tmp`; rerunning from the checkout corrected that
+  `FileNotFoundError`, without changing any external state. Repeat environment
+  friction and exact tool errors are recorded in the friction log.
+
+### Final verification
+
+Commands from the checkout root (the full/socket and PostgreSQL runs used authorized
+sandbox escalation; all project `uv run` commands had the temporary cache above):
+
+```sh
+uv run --locked --offline pytest tests/unit/test_twin.py --no-cov -q
+uv run --locked --offline pytest -q
+uv run --locked --offline pytest -m integration --no-cov -q
+uv run --locked --offline ruff check .
+uv run --locked --offline mypy hirz/ scripts/ alembic/
+uv run --locked --offline python scripts/smoke_twin.py
+uv build
+```
+
+Results:
+
+```text
+27 passed in 1.45s
+653 passed, 52 deselected in 57.02s
+Required test coverage of 80% reached. Total coverage: 89.11%
+52 passed, 652 deselected in 31.69s
+All checks passed!
+Success: no issues found in 70 source files
+Successfully built dist/hirz-0.0.0.tar.gz
+Successfully built dist/hirz-0.0.0-py3-none-any.whl
+```
+
+The PostgreSQL run preceded the final world-only backward-read regression, which
+has no persistence path; all 52 database checks passed, including camera/shade/
+doorbell-motion JSONB round trips. The final full Python run includes the new
+regression and native Dogwood conformance. Property-based battery verification
+uses 80 generated examples within one pytest test.
+
+The actual user-facing smoke command printed:
+
+```text
+SIMULATED: standalone physics and read adapters; no actions or persistence
+PASS ev_minutes_34_to_50=105.75793184
+PASS warm_45_min_f=4.00089188
+PASS drift_60_min_f=0.98378575
+PASS ev_energy_residual_kwh=0.00000000
+PASS quinn-home: adapters=8 observations=15 source=twin writes=unavailable balance_residual_kwh=0.0000000000
+PASS quinn-parents: adapters=8 observations=6 source=twin writes=unavailable balance_residual_kwh=0.0000000000
+```
+
+The suite also verifies analytical EV taper and driving, battery reserve/full
+saturation and 90% round-trip return, thermal coupling conservation/COP/duty,
+all three appliance profiles, PV geometry/cloud/night behavior, tariff clipping
+and reproducible spikes, schedule jitter/DST/overrides/recovery, exact device
+latency/failure, unavailable write methods/subscriptions, private contact/call/
+visitor data, lifecycle, household isolation and provenance. Equivalent minute-
+partitioned and irregular polling histories produce identical state/model events.
+
+A fresh `/private/tmp/hirz-item13-wheel` venv installed the built wheel and its
+existing dependencies. After final code changes the wheel was rebuilt and
+reinstalled with:
+
+```sh
+uv pip install --offline --reinstall-package hirz --python /private/tmp/hirz-item13-wheel/bin/python dist/hirz-0.0.0-py3-none-any.whl
+```
+
+From `/private/tmp`, the installed interpreter asserted that `hirz.__file__`
+resolved inside that venv, imported all eight twin adapter packages, exercised
+`SimClock` and the EV transition, and read the packaged SVG with
+`importlib.resources`. It printed:
+
+```text
+PASS isolated installed wheel: eight adapters, clock, physics, bundled SVG; checkout not imported
+```
+
+Ruff format verification is run last after this evidence and the closeout records:
+`uv run --locked --offline ruff format --check .` (118 Python files). Instruction
+parity and `git diff --check` are also checked. No remote CI run, push, commit,
+real feed, device action, scenario runner, persistence/ingestion, activation,
+execution or new threat-model protection is claimed. The frontend is unchanged;
+no frontend checks were added or represented as part of this item.
+
+Post-closeout checks: Ruff reported `All checks passed!`, mypy reported
+`Success: no issues found in 70 source files`, and the final format check reported
+`118 files already formatted`. The first instruction-parity assertion excluded
+only the headings and therefore caught the pre-existing AGENTS-only introductory
+mirror sentence. Normalizing that existing introduction and the two headings
+confirms identical guidance; no unrelated introductory text was changed.
+
+
+## Item 14 — Complete (2026-09-20)
+
+Implemented the approved credential-free energy plan: canonical pinned tariff,
+`energy:real`, explicit series coverage/provenance, recorded feeds, and read-only
+smoke. Interface/time semantics and exclusions are in [ADR-006's item 14
+amendment](./adr/ADR-006-twin-first-adapters.md#item-14-credential-free-energy-amendment--2026-09-20-author-approved)
+and its linked specifications.
+
+Environment: macOS ARM64, Python 3.12.13, uv 0.12.15, pytest 9.1.1; installed project
+dependencies and existing native `.tools/dogwood`. Commands ran from the checkout
+unless stated otherwise. `UV_CACHE_DIR=/private/tmp/hirz-uv-cache` was used for local
+uv checks; the wheel install used the existing user cache with network disabled.
+Sandbox escalation was used for public feed/PDF downloads, the full suite's existing
+local socket test, and disposable wheel-environment installation. No AWS credentials
+or deployment, database migration/ingestion, remote CI dispatch, or device action.
+
+**Primary-source cross-check and recordings.** Retained `tariffs/sources/` PDFs
+were downloaded directly from the exact URLs in the canonical tariff file. Read
+supply page 1 with `pdftotext -layout`; reviewed delivery pages 1–2 with both text
+extraction and rendered `pdftoppm` images. Checked all eight supply values, four
+Time-of-Day distribution values, standard distribution, period hours, seasons,
+validity and resultant-charge vintage against those documents. The YAML records
+per-row dates/URLs, exclusions and the delivery header ambiguity; hashes are tested
+against the retained bytes. Normal tests compare reviewed values without requiring
+PDF tools. `tests/fixtures/energy/manifest.json` retains acquisition UTC timestamps,
+request URLs and hashes for day-ahead, five-minute, spring/fall DST, weather and
+source-page recordings. The evidence does not treat Date.UTC chart labels as a
+public timestamp guarantee or the June delivery vintage as a live rate check.
+
+**Validation commands and actual results.**
+
+```text
+uv run pytest
+777 passed, 52 deselected in 61.87s (0:01:01)
+Required test coverage of 80% reached. Total coverage: 89.87%
+
+uv run ruff check .
+All checks passed!
+
+uv run mypy hirz/ scripts/ alembic/
+Success: no issues found in 74 source files
+
+uv run ruff format --check .
+123 files already formatted
+
+uv build
+Successfully built dist/hirz-0.0.0.tar.gz
+Successfully built dist/hirz-0.0.0-py3-none-any.whl
+```
+
+The 52 deselected tests are the explicitly selected PostgreSQL integration suite;
+there were no database changes and it was not run for this item. The final format
+check is repeated after these completion records. The initial focused run passed
+161 tests; an intermediate full run passed 775 at 89.86%. Final review replaced a
+test-only factory shortcut with actual real/twin factory composition: the twin
+factory permits only the deliberate in-memory rate-plan difference while preserving
+all other household checks. The final suite verifies actual battery/solar reads
+and stamping through those bindings, plus safe overflow/deep-malformed-response
+handling. Early Ruff checks reported formatting/style issues and mypy reported the
+computed-field property decorator diagnostic; formatting and the documented targeted
+mypy suppression resolved them before the final checks. No failing checks remain.
+
+The energy tests cover reviewed tariff values, every period boundary, both seasons,
+calendar billing approximation, effective limits, Decimal sums and negatives,
+export absence, unsupported profiles, UTC clipping, both DST transitions, inclusive
+daily endpoints and duplicates, explicit null/empty/future gaps, malformed and
+JavaScript-shaped input, unit/coordinate/horizon errors, unaligned weather reads,
+missing hours, timeout and partial multi-day failure, lifecycle, household isolation,
+actual mixed bindings, unavailable writes and twin series provenance. Existing twin
+physics and native policy conformance tests passed unchanged in the full suite.
+
+**Default recorded smoke.** Ran `uv run python scripts/smoke_energy.py`, exit 0:
+
+```text
+RECORDED public feed fixtures (no network)
+comed_time_of_day/day_ahead: real (published ComEd rate)
+  requested=[2026-08-01T05:00:00+00:00, 2026-08-02T05:00:00+00:00) count=24 gaps=0 covered_hours=24.000000 complete=True
+  observed_bounds=[2026-08-01T05:00:00+00:00, 2026-08-02T05:00:00+00:00) basis=supply_plus_distribution tariff=comed-2026-06-verified-2026-09-20 retrieved_at=None
+  import_cents_per_kwh: first=6.174 min=6.174 max=28.446 export=None
+comed_time_of_day/realtime: real (published ComEd rate)
+  requested=[2026-08-01T05:00:00+00:00, 2026-08-02T05:00:00+00:00) count=288 gaps=0 covered_hours=24.000000 complete=True
+  observed_bounds=[2026-08-01T05:00:00+00:00, 2026-08-02T05:00:00+00:00) basis=supply_plus_distribution tariff=comed-2026-06-verified-2026-09-20 retrieved_at=None
+  import_cents_per_kwh: first=6.174 min=6.174 max=28.446 export=None
+weather: real (Open-Meteo forecast)
+  requested=[2026-09-20T00:17:00+00:00, 2026-09-20T03:00:00+00:00) count=3 gaps=0 covered_hours=2.716667 complete=True
+comed_hourly/day_ahead: real (ComEd day-ahead forecast; publication time unknown)
+  requested=[2026-08-01T05:00:00+00:00, 2026-08-02T05:00:00+00:00) count=24 gaps=0 covered_hours=24.000000 complete=True
+  observed_bounds=[2026-08-01T05:00:00+00:00, 2026-08-02T05:00:00+00:00) basis=supply_plus_distribution tariff=comed-2026-06-verified-2026-09-20 retrieved_at=2026-09-20 00:00:00+00:00
+  import_cents_per_kwh: first=9.133 min=8.133 max=9.433 export=None
+comed_hourly/realtime: real (ComEd realtime quoted supply; not finalized hourly billing)
+  requested=[2026-08-01T05:00:00+00:00, 2026-08-02T05:00:00+00:00) count=287 gaps=1 covered_hours=23.916667 complete=False
+  observed_bounds=[2026-08-01T05:00:00+00:00, 2026-08-02T05:00:00+00:00) basis=supply_plus_distribution tariff=comed-2026-06-verified-2026-09-20 retrieved_at=2026-09-20 00:00:00+00:00
+  import_cents_per_kwh: first=8.233 min=7.633 max=20.033 export=None
+  gap=[2026-08-02T02:35:00+00:00, 2026-08-02T02:40:00+00:00) missing or unpublished supply price
+```
+
+Recorded smoke retrieval fields use the injected replay clock; actual capture
+metadata lives in the fixture manifest. It does not claim a live read.
+
+**Live smoke.** Ran
+`uv run python scripts/smoke_energy.py --live --history-month 2026-08`, exit 0.
+The first successful read was repeated after correcting the smoke's retrieval
+clock to use actual time and adding an assertion that weather returned data.
+August's requested Chicago calendar month has 744 hours / 8,928 nominal five-minute
+intervals. The actual final read returned 8,848 intervals, 80 missing intervals in
+44 contiguous gaps, 737 hours 20 minutes covered, and 6 hours 40 minutes missing.
+No interpolation or gap-free claim. Returned scheduling prices retain negatives;
+they are not finalized bills, export valuations, planner savings or proof of
+historical forecast publication. Exact final output:
+
+```text
+LIVE public feeds
+comed_time_of_day/day_ahead: real (published ComEd rate)
+  requested=[2026-08-01T05:00:00+00:00, 2026-08-02T05:00:00+00:00) count=24 gaps=0 covered_hours=24.000000 complete=True
+  observed_bounds=[2026-08-01T05:00:00+00:00, 2026-08-02T05:00:00+00:00) basis=supply_plus_distribution tariff=comed-2026-06-verified-2026-09-20 retrieved_at=None
+  import_cents_per_kwh: first=6.174 min=6.174 max=28.446 export=None
+comed_time_of_day/realtime: real (published ComEd rate)
+  requested=[2026-08-01T05:00:00+00:00, 2026-08-02T05:00:00+00:00) count=288 gaps=0 covered_hours=24.000000 complete=True
+  observed_bounds=[2026-08-01T05:00:00+00:00, 2026-08-02T05:00:00+00:00) basis=supply_plus_distribution tariff=comed-2026-06-verified-2026-09-20 retrieved_at=None
+  import_cents_per_kwh: first=6.174 min=6.174 max=28.446 export=None
+weather: real (Open-Meteo forecast)
+  requested=[2026-09-20T15:17:00+00:00, 2026-09-20T18:00:00+00:00) count=3 gaps=0 covered_hours=2.716667 complete=True
+comed_hourly/day_ahead: real (ComEd day-ahead forecast; publication time unknown)
+  requested=[2026-08-01T05:00:00+00:00, 2026-08-02T05:00:00+00:00) count=24 gaps=0 covered_hours=24.000000 complete=True
+  observed_bounds=[2026-08-01T05:00:00+00:00, 2026-08-02T05:00:00+00:00) basis=supply_plus_distribution tariff=comed-2026-06-verified-2026-09-20 retrieved_at=2026-09-20 15:24:52.439951+00:00
+  import_cents_per_kwh: first=9.133 min=8.133 max=9.433 export=None
+comed_hourly/realtime: real (ComEd realtime quoted supply; not finalized hourly billing)
+  requested=[2026-08-01T05:00:00+00:00, 2026-09-01T05:00:00+00:00) count=8848 gaps=44 covered_hours=737.333333 complete=False
+  observed_bounds=[2026-08-01T05:00:00+00:00, 2026-09-01T05:00:00+00:00) basis=supply_plus_distribution tariff=comed-2026-06-verified-2026-09-20 retrieved_at=2026-09-20 15:24:57.318026+00:00
+  import_cents_per_kwh: first=8.233 min=-3.767 max=146.933 export=None
+  gap=[2026-08-02T02:35:00+00:00, 2026-08-02T02:40:00+00:00) missing or unpublished supply price
+  gap=[2026-08-03T09:20:00+00:00, 2026-08-03T09:25:00+00:00) missing or unpublished supply price
+  gap=[2026-08-04T09:05:00+00:00, 2026-08-04T09:10:00+00:00) missing or unpublished supply price
+  gap=[2026-08-04T19:15:00+00:00, 2026-08-04T19:20:00+00:00) missing or unpublished supply price
+  gap=[2026-08-05T08:55:00+00:00, 2026-08-05T09:00:00+00:00) missing or unpublished supply price
+  gap=[2026-08-05T17:15:00+00:00, 2026-08-05T17:20:00+00:00) missing or unpublished supply price
+  gap=[2026-08-06T10:15:00+00:00, 2026-08-06T10:20:00+00:00) missing or unpublished supply price
+  gap=[2026-08-06T18:40:00+00:00, 2026-08-06T18:50:00+00:00) missing or unpublished supply price
+  gap=[2026-08-07T14:25:00+00:00, 2026-08-07T14:35:00+00:00) missing or unpublished supply price
+  gap=[2026-08-07T14:40:00+00:00, 2026-08-07T14:45:00+00:00) missing or unpublished supply price
+  gap=[2026-08-07T15:00:00+00:00, 2026-08-07T15:05:00+00:00) missing or unpublished supply price
+  gap=[2026-08-07T15:10:00+00:00, 2026-08-07T15:15:00+00:00) missing or unpublished supply price
+  gap=[2026-08-07T18:50:00+00:00, 2026-08-07T19:00:00+00:00) missing or unpublished supply price
+  gap=[2026-08-07T20:20:00+00:00, 2026-08-07T20:35:00+00:00) missing or unpublished supply price
+  gap=[2026-08-07T23:40:00+00:00, 2026-08-07T23:45:00+00:00) missing or unpublished supply price
+  gap=[2026-08-08T05:05:00+00:00, 2026-08-08T05:10:00+00:00) missing or unpublished supply price
+  gap=[2026-08-08T13:25:00+00:00, 2026-08-08T13:30:00+00:00) missing or unpublished supply price
+  gap=[2026-08-09T06:10:00+00:00, 2026-08-09T06:15:00+00:00) missing or unpublished supply price
+  gap=[2026-08-09T20:50:00+00:00, 2026-08-09T20:55:00+00:00) missing or unpublished supply price
+  gap=[2026-08-10T08:25:00+00:00, 2026-08-10T08:30:00+00:00) missing or unpublished supply price
+  gap=[2026-08-10T17:10:00+00:00, 2026-08-10T17:20:00+00:00) missing or unpublished supply price
+  gap=[2026-08-11T11:00:00+00:00, 2026-08-11T11:05:00+00:00) missing or unpublished supply price
+  gap=[2026-08-12T05:40:00+00:00, 2026-08-12T05:45:00+00:00) missing or unpublished supply price
+  gap=[2026-08-14T02:15:00+00:00, 2026-08-14T03:00:00+00:00) missing or unpublished supply price
+  gap=[2026-08-17T04:50:00+00:00, 2026-08-17T04:55:00+00:00) missing or unpublished supply price
+  gap=[2026-08-17T17:00:00+00:00, 2026-08-17T17:05:00+00:00) missing or unpublished supply price
+  gap=[2026-08-18T19:05:00+00:00, 2026-08-18T19:20:00+00:00) missing or unpublished supply price
+  gap=[2026-08-19T04:00:00+00:00, 2026-08-19T04:15:00+00:00) missing or unpublished supply price
+  gap=[2026-08-19T06:15:00+00:00, 2026-08-19T06:20:00+00:00) missing or unpublished supply price
+  gap=[2026-08-25T12:30:00+00:00, 2026-08-25T12:35:00+00:00) missing or unpublished supply price
+  gap=[2026-08-25T16:05:00+00:00, 2026-08-25T16:10:00+00:00) missing or unpublished supply price
+  gap=[2026-08-25T16:15:00+00:00, 2026-08-25T16:20:00+00:00) missing or unpublished supply price
+  gap=[2026-08-25T20:55:00+00:00, 2026-08-25T21:10:00+00:00) missing or unpublished supply price
+  gap=[2026-08-26T14:55:00+00:00, 2026-08-26T15:00:00+00:00) missing or unpublished supply price
+  gap=[2026-08-26T19:25:00+00:00, 2026-08-26T20:25:00+00:00) missing or unpublished supply price
+  gap=[2026-08-27T19:05:00+00:00, 2026-08-27T19:10:00+00:00) missing or unpublished supply price
+  gap=[2026-08-27T19:15:00+00:00, 2026-08-27T19:25:00+00:00) missing or unpublished supply price
+  gap=[2026-08-28T14:30:00+00:00, 2026-08-28T14:35:00+00:00) missing or unpublished supply price
+  gap=[2026-08-28T17:20:00+00:00, 2026-08-28T17:25:00+00:00) missing or unpublished supply price
+  gap=[2026-08-28T17:30:00+00:00, 2026-08-28T17:40:00+00:00) missing or unpublished supply price
+  gap=[2026-08-28T17:50:00+00:00, 2026-08-28T18:00:00+00:00) missing or unpublished supply price
+  gap=[2026-08-28T18:40:00+00:00, 2026-08-28T18:45:00+00:00) missing or unpublished supply price
+  gap=[2026-08-28T19:25:00+00:00, 2026-08-28T19:40:00+00:00) missing or unpublished supply price
+  gap=[2026-08-30T16:45:00+00:00, 2026-08-30T16:50:00+00:00) missing or unpublished supply price
+```
+
+**Twin user-path regression.** Ran `uv run python scripts/smoke_twin.py`, exit 0:
+
+```text
+SIMULATED: standalone physics and read adapters; no actions or persistence
+PASS ev_minutes_34_to_50=105.75793184
+PASS warm_45_min_f=4.00089188
+PASS drift_60_min_f=0.98378575
+PASS ev_energy_residual_kwh=0.00000000
+PASS quinn-home: adapters=8 observations=15 source=twin writes=unavailable balance_residual_kwh=0.0000000000
+PASS quinn-parents: adapters=8 observations=6 source=twin writes=unavailable balance_residual_kwh=0.0000000000
+```
+
+**Installed wheel outside the checkout.** Created `/private/tmp/hirz-item14-wheel`
+with `uv venv --python /Users/bashaarjavaid/Projects/Hirz/.venv/bin/python`, then
+installed the wheel and 29 dependencies from the existing cache with
+`uv pip install --python /private/tmp/hirz-item14-wheel/bin/python --offline
+/Users/bashaarjavaid/Projects/Hirz/dist/hirz-0.0.0-py3-none-any.whl`. After the final
+code changes, rebuilt and reinstalled with `--reinstall-package hirz`.
+From `/private/tmp`, ran the reproducible repository smoke with isolated imports
+and an explicitly supplied tariff file:
+
+```bash
+/private/tmp/hirz-item14-wheel/bin/python -I /Users/bashaarjavaid/Projects/Hirz/scripts/smoke_energy.py --tariff-file /Users/bashaarjavaid/Projects/Hirz/tariffs/comed-time-of-day.yaml
+/private/tmp/hirz-item14-wheel/bin/python -I -c 'import hirz; print(hirz.__file__); assert "site-packages" in hirz.__file__'
+```
+
+Both exited 0; recorded counts/gaps matched the default smoke above. Import resolved
+to `/private/tmp/hirz-item14-wheel/lib/python3.12/site-packages/hirz/__init__.py`,
+not the checkout. An additional temporary async wheel probe independently asserted
+24 day-ahead slots per plan, 288 static / 287 recorded realtime slots and two weather
+samples per plan, with all adapters closed:
+
+```text
+PASS installed wheel comed_time_of_day: day_ahead=24 realtime=288 weather=2
+PASS installed wheel comed_hourly: day_ahead=24 realtime=287 weather=2
+```
+
+Third-party friction was checked and recorded as entries 10–12 plus the existing
+sandbox-restriction follow-up in [the friction log](./friction-log.md#item-14-energy-research--2026-09-20).
+No blocked acceptance checks. Item 15 remains next; the development database stays
+unchanged on `0003_pipeline`, item 12's upgrade remains manual, and no new threat-model
+protection or remote CI result is claimed.
+
+## Item 15 — partial (2026-09-20)
+
+**Physical gate not run:** no physical energy-monitoring plug or reviewed local
+mapping was supplied. The real plug's pipeline write, measured state/power,
+physical-absence scenario fallback and ordinary unavailability remain owed. No
+hardware was selected or purchased. No new threat-model protection, AWS/Link
+execution, remote CI result or development-database migration is claimed.
+
+Implementation decisions and the author-approved switch from ecobee to heatpump
+are in [ADR-006](./adr/ADR-006-twin-first-adapters.md#item-15-local-ha-amendment--2026-09-20-author-approved).
+Reproducible operator commands are in [development](./development.md#home-assistant-adapter-item-15).
+Environment: macOS arm64, Python 3.12.13, uv 0.12.15, existing local Postgres,
+pinned Home Assistant 2026.9.2 demo integration and native `.tools/dogwood`.
+Started the existing HA service with
+`docker compose -f compose.dev.yml up -d homeassistant` after authorized sandbox
+escalation. The private `.env` and its original signing key were reused without
+printing or changing them.
+
+**Recorded and adversarial checks.** `uv run python scripts/smoke_ha.py` exited 0:
+
+```text
+recorded=PASS; reads=3; subscription=acknowledged,filtered; read_only_write=refused; network_requests=0
+```
+
+The adapter/fallback targeted suite grew to 62 passing cases before the final
+cleanup-redaction case. It exercises authentication and subscription refusal,
+connect/auth timeout handling, acknowledgment and bound-entity filtering, shutdown,
+W/kW and Celsius conversions, oldest timestamps, missing power with known on/off,
+malformed/nonfinite/scoped data, secret redaction, switch services, read-only
+refusals, unsupported parameters/modes/steps, contradictory effects, precise raw
+verification, direct-unavailable verification and scenario-only provenance checks.
+A twin/canonical read method is never consulted to verify a real write.
+
+`uv run pytest -m integration tests/integration/test_ha_database.py --no-cov --tb=short -q`:
+
+```text
+8 passed in 4.75s
+```
+
+Those tests use native Dogwood with recorded HA transport and disposable PostgreSQL.
+Eight simultaneous independently connected adapters produce exactly one POST and
+seven claim refusals; reconstructing the adapter/Pipeline on another connection
+produces no additional request. Proposal-only/forged Decisions, changed proposals,
+hash mismatches, stale grants, scheduled actions, foreign households and changed
+bindings are refused. Audit/signature/database/commit failures prevent dispatch;
+a timeout after the attempt is committed cannot be retried. Empty migrations
+round-trip; downgrade refuses both a claimed attempt and its audit evidence with
+the claim pointer removed. The successful chain is exactly
+`EXECUTE → EXECUTION_ATTEMPTED → EXECUTED → VERIFIED`.
+
+Full PostgreSQL regressions, `uv run pytest -m integration --no-cov -q`, exited 0:
+
+```text
+60 passed, 815 deselected in 41.97s
+```
+
+Log: `/private/tmp/hirz-item15-postgres.log`. The full service-free suite after
+adding switch/shutdown/direct-unavailability checks, `uv run pytest -q`, exited 0:
+
+```text
+Required test coverage of 80% reached. Total coverage: 89.53%
+818 passed, 60 deselected in 59.46s
+```
+
+Log: `/private/tmp/hirz-item15-unit-final2.log`. A later cleanup-redaction regression
+and its final run are appended below.
+
+**Live user path.** Ran
+`uv run python scripts/smoke_ha.py --live-demo --audit-output /private/tmp/hirz-item15-demo-audit-final.json`,
+exit 0. The command required subscription observations to match the requested
+values, separately verified service effects through REST and restored both devices:
+
+```text
+read=climate.heatpump; source=real API, demo devices; target_f=68.0; on=None; power_kw=None
+read=climate.ecobee; source=real API, demo devices; target_f=None; on=None; power_kw=None
+read=light.bed_light; source=real API, demo devices; target_f=None; on=False; power_kw=None
+write=climate.heatpump; grant=1; boundary=dogwood-local; verified=True
+subscription=climate.heatpump; source=real API, demo devices; power_kw=None; direct_power_kw=None
+write=light.bed_light; grant=5; boundary=dogwood-local; verified=True
+subscription=light.bed_light; source=real API, demo devices; power_kw=None; direct_power_kw=None
+write=light.bed_light; grant=9; boundary=dogwood-local; verified=True
+restoration=light.bed_light; verified=True
+write=climate.heatpump; grant=13; boundary=dogwood-local; verified=True
+restoration=climate.heatpump; verified=True
+audit=valid; rows=16; export=/private/tmp/hirz-item15-demo-audit-final.json; offline=valid
+live_demo=PASS; ecobee=read_only
+disposable_database=dropped; development_database=unchanged
+```
+
+The tested heatpump target was 72 °F; restoration returned it to 68 °F and the
+light to off. All four device writes had independent native grants, attempt claims
+and outcome rows. The private full audit export was retained and verified offline
+against the original key fingerprint before dropping the disposable database.
+An earlier successful run also retained `/private/tmp/hirz-item15-demo-audit-2.json`.
+
+**Failures encountered and corrected.** Initial database tests used an incorrect
+binding lookup key (`GraphError: An exact entity key is required.`), then omitted
+required synthetic room metadata (`DENY_RISK`). The first claim implementation
+queried relational adapter/entity columns rather than the existing JSONB attributes;
+fail-closed `PipelineError: Execution claim refused; no dispatch authorized` prevented
+all requests until corrected. Downgrade tests were adjusted for the existing Alembic
+safe-error wrapper (`Migration failed; check Postgres, .env, and the migration state.
+Credentials and upstream details withheld.`). Two unit assertions initially expected
+the generic malformed-payload error, while nonfinite power correctly returned
+`Invalid Home Assistant numeric value.`; the assertions were corrected. Strict mypy
+required converting SQLAlchemy's RowMapping to a dict for the existing audit verifier.
+
+The first live bootstrap used a timestamp taken after its graph transaction began
+and failed with `GraphError: Future observations are not accepted.` before any action.
+It retained `hirz_ha_smoke_8a73a89e7bfe4c62905344a2072600db`; a separate read-only
+verification found zero audit rows, exported/verified the empty audit at
+`/private/tmp/hirz-item15-aborted-audit.json`, then dropped only that disposable
+database. A read of the development database still returned `0003_pipeline`.
+Subsequent smokes used one captured bootstrap timestamp and passed.
+
+**Static checks and package.** Ruff lint passed and strict mypy reported
+`Success: no issues found in 77 source files`. `uv build` produced the sdist and
+wheel. Created `/private/tmp/hirz-item15-wheel` with `uv venv`, installed the wheel
+and runtime dependencies using `uv pip install --python ...`, then rebuilt and
+reinstalled the final cleanup change using `--reinstall-package hirz`. Ran:
+
+```bash
+/private/tmp/hirz-item15-wheel/bin/python -I /Users/bashaarjavaid/Projects/Hirz/scripts/smoke_ha.py
+/private/tmp/hirz-item15-wheel/bin/python -I -c 'import hirz, websockets; print(hirz.__file__); print(websockets.__version__); assert "site-packages" in hirz.__file__'
+```
+
+The recorded smoke passed; the import resolved to
+`/private/tmp/hirz-item15-wheel/lib/python3.12/site-packages/hirz/__init__.py` and
+websockets reported `17.1`, proving it is a runtime dependency. The final format
+check is recorded below after documentation updates. Third-party friction was
+reviewed and recorded as entry 13 and an existing sandbox-restriction follow-up;
+no upstream HA error or outage was invented.
+
+**Final cleanup regression run (2026-09-20).** After adding redacted shutdown failure
+handling that still closes the REST client, reran `uv run pytest -q`, exit 0:
+
+```text
+Required test coverage of 80% reached. Total coverage: 89.54%
+819 passed, 60 deselected in 59.95s
+```
+
+Final full-suite log: `/private/tmp/hirz-item15-unit-final3.log`. Ruff lint and strict
+mypy also passed after that change; final rebuilt/installed-wheel smoke passed.
+
+**Documentation and final format gate.** Updated the architecture/ADR, operator
+procedure, partial roadmap entry, changelog and mirrored instructions. After those
+records were written, `ruff check .`, strict mypy and `git diff --check` passed;
+`ruff format --check .` reported `128 files already formatted`. No physical gate
+was marked complete and `THREAT_MODEL.md` was left unchanged.
+
+## Item 16 — Complete (2026-09-20)
+
+**Scope of completion:** the author explicitly approved the item 16 observation
+stage as its completion gate. This is not full demo verification: real scripted
+tool execution, persisted `scenario_runs`, graph ingestion, authenticated policy
+activation, planner/Protect/executor/Link integration and their assertions remain
+owed. Every future assertion is individually deferred, including `never` checks
+that would otherwise pass vacuously. No device action, new threat-model protection,
+remote CI result or development-database migration is claimed. Item 15's physical
+plug and physical-absence gates remain pending.
+
+Approved decisions and rejected alternatives are in
+[ADR-006](./adr/ADR-006-twin-first-adapters.md#item-16-observation-stage-scenarios--2026-09-20-author-approved).
+Input/report semantics live in [the scenario spec](./twin-and-scenarios.md#31-item-16-runnable-contract);
+repeatable procedures live in [development](./development.md#scenario-runner-item-16).
+
+### Environment and implementation failures
+
+macOS 15.7.3 arm64, Python 3.12.13, uv 0.12.15, existing locked `.venv`, native
+`.tools/dogwood`, existing local PostgreSQL. Source checks used
+`UV_CACHE_DIR=/tmp/hirz-uv-cache` and `uv run --locked --no-sync` to reuse the
+installed environment; no manifest or lockfile changed. Scenarios used
+`HIRZ_DOGWOOD="$PWD/.tools/dogwood"`. There was no model, public API or device call.
+
+The first evening run traversed all 20 events but failed its household tariff
+check: the assertion matched a battery sharing the household/domain instead of
+the household-subject observation. Fixed subject matching and retained a
+regression assertion. Its first output was 15 passed checks and 1 failed.
+The parents' first run passed all 9 checks. Initial mypy checks caught typed
+member-account access, a keyword-only registry argument and transition literal
+typing. The first CLI import also caught an evaluated private argparse generic;
+postponed annotation evaluation fixed it.
+
+The first focused suite reported `2 failed, 32 passed`: tests incorrectly tried
+`python -m hirz` instead of the installed CLI entrypoint and rejected the harmless
+word `presented_number` inside a deferred expectation. Corrected those tests to
+exercise the actual CLI and forbid actual private values. The suite then passed
+34 checks, and expanded malformed-input coverage brought it to 42.
+
+The first full suite in the sandbox reported:
+
+```text
+2 failed, 851 passed, 60 deselected in 74.66s (0:01:14)
+Required test coverage of 80% reached. Total coverage: 89.39%
+```
+
+Both failures were existing loopback WebSocket tests denied socket access. The
+first PostgreSQL attempt similarly stopped before any test ran (`853 deselected,
+1 error in 1.58s`). Authorized reruns passed. The temporary-cache offline wheel
+install initially lacked an existing dependency; authorized access to the existing
+cache completed the install offline. Exact environment errors and workarounds are
+recorded once in [the friction follow-up](./friction-log.md#item-16-environment-follow-up--2026-09-20),
+not as new upstream defects.
+
+### Final tests and user-facing runs
+
+```text
+uv run --locked --no-sync pytest tests/unit/test_scenario.py --no-cov -q
+42 passed in 9.35s
+
+uv run --locked --no-sync pytest -q
+861 passed, 60 deselected in 74.33s (0:01:14)
+Required test coverage of 80% reached. Total coverage: 89.44%
+
+uv run --locked --no-sync pytest -m integration --no-cov -q --maxfail=1 --tb=short
+60 passed, 853 deselected in 41.85s
+
+uv run --no-sync mypy hirz/ scripts/ alembic/
+Success: no issues found in 79 source files
+
+uv run --no-sync ruff check .
+All checks passed!
+
+uv build --offline
+Successfully built dist/hirz-0.0.0.tar.gz
+Successfully built dist/hirz-0.0.0-py3-none-any.whl
+```
+
+The integration run preceded the eight added malformed-input unit cases; its
+853 deselections are therefore expected. All databases it created were uniquely
+named disposable test databases. No scenario command connects to PostgreSQL.
+
+The actual CLI commands run were:
+
+```sh
+uv run --locked --no-sync hirz scenario run scenarios/demo-evening.yaml --headless --assert --output /tmp/hirz-item16-evening-final.json
+uv run --locked --no-sync hirz scenario run scenarios/parents-scam-check.yaml --headless --assert --output /tmp/hirz-item16-parents-final.json
+uv run --locked --no-sync hirz scenario step scenarios/demo-evening.yaml --to '18:40' --assert
+uv run --locked --no-sync hirz scenario run scenarios/parents-scam-check.yaml --speed 60 --assert
+```
+
+Each exited 0. JSON stdout and separate stderr traces were retained in temporary
+files; reports are reproducible artifacts, not permanent audit exports.
+
+| Run | Status | Events processed | Active checks | Deferred future checks | Exported observations |
+|---|---|---:|---|---:|---:|
+| Evening | `item16_observations_passed` | 20 | 16 passed | 25 | 288 |
+| Parents | `item16_observations_passed` | 5 | 9 passed | 9 | 42 |
+| Evening step to 18:40 | `stopped` | 6 | 4 passed, 12 not reached | 25 | 112 |
+| Parents paced at 60× | `item16_observations_passed` | 5 | 9 passed | 9 | 42 |
+
+The paced parents report equals the headless report as parsed JSON. The injected
+pacer test also matches and sums to 25 seconds of waits. The step stops before
+both 18:40 events, and the full run preserves their press-before-voice order.
+Repeated runs produce identical parsed reports. All observations have `source:
+twin`. Mom remains absent at the expected-window doorbell press, arrives only at
+her explicit 19:10 event and sleeps at 23:05. The EV remains at 0.34, the doors
+remain locked and the lamp/dishwasher remain off because no commands execute.
+
+Recorded version 7→8 passes native validation and produces the existing
+unexpected-visitor “ask on phone → never” preview plus “Expected arrival: still
+asks on your phone.” It is labeled recorded/simulated and `authenticated: false`.
+Wrong owner, missing proposal, wrong base/increment, invalid security channels and
+missing Dogwood fail while retaining version 7. Redaction, invalid references,
+invalid times, omitted initial fields, unsupported/unmarked events, nonfinite
+speed, duplicate YAML keys, assertion failure, CLI aliases/usage errors, existing
+output files and dangling output symlinks are checked.
+
+### Installed wheel and CI definition
+
+Created `/tmp/hirz-item16-wheel-venv`, installed the built wheel and its existing
+dependencies offline, left the checkout for `/tmp`, and ran both absolute-path
+scenario commands with that environment's `hirz` executable. Verified the imported
+package came from `/private/tmp/hirz-item16-wheel-venv/lib/python3.12/site-packages/`.
+
+```text
+PASS installed wheel evening: events=20 checks=16 deferred=25
+PASS installed wheel parents: events=5 checks=9 deferred=9
+```
+
+The scenario CI placeholder was replaced with pinned setup, native Dogwood and
+both headless assertion commands; its summary names the deferred expectations.
+The YAML parsed and retains all 11 job IDs. No push, workflow dispatch, upload or
+remote CI run occurred. The existing browser/conformance/latency/release limits
+are not earned by this change.
+
+Input SHA-256 values from the final reports:
+
+```text
+evening scenario: 6d51904f5495f7fdb1c52ce1468ea31ab0d350d8818f92e7fb588e15d9112047
+evening household: 20a685ffdeea6597af266790bb732e644644abc4131f9dd2a2c91bff73d2489a
+recorded patch: d538f15ad44f8cc79e0a6590e48888364166a72b0871c3f3f5de1a2d848745e3
+parents scenario: 42a8d0dcc3a7b43e4588c6ab1a372f8b9fa60122b75dc855d00ae943ef2f4a38
+parents household: 4d8dfd01a3b876714141fcb90f5d1a36dc45937fa9c3384016b727ba3592a8a3
+```
+
+### Final record consistency and formatting
+
+After the evidence, roadmap, changelog and mirrored Current phase updates,
+`ruff format --check .` reported `131 files already formatted`; Ruff lint, strict
+mypy (79 source files) and `git diff --check` passed. A whole-file mirror check
+initially flagged the pre-existing AGENTS-specific introductory sentence; comparison
+of all substantive guidance confirms it matches CLAUDE.md exactly. That unrelated
+introductory difference was preserved.
+
+A documentation-only complexity-ceiling comment was added to the runner's small
+linear timeline scans. Rebuilt/reinstalled the final wheel and reran both scenarios
+outside the checkout: evening `item16_observations_passed` with 16 checks, parents
+with 9. No behavioral code changed after the 861-test full run. Final formatting
+was repeated after this appended evidence, as required.
+
+## Phase 2 cleanup batch 1
+
+Verified on 2026-09-20 on `phase-2`, macOS arm64, Python 3.12.13 and native
+`.tools/dogwood`. The changelog entry is dated 2026-09-21 as requested. This is a
+correction to items 12–16, not a new roadmap item.
+
+### Regression proof
+
+Before implementation, ran:
+
+```sh
+uv run pytest tests/unit/test_scenario.py tests/unit/test_adapters.py -k 'registry_reads_use_simulated_time or absent_member_cannot_sleep or (start_failure and factory)' --no-cov
+```
+
+```text
+4 failed, 63 deselected in 0.95s
+```
+
+The demo-evening world was at 2026-10-13 while wall time was 2026-09-20. Its real
+`twin` light adapter, reached through a `devices:ha` stub raising
+`AdapterUnavailable`, failed with `AdapterError: Invalid scenario fallback
+provenance.` The direct twin registry read also failed future-time validation.
+Absent Mom's sleep event did not raise, and the startup-failure test found no
+`Registry.start`/`RuntimeError` log.
+
+Added the Registry clock argument and supplied `world.clock` in the mixed test
+and twin registry helper; both get-state timestamp validations now use it. HA's
+own future `last_updated` check still uses wall time. The absent-member sleep
+check raises before applying an event; the test verifies unchanged world state
+and the permitted no-op wake. Redacted exceptions log only static operation names
+and `type(exc).__name__`, using the pipeline's existing logging pattern. The
+startup test checks that `RuntimeError` is logged and `PRIVATE` is absent.
+
+The same focused command after the corrections returned:
+
+```text
+4 passed, 63 deselected in 0.79s
+```
+
+### Development migrations
+
+Ran the explicitly authorized `uv run alembic upgrade head`: exit 0, no stdout or
+stderr. The two pending revisions are `0004_observation_domains` and
+`0005_execution_attempt`. Then ran these commands in order:
+
+```text
+$ uv run alembic check
+No new upgrade operations detected.
+
+$ uv run hirz doctor
+PASS Postgres: authenticated SELECT 1.
+PASS HA: real API, demo devices (simulated); required entities present.
+PASS Signing key: P-256 private key signs and verifies an in-memory probe.
+PASS Migrations: database matches the sole Alembic head; graph tables and household_context present.
+
+$ uv run alembic current
+0005_execution_attempt (head)
+```
+
+All exited 0. Current phase now states that revision identically in AGENTS.md and
+CLAUDE.md. No reset, reseed, credential replacement or physical device action was
+performed. ADR-006 has a dated source-label amendment, and the scenario sketches
+are explicitly targets for items 17, 22 and 35; §3.1 remains executable syntax.
+
+### Required verification sequence
+
+Ran the following in the requested order; all commands exited 0:
+
+```text
+$ uv run pytest
+TOTAL                                      5448    571    90%
+Required test coverage of 80% reached. Total coverage: 89.52%
+================ 864 passed, 60 deselected in 67.99s (0:01:07) =================
+
+$ uv run pytest -m integration --no-cov
+===================== 60 passed, 864 deselected in 34.29s ======================
+
+$ uv run mypy hirz/ scripts/ alembic/
+Success: no issues found in 79 source files
+
+$ uv run ruff check .
+All checks passed!
+
+$ HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run hirz scenario run scenarios/demo-evening.yaml --headless --assert
+$ HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run hirz scenario run scenarios/parents-scam-check.yaml --headless --assert
+```
+
+The scenario CLIs emitted JSON reports; parsed summaries, with explicit assertions
+on status, count and every check's passing status:
+
+```text
+demo-evening: item16_observations_passed; 16 checks passed; 25 deferred
+parents-scam-check: item16_observations_passed; 9 checks passed; 9 deferred
+```
+
+Local full outputs are `/private/tmp/hirz-cleanup-batch1-pytest.log`,
+`/private/tmp/hirz-cleanup-batch1-integration.log`, and
+`/private/tmp/hirz-cleanup-batch1-{evening,parents}.{json,log}`. Integration tests
+used disposable databases. No remote CI run was requested or claimed. The native
+Dogwood checks ran locally; later-phase scenario assertions remain deferred.
+
+Reviewed all 20 redacted re-raises across Registry, HA and real energy: each logs
+the operation and exception class before raising. Registry cleanup also logs the
+class, and the scenario runner logs it before returning its redacted failed
+report. No exception message, traceback, input payload, URL or credential is
+included by these logs.
+
+The existing uv cache sandbox restriction recurred; the exact error and successful
+escalated retry are recorded in [the friction log](./friction-log.md). No new
+upstream defect was encountered. `git diff --check` passed, and the Current phase
+text matches between AGENTS.md and CLAUDE.md. ROADMAP.md, THREAT_MODEL.md and
+hirz/twin/physics.py are unchanged; item 15 remains Partial. No Phase 3 behavior,
+composition root or real-adapter scenario loading was added.
+
+Final formatting, after the evidence and changelog entries were written:
+
+```text
+$ uv run ruff format --check .
+131 files already formatted
+```
+
+Exit 0; repeated after appending this result so formatting remains the final check.
+
+## Doorbell press bound to approval
+
+Author decision dated **2026-09-21**; local verification ran **2026-09-20** on
+`phase-2`, macOS, Python 3.12.13, the existing locked uv environment, local
+PostgreSQL and the repository's native `.tools/dogwood`. This corrects items 9
+and 12 under [ADR-006](./adr/ADR-006-twin-first-adapters.md#doorbell-press-bound-to-approval--2026-09-21-author-approved).
+
+### Regression and coverage
+
+The new PostgreSQL case uses the existing suites and a uniquely named disposable
+database. At T = `2026-10-13T19:04:00-05:00`, the press falls inside Mom's stored
+arrival window. Under v8 it proposes at T+10 seconds, records the synthetic
+passkey-verified phone vote at T+60, refreshes telemetry while preserving
+`last_press_at`, and redeems at T+120. It checks the three-field JSONB binding,
+native Dogwood authorization, one vote, and the stored audit context hash.
+`EXECUTE` here is an internal durable grant, not a physical unlock.
+
+Before implementation, the focused command returned `DENY_CONSTITUTION` instead
+of `EXECUTE`. After correcting fixture freshness/versioning, the **final test**
+was also run against both original pipeline files from HEAD, with the working
+changes saved and restored in a `finally` block. It reproduced the same failure:
+
+```text
+$ uv run pytest tests/integration/test_pipeline_database.py -m integration --no-cov -k doorbell --tb=short
+E   assert <EventType.DENY_CONSTITUTION: 'DENY_CONSTITUTION'> == 'EXECUTE'
+======================= 1 failed, 13 deselected in 1.52s =======================
+```
+
+The focused corrected-code PostgreSQL run passed:
+
+```text
+$ uv run pytest tests/integration/test_pipeline_database.py -m integration --no-cov -k doorbell
+======================= 1 passed, 13 deselected in 1.59s =======================
+```
+
+Seven service-free proposal/vote/redemption cases cover expected-v8 success, a
+second press at T+90 refusing both a vote and redemption without inserting another
+vote or approval, unexpected-v8 refusal without approval creation, unexpected-v7
+success with the Boolean still true, legacy bindings under both versions, and
+expiry after 30 minutes winning even over a newer press. Votes are checked at both
+T+60 and T+61. Schedule removal after ASK does not change the bound classification.
+Read-only `evaluate()` still creates no approval and uses the live press window;
+the existing `hirz decide` integration cases run in the full PostgreSQL suite.
+Four fact tests additionally verify live sleeping, occupancy, offline status and
+observation age; the existing 0/60/60.001/86400-second window tests remain intact.
+
+The service-free boundary test checks `f_context_unexpected_visitor`, equality of
+`boundary.context_hash` to the full facts digest, and that removing the bound press
+changes that digest. `boundary_check()` already hashes `Facts.policy.values` and
+passes those facts to `boundary_input()`. The bound press is now in those values;
+the existing compiler projects its derived Boolean. No graph snapshot schema,
+hash algorithm, boundary schema, database column or migration changed.
+
+```text
+$ uv run pytest tests/unit/test_pipeline.py tests/unit/test_adapter_facts.py --no-cov --tb=short
+============================== 70 passed in 1.18s ==============================
+```
+
+Intermediate development runs exposed a `TypeError` from serializing frozen
+policy facts (fixed by the existing `wire()` helper), stale fixture observations
+returning `DENY_RISK` (retained as correct behavior), a fixture insertion violating
+`observations_asset_unique` (changed to versioned updates), and six test failures
+from mutating a frozen `ContextSnapshot` (changed to `model_copy`). None remains
+in the final verification. The initial uv cache permission failure and successful
+escalated retry are recorded in [the friction log](./friction-log.md); no upstream
+defect, dependency change or remote CI run is claimed.
+
+### Required verification sequence
+
+The following ran in the requested order:
+
+```text
+$ uv run pytest
+TOTAL                                      5476    475    91%
+Required test coverage of 80% reached. Total coverage: 91.33%
+================ 875 passed, 61 deselected in 72.28s (0:01:12) =================
+
+$ uv run pytest -m integration --no-cov
+===================== 61 passed, 875 deselected in 37.40s ======================
+
+$ uv run mypy hirz/ scripts/ alembic/
+Success: no issues found in 79 source files
+
+$ uv run ruff check .
+All checks passed!
+
+$ HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run hirz scenario run scenarios/demo-evening.yaml --headless --assert
+$ HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run hirz scenario run scenarios/parents-scam-check.yaml --headless --assert
+```
+
+Both scenario JSON reports were parsed, asserting their status, exact check count,
+all passing checks and deferred counts:
+
+```text
+demo-evening: item16_observations_passed; 16 checks passed; 25 deferred
+parents-scam-check: item16_observations_passed; 9 checks passed; 9 deferred
+```
+
+These commands all exited 0. Full local outputs are
+`/private/tmp/hirz-doorbell-{before,pytest,integration}.log` and
+`/private/tmp/hirz-doorbell-{evening,parents}.json`. The scenario assertions remain
+item 16 observations; no executor, scheduler, Phase 3 item, or physical device
+operation was added. ROADMAP.md and the instruction files are unchanged. The
+unexpected-visitor threat row remains Planned; no threat-model status was raised.
+
+The final requested test command then exited 0:
+
+```text
+$ uv run pytest tests/cedar_conformance --no-cov
+============================= 40 passed in 44.66s ==============================
+```
+
+Full output: `/private/tmp/hirz-doorbell-cedar.log`. All 40 native conformance tests
+ran locally; AWS enforcement remains outside this correction.
+
+Final formatting, after the records were written:
+
+```text
+$ uv run ruff format --check .
+131 files already formatted
+```
+
+Exit 0. `git diff --check` also passed. The format check is repeated after appending
+this result so it remains the last verification command before the single commit.
+
+## Scenario weather from archived observations
+
+### Author decision 2026-09-21; local verification 2026-09-20
+
+Correction to item 16 on `phase-2`, based on `7e69ff3`. The machine clock at
+retrieval was 2026-09-20 UTC; decision/document dates retain the author's requested
+2026-09-21 date. Python 3.12 and the existing `.tools/dogwood` were used. No loader,
+DSL, adapter implementation, assertion, dependency or Phase 3 code changed.
+Item 17 remains incomplete.
+
+The [raw archive response](../scenarios/fixtures/weather-chicago-2025-10-13.json)
+was fetched once successfully with Python's `urllib.request.urlopen` and saved
+byte-for-byte (1,639 bytes). Its request URL, actual retrieval timestamp and SHA-256
+are recorded in the [manifest](../scenarios/fixtures/manifest.json), using the
+energy-fixture manifest shape, and above each scenario's inline samples.
+The request uses the seed's declared coordinates, 41.88, -87.63, both calendar
+dates, hourly temperature/cloud cover, Fahrenheit and America/Chicago. The raw
+response retains both full days; the inline data select 2025-10-13 17:00 through
+2025-10-14 07:00 inclusive. The returned coordinates are the archive grid cell,
+41.862915, -87.64877; they do not replace the requested seed coordinates.
+Open-Meteo describes this [archive as reanalysis using observations and models](https://open-meteo.com/en/docs/historical-weather-api#data-sources),
+so the comments identify that provenance without claiming a station measurement.
+
+All 15 selected hours contain both values; no null hours were omitted. Their
+Chicago local dates shift forward one calendar year. The evening uses the 17:00
+values at its exact 17:30 start, followed by 18:00 through 07:00. Its weather
+coverage ends at 08:00 because the existing Weather validator requires the last
+sample strictly before `weather.end`; the scenario clock still ends at 07:00.
+The parents scenario uses only the same response's 17:00 values for its 25 minutes.
+The 07:00 sample is retained at the evening endpoint, with no extra hour of
+physics advancement. There is no runtime fixture lookup or network request.
+
+The initial sandbox request failed before contacting the API:
+`urllib.error.URLError: <urlopen error [Errno 8] nodename nor servname provided, or not known>`.
+The authorized network escalation then succeeded. The API behaved as documented;
+no friction-log entry was earned under this task's archive-only criterion.
+
+### Scenario commands and final snapshots
+
+Before editing, ran the evening command with stdout saved to
+`/private/tmp/hirz-weather-before.json`; after editing, ran both commands below.
+All three exited 0. Scenario commands used `UV_CACHE_DIR=/private/tmp/hirz-uv-cache`
+to keep cache access inside the sandbox's writable roots.
+
+```text
+$ HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run hirz scenario run scenarios/demo-evening.yaml --headless --assert
+demo-evening: item16_observations_passed; 16 checks passed; 25 deferred
+
+$ HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run hirz scenario run scenarios/parents-scam-check.yaml --headless --assert
+parents-scam-check: item16_observations_passed; 9 checks passed; 9 deferred
+```
+
+After reports: `/private/tmp/hirz-weather-evening.json` and
+`/private/tmp/hirz-weather-parents.json`. A one-off `uv run python` check recomputed
+the raw SHA-256, checked response units/timezone, compared every inline timestamp,
+temperature and cloud-cover value with the selected archive rows, and asserted
+the exact pass/deferred counts and that every report observation retained `twin`.
+It also started each scenario's `TwinEnergy` adapter and called `get_weather` over
+the horizon: both returned `source: twin`, `source_label: twin (supplied weather)`.
+The initial manual probe omitted `adapter.start()` and correctly raised
+`AdapterUnavailable: Twin adapter is not started.`; rerunning with the existing
+start/close lifecycle passed without any product code change.
+
+Final-snapshot values at 2026-10-14 07:00 America/Chicago, mapped to seed slugs
+using `LoadedScenario.ref("assets", slug)`:
+
+| Zone | Before `temp_f` | After `temp_f` |
+|---|---:|---:|
+| `hvac.living_room` | 57.8514 | 65.8044 |
+| `hvac.guest_room` | 58.6986 | 66.6517 |
+
+The archived overnight air is warmer than the old constant 40 °F, so the RC zones
+cool less. HVAC remains off and no temperature assertion was added or changed.
+These are simulated zone temperatures, not physical measurements or proof of
+comfort enforcement. Full-demo execution and its deferred checks remain owed.
+
+### Required checks
+
+The full suite ran with sandbox escalation for the existing localhost-socket
+tests and uv cache, with `HIRZ_DOGWOOD="$PWD/.tools/dogwood"`; its full output is
+`/private/tmp/hirz-weather-pytest.log`. The existing scenario tests also verified
+repeatable reports. No new remote CI run or integration run is claimed.
+
+```text
+$ uv run pytest
+TOTAL                                      5476    475    91%
+Required test coverage of 80% reached. Total coverage: 91.33%
+================ 875 passed, 61 deselected in 72.56s (0:01:12) =================
+
+$ uv run mypy hirz/ scripts/ alembic/
+Success: no issues found in 79 source files
+
+$ uv run ruff check .
+All checks passed!
+```
+
+All exited 0. Mypy and Ruff used the same writable temporary uv cache.
+
+Formatting after the evidence entry was written:
+
+```text
+$ uv run ruff format --check .
+131 files already formatted
+```
+
+Exit 0; `git diff --check` also passed. Formatting is repeated after recording
+this output so it remains the last verification command before committing.

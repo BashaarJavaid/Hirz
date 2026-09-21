@@ -29,7 +29,6 @@ from tests.unit.test_pipeline import (
     PRINCIPAL,
     SEED,
     action,
-    evidence,
     ident,
     policy_edit,
     snapshot,
@@ -39,12 +38,12 @@ pytestmark = pytest.mark.integration
 NOW = AT + timedelta(seconds=1)
 
 
-async def setup(connection, policy=POLICY, *, native=False):
+async def setup(connection, policy=POLICY, *, native=False, snap=None):
     await migrate(connection)
     await load_seeds(connection, [SEED], lambda: AT - timedelta(seconds=1))
     repo = GraphRepository(connection, HOME)
-    async with repo.write(lambda: AT):
-        data = snapshot().data
+    async with repo.write(lambda: snap.as_of if snap else AT):
+        data = (snap or snapshot()).data
         for row in data["observations"]:
             await repo.put("observations", Observation.model_validate(row))
         await repo.put(
@@ -70,7 +69,7 @@ def test_native_approval_one_grant_and_signed_envelopes(scratch_database):
             caller = PRINCIPAL.model_copy(
                 update={"requester_confirmed": True, "claimed_role": "adult"}
             )
-            extra = (evidence(guest_present=False),)
+            extra = ()
             preview = await p.evaluate(a, caller, evidence=extra)
             assert preview.event_type == "ASK_CONSTITUTION" and preview.audit_id is None
             assert await count(connection, db.actions) == 0
@@ -645,5 +644,67 @@ def test_caller_transaction_is_refused_without_rolling_it_back(scratch_database)
                         await call
                     assert connection.in_transaction()
                 assert await count(connection, db.audit_log) == 0
+
+    asyncio.run(run())
+
+
+def test_doorbell_approval_survives_press_window(scratch_database):
+    from datetime import datetime
+
+    from tests.unit.test_adapter_facts import bell, context
+
+    async def run():
+        press = datetime.fromisoformat("2026-10-13T19:04:00-05:00")
+        snap = context(press + timedelta(seconds=10))
+        bell(snap)["state"]["last_press_at"] = press.isoformat()
+        policy = policy_edit("security.door_unlock", never_for=["unexpected_visitor"])
+        policy = policy.model_copy(update={"version": 8})
+        async with connect(scratch_database) as connection:
+            p = await setup(connection, policy, native=True, snap=snap)
+            p.clock = lambda: snap.as_of
+            a = action("security.door_unlock")
+            caller = PRINCIPAL.model_copy(update={"requester_confirmed": True})
+            preview = await p.evaluate(a, caller)
+            assert preview.event_type == "ASK_CONSTITUTION"
+            assert await count(connection, db.approvals) == 0
+            await connection.rollback()
+            asked = await p.propose(a, caller)
+            assert asked.event_type == "ASK_CONSTITUTION"
+            apr = asked.approval.approval_id
+            p.clock = lambda: press + timedelta(seconds=60)
+            voter = caller.model_copy(
+                update={
+                    "passkey_verified": True,
+                    "verified_action_hash": a.content_hash,
+                }
+            )
+            assert (await p.vote(apr, voter, approved=True)).event_type == "APPROVED"
+            p.clock = lambda: press + timedelta(seconds=120)
+            # Fresh telemetry still reports the original press; its age alone must
+            # not discard the approval, while ordinary state freshness still applies.
+            async with p.repo.write(p.clock):
+                for row in snap.data["observations"]:
+                    await p.repo.put(
+                        "observations",
+                        Observation.model_validate(
+                            dict(row, observed_at=p.clock().isoformat())
+                        ),
+                        expected_version=snap.as_of,
+                    )
+            granted = await p.redeem(a, caller, approval_id=apr)
+            assert granted.event_type == "EXECUTE", granted
+            binding = await connection.scalar(sa.select(db.approvals.c.binding))
+            assert binding["doorbell"] == {
+                "asset_id": bell(snap)["asset_id"],
+                "last_press_at": press.isoformat(),
+                "expected": True,
+            }
+            payload = await connection.scalar(
+                sa.select(db.audit_log.c.payload).where(
+                    db.audit_log.c.seq == granted.audit_id,
+                )
+            )
+            assert payload["boundary"]["context_hash"] == granted.boundary.context_hash
+            assert await count(connection, db.approval_votes) == 1
 
     asyncio.run(run())

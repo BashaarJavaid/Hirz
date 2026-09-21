@@ -3,6 +3,8 @@
 import asyncio
 import io
 import json
+import re
+import shlex
 from contextlib import redirect_stderr, redirect_stdout
 from copy import deepcopy
 from datetime import datetime, timedelta
@@ -22,21 +24,28 @@ from test_database import scratch_database as scratch_database
 from hirz import cli, db
 from hirz.constitution.boundary import BoundaryResult, Dogwood
 from hirz.constitution.schema import loads
-from hirz.graph.models import Observation, Preference
+from hirz.graph.models import ASSET_DOMAINS, Observation, Preference
 from hirz.graph.repository import GraphRepository
 from hirz.graph.seeds import Seed, demo_id, load_seeds, read_seed
 from hirz.pipeline.audit import AuditWriter
 from hirz.pipeline.models import Principal
 from hirz.pipeline.service import Pipeline, PolicyBundle
 from tests.unit.test_decide import arguments
-from tests.unit.test_pipeline import HOME, SEED, action, ident
+from tests.unit.test_pipeline import HOME, SEED, action, ident, snapshot
 
 pytestmark = pytest.mark.integration
 DAY = datetime.fromisoformat("2026-10-13T17:35:00-05:00")
 
 
 async def setup(
-    connection, at=DAY, *, version=7, asleep=False, teen=False, slug="quinn-home"
+    connection,
+    at=DAY,
+    *,
+    version=7,
+    asleep=False,
+    teen=False,
+    slug="quinn-home",
+    observations=True,
 ):
     await migrate(connection)
     original = (
@@ -67,7 +76,7 @@ async def setup(
     repo = GraphRepository(connection, seed.household_id)
     async with repo.write(lambda: observed):
         for kind, field in (("members", "member_id"), ("assets", "asset_id")):
-            for subject in models[kind]:
+            for subject in models[kind] if observations else []:
                 await repo.put(
                     "observations",
                     Observation.model_validate(
@@ -77,13 +86,22 @@ async def setup(
                             field: subject.id,
                             "observed_at": observed,
                             "source": "twin",
-                            "state": {
-                                "present": True,
-                                "sleeping": asleep
-                                and subject.id == demo_id(slug, "members", "mom"),
-                                "zone_id": str(zone),
-                                "available": True,
-                            },
+                            "domain": "presence"
+                            if kind == "members"
+                            else ASSET_DOMAINS[subject.kind],
+                            "state": {"available": True}
+                            | (
+                                {
+                                    "present": True,
+                                    "sleeping": asleep
+                                    and subject.id == demo_id(slug, "members", "mom"),
+                                    "zone_id": str(zone),
+                                }
+                                if kind == "members"
+                                else {"last_press_at": observed.isoformat()}
+                                if subject.kind == "doorbell"
+                                else {}
+                            ),
                         }
                     ),
                 )
@@ -184,16 +202,14 @@ def test_worked_examples(case, name, expected, scratch_database, tmp_path):
                 assert grant.event_type == "EXECUTE" and grant.audit_id is not None
             before = await state(connection)
             a = action(name)
-            facts = [
-                {
+            facts = {
+                "scam_pattern": {
                     "household_id": str(HOME),
                     "observed_at": at.isoformat(),
                     "source": "twin",
-                    "occupancy_complete": True,
-                    "unexpected_visitor": case.startswith("unexpected"),
                     "scam_pattern": case == "suspicious_request",
                 }
-            ]
+            }
             path = tmp_path / "evidence.json"
             path.write_text(json.dumps(facts))
             options = dict(
@@ -295,35 +311,24 @@ def test_stored_policy_and_prerequisite_failures(scratch_database):
     asyncio.run(run())
 
 
-@pytest.mark.parametrize(
-    "facts",
-    [
-        [],
-        [{"occupancy_complete": True, "guest_present": True}],
-        [{"household_id": "00000000-0000-0000-0000-000000000000"}],
-        [{"observed_at": "2026-10-14T00:00:00-05:00"}],
-    ],
-)
+@pytest.mark.parametrize("case", ["missing", "fill", "conflict", "foreign", "future"])
 def test_missing_and_conflicting_evidence_fails_closed(
-    facts, scratch_database, tmp_path
+    case, scratch_database, tmp_path
 ):
     async def run():
         async with connect(scratch_database) as connection:
-            _, key = await setup(connection)
+            _, key = await setup(connection, observations=case == "conflict")
             before = await state(connection)
+            readings = snapshot().data["observations"]
+            for row in readings:
+                row["observed_at"] = DAY.isoformat()
+            if case == "foreign":
+                readings[0]["household_id"] = str(uuid4())
+            if case == "future":
+                readings[0]["observed_at"] = (DAY + timedelta(seconds=1)).isoformat()
             path = tmp_path / "facts.json"
             path.write_text(
-                json.dumps(
-                    [
-                        {
-                            "household_id": str(HOME),
-                            "observed_at": DAY.isoformat(),
-                            "source": "twin",
-                        }
-                        | item
-                        for item in facts
-                    ]
-                )
+                json.dumps({"observations": [] if case == "missing" else readings})
             )
             args = arguments(
                 action="energy.hvac_adjust",
@@ -339,11 +344,13 @@ def test_missing_and_conflicting_evidence_fails_closed(
             )
             assert code == 0, err
             decision = json.loads(out)
-            assert decision["event_type"] == (
-                "DENY_RISK" if not facts else "DENY_CONSTITUTION"
-            )
+            assert decision["event_type"] == {
+                "missing": "DENY_RISK",
+                "fill": "EXECUTE",
+            }.get(case, "DENY_CONSTITUTION")
             assert decision["audit_id"] is None and decision["approval"] is None
             assert await state(connection) == before
+            print(f"overlay {case}: {decision['event_type']}; database=unchanged")
 
     asyncio.run(run())
 
@@ -356,18 +363,7 @@ def test_other_home_unknown_confirmation_governance_and_boundary(
             _, key = await setup(connection)
             before = await state(connection)
             path = tmp_path / "facts.json"
-            path.write_text(
-                json.dumps(
-                    [
-                        {
-                            "household_id": str(HOME),
-                            "observed_at": DAY.isoformat(),
-                            "source": "twin",
-                            "occupancy_complete": True,
-                        }
-                    ]
-                )
-            )
+            path.write_text("{}")
             for changes, expected in [
                 ({"as": "unlinked"}, "DENY_CONSTITUTION"),
                 ({"action": "governance.pause_automation"}, "EXECUTE"),
@@ -431,5 +427,37 @@ def test_other_home_unknown_confirmation_governance_and_boundary(
             assert code == 0, err
             assert json.loads(out)["event_type"] == "EXECUTE"
             assert await state(connection) == before
+
+    asyncio.run(run())
+
+
+def test_documented_light_preview(scratch_database, tmp_path):
+    """Run the actual documentation example, substituting only its file/DB/key."""
+    section = (
+        Path("docs/development.md").read_text().split("**Explicit preview file.**")[1]
+    )
+    example = re.search(r"```json\n(.*?)\n```", section, re.DOTALL).group(1)
+    command = re.search(r"```sh\n(.*?)\n```", section, re.DOTALL).group(1)
+    args = shlex.split(command.replace("\\\n", ""))[2:]
+    path = tmp_path / "light-preview.json"
+    path.write_text(example)
+    args[args.index("--evidence") + 1] = str(path)
+
+    async def run():
+        async with connect(scratch_database) as connection:
+            _, key = await setup(connection, observations=False)
+            before = await state(connection)
+            code, output, errors = await asyncio.to_thread(
+                invoke, scratch_database, key, args
+            )
+            assert code == 0, errors
+            decision = json.loads(output)
+            assert decision["event_type"] == "EXECUTE"
+            assert decision["audit_id"] is None and decision["approval"] is None
+            assert decision["boundary"]["result"] == "allow"
+            assert await state(connection) == before
+            print(
+                "documented light preview: EXECUTE; dogwood-local=allow; audit=null; approval=null; database=unchanged"
+            )
 
     asyncio.run(run())
