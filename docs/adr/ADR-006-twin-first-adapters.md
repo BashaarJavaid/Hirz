@@ -223,6 +223,16 @@ purchase remain outside this work. Contracts live in [architecture §5.11](../..
 procedures in [development](../development.md#home-assistant-adapter-item-15), and
 actual checks in [the evidence log](../verification-log.md#item-15--partial-2026-09-20).
 
+### Terminal HA dispatch attempts — 2026-09-21 (author-approved)
+
+A local HA execution attempt whose service request fails hard after
+`Pipeline.claim_execution` stays terminal and is never retried on the same action
+id. Item 19's executor appends `VERIFY_FAILED` with reason `dispatch_uncertain`
+and marks the action failed; the scheduler proposes a fresh `Action` with a new
+id through the full pipeline again. Rejected a retry counter on the same action:
+it reintroduces the double-actuation ambiguity the single-attempt claim was built
+to remove.
+
 ## Item 16 observation-stage scenarios — 2026-09-20 (author-approved)
 
 The author approved the following choices individually before implementation:

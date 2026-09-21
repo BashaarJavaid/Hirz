@@ -736,7 +736,8 @@ the signed committed grant, checks the household/binding and refuses scheduled a
 grants older than ten seconds and previous attempts. It appends `EXECUTION_ATTEMPTED`
 and atomically sets `actions.execution_attempt_seq`, committing before one REST service
 request. Database/audit/signing failure prevents dispatch. Crashes and uncertain responses
-never clear that claim. A service success appends `EXECUTED`; independent direct HA reads
+never clear that claim; item 19's scheduler retries through the full pipeline with a fresh
+Action and a new id (see [ADR-006](./docs/adr/ADR-006-twin-first-adapters.md#terminal-ha-dispatch-attempts--2026-09-21-author-approved)). A service success appends `EXECUTED`; independent direct HA reads
 poll at one-second intervals for at most ten seconds, matching on/off exactly or raw
 climate targets within 0.000001 °F. Rounded graph facts and twins cannot verify execution.
 Append `VERIFIED` or `VERIFY_FAILED`; uncertain effects remain unknown. Raw HA payloads
