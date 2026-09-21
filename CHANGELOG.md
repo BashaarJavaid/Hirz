@@ -16,6 +16,8 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- 2026-09-21: Update the installed-wheel CI assertion to the 25 catalog classes introduced by item 18; reproduce the failure and verify the corrected check outside the checkout ([evidence](./docs/verification-log.md#installed-wheel-ci-count-correction--2026-09-21)).
+
 - 2026-09-21: Fix historical planner replay with shared causal simulated thermostat
   and battery controls; verify the full year and wear sensitivities without
   relaxing constraints or extending execution authority

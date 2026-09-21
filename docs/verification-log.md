@@ -2837,3 +2837,33 @@ on `0005_execution_attempt`; applying `0006_coordinator_constraints` is manual.
 Plan persistence, refresh jobs, execution, automatic HA change detection, MCP/UI
 and full scenario wiring remain later work; item 15's physical plug/absence checks
 remain pending.
+
+### Installed-wheel CI count correction — 2026-09-21
+
+The [build job on `fda92c3`](https://github.com/BashaarJavaid/Hirz/actions/runs/35667718438/job/106557067937)
+failed after successfully building and installing the wheel. Its packaged-catalog
+assertion still expected 23 classes and situation groups; item 18 adds two reserved
+constraint operations, making both counts 25. The exact failure was
+`AssertionError` followed by `Process completed with exit code 1.` This was a stale
+project assertion, not missing package data or third-party tool friction.
+
+Rebuilt with `UV_CACHE_DIR=/tmp/hirz-uv uv build`, then loaded and executed the
+workflow's unchanged `Fresh-wheel import and CLI outside the checkout` shell step
+in a fresh temporary virtual environment. It reproduced the same `AssertionError`
+locally. After changing that one workflow line to expect/report 25, repeated the
+exact step in another fresh temporary environment, outside the checkout:
+
+```text
+PASS installed hirz 0.0.0
+PASS packaged catalogs: 25 classes, 25 situation groups
+usage: hirz [-h]
+            {verify-audit,audit,decide,scenario,doctor,seed,context,constitution}
+            ...
+```
+
+The corrected step exited 0. Temporary environments were removed. Dependency
+installation and job-log retrieval needed the existing sandbox network workaround;
+no new third-party defect earned a friction entry. No runtime code, dependency,
+planner output or verification threshold changed. Broader Python and backtest
+reruns are unnecessary for this workflow-literal correction; the pushed workflow
+will rerun CI. Its outcome is not claimed by this pre-push evidence entry.
