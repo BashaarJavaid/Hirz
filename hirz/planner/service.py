@@ -1,18 +1,22 @@
 """Proposal construction, validated fallback and explicit infeasibility evidence."""
 
+from datetime import timedelta
 from time import perf_counter
-from typing import Literal
+from typing import Any, Literal
 
 from hirz.adapters.energy.real.tariff import CHICAGO
 from hirz.pipeline.hashing import action_hash, digest
 from hirz.pipeline.models import (
     Action,
     ComparisonValidity,
+    ExpectedEffect,
     Explanation,
+    Inverse,
     Plan,
     PlanAlternative,
     PlanHorizon,
     PlanSummary,
+    Revert,
     Target,
 )
 from hirz.planner.feedback import forecast_replay
@@ -95,7 +99,18 @@ def actions(p: PlannerInput, schedule: Schedule, plan_id: str) -> tuple[Action, 
                     action_id="act_"
                     + digest([str(p.household_id), plan_id, i, entity]),
                     **{"class": cls},
-                    target=Target(adapter="twin", entity=entity),
+                    target=Target(
+                        adapter="twin",
+                        entity=entity,
+                        zone=next(
+                            (
+                                str(z.asset_id)
+                                for z in p.zones
+                                if z.entity == entity and z.asset_id is not None
+                            ),
+                            None,
+                        ),
+                    ),
                     params=params,
                     requested_by=p.requester,
                     reason="Read-only simulated energy proposal; requires pipeline authorization",
@@ -130,6 +145,51 @@ def actions(p: PlannerInput, schedule: Schedule, plan_id: str) -> tuple[Action, 
             )
         )
         result.append(action.model_copy(update={"content_hash": action_hash(action)}))
+    for i, action in enumerate(result):
+        assert action.scheduled_for is not None
+        next_change = next(
+            (
+                other.scheduled_for
+                for other in result[i + 1 :]
+                if other.target == action.target
+            ),
+            p.slots[-1].end,
+        )
+        assert next_change is not None
+        attr = {
+            "energy.hvac_adjust": "target_f",
+            "energy.ev_charge": "charging",
+            "energy.battery_dispatch": "dispatch_kw",
+            "energy.appliance_start": "on",
+        }[action.action_class]
+        updates: dict[str, Any] = {
+            "expected_effect": ExpectedEffect(
+                entity=action.target.entity,
+                attr=attr,
+                value=action.params.get(attr, True),
+                by=next_change
+                if next_change > action.scheduled_for
+                else action.scheduled_for + timedelta(seconds=10),
+            )
+        }
+        if (
+            action.params.get("charging") is True
+            or action.params.get("dispatch_kw", 0) != 0
+        ):
+            updates["revert"] = Revert(
+                after_s=int((next_change - action.scheduled_for).total_seconds()),
+                inverse=Inverse.model_validate(
+                    {
+                        "class": action.action_class,
+                        "target": action.target,
+                        "params": {"charging": False}
+                        if attr == "charging"
+                        else {"dispatch_kw": 0},
+                    }
+                ),
+            )
+        action = action.model_copy(update=updates)
+        result[i] = action.model_copy(update={"content_hash": action_hash(action)})
     return tuple(result)
 
 

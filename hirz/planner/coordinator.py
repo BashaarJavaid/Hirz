@@ -940,6 +940,14 @@ def coordinate(
         zones.append(
             changed(
                 zone,
+                asset_id=next(
+                    (
+                        ident
+                        for ident, entity in bindings.items()
+                        if entity == zone.entity
+                    ),
+                    None,
+                ),
                 lower=tuple(lower),
                 upper=tuple(upper),
                 targets=tuple(

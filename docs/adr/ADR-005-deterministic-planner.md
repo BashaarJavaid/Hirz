@@ -212,3 +212,30 @@ of hard bounds, automatic conflict resolution, plan-level voting, recurring rule
 a cleanup worker, and automatic HA change detection. Plans, jobs, execution, MCP,
 UI and full scenario wiring remain in later items. No published saving changes
 without successful reproduction of the retained experiment.
+
+## Durable consent and explicit revisions amendment — 2026-09-21
+
+Item 19 persists canonical proposals and separate action links. Owners, adults and
+energy-eligible caregivers can consent. Scheduled work retains the approver's
+linked account with `surface: scheduler`; account revocation or tighter rules can
+hold it. Cancellation is available to the approver or owner. An explicit revision
+requires fresh consent; an explicitly requested autonomous replacement inherits
+its predecessor's approver. Each activation obtains a separate `energy.optimize_cost`
+grant reserving the nonnegative electricity-plus-wear estimate. Unknown per-device
+costs remain unknown, so a configured per-device budget cannot be bypassed by a
+fabricated zero estimate. Refunds and settlement remain deferred.
+
+Revision preserves executed evidence, cancels unstarted superseded work and expires
+its pending approvals with `PLAN_REVISED`. Device ASK/DENY, unavailability or exhausted
+retry holds remaining unstarted work, marks the plan `refreshing`, and records a
+pending member notice. Approval while refreshing is refused. Explicit revision is
+the recovery path in item 19; automatic refresh jobs, freshness and the documented
+trigger set move to item 19a. Notification delivery remains companion-app work,
+and full scenario orchestration remains item 22.
+
+Planner actions now carry command-state deadlines. Nonzero EV and battery controls
+include a stop at the next change or horizon end; stops receive ten seconds for
+verification. Coordinator-supplied HVAC asset IDs populate target zones before
+hashing. Rejected retroactively changing approved commands, extending a late
+opening's interval, cancelling a required ending, and counting future temperature
+or delivered charge as immediate command verification.

@@ -240,6 +240,15 @@ class Preference(Entity):
 
 
 class ObservationState(Model):
+    charging: StrictBool | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
+    charge_limit: PolicyNumber | None = Field(
+        default=None, ge=0, le=1, exclude_if=lambda value: value is None
+    )
+    dispatch_kw: PolicyNumber | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
     soc: PolicyNumber | None = Field(default=None, ge=0, le=1)
     temp_f: PolicyNumber | None = None
     target_f: PolicyNumber | None = None
@@ -352,6 +361,21 @@ def validate_observation_scope(
             raise GraphError("Invalid asset observation domain.")
     elif observation.domain is not None and observation.domain != "energy":
         raise GraphError("Invalid household observation domain.")
+    if (
+        observation.state.charging is not None
+        or observation.state.charge_limit is not None
+    ) and (
+        observation.domain != "ev"
+        or observation.asset_id is None
+        or assets.get(observation.asset_id) != "ev"
+    ):
+        raise GraphError("Charging controls require an EV observation")
+    if observation.state.dispatch_kw is not None and (
+        observation.domain != "energy"
+        or observation.asset_id is None
+        or assets.get(observation.asset_id) != "home_battery"
+    ):
+        raise GraphError("Battery dispatch requires a battery observation")
     if observation.state.mode is not None and (
         observation.domain != "devices"
         or observation.asset_id is None

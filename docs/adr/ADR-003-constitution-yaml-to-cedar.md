@@ -154,3 +154,20 @@ may release or renew a manual hold. A lower claimed role cannot acquire the
 owner-only withdrawal privilege. Neither operation enters the future consumer
 device-action enum. No condition grammar, approval quorum or temporal-policy
 mechanism changes; the catalog now contains 25 classes.
+
+## Execution and consent permissions amendment — 2026-09-21
+
+Item 19 adds reserved `governance.record_plan`, `approve_plan`, `revise_plan`,
+`cancel_plan`, and `record_observations`. The catalog and deterministic preview now
+contain 30 classes; Pipeline enforces plan ownership, eligible consenting roles and
+trusted Registry-only ingestion in addition to the compiler's linked-member rules.
+No consumer tool exposes a free-form observation mutation.
+
+`Pipeline.enqueue` performs stages 1–6 and stores eligible work without invoking
+Dogwood or an adapter. The worker obtains a fresh stage-7 grant before claiming a
+single dispatch. Plan consent grants no device permission, quorum exception or TTL
+extension. An exact bounded inverse is part of the opening hash, checked under the
+opening policy and retained under that operation's grant. Ordinary rollback is a
+fresh request evaluated under current policy. Rejected transferring an approval to
+a retry, allowing a new target in an ending, and treating plan consent as an
+exception to household device rules. Enforcement remains `dogwood-local`.

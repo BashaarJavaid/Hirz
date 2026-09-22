@@ -275,7 +275,9 @@ async def disposable(values: dict[str, str]) -> AsyncIterator[AsyncConnection]:
         await admin.dispose()
 
 
-async def live(config_path: Path, plug: bool, audit_output: Path) -> None:
+async def live(
+    config_path: Path, plug: bool, audit_output: Path, *, durable: bool = False
+) -> None:
     if audit_output.exists() or audit_output.is_symlink():
         raise AdapterError("Audit output must be a new file.")
     config = load_config(config_path)
@@ -300,6 +302,8 @@ async def live(config_path: Path, plug: bool, audit_output: Path) -> None:
         changed: list[str] = []
         observations: list[Observation] = []
         task: asyncio.Task[None] | None = None
+        executor_registry = None
+        executor = None
         try:
             for entity in config.entities:
                 row = await adapter.get_state(entity)
@@ -377,8 +381,74 @@ async def live(config_path: Path, plug: bool, audit_output: Path) -> None:
             }
             principal = Principal(provider="demo", sub="malik", surface="app")
 
+            if durable:
+                from hirz.adapters.registry import Registry
+                from hirz.executor.service import Executor
+
+                executor_registry = Registry(
+                    home,
+                    members=members,
+                    assets=assets,
+                    bindings=bindings,
+                    factories={
+                        ("devices", "ha"): lambda h: HomeAssistant(
+                            h,
+                            config=config,
+                            assets=assets,
+                            bindings=bindings,
+                            pipeline=pipeline,
+                            env_path=ROOT / ".env",
+                        )
+                    },
+                    sources={
+                        ("devices", "ha", b.asset_id): config.entities[
+                            b.entity_id
+                        ].source
+                        for b in bindings
+                    },
+                    config="devices:ha",
+                )
+                await executor_registry.start()
+                executor = Executor(pipeline, executor_registry)
+
             async def write(entity: str, value: float | bool) -> None:
                 x = action(entity, asset_by_entity[entity], value)
+                if executor is not None:
+                    from datetime import timedelta
+
+                    from hirz.pipeline.models import ExpectedEffect
+
+                    at = now()
+                    attr = "target_f" if entity.startswith("climate.") else "on"
+                    x = x.model_copy(
+                        update={
+                            "scheduled_for": at,
+                            "expected_effect": ExpectedEffect(
+                                entity=entity,
+                                attr=attr,
+                                value=value,
+                                by=at + timedelta(seconds=60),
+                            ),
+                        }
+                    )
+                    x = x.model_copy(update={"content_hash": action_hash(x)})
+                    d = await pipeline.enqueue(x, principal)
+                    if d.decision == "ask" and d.approval:
+                        await pipeline.vote(
+                            d.approval.approval_id, principal, approved=True
+                        )
+                        d = await pipeline.enqueue(
+                            x, principal, approval_id=d.approval.approval_id
+                        )
+                    if d.status != "executing":
+                        raise AdapterError(
+                            f"Pipeline refused queued smoke action: {d.event_type}."
+                        )
+                    results = await executor.sweep()
+                    if len(results) != 1 or results[0].status != "verified":
+                        raise AdapterError("Durable smoke action was not verified.")
+                    print(f"queued={entity}; worker=verified; engine=dogwood-local")
+                    return
                 d = await pipeline.redeem(x, principal)
                 if d.decision == "ask" and d.approval is not None:
                     await pipeline.vote(
@@ -466,6 +536,8 @@ async def live(config_path: Path, plug: bool, audit_output: Path) -> None:
                 task.cancel()
                 with suppress(asyncio.CancelledError, AdapterError):
                     await task
+            if executor_registry is not None:
+                await executor_registry.close()
             await adapter.close()
 
 

@@ -288,7 +288,7 @@ Every surface, the audit log, the explainer, and the tests use these shapes. No 
   "reason": "pre-condition living room for Mom's arrival at 19:00",
   "plan_id": "plan_01J8...",
   "scheduled_for": "2026-10-13T17:35:00-05:00",
-  "expected_effect": {"entity": "climate.living_room", "attr": "temperature", "value": 72, "by": "2026-10-13T18:45:00-05:00"},
+  "expected_effect": {"entity": "climate.living_room", "attr": "target_f", "value": 72, "by": "2026-10-13T18:45:00-05:00"},
   "content_hash": "sha256:..."
 }
 ```
@@ -296,7 +296,10 @@ Every surface, the audit log, the explainer, and the tests use these shapes. No 
 `target.zone` is an optional household-scoped zone identifier used by constitution predicates; absence/null is unknown when a zone guard needs it. The canonical Python shape is `hirz/pipeline/models.py`; item 9 supplies `Action`, `Decision`, and their evidence models.
 
 `content_hash` is `sha256:` plus SHA-256 of RFC 8785 canonical JSON containing
-exactly class, target, params and scheduled_for. Optional zone/time normalize to
+class, target, params and scheduled_for, plus `revert` only when present. The
+nonrecursive revert is `{after_s, inverse: {class, target, params}}`; supported
+endings keep the opening class and target. Existing unbounded hashes and omitted
+optional fields retain their previous serialization. Optional zone/time normalize to
 null; timestamps normalize to UTC, fixed microseconds and `Z`. Invalid/non-finite
 or noncanonicalizable values are refused. Requester and Decimal cost are separately
 immutable; exact money is serialized as strings.
@@ -322,7 +325,8 @@ immutable; exact money is serialized as strings.
 `decision` ∈ `execute | ask | deny | verify`. `event_type` is one canonical enum: `EXECUTE`, `ASK_CONSTITUTION`, `ASK_RISK`, `ASK_BUDGET`, `ASK_UNRESOLVED_CONDITION`, `ASK_REQUESTER_CONFIRMATION`, `DENY_CONSTITUTION`, `DENY_RISK`, `DENY_BUDGET`, `DENY_BOUNDARY`, `DENY_APPROVAL_MISMATCH`, `DENY_APPROVAL_EXPIRED`, `DENY_APPROVAL_USED`, `DENY_APPROVAL_UNAUTHORIZED`, `VERIFY`, `APPROVED`, `REJECTED`, `EXPIRED`, `EXECUTION_ATTEMPTED`, `EXECUTED`, `VERIFIED`, `VERIFY_FAILED`, `ROLLED_BACK`, `PLAN_CREATED`, `PLAN_REVISED`, `CONSTITUTION_PROPOSED`, `CONSTITUTION_ACTIVATED`, `POLICY_ERROR`, `ADAPTER_ERROR`, `LINK_REJECTED`, `OUT_OF_BAND_CHANGE`, `AUTONOMY_PAUSED`, `AUTONOMY_RESUMED`, `AUDIT_ANCHORED`, `MEMORY_PROPOSED`, `MEMORY_ACCEPTED`. `boundary.engine` ∈ `agentcore-policy | dogwood-local`.
 
 `risk` is null for pre-scoring denials; `audit_id` is null for read-only evaluation.
-Optional `budget` records local date, class, used/proposed/cap/reserved exact amounts.
+Optional `status` and `speakable` report queued/execution outcomes and are omitted
+when absent, preserving old signed evidence. Optional `budget` records local date, class, used/proposed/cap/reserved exact amounts.
 Boundary evidence includes a context hash and the result for each evaluated role.
 
 ### 4.3 Plan
@@ -641,6 +645,37 @@ A scheduled action carries `requested_by` of its plan approver with `surface: sc
 - **Scheduler.** In AWS: one EventBridge Scheduler one-time schedule per scheduled action, targeting a Lambda that calls the worker's authenticated `/internal/tick`. Locally: an in-process scheduler driven by the sim clock so a scenario can run at 60× speed. The Executor owns the mapping `action_id → schedule` and cancels schedules when a plan is superseded.
 - **Immediate actions are asynchronous.** A tool that acts ("charge the car now", approving a plan, applying a profile) runs stages 1–6 inside the call and, on `execute`, writes the action as `scheduled` for now; the worker's sweep picks it up within seconds, runs stage 7 through the Gateway, executes, and verifies. The tool returns the Decision with `status: executing` and a `speakable` that says so without promising an outcome the boundary has not yet allowed ("I'm starting the charge. I'll tell you on your phone if it doesn't go through."); the outcome (`EXECUTED`, `VERIFIED`, or `VERIFY_FAILED`) appears in the audit ledger, in the plan card, in `get_action_audit`, and as a push notification. No tool call ever waits on the Gateway, an adapter, or a third-party network.
 - **Deadlines.** An executing action has a class-specific deadline (device call 10 s, EV command 30 s). Timeout → `ADAPTER_ERROR`, state re-read, plan revision if needed.
+
+**Implemented local contract (item 19).** `Pipeline.enqueue(Action, Principal)` is
+the internal act handler; consumer enums and MCP remain Phase 4. It returns
+`status: executing` and “Your request is queued.” after stages 1–6 without calling
+a boundary, adapter, solver or model. Queued requests require an explicit
+`expected_effect.by`; immediate unbounded work may omit `scheduled_for`. The
+worker reloads the selected local policy, identity, observations, approval and
+budget before stage 7 and the durable dispatch claim. Command-state verification
+checks setpoint/control state, never future temperature or delivered EV energy.
+
+`PlanService.record/approve/revise/cancel` commits governance decisions and canonical
+plans. Plan consent and the separate electricity-plus-wear budget grant do not
+replace device rules, quorum or approval TTL. Explicit revisions need fresh consent;
+autonomous replacements retain the prior approver. A held plan becomes `refreshing`
+and requires explicit revision. Automatic triggers/refresh jobs are item 19a;
+notifications here are pending member-addressed records, without delivery claims.
+
+`Executor.sweep/rollback` uses a household session lock and closes transactions
+during HA calls. Exact bounded endings are persisted before dispatch and survive
+pause, cancellation, revision and policy changes. They run before due openings,
+under their original operation grant, with distinct durable claims and read-back.
+Late starts shorten intervals; expired openings are skipped, overdue endings retained.
+Reversible failures may retry once through a fresh Action; uncertain originals are
+never resent. Ordinary rollback uses a captured inverse through current policy.
+
+`0007_execution_lifecycle` adds action scheduling/recovery fields, `plans`,
+`plan_actions`, `pending_notifications` and `twin_checkpoints`. All keys and audit
+references are household scoped. Twin physical/control state and committed simulated
+time have signed checkpoint evidence; configuration mismatch is refused. Local
+recovery depends on the worker and database returning. AWS/Link and physical safety
+claims remain pending. Procedures: [local execution](./docs/development.md#item-19-durable-local-execution).
 
 ### 5.7 Protect
 

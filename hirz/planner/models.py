@@ -55,6 +55,7 @@ class Slot(Model):
 
 
 class Zone(Model):
+    asset_id: UUID | None = Field(default=None, exclude_if=lambda value: value is None)
     entity: str
     physical: ThermalZone
     lower: tuple[float, ...]

@@ -328,9 +328,11 @@ def database_url(values: dict[str, str]) -> sa.URL:
 
 
 @asynccontextmanager
-async def connect_database(values: dict[str, str]) -> AsyncIterator[AsyncConnection]:
+async def connect_database(
+    values: dict[str, str], *, database: str = "hirz"
+) -> AsyncIterator[AsyncConnection]:
     engine = create_async_engine(
-        database_url(values),
+        database_url(values).set(database=database),
         poolclass=sa.pool.NullPool,
         connect_args={"connect_timeout": 10},
         hide_parameters=True,
@@ -392,6 +394,15 @@ actions = sa.Table(
     sa.Column("cost", sa.Text),
     sa.Column("grant_seq", sa.BigInteger),
     sa.Column("execution_attempt_seq", sa.BigInteger),
+    sa.Column("lifecycle", JSONB),
+    sa.Column("due_at", sa.DateTime(timezone=True)),
+    sa.Column("execution_status", sa.Text),
+    sa.Column("lifecycle_seq", sa.BigInteger),
+    sa.ForeignKeyConstraint(
+        ["household_id", "lifecycle_seq"],
+        ["audit_log.household_id", "audit_log.seq"],
+        name="actions_lifecycle_fk",
+    ),
     sa.ForeignKeyConstraint(
         ["household_id", "execution_attempt_seq"],
         ["audit_log.household_id", "audit_log.seq"],
@@ -399,6 +410,14 @@ actions = sa.Table(
     ),
     sa.ForeignKeyConstraint(
         ["household_id", "grant_seq"], ["audit_log.household_id", "audit_log.seq"]
+    ),
+    sa.CheckConstraint(
+        "execution_status IS NULL OR execution_status IN ('scheduled','executing','dispatched','verified','failed','held','cancelled','skipped')",
+        name="actions_execution_status",
+    ),
+    sa.CheckConstraint(
+        "lifecycle IS NULL OR (jsonb_typeof(lifecycle) = 'object' AND due_at IS NOT NULL AND execution_status IS NOT NULL)",
+        name="actions_lifecycle_object",
     ),
     sa.CheckConstraint("length(action_id) > 0", name="actions_id_nonempty"),
     sa.CheckConstraint(
@@ -453,5 +472,67 @@ approval_votes = sa.Table(
     ),
     sa.ForeignKeyConstraint(
         ["household_id", "member_id"], ["members.household_id", "members.id"]
+    ),
+)
+
+
+# Canonical plans and local recovery records; all references are household scoped.
+plans = sa.Table(
+    "plans",
+    metadata,
+    sa.Column(
+        "household_id", sa.UUID, sa.ForeignKey("households.id"), primary_key=True
+    ),
+    sa.Column("plan_id", sa.Text, primary_key=True),
+    sa.Column("document", JSONB, nullable=False),
+    sa.Column("approver", JSONB),
+    sa.Column("member_id", sa.UUID),
+    sa.Column("audit_seq", sa.BigInteger, nullable=False),
+    sa.ForeignKeyConstraint(
+        ["household_id", "member_id"], ["members.household_id", "members.id"]
+    ),
+    sa.ForeignKeyConstraint(
+        ["household_id", "audit_seq"], ["audit_log.household_id", "audit_log.seq"]
+    ),
+)
+plan_actions = sa.Table(
+    "plan_actions",
+    metadata,
+    sa.Column("household_id", sa.UUID, primary_key=True),
+    sa.Column("plan_id", sa.Text, primary_key=True),
+    sa.Column("action_id", sa.Text, primary_key=True),
+    sa.ForeignKeyConstraint(
+        ["household_id", "plan_id"], ["plans.household_id", "plans.plan_id"]
+    ),
+    sa.ForeignKeyConstraint(
+        ["household_id", "action_id"], ["actions.household_id", "actions.action_id"]
+    ),
+)
+pending_notifications = sa.Table(
+    "pending_notifications",
+    metadata,
+    sa.Column("household_id", sa.UUID, primary_key=True),
+    sa.Column("audit_seq", sa.BigInteger, primary_key=True),
+    sa.Column("member_id", sa.UUID, nullable=False),
+    sa.Column("message", sa.Text, nullable=False),
+    sa.ForeignKeyConstraint(
+        ["household_id", "member_id"], ["members.household_id", "members.id"]
+    ),
+    sa.ForeignKeyConstraint(
+        ["household_id", "audit_seq"], ["audit_log.household_id", "audit_log.seq"]
+    ),
+)
+twin_checkpoints = sa.Table(
+    "twin_checkpoints",
+    metadata,
+    sa.Column(
+        "household_id", sa.UUID, sa.ForeignKey("households.id"), primary_key=True
+    ),
+    sa.Column("config_hash", sa.Text, nullable=False),
+    sa.Column("state", JSONB, nullable=False),
+    sa.Column("at", sa.DateTime(timezone=True), nullable=False),
+    sa.Column("audit_seq", sa.BigInteger, nullable=False),
+    sa.ForeignKeyConstraint(
+        ["household_id", "audit_seq"], ["audit_log.household_id", "audit_log.seq"]
     ),
 )

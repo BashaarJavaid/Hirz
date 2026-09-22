@@ -8,6 +8,8 @@ All notable changes are documented here. The format follows
 
 ### Changed
 
+- 2026-09-21: Add durable local execution, explicit plan consent/revisions, signed bounded endings and recoverable twin checkpoints; retain automatic refresh as item 19a ([item 19 evidence](./docs/verification-log.md#item-19--2026-09-21), [execution contracts](./docs/development.md#item-19-durable-local-execution)).
+
 - 2026-09-21: Add audited, account-attributed coordinator intake, explicit conflict resolution, comfort precedence and two-hour twin thermostat holds ([ADR-005](./docs/adr/ADR-005-deterministic-planner.md#coordinator-amendment--2026-09-21), [item 18 evidence](./docs/verification-log.md#item-18--2026-09-21)); keep plan persistence and execution deferred.
 
 - 2026-09-21: Add read-only MILP proposals, strict twin-replayed baseline comparisons, archived historical replay and planning snapshots; publish partial coverage rather than unsupported annual claims ([item 17 evidence](./docs/verification-log.md#item-17--partial-2026-09-21), [ADR-005 amendment](./docs/adr/ADR-005-deterministic-planner.md#read-only-planner-and-historical-experiment--2026-09-21)).

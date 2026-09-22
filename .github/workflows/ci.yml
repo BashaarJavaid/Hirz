@@ -228,7 +228,7 @@ jobs:
           uv pip install --python "$RUNNER_TEMP/wheel-smoke/bin/python" "$wheel"
           cd "$RUNNER_TEMP"
           ./wheel-smoke/bin/python -c 'import hirz; from importlib.metadata import version; print("PASS installed hirz", version("hirz"))'
-          ./wheel-smoke/bin/python -c 'from hirz.risk import CLASSES; from hirz.constitution.preview import SITUATIONS; assert len(CLASSES) == len(SITUATIONS) == 25; print("PASS packaged catalogs: 25 classes, 25 situation groups")'
+          ./wheel-smoke/bin/python -c 'from hirz.risk import CLASSES; from hirz.constitution.preview import SITUATIONS; assert len(CLASSES) == len(SITUATIONS) == 30; print("PASS packaged catalogs: 30 classes, 30 situation groups")'
           ./wheel-smoke/bin/hirz --help
       - run: docker build --tag hirz-ci:check .
       - name: Container runs as the existing unprivileged user

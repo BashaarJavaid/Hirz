@@ -294,3 +294,30 @@ a device observation for an HVAC asset. Pipeline versions the observation and it
 `manual:device` constraint atomically. The submitter is not claimed to be the
 person who touched a thermostat. Real HA/Link detection and scenario event wiring
 remain deferred; no raw device-write method or execution bypass was added.
+
+## Durable executor and checkpoint amendment — 2026-09-21
+
+Item 19's local composition root combines `HIRZ_ADAPTERS`, stored explicit bindings,
+HA YAML provenance and an explicitly configured twin scenario. Supported writes are
+twin HVAC, EV controls, battery dispatch, appliance start and lights, plus the
+existing HA lights/switches and single-setpoint climates. HVAC execution accepts
+66–76 °F and tighter policy/device restrictions. Unsupported values are rejected;
+approved values are never clamped. Security, covers and profiles remain deferred.
+
+The executor uses the existing durable claim for every dispatch. HA verification
+reads HA directly, never a Registry fallback. Dispatch success and verified command
+state remain separate audit events. Device dispatch and verification each have a
+ten-second bound; EV dispatch has thirty seconds. A reversible mismatch or uncertain
+attempt can schedule one fresh Action after a direct read confirms the control is
+still unmet. The original attempt stays terminal, and the new request goes through
+all Pipeline checks without inheriting votes. Appliance starts are not retried.
+
+Twin control effects and checkpoints commit together; checkpoints include physical
+state, configuration identity and simulation position with signed hash evidence.
+The simulation clock pauses during a sweep and advances between polls; restored
+simulation excludes wall-clock downtime. Readings before evaluation and after writes
+enter graph history through `governance.record_observations`, attributed to the
+initiator/approver on the scheduler surface. Rejected accepted-command-as-success,
+HA-to-twin write verification, caller-supplied readings, and local recovery claims
+while the database or worker remains offline. Failure notices are durable pending
+records, not delivered push/email messages.

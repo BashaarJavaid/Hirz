@@ -165,3 +165,20 @@ append and context refresh commit together. Identical `action_id` delivery retur
 the original Decision; mismatched content or principal cannot reuse it. A failed
 signed append rolls back the entire mutation. No second transaction manager,
 cleanup process, unaudited write endpoint or plan persistence is introduced.
+
+## Durable local execution amendment — 2026-09-21
+
+Item 19 extends `actions` with due time, lifecycle state and signed evidence
+references. `0007_execution_lifecycle` adds canonical Plan JSON, household-scoped
+plan/action links, member-addressed pending notices and twin checkpoints. Every
+transition uses the existing graph transaction and audit writer. Migration is
+explicit; downgrade refuses lifecycle evidence, including orphaned audit events.
+
+A session advisory lock serializes each household sweep across processes, while
+transactions close before HA network calls. A committed claim is never cleared,
+including after a crash. Twin state and its configuration/position hash commit
+with signed effect/checkpoint evidence; restart validates that evidence and resumes
+from the committed simulated instant, excluding downtime. Rejected an in-memory
+queue, a second job service, database locks held during device calls, and resending
+an uncertain Action ID. Local recovery requires the worker and database to return;
+this does not implement Hirz Link's offline ending guarantee.

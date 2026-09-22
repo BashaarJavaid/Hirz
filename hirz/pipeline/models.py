@@ -74,7 +74,18 @@ class ExpectedEffect(Model):
     entity: str
     attr: str
     value: JsonValue
-    by: datetime
+    by: AwareDatetime
+
+
+class Inverse(Model):
+    action_class: str = Field(alias="class")
+    target: Target
+    params: dict[str, JsonValue]
+
+
+class Revert(Model):
+    after_s: int = Field(gt=0, strict=True)
+    inverse: Inverse
 
 
 class Action(Model):
@@ -88,6 +99,7 @@ class Action(Model):
     scheduled_for: datetime | None = None
     expected_effect: ExpectedEffect | None = None
     content_hash: str
+    revert: Revert | None = Field(default=None, exclude_if=lambda value: value is None)
 
     @field_validator("action_class")
     @classmethod
@@ -123,6 +135,15 @@ class EventType(StrEnum):
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"
     EXPIRED = "EXPIRED"
+    TWIN_CHECKPOINT = "TWIN_CHECKPOINT"
+    SCHEDULED = "SCHEDULED"
+    EXECUTION_HELD = "EXECUTION_HELD"
+    EXECUTION_CANCELLED = "EXECUTION_CANCELLED"
+    ENDING_AUTHORIZED = "ENDING_AUTHORIZED"
+    OBSERVATIONS_RECORDED = "OBSERVATIONS_RECORDED"
+    PLAN_APPROVED = "PLAN_APPROVED"
+    PLAN_CANCELLED = "PLAN_CANCELLED"
+    NOTICE_PENDING = "NOTICE_PENDING"
     EXECUTION_ATTEMPTED = "EXECUTION_ATTEMPTED"
     EXECUTED = "EXECUTED"
     VERIFIED = "VERIFIED"
@@ -211,6 +232,21 @@ class Decision(Model):
     budget: BudgetEvidence | None = None
     explain: Explanation = Explanation()
     audit_id: int | None = None
+    status: (
+        Literal[
+            "executing",
+            "verified",
+            "failed",
+            "held",
+            "cancelled",
+            "skipped",
+            "dispatched",
+        ]
+        | None
+    ) = Field(default=None, exclude_if=lambda value: value is None)
+    speakable: dict[str, JsonValue] | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
 
 
 class AuditEvent(Model):

@@ -49,3 +49,8 @@ governance.pause_automation: {params: {}}
 governance.resume_automation: {params: {}}
 governance.record_constraint: {params: {}}
 governance.withdraw_constraint: {params: {}}
+governance.record_plan: {params: {}}
+governance.approve_plan: {params: {}}
+governance.revise_plan: {params: {}}
+governance.cancel_plan: {params: {}}
+governance.record_observations: {params: {}}

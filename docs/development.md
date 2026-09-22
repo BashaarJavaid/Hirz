@@ -758,3 +758,71 @@ It includes expired/withdrawn history rather than removing evidence. Downgrade i
 refused whenever current records, archived records, or constraint audit events
 exist. Use `--tb=short` for database tests so third-party traceback locals cannot
 print connection parameters. Verification evidence: [item 18](./verification-log.md#item-18--2026-09-21).
+
+## Item 19 durable local execution
+
+Item 19 remains local (`dogwood-local`). The migration head is
+`0007_execution_lifecycle`; the development database is intentionally still on
+`0005_execution_attempt`. No command below implicitly migrates or initializes it.
+Use the disposable smoke paths for verification before choosing an explicit
+operator-run development migration.
+
+```sh
+export HIRZ_DOGWOOD="$PWD/.tools/dogwood"
+uv run python scripts/smoke_executor.py --audit-output /tmp/hirz-executor-audit-NEW.json
+uv run python scripts/smoke_executor.py --live-demo --audit-output /tmp/hirz-executor-ha-audit-NEW.json
+uv run pytest tests/unit/test_executor.py --no-cov
+uv run pytest tests/integration/test_executor_database.py -m integration --no-cov --tb=short
+```
+
+The default smoke seeds and migrates a uniquely named disposable database, ingests
+Registry observations through Pipeline, submits a light request with zero boundary
+calls, and launches a separate worker process. It checks verified state and exports
+and verifies the signed chain. The live variant uses only the reviewed HA demo
+mapping; it queues thermostat/light writes and restoration through Pipeline, leaves
+ecobee read-only, and retains the signed export. Success drops the smoke database;
+failure prints its retained name. The physical-plug gate remains item 15.
+
+For an already explicitly migrated local database:
+
+```sh
+export HIRZ_TWIN_SCENARIO=scenarios/demo-evening.yaml
+export HIRZ_ADAPTERS=devices:twin,ev:twin,energy:twin,presence:twin
+export HIRZ_SIM_SPEED=1
+uv run hirz worker --household HOUSEHOLD_UUID --once
+# Omit --once to poll once per wall-clock second.
+```
+
+`--database NAME` selects an explicit local database without changing credentials
+or migrating it. Twin configuration comes from `HIRZ_TWIN_SCENARIO`; stored explicit
+bindings still win over domain defaults. The scenario provides configuration and
+initial state, not scenario event execution (item 22). For HA bindings,
+`HIRZ_HA_CONFIG=config/homeassistant/adapter-demo.yaml` supplies reviewed entities
+and provenance; the private `.env` provides `HA_TOKEN`. Real energy defaults also
+require `HIRZ_DELIVERY_CLASS` and `HIRZ_TARIFF_FILE`. Unknown or unavailable adapter
+implementations fail closed. The worker validates the stored selected local policy;
+this is not production policy activation or AWS enforcement.
+
+Internal callers use `Pipeline.enqueue(action, trusted_principal)`,
+`Executor.sweep/rollback` and `PlanService.record/approve/revise/cancel`. Every queued
+Action needs an aware command-state deadline. Bounded work also needs an explicit
+start and exact `revert`; nonzero EV/battery controls always require a stop. An
+immediate unbounded Action may omit its start. Do not modify approved parameters or
+reuse an Action ID for a retry. A failed attempt retains its claim permanently.
+Explicit rollback uses the signed captured inverse and current policy; restoring a
+nonzero EV/battery control also requires an explicit new bounded ending.
+
+Plan approval reserves its derived electricity-plus-wear estimate under a separate
+`energy.optimize_cost` grant. Device rules, votes and TTLs still apply. Unknown
+per-device estimates remain unknown, and a configured device budget can refuse them.
+A `refreshing` plan cannot be approved: record an explicit new revision. Refunds,
+settlement, automatic refresh (19a), notification delivery, and full scenario wiring
+(22) are deferred. Pending notices are records to show the addressed member; no push
+or email delivery is claimed.
+
+Restart verifies the twin checkpoint's signed hash and configuration identity, then
+resumes its committed simulated time without adding wall-clock downtime. A new twin
+configuration requires a separate disposable household/database; do not overwrite
+a checkpoint to force compatibility. Due endings precede new openings and survive
+pause, cancellation and policy changes. A stopped local worker/database cannot
+perform endings until it returns; offline home-owned endings remain item 38a.

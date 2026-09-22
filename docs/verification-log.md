@@ -2867,3 +2867,125 @@ no new third-party defect earned a friction entry. No runtime code, dependency,
 planner output or verification threshold changed. Broader Python and backtest
 reruns are unnecessary for this workflow-literal correction; the pushed workflow
 will rerun CI. Its outcome is not claimed by this pre-push evidence entry.
+
+## Item 19 — 2026-09-21
+
+Implemented durable local execution, explicit plan consent/revision/cancellation,
+trusted observation ingestion, bounded endings and twin checkpoints. The approved
+scope excludes development-database migration, remote CI dispatch and AWS. Native
+Dogwood is the local boundary. Item 19a carries automatic refresh and freshness;
+notification delivery and full scenario orchestration remain later work.
+
+### Implementation checks and corrections
+
+- Existing Pipeline/HA unit checks: `74 passed in 1.36s`; existing HA disposable
+  integration checks: `8 passed in 5.17s`.
+- First default executor smoke stopped before dispatch because `HIRZ_DOGWOOD` was
+  unset: `Dogwood unavailable, timed out, or returned invalid output; no
+  authorization`. Retained database:
+  `hirz_ha_smoke_68b9f50e14d04925872a1390b519fb6b`.
+- The next smoke correctly returned `DENY_RISK` for missing `target_is_bedroom`.
+  Added explicit synthetic room metadata in the disposable bootstrap, not a runtime
+  inference. Retained database: `hirz_ha_smoke_36b5dc1324dd4de0ab6f220b60194f35`.
+- The separate-process twin smoke then passed: `submission=executing;
+  boundary_calls=0; adapter_writes=0`, one worker sweep verified the light,
+  `signed_rows=12`; private export `/tmp/hirz-item19-smoke-3.json` verified offline.
+  Later checkpoint evidence changes are exercised by the final run below.
+- Initial regression failures identified missing complete aggregate observations,
+  startup restoration incorrectly rewinding an already-running injected clock,
+  observation ingestion trying to insert a second current stream ID, and a retry
+  audit timestamp older than a preceding lifecycle append. Corrected the production
+  paths and retained regression checks. HA mismatch, hard-failure and crash cases
+  then passed with a fresh retry ID and an unchanged original claim.
+- The first live run stopped before a device write because the existing HA service
+  was down: `Home Assistant unavailable; actual state unknown`. Retained database:
+  `hirz_ha_smoke_70fa6eb98b244d26b2fe3d3a5150ac17`. Started the existing
+  `homeassistant` Compose service; no volume reset or development migration.
+- The live queue/worker run then verified `climate.heatpump` at 72 °F and
+  `light.bed_light` on, and restored them through fresh Pipeline requests to 68 °F
+  and off. `climate.ecobee` remained read-only. Output: `audit=valid; rows=40;
+  offline=valid; live_demo=PASS`. Export: `/tmp/hirz-item19-live-2.json`.
+  Every HA observation was labeled `real API, demo devices`.
+- Full service-free Python regressions initially found seven stale catalog/count
+  fixtures. Added the five reserved governance preview situations, updated risk and
+  packaged-catalog assertions to 30, and the native compiled-policy assertion to 70.
+  The subsequent full run passed: `1024 passed, 78 deselected in 107.72s`, coverage
+  `83.72%` (80% required).
+- The first full disposable integration run returned `1 failed, 77 passed`: the EV
+  fixture had no `asset.policy.needed_by`, so Pipeline correctly returned
+  `ASK_UNRESOLVED_CONDITION`. The isolated bootstrap now installs an explicit
+  synthetic EV departure deadline. No policy condition was relaxed.
+- Strict mypy reported `Success: no issues found in 104 source files`.
+  `uv build` produced the sdist and wheel successfully. Final checks after the
+  remaining dispatch-time TTL and signed-inverse changes are appended below.
+
+All database tests use `--tb=short`; the initial sandbox-blocked legacy test run
+used pytest's long traceback and exposed connection parameters in tool output.
+No credentials were copied into repository files or evidence exports, and no
+credential rotation was performed as part of this task.
+
+### Final local verification — 2026-09-21
+
+Commands used the existing environment with `UV_CACHE_DIR=/tmp/hirz-uv` and
+`uv run --no-sync`; native checks set `HIRZ_DOGWOOD="$PWD/.tools/dogwood"`.
+Database/socket commands used the approved sandbox escape, existing local
+PostgreSQL and HA demo services, and uniquely named disposable test databases.
+No dependencies were added and no development migration was applied.
+
+- `pytest -q --tb=short`: **1024 passed, 78 deselected in 108.68s**;
+  **83.46% coverage**, above the 80% gate. Includes native Dogwood conformance.
+- `pytest tests/integration -m integration --no-cov -q --tb=short`:
+  **78 passed in 78.95s**. Includes the new executor checks and existing database,
+  audit, boundary, approval and HA fail-closed regressions.
+- After the final signed plan-hold event, due-ending ordering, post-ending
+  observations and pre-dispatch tampering checks,
+  `pytest tests/integration/test_executor_database.py -m integration --no-cov -q --tb=short`:
+  **14 passed in 29.36s**. A further late-start assertion is recorded below.
+- `python scripts/smoke_executor.py --audit-output /tmp/hirz-item19-twin-final-20260921.json`:
+  **PASS**; submission `executing`, `boundary_calls=0`, `adapter_writes=0`;
+  a separate worker process verified within one sweep, native boundary allowed,
+  source `twin`, **16 signed rows**, offline verification valid. Scratch database
+  dropped after success.
+- `python scripts/smoke_executor.py --live-demo --audit-output /tmp/hirz-item19-ha-final-20260921.json`:
+  **PASS**; heatpump **68 → 72 → 68 °F**, light **off → on → off**, each queued
+  and verified by the worker; ecobee read-only. Source `real API, demo devices`,
+  **40 signed rows**, offline verification valid. Restoration used fresh Pipeline
+  requests. Scratch database dropped after success. These two final smoke runs
+  preceded the final bounded-ending/hold changes, which the focused rerun covers.
+- `ruff check .`: **All checks passed!** Strict `mypy hirz/ scripts/ alembic/`:
+  **Success: no issues found in 104 source files**.
+- Final `uv build`: successfully built `dist/hirz-0.0.0.tar.gz` and
+  `dist/hirz-0.0.0-py3-none-any.whl`. An isolated Python invocation from
+  `/private/tmp` loaded Hirz directly from that wheel and imported `Executor` and
+  `PlanService`; both packaged catalogs contained **30** entries. This packaging
+  probe reused installed dependencies; it was not a fresh dependency installation.
+- A read-only query of the development database returned
+  **0005_execution_attempt**, unchanged. Migration 0007 was exercised only in
+  disposable databases, including schema matching and downgrade refusal.
+
+The regressions cover trusted scheduler attribution and revoked linkage, fresh
+sleep observations, plan roles/consent/revisions/budget reservation, refreshing-plan
+refusal, expiring approvals, household isolation, retained bounded endings across
+pause/cancellation/policy changes, tamper refusal, overlap/expiry, checkpoint
+configuration and restart, concurrent-worker exclusion, audit failures, explicit
+rollback, twin HVAC/EV/battery/appliance/lights, direct HA verification, mismatch,
+hard failure and crash recovery with a fresh retry Action. Existing evidence is
+preserved; no execution claim is reused. Pending notices claim a stored message,
+not delivered push/email.
+
+The physical-plug gate, AWS enforcement/home-owned offline endings, remote CI,
+automatic refresh/freshness (19a), notification delivery and full scenario wiring
+remain pending. No broader physical-safety or AWS threat-model row was promoted.
+The third-party friction log records the sandbox workaround; no other new
+third-party defect was established.
+
+Final late-start regression rerun: **14 passed in 30.37s**. It starts a bounded
+operation 15 seconds late, asserts its stored ending still uses the original
+30-second end, and verifies that ending. `git diff --check` passed.
+
+Completion records and AGENTS/CLAUDE guidance are synchronized (their existing
+heading/introduction differences remain). The final format check first identified
+two unformatted additions in HA verification and twin battery observations; Ruff
+formatted both, and the sdist/wheel were rebuilt successfully. The subsequent
+`ruff format --check .` returned **163 files already formatted**; the check is
+repeated after this evidence append as the final validation command.
