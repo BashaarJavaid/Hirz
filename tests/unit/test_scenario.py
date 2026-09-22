@@ -19,7 +19,7 @@ from hirz.twin.scenario import LoadedScenario, instant, run_scenario
 from tests.unit.test_adapters import TestAdapter
 
 ROOT = Path(__file__).resolve().parents[2]
-EVENING = ROOT / "scenarios/demo-evening.yaml"
+EVENING = ROOT / "scenarios/demo-evening-hourly.yaml"
 PARENTS = ROOT / "scenarios/parents-scam-check.yaml"
 
 
@@ -53,7 +53,7 @@ def test_registry_reads_use_simulated_time(fallback):
             row = await reg.get_state(light)
             assert row.source == "twin"
             assert row.observed_at == world.clock()
-            assert row.observed_at.date().isoformat() == "2026-10-13"
+            assert row.observed_at.date().isoformat() == "2025-10-13"
         finally:
             await reg.close()
 

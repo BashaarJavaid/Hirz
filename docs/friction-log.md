@@ -286,3 +286,14 @@ and `failed to open file /Users/bashaarjavaid/.cache/uv/sdists-v9/.git: Operatio
 installed and locked the dependency; repository-local tool binaries handled focused
 checks, and escalated uv handled full-suite loopback/database checks. This is the
 existing sandbox limitation, not an SDK or uv defect; no live Bedrock call was made.
+
+
+Item 22 solver output (2026-09-22, **Minor**): the overnight replay emitted
+`HighsMipSolverData::transformNewIntegerFeasibleSolution tmpSolver.run();`
+on stdout even with SciPy's default `disp=False`. This was diagnostic output,
+not a solver failure, but it made redirected CLI stdout unsuitable as a JSON
+file. [SciPy's MILP options](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.milp.html)
+document console status output as opt-in. The scenario CI job now reads the
+existing exclusive-create `--output` report, which is written independently of
+native solver output. Feature request: route all native diagnostics through the
+configured logging flag or stderr so stdout remains usable by structured CLIs.

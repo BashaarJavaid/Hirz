@@ -13,6 +13,8 @@ from pydantic import (
     Field,
     JsonValue,
     StrictBool,
+    StrictFloat,
+    StrictInt,
     field_validator,
     model_validator,
 )
@@ -85,7 +87,7 @@ class Inverse(Model):
 
 
 class Revert(Model):
-    after_s: int = Field(gt=0, strict=True)
+    after_s: StrictInt | StrictFloat = Field(ge=0.000001, allow_inf_nan=False)
     inverse: Inverse
 
 
@@ -348,6 +350,7 @@ class Plan(Model):
     status: Literal[
         "proposed",
         "refreshing",
+        "awaiting_approval",
         "approved",
         "active",
         "superseded",

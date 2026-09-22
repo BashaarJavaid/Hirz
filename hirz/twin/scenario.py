@@ -1,4 +1,4 @@
-"""Offline scenario inputs and reports. No persistence, authority or tool execution."""
+"""Scenario inputs, observation replay and optional internal service execution."""
 
 import asyncio
 import logging
@@ -36,6 +36,7 @@ from hirz.graph.models import (
     Observation,
     ObservationState,
     ScheduleEvent,
+    Source,
     TrustedContact,
     utc,
 )
@@ -44,6 +45,7 @@ from hirz.twin.adapters import TwinAdapter, registry
 from hirz.twin.clock import SimClock
 from hirz.twin.people import ContactScript, InboundCall, local_instant
 from hirz.twin.physics import changed
+from hirz.twin.script import Binding, Execution, Range, ScriptCall, selector
 from hirz.twin.world import TwinConfig, TwinWorld
 
 log = logging.getLogger(__name__)
@@ -124,7 +126,7 @@ class Event(Model):
     requested_at: str | None = None
     deadline: str | None = None
     text: str | None = None
-    script: tuple[str, ...] = ()
+    script: tuple[str | ScriptCall, ...] = ()
     patch: str | None = None
     deferred: Text | None = None
     payload: dict[str, Any] | None = None
@@ -140,7 +142,10 @@ class Event(Model):
             if any(getattr(self, key) is None for key in required - nullable):
                 raise ValueError("Missing scenario event value.")
             if self.event == "voice" and (
-                not self.script or not set(self.script) <= TOOLS
+                not self.script
+                or any(
+                    isinstance(call, str) and call not in TOOLS for call in self.script
+                )
             ):
                 raise ValueError("Voice requires an explicit known tool script.")
         elif self.event in FUTURE_EVENTS:
@@ -167,6 +172,20 @@ class DeferredCheck(Model):
 class Assertions(Model):
     checks: tuple[Check, ...]
     deferred: tuple[DeferredCheck, ...]
+    audit_sequence_includes: tuple[str, ...] = ()
+    never: tuple[str, ...] = ()
+    plan_summary: dict[str, Range] = {}
+    ev_soc_at: dict[str, Range] = {}
+
+    @model_validator(mode="after")
+    def selectors(self) -> Self:
+        for value in (*self.audit_sequence_includes, *self.never):
+            selector(value)
+        from hirz.pipeline.models import PlanSummary
+
+        if not self.plan_summary.keys() <= PlanSummary.model_fields.keys():
+            raise ValueError("Unknown plan summary field")
+        return self
 
 
 class PlanningSnapshot(Model):
@@ -185,6 +204,8 @@ class Scenario(Model):
     rate_plan: Literal["twin", "comed_time_of_day", "comed_hourly"]
     adapters: dict[AdapterDomain, Literal["twin", "real"]] = Field(min_length=1)
     planning: tuple[PlanningSnapshot, ...] = ()
+    execution: Execution | None = None
+    bindings: dict[str, Binding] = {}
     schedule_date_shift_days: int = 0
     initial: dict[str, Any]
     timeline: tuple[Event, ...]
@@ -217,13 +238,14 @@ class LoadedScenario:
             raise ValueError("Only energy can use a real scenario adapter")
         if (spec.rate_plan != "twin") != (spec.adapters.get("energy") == "real"):
             raise ValueError("Real rate plan requires energy: real")
-        seed_path = path.parent / spec.household
+        self.seed_path = seed_path = path.parent / spec.household
         seed = read_seed(seed_path)
         self.hashes = {
             "scenario": sha256(raw).hexdigest(),
             "household": sha256(seed_path.read_bytes()).hexdigest(),
         }
         self.policy = loads(seed.yaml)
+        self.execution_policy = self.policy
         rows = seed.models(spec.clock.start)
         household = changed(cast(Household, rows["households"][0]), rate_plan="twin")
         self.references: dict[str, dict[str, UUID]] = {}
@@ -236,6 +258,40 @@ class LoadedScenario:
             str(cast(MemberAccount, row).member_id) for row in rows["member_accounts"]
         }
         self.timezone = household.timezone
+        if spec.execution:
+            if spec.execution.plan_at:
+                self.time(spec.execution.plan_at)
+                if spec.execution.ev_needed_by is None:
+                    raise ValueError("Planned execution requires an EV deadline")
+            if spec.execution.ev_needed_by:
+                self.time(spec.execution.ev_needed_by)
+            self.ref("members", spec.execution.member)
+            for slug in spec.execution.rooms:
+                self.ref("assets", slug)
+            for response in spec.execution.responses:
+                if self.time(response.start) >= self.time(response.end):
+                    raise ValueError("Response window must be positive")
+                self.ref("members", response.member)
+                self.ref("assets", response.asset)
+        elif spec.bindings or any(
+            isinstance(c, ScriptCall) for e in spec.timeline for c in e.script
+        ):
+            raise ValueError(
+                "Structured scripts and bindings require execution settings"
+            )
+        for slug in spec.bindings:
+            self.ref("assets", slug)
+        if not spec.execution and (
+            spec.assertions.audit_sequence_includes
+            or spec.assertions.never
+            or spec.assertions.plan_summary
+            or spec.assertions.ev_soc_at
+        ):
+            raise ValueError(
+                "Execution assertions require service-backed execution; use explicit deferrals"
+            )
+        for at in spec.assertions.ev_soc_at:
+            self.time(at)
         for planning in spec.planning:
             if str(self.ref("members", planning.member)) not in self.accounts:
                 raise ValueError("Planning requires a linked account")
@@ -376,6 +432,35 @@ class LoadedScenario:
             config=config,
             clock=SimClock(spec.clock.start, 0),
         )
+        names = (
+            {"initial_target"} if spec.execution and spec.execution.plan_at else set()
+        )
+        for event in spec.timeline:
+            for call in event.script:
+                if not isinstance(call, ScriptCall):
+                    continue
+                for value in call.arguments.values():
+                    if (
+                        isinstance(value, str)
+                        and value.startswith("$")
+                        and value[1:] not in names
+                    ):
+                        raise ValueError("Unknown scripted result reference")
+                if call.tool == "execute_household_action":
+                    ident = self.ref("assets", call.arguments["asset"])
+                    if self.world.assets[ident].kind != "light":
+                        raise ValueError("Scripted device requests support lamps only")
+                if call.save_as:
+                    if call.save_as in names:
+                        raise ValueError("Duplicate scripted result name")
+                    names.add(call.save_as)
+        for slug, binding in spec.bindings.items():
+            ident = self.ref("assets", slug)
+            if (
+                binding.adapter == "twin"
+                and binding.entity != self.world.bindings[ident].entity_id
+            ):
+                raise ValueError("Twin binding must identify the seeded asset")
         self.registry = registry(
             self.world, ",".join(f"{domain}:twin" for domain in spec.adapters)
         )
@@ -529,7 +614,13 @@ class LoadedScenario:
             for row in readings
         )
 
-    def check(self, check: Check, readings: tuple[Observation, ...]) -> bool:
+    def check(
+        self,
+        check: Check,
+        readings: tuple[Observation, ...],
+        *,
+        sources: dict[UUID, Source] | None = None,
+    ) -> bool:
         expected = dict(check.equals)
         actual: dict[str, Any]
         if check.kind == "policy":
@@ -575,7 +666,9 @@ class LoadedScenario:
                 None,
             )
             if row is None or row.source != (
-                "real"
+                sources[ident]
+                if sources and ident in sources
+                else "real"
                 if check.subject == "household"
                 and self.spec.adapters.get("energy") == "real"
                 else "twin"
@@ -622,6 +715,7 @@ class LoadedScenario:
                         "reason": "Tool execution awaits later phases.",
                     }
                     for name in event.script
+                    if isinstance(name, str)
                 ],
             )
             if "propose_household_rule" in event.script:
@@ -683,7 +777,23 @@ async def run_scenario(
     sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
     progress: Callable[[str], None] | None = None,
     dogwood: Dogwood | None = None,
+    artifacts_dir: Path | None = None,
+    ha_config: Path | None = None,
 ) -> dict[str, Any]:
+    if loaded.spec.execution:
+        from hirz.twin.execution import run_execution
+
+        return await run_execution(
+            loaded,
+            headless=headless,
+            assertions=assertions,
+            speed=speed,
+            to=to,
+            sleep=sleep,
+            progress=progress,
+            artifacts_dir=artifacts_dir,
+            ha_config=ha_config,
+        )
     spec, world = loaded.spec, loaded.world
     pace = spec.clock.speed if speed is None else speed
     if not math.isfinite(pace) or pace <= 0:

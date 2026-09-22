@@ -76,6 +76,7 @@ async def compose(
     world: TwinWorld | None = None,
     config: str | None = None,
     ha_path: Path | None = None,
+    scenario: bool = False,
 ) -> Registry:
     async with p.connection.begin():
         snap = await p.snapshot(p.clock())
@@ -101,6 +102,13 @@ async def compose(
                 if b.adapter == "ha"
             }
         )
+    if scenario and world is not None and home.rate_plan == "comed_time_of_day":
+        from hirz.twin.scenario_energy import ScenarioEnergy
+
+        implementations[("energy", "scenario")] = lambda household: ScenarioEnergy(
+            world
+        )
+        sources[("energy", "scenario", home.id)] = "real"
     if parse_config(config).get("energy") == "real":
         implementations.update(
             energy_factories(
@@ -122,6 +130,12 @@ async def compose(
         sources=sources,
         config=config,
         clock=p.clock,
+        scenario_mode=scenario,
+        fallback_bindings=tuple(
+            world.bindings[b.asset_id] for b in bindings if b.adapter == "ha"
+        )
+        if scenario and world
+        else (),
     )
 
 

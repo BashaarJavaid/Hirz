@@ -192,6 +192,12 @@ async def owned_control(
         if since is not None and row["created_at"] < since:
             continue
         params = row["proposal"]["params"]
+        from hirz.graph.models import ObservationState
+
+        if params and params.keys() <= ObservationState.model_fields.keys():
+            params = ObservationState.model_validate(params).model_dump(
+                exclude_unset=True
+            )
         if params and all(controls.get(k) == v for k, v in params.items()):
             # HA only changes setpoint; an unexplained mode change is never attributed to it.
             if (
@@ -394,7 +400,16 @@ async def commit(
     stored = await get(p, str(action.params["plan_id"]))
     op = action.params["operation"]
     seq = decision.audit_id
-    if op == "feeds":
+    if op == "resume":
+        from hirz.executor.plans import resume
+
+        await resume(
+            p,
+            stored,
+            str(action.params["action_id"]),
+            str(action.params["approval_id"]),
+        )
+    elif op == "feeds":
         runtime = RuntimeInputs.model_validate(action.params["runtime"])
         runtime.validate_plan(Plan.model_validate(stored["document"]))
         stored["runtime"] = runtime.model_dump(mode="json")

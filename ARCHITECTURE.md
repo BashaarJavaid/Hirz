@@ -297,7 +297,10 @@ Every surface, the audit log, the explainer, and the tests use these shapes. No 
 
 `content_hash` is `sha256:` plus SHA-256 of RFC 8785 canonical JSON containing
 class, target, params and scheduled_for, plus `revert` only when present. The
-nonrecursive revert is `{after_s, inverse: {class, target, params}}`; supported
+nonrecursive revert is `{after_s, inverse: {class, target, params}}`; `after_s`
+accepts positive finite seconds at microsecond resolution (existing integers retain
+their representation and hashes), so scheduled endings and retries do not truncate
+fractional intervals; supported
 endings keep the opening class and target. Existing unbounded hashes and omitted
 optional fields retain their previous serialization. Optional zone/time normalize to
 null; timestamps normalize to UTC, fixed microseconds and `Z`. Invalid/non-finite
@@ -358,7 +361,7 @@ provenance, diagnostics and blocking constraints. A proposal is not an approval.
 }
 ```
 
-`status` ∈ `proposed | refreshing | approved | active | superseded | completed | abandoned`. A plan is `refreshing` while a re-plan is queued or running; it can be read and cannot be approved (§5.4). A constraint's `source` is the linked account it arrived on, with the surface; `claimed_author` holds a name someone merely claimed ("Dad says...") and is shown as claimed, never as provenance (§7). The figures above are illustrative shapes, not claims; every number Hirz surfaces comes from a scenario run. `summary` leads with `estimated_savings_usd`, computed against the timer-schedule baseline (§5.4) on the household's rate plan, all-in (supply plus delivery), with the same comfort, the same energy delivered to the car, and the same final battery state; `peak_kwh_avoided` comes second. The annualized figure on the scorecard comes from the backtest (§5.4), never from multiplying one night.
+`status` ∈ `proposed | refreshing | awaiting_approval | approved | active | superseded | completed | abandoned`. A plan is `refreshing` while a re-plan is queued or running; it can be read and cannot be approved (§5.4). A constraint's `source` is the linked account it arrived on, with the surface; `claimed_author` holds a name someone merely claimed ("Dad says...") and is shown as claimed, never as provenance (§7). The figures above are illustrative shapes, not claims; every number Hirz surfaces comes from a scenario run. `summary` leads with `estimated_savings_usd`, computed against the timer-schedule baseline (§5.4) on the household's rate plan, all-in (supply plus delivery), with the same comfort, the same energy delivered to the car, and the same final battery state; `peak_kwh_avoided` comes second. The annualized figure on the scorecard comes from the backtest (§5.4), never from multiplying one night.
 
 ### 4.4 AuditEvent
 
@@ -717,6 +720,15 @@ references are household scoped. Twin physical/control state and committed simul
 time have signed checkpoint evidence; configuration mismatch is refused. Local
 recovery depends on the worker and database returning. AWS/Link and physical safety
 claims remain pending. Procedures: [local execution](./docs/development.md#item-19-durable-local-execution).
+
+Item 22 adds `awaiting_approval`: a pending planned-device ASK pauses unstarted
+work while preserving its approval and authorized endings. Internal
+`PlanService.respond_to_action` votes through Pipeline, then checks the original
+plan/action, accepted inputs, policy, linked identities, quorum, TTL and execution
+window before audited rescheduling. It preserves the scheduler approver and does
+not extend freshness, issue a grant or substitute plan consent for device approval.
+The worker still evaluates the boundary at dispatch. See the
+[approval amendment](./docs/adr/ADR-005-deterministic-planner.md#planned-device-approval-resumption--2026-09-22-author-approved).
 
 ### 5.7 Protect
 

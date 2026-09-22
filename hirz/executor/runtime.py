@@ -203,10 +203,10 @@ def predicted(runtime: RuntimeInputs, at: datetime) -> dict[str, dict[str, Any]]
     if at > p.slots[0].start:
         at = min(at, p.slots[-1].end)
         part = slice_input(p, p.slots[0].start, at)
-        controls = tuple(
-            changed(c, ev_kwh=c.ev_kwh * s.hours / original.hours)
-            for c, s, original in zip(runtime.prediction.controls, part.slots, p.slots)
-        )
+        # EV energy sets the slot's charge ceiling, not a fractional power level.
+        # Retain that ceiling during a partial slot so prediction sees charging
+        # until the actual energy is delivered, just like the bounded action.
+        controls = runtime.prediction.controls[: len(part.slots)]
         r = replay(part, changed(runtime.prediction, controls=controls))
         ev, battery, appliance, zones = r.ev, r.battery, r.appliance, r.zones
     result = {

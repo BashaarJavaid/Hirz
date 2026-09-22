@@ -121,7 +121,12 @@ async def reference(p: "Pipeline", kind: str, ident: str) -> str:
             "The referenced object is unavailable; please identify it again."
         )
     if kind == "plan":
-        if row["document"]["status"] not in {"proposed", "approved", "active"}:
+        if row["document"]["status"] not in {
+            "proposed",
+            "approved",
+            "active",
+            "awaiting_approval",
+        }:
             raise Clarification("The referenced plan is no longer current.")
         if p.clock() >= datetime.fromisoformat(
             row["document"]["horizon"]["end"].replace("Z", "+00:00")

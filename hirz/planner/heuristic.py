@@ -59,6 +59,13 @@ def baseline(
     if p.fixed_ev_kwh:
         ev = [v or 0.0 for v in p.fixed_ev_kwh]
         need -= sum(ev)
+    # The timer has already started when a remaining-work replan crosses midnight.
+    # Anchor to the known delivery deadline, never reset it to tonight at refresh.
+    timer_start = p.ev_deadline.astimezone(CHICAGO).replace(
+        hour=21, minute=0, second=0, microsecond=0
+    )
+    if timer_start > p.ev_deadline:
+        timer_start -= timedelta(days=1)
     eligible = [
         i
         for i, s in enumerate(p.slots)
@@ -66,12 +73,7 @@ def baseline(
         and (not p.fixed_ev_kwh or p.fixed_ev_kwh[i] is None)
         and s.start >= ev_start
         and s.end <= p.ev_deadline
-        and (
-            method != "timer"
-            or s.start.astimezone(CHICAGO).hour >= 21
-            or s.start.astimezone(CHICAGO).date()
-            > p.slots[0].start.astimezone(CHICAGO).date()
-        )
+        and (method != "timer" or s.start >= timer_start)
     ]
     if method == "greedy":
         eligible.sort(key=lambda i: (p.slots[i].price, i))
@@ -187,10 +189,11 @@ def baseline(
         for i, slot in enumerate(p.slots):
             energy = battery.soc * battery.capacity_kwh
             local = slot.start.astimezone(CHICAGO)
-            restore = local.hour >= 21 or local.hour < 6
-            before_21 = (
-                local.date() == p.slots[0].start.astimezone(CHICAGO).date()
-                and local.hour < 21
+            before_21 = slot.start < timer_start
+            # A remaining-work comparison must restore the accepted terminal
+            # energy even when the necessary charging continues past 06:00.
+            restore = (
+                local.hour >= 21 or local.hour < 6 or not before_21 and energy < opening
             )
             net = net_load[i]
             if net < 0:

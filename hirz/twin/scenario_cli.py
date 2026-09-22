@@ -10,6 +10,7 @@ from pathlib import Path
 
 import yaml
 
+from hirz.audit import write_export
 from hirz.twin.scenario import LoadedScenario, run_scenario
 
 
@@ -24,13 +25,17 @@ def positive_speed(value: str) -> float:
 
 
 def add_scenario(commands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    scenario = commands.add_parser("scenario", help="Run an offline simulated scenario")
+    scenario = commands.add_parser(
+        "scenario", help="Replay a declared household scenario"
+    )
     operations = scenario.add_subparsers(dest="operation", required=True)
     for operation in ("run", "step"):
         command = operations.add_parser(operation)
         command.add_argument("file", type=Path)
         command.add_argument("--assert", dest="assertions", action="store_true")
         command.add_argument("--output", type=Path)
+        command.add_argument("--artifacts-dir", type=Path)
+        command.add_argument("--ha-config", type=Path)
         command.add_argument("--to", required=operation == "step")
         if operation == "run":
             command.add_argument("--headless", action="store_true")
@@ -60,11 +65,12 @@ async def scenario_command(args: argparse.Namespace) -> int:
             speed=getattr(args, "speed", None),
             to=args.to,
             progress=lambda line: print(line, file=sys.stderr),
+            artifacts_dir=args.artifacts_dir,
+            ha_config=args.ha_config,
         )
         encoded = json.dumps(report, sort_keys=True, allow_nan=False) + "\n"
         if args.output is not None:
-            with args.output.open("x") as output:
-                output.write(encoded)
+            write_export(args.output, report)
         print(encoded, end="")
         return int(report["status"] == "failed")
     except (ValueError, OSError, TypeError, KeyError, yaml.YAMLError):

@@ -8,6 +8,8 @@ All notable changes are documented here. The format follows
 
 ### Changed
 
+- 2026-09-22: Execute the evening through existing services with separate plan/device approvals, exact bounded endings, private signed evidence and verified overnight outcomes; add the approved early guest-room and overnight dishwasher requests ([item 22 evidence](./docs/verification-log.md#item-22--2026-09-22), [ADR-005](./docs/adr/ADR-005-deterministic-planner.md), [ADR-006](./docs/adr/ADR-006-twin-first-adapters.md)).
+
 - 2026-09-22: Add validated Plan/Decision narration, fixed offline-tested Bedrock Converse enrichment and audited restart-safe reuse with truthful status templates; retain live Bedrock verification for item 38 ([ADR-012](./docs/adr/ADR-012-explainer.md), [item 21 evidence](./docs/verification-log.md#item-21--2026-09-22)).
 
 - 2026-09-21: Add private Postgres sessions, consent-gated temperature preferences and acceptance-driven plan refresh with native policy enforcement; verify the local backend while keeping companion authentication and AWS Memory outside scope ([item 20 evidence](./docs/verification-log.md#item-20--2026-09-21), [memory contract](./ARCHITECTURE.md#59-memory)).

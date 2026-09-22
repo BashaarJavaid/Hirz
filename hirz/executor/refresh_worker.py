@@ -156,7 +156,9 @@ class RefreshWorker:
         )
         if self.pipeline.clock() >= end:
             return
-        energy: Any = self.registry.instances.get(("energy", "twin"))
+        energy: Any = self.registry.instances.get(
+            ("energy", self.registry.defaults.get("energy", "twin"))
+        )
         calendar: Any = self.registry.instances.get(("calendar", "twin"))
         prices = weather = events = None
         async with asyncio.timeout(10):
@@ -423,6 +425,11 @@ class RefreshWorker:
             if coordinated.inputs is None:
                 raise ValueError(
                     "; ".join(c.reason for c in coordinated.conflicts)
+                    or "; ".join(
+                        coordinated.result.replay.reasons
+                        if coordinated.result.replay
+                        else ()
+                    )
                     or "The coordinated workload is unavailable."
                 )
             result = bind_result(
@@ -436,6 +443,8 @@ class RefreshWorker:
             if not result.plan.comparison_validity.valid:
                 raise ValueError(
                     "Valid comparisons could not be established for every approved requirement."
+                    + " "
+                    + "; ".join(result.plan.comparison_validity.reasons)
                 )
             replacement = (
                 await asyncio.to_thread(
@@ -447,7 +456,14 @@ class RefreshWorker:
             ).model_copy(
                 update={
                     "exhausted": exhausted,
-                    "workload": inputs,
+                    # A replaced delivery target remains the accepted obligation
+                    # after its deadline; expiry cannot resurrect an older goal.
+                    "workload": inputs.model_copy(
+                        update={
+                            "ev_target": coordinated.inputs.ev_target,
+                            "ev_deadline": coordinated.inputs.ev_deadline,
+                        }
+                    ),
                     "prediction_workload": coordinated.inputs,
                 }
             )

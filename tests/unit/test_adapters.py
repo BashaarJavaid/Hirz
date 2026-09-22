@@ -322,6 +322,10 @@ def test_explicit_scenario_fallback_keeps_primary_routing():
             )
             result = await reg.get_state(asset)
             assert result.source == "twin" and result.state.on is True
+            from hirz.executor.observations import readings
+
+            observed = await readings(reg)
+            assert observed[0].asset_id == asset and observed[0].source == "twin"
             assert reg.resolve("devices", asset_id=asset) is ha
             with pytest.raises(AdapterError):
                 reg.stamp("devices", "twin", result, at=AT)

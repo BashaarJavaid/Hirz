@@ -812,3 +812,122 @@ def test_reproduction_requires_retained_output_before_loading_history(
         backtest.main()
     assert exc.value.code == 2
     assert "requires retained results.json.gz" in capsys.readouterr().err
+
+
+def test_quantized_thermostat_load_keeps_battery_off_grid_and_terminal_energy():
+    zone = ThermalZone(temp_f=70, target_f=70, mode="heat", solar_gain_area_m2=0)
+    target = 70.000049
+    load = zone.model_copy(update={"target_f": target}).advance(900, 70).electricity_kwh
+    discharge = 0.4 + load / 0.25
+    battery = Battery(soc=0.55, dispatch_kw=0)
+    p = tiny(
+        ev=None,
+        ev_target=0,
+        battery=battery,
+        base_load_kw=0.4,
+        actuator_precision=True,
+        zones=(
+            Zone(
+                entity="hvac.living_room",
+                physical=zone,
+                lower=(66, 66),
+                upper=(76, 76),
+                targets=(70, 70),
+                occupants=(0, 0),
+            ),
+        ),
+    )
+    schedule = Schedule(
+        method="greedy",
+        controls=(
+            Control(
+                ev_kwh=0,
+                battery_kw=discharge,
+                targets=(target,),
+                modes=("heat",),
+                appliance_start=False,
+            ),
+            Control(
+                ev_kwh=0,
+                battery_kw=-discharge / battery.efficiency,
+                targets=(70,),
+                modes=("heat",),
+                appliance_start=False,
+            ),
+        ),
+    )
+    rounded = service.quantized(p, schedule)
+    checked = replay(p, rounded)
+    assert checked.valid, checked.reasons
+    assert sum(checked.export_kwh) <= 1e-6
+    assert checked.battery_end_kwh == pytest.approx(
+        battery.soc * battery.capacity_kwh, abs=1e-6
+    )
+    fixed = p.model_copy(update={"fixed_battery_kw": (discharge, None)})
+    assert not replay(fixed, service.quantized(fixed, schedule)).valid
+
+
+def test_timer_baseline_keeps_its_overnight_window_after_midnight_refresh():
+    p = tiny()
+    shift = timedelta(hours=4)
+    p = changed(
+        p,
+        slots=tuple(
+            changed(s, start=s.start + shift, end=s.end + shift) for s in p.slots
+        ),
+        ev_deadline=p.ev_deadline + shift,
+    )
+    result = replay(p, baseline(p, "timer"))
+    assert result.valid, result.reasons
+    assert result.ev_delivered_kwh == pytest.approx(1)
+
+
+def test_ev_action_ceiling_does_not_exceed_the_goal_by_float_roundoff():
+    p = tiny()
+    schedule = Schedule(
+        method="greedy",
+        controls=(
+            Control(
+                ev_kwh=1.000000000000001,
+                battery_kw=0,
+                targets=(),
+                modes=(),
+                appliance_start=False,
+            ),
+            Control(
+                ev_kwh=0, battery_kw=0, targets=(), modes=(), appliance_start=False
+            ),
+        ),
+    )
+    assert replay(p, schedule).valid
+    proposed = service.actions(p, schedule, "roundoff")
+    assert max(a.params["charge_limit"] for a in proposed) == p.ev_target
+
+
+@pytest.mark.parametrize("hours,count", [(3, 28), (7.75, 9)])
+def test_morning_timer_baseline_preserves_the_original_battery_terminal_energy(
+    hours, count
+):
+    start = AT + timedelta(hours=hours)
+    slots = tuple(
+        Slot(
+            start=start + timedelta(minutes=15 * i),
+            end=start + timedelta(minutes=15 * (i + 1)),
+            price=0.1,
+            outdoor_f=70,
+            solar_kw=0,
+        )
+        for i in range(count)
+    )
+    p = tiny(
+        ev=None,
+        ev_target=0,
+        slots=slots,
+        ev_deadline=AT + timedelta(hours=9, minutes=30),
+        battery=Battery(soc=0.1, dispatch_kw=0),
+        battery_terminal_kwh=7.425,
+        base_load_kw=0.4,
+    )
+    result = replay(p, baseline(p, "timer"))
+    assert result.valid, result.reasons
+    assert result.battery_end_kwh == pytest.approx(p.battery_terminal_kwh, abs=1e-6)

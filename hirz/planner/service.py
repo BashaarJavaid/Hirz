@@ -29,6 +29,7 @@ from hirz.planner.models import (
     Schedule,
     SolverDiagnostics,
 )
+from hirz.planner.replay import effective, replay
 from hirz.planner.solver import solve
 
 
@@ -52,7 +53,45 @@ def quantized(p: PlannerInput, schedule: Schedule) -> Schedule:
             )
             for z, t in zip(p.zones, targets, strict=True)
         )
-        controls.append(control.model_copy(update={"targets": targets}))
+        # MILP feasibility tolerance can put a bound a few ulps outside the
+        # actuator's exact range. Replay still checks the resulting energy.
+        battery_kw = control.battery_kw
+        if p.battery and abs(battery_kw) <= p.battery.power_kw + 1e-6:
+            battery_kw = min(p.battery.power_kw, max(-p.battery.power_kw, battery_kw))
+        controls.append(
+            control.model_copy(update={"targets": targets, "battery_kw": battery_kw})
+        )
+    rounded = schedule.model_copy(update={"controls": tuple(controls)})
+    if p.battery is not None:
+        # Setpoint rounding changes the load. Remove only export caused by an
+        # uncommitted discharge, then reduce charging by the same internal energy.
+        checked = replay(p, rounded)
+        reduced = 0.0
+        for i, (slot, control, exported) in enumerate(
+            zip(p.slots, controls, checked.export_kwh, strict=True)
+        ):
+            if (
+                control.battery_kw > 0
+                and exported > 0
+                and not (p.fixed_battery_kw and p.fixed_battery_kw[i] is not None)
+            ):
+                energy = min(exported, control.battery_kw * slot.hours)
+                controls[i] = control.model_copy(
+                    update={"battery_kw": control.battery_kw - energy / slot.hours}
+                )
+                reduced += energy / p.battery.efficiency
+        for i in reversed(range(len(controls))):
+            control, slot = controls[i], p.slots[i]
+            if control.battery_kw < 0 and not (
+                p.fixed_battery_kw and p.fixed_battery_kw[i] is not None
+            ):
+                energy = min(reduced, -control.battery_kw * slot.hours)
+                controls[i] = control.model_copy(
+                    update={"battery_kw": control.battery_kw + energy / slot.hours}
+                )
+                reduced -= energy
+        # Ordinary replay still rejects reserve/terminal violations or an
+        # immutable commitment that cannot accommodate the rounded load.
     return schedule.model_copy(update={"controls": tuple(controls)})
 
 
@@ -85,6 +124,7 @@ def compare(a: Replay, b: Replay) -> tuple[ComparisonValidity, float | None]:
 def actions(p: PlannerInput, schedule: Schedule, plan_id: str) -> tuple[Action, ...]:
     result = []
     ev_soc = p.ev.soc if p.ev else 0.0
+    ev_target, _, _ = effective(p)
     last: dict[str, dict[str, object]] = {}
     for i, (slot, control) in enumerate(zip(p.slots, schedule.controls, strict=True)):
         changes: list[tuple[str, str, dict[str, object]]] = []
@@ -96,7 +136,7 @@ def actions(p: PlannerInput, schedule: Schedule, plan_id: str) -> tuple[Action, 
                     "ev",
                     {
                         "charging": control.ev_kwh > 1e-9,
-                        "charge_limit": min(0.8, ev_soc),
+                        "charge_limit": min(0.8, ev_target, ev_soc),
                     },
                 )
             )
@@ -147,29 +187,9 @@ def actions(p: PlannerInput, schedule: Schedule, plan_id: str) -> tuple[Action, 
             result.append(
                 action.model_copy(update={"content_hash": action_hash(action)})
             )
-    # End bounded controls explicitly; a schedule cannot leave dispatch running.
-    end_changes: list[tuple[str, str, dict[str, object]]] = [
-        ("energy.ev_charge", "ev", {"charging": False}),
-        ("energy.battery_dispatch", "home_battery", {"dispatch_kw": 0.0}),
-    ]
-    for cls, entity, params in end_changes:
-        if entity not in last:
-            continue
-        action = Action.model_validate(
-            dict(
-                action_id="act_"
-                + digest([str(p.household_id), plan_id, "end", entity]),
-                **{"class": cls},
-                target=Target(adapter="twin", entity=entity),
-                params=params,
-                requested_by=p.requester,
-                reason="End hypothetical schedule",
-                plan_id=plan_id,
-                scheduled_for=p.slots[-1].end,
-                content_hash="",
-            )
-        )
-        result.append(action.model_copy(update={"content_hash": action_hash(action)}))
+    # Every charging/discharge opening below carries its exact bounded ending.
+    # A second standalone stop at the horizon would require a fresh plan after
+    # that horizon and duplicate the already-authorized ending.
     for i, action in enumerate(result):
         assert action.scheduled_for is not None
         next_change = next(
@@ -202,7 +222,7 @@ def actions(p: PlannerInput, schedule: Schedule, plan_id: str) -> tuple[Action, 
             or action.params.get("dispatch_kw", 0) != 0
         ):
             updates["revert"] = Revert(
-                after_s=int((next_change - action.scheduled_for).total_seconds()),
+                after_s=(next_change - action.scheduled_for).total_seconds(),
                 inverse=Inverse.model_validate(
                     {
                         "class": action.action_class,

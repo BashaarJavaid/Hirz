@@ -937,4 +937,34 @@ The Explainer's cache is the existing audited Plan/Decision JSON document. Reads
 not generate model text or write replacement narration. A held read may still run
 the pre-existing audited freshness detection from item 19a. See
 [ADR-012](./adr/ADR-012-explainer.md) for hash inputs, length/figure guards and their
-semantic limits. MCP, UI, full scenario execution and live Bedrock remain later work.
+semantic limits. MCP, UI and live Bedrock remain later work; internal scenario execution is described below.
+
+## Item 22 executable evening
+
+Use the existing local PostgreSQL service, `.env` signing key, and pinned native
+Dogwood. The runner creates and migrates a uniquely named disposable database;
+it does not migrate or seed the development database.
+
+```bash
+export HIRZ_DOGWOOD="$PWD/.tools/dogwood"
+uv run hirz scenario run scenarios/demo-evening.yaml --headless --assert
+uv run hirz scenario run scenarios/demo-evening-hourly.yaml --headless --assert
+uv run hirz scenario run scenarios/parents-scam-check.yaml --headless --assert
+uv run python scripts/smoke_scenario.py --live-demo --artifacts-dir secrets/scenario-runs/ha-new-run
+```
+
+The last command requires the existing HA demo service. It uses current time and
+normal pacing, changes only the explicitly mapped `light.bed_light`, and requires
+Pipeline-authorized restoration. Missing HA or failed restoration fails that gate.
+It does not satisfy the physical-plug gate.
+
+Use `--artifacts-dir NEW_DIR` to select a new private evidence directory. Keep
+`report.json`, `audit.json` and `public-key.pem` together. The report identifies the
+seeded execution policy and the separate simulated preview. Failed databases are
+retained by name for diagnosis; remove them only after reviewing their evidence.
+Step and unchecked reports do not claim completion. No remote CI dispatch or
+public MCP/authentication claim is included.
+
+For machine-readable results, use `--output <new-file>` or the retained
+`report.json`: native solver diagnostics can also appear on stdout
+([recorded friction](./friction-log.md)).

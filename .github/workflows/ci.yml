@@ -94,9 +94,10 @@ jobs:
 
   scenarios:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 45
     env:
       HIRZ_LLM: "off"
+      COMPOSE_PROJECT_NAME: hirz-scenarios-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -112,21 +113,34 @@ jobs:
           rustup toolchain install 1.98.1 --profile minimal
           RUSTUP_TOOLCHAIN=1.98.1 uv run --locked python scripts/build_dogwood.py
           echo "HIRZ_DOGWOOD=$PWD/.tools/dogwood" >> "$GITHUB_ENV"
-      - name: Item 16 observation assertions (offline, simulated)
+      - name: Initialize isolated PostgreSQL and HA demo
+        run: uv run --locked python scripts/init_dev.py
+      - name: Scoped evening execution and observation regressions
         run: |
-          uv run --locked hirz scenario run scenarios/demo-evening.yaml --headless --assert > "$RUNNER_TEMP/evening.json"
-          uv run --locked hirz scenario run scenarios/parents-scam-check.yaml --headless --assert > "$RUNNER_TEMP/parents.json"
+          uv run --locked hirz scenario run scenarios/demo-evening.yaml --headless --assert --output "$RUNNER_TEMP/evening.json" > /dev/null
+          uv run --locked hirz scenario run scenarios/demo-evening-hourly.yaml --headless --assert --output "$RUNNER_TEMP/hourly.json" > /dev/null
+          uv run --locked hirz scenario run scenarios/parents-scam-check.yaml --headless --assert --output "$RUNNER_TEMP/parents.json" > /dev/null
       - name: Report scoped results and explicit deferrals
         run: |
           python - <<'PYTHON'
           import json, os
           from pathlib import Path
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
-              for name in ("evening", "parents"):
+              for name in ("evening", "hourly", "parents"):
                   result = json.loads((Path(os.environ["RUNNER_TEMP"]) / f"{name}.json").read_text())
                   print(f"{name}: {result['status']}; checks={len(result['checks'])}; deferred assertions={len(result['deferred'])}", file=summary)
-              print("Only item 16 observations are verified. Tool execution, persistence and full demo assertions remain deferred.", file=summary)
+              print("Evening: internal service execution; Hourly: planning regression; parents: observation checks. MCP, authentication, trust, security and Link remain deferred.", file=summary)
           PYTHON
+
+      - name: Live HA lamp and bounded restoration
+        run: uv run --locked python scripts/smoke_scenario.py --live-demo --artifacts-dir "$RUNNER_TEMP/ha-scenario"
+      - name: Remove only this runner's isolated services
+        if: always()
+        run: |
+          trap 'rm -f .env' EXIT
+          if [ -f .env ]; then
+            docker compose -f compose.dev.yml down --volumes --remove-orphans
+          fi
 
   ts-lint-types:
     runs-on: ubuntu-24.04

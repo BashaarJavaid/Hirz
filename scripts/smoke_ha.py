@@ -3,8 +3,7 @@
 import argparse
 import asyncio
 import json
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager, suppress
+from contextlib import suppress
 from datetime import timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -13,11 +12,7 @@ from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import httpx
-import sqlalchemy as sa
-from sqlalchemy.ext.asyncio import AsyncConnection, create_async_engine
 
-from alembic import command
-from hirz import db
 from hirz.adapters.base import AdapterError
 from hirz.adapters.devices.ha import HAConfig, HomeAssistant, load_config
 from hirz.audit import (
@@ -45,6 +40,7 @@ from hirz.pipeline.audit import AuditWriter
 from hirz.pipeline.hashing import action_hash
 from hirz.pipeline.models import Action, Decision, Principal
 from hirz.pipeline.service import Pipeline, PolicyBundle
+from hirz.twin.disposable import disposable as disposable
 
 ROOT = Path(__file__).resolve().parents[1]
 SEED_PATH = ROOT / "constitutions/quinn-home.yaml"
@@ -230,49 +226,6 @@ async def recorded() -> None:
             )
         finally:
             await adapter.close()
-
-
-@asynccontextmanager
-async def disposable(values: dict[str, str]) -> AsyncIterator[AsyncConnection]:
-    url = db.database_url(values)
-    name = "hirz_ha_smoke_" + uuid4().hex
-    admin = create_async_engine(
-        url,
-        isolation_level="AUTOCOMMIT",
-        poolclass=sa.pool.NullPool,
-        hide_parameters=True,
-    )
-    engine = create_async_engine(
-        url.set(database=name), poolclass=sa.pool.NullPool, hide_parameters=True
-    )
-    created = False
-    try:
-        async with admin.connect() as c:
-            await c.exec_driver_sql(f'CREATE DATABASE "{name}"')
-            created = True
-        async with engine.connect() as c:
-
-            def migrate(sync: sa.Connection) -> None:
-                cfg = db.migration_config()
-                cfg.attributes["connection"] = sync
-                command.upgrade(cfg, "head")
-
-            await c.run_sync(migrate)
-            await c.commit()
-            yield c
-    except BaseException:
-        # Preserve evidence on every failure, including failed export/restoration.
-        if created:
-            print(f"disposable_database_retained={name}")
-        raise
-    else:
-        await engine.dispose()
-        async with admin.connect() as c:
-            await c.exec_driver_sql(f'DROP DATABASE "{name}"')
-        print("disposable_database=dropped; development_database=unchanged")
-    finally:
-        await engine.dispose()
-        await admin.dispose()
 
 
 async def live(

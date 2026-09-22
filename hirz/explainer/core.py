@@ -287,6 +287,7 @@ def skeleton(
             if obj.supersedes
             else "An energy plan is ready for review.",
             "refreshing": "The plan is held for an update.",
+            "awaiting_approval": "The plan is waiting for a separate device approval.",
             "approved": "The plan has consent; execution is still checked before each action.",
             "active": "The plan is active; individual outcomes require verification.",
             "superseded": "This historical plan has been replaced.",

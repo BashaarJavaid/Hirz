@@ -287,7 +287,7 @@ async def retry(p: "Pipeline", original: Action) -> Decision | None:
         if original.revert:
             end = ending(original)
             assert end.scheduled_for
-            remaining = int((end.scheduled_for - at).total_seconds())
+            remaining = (end.scheduled_for - at).total_seconds()
             if remaining <= 0:
                 return None
             changes["revert"] = original.revert.model_copy(

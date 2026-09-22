@@ -232,7 +232,14 @@ class Executor:
                             if action.action_class == "energy.hvac_adjust"
                             else tuple(action.params)
                         )
-                        if any(actual.get(k) != sample.get(k) for k in controls):
+                        from hirz.graph.models import ObservationState
+
+                        observed_controls = ObservationState.model_validate(
+                            {k: actual[k] for k in controls if k in actual}
+                        ).model_dump(exclude_unset=True)
+                        if any(
+                            observed_controls.get(k) != sample.get(k) for k in controls
+                        ):
                             await observations.ingest(p, self.registry, principal)
                         if (
                             action.target.adapter == "ha"
@@ -286,12 +293,21 @@ class Executor:
                                 reason=decision.event_type.value,
                                 decision_seq=decision.audit_id,
                             )
-                            await hold(
-                                p,
-                                action,
-                                lifecycle["member_id"],
-                                "Current household rules require a new decision.",
-                            )
+                            if (
+                                action.plan_id
+                                and decision.decision == "ask"
+                                and decision.approval
+                            ):
+                                from hirz.executor.plans import await_approval
+
+                                await await_approval(p, action, decision)
+                            else:
+                                await hold(
+                                    p,
+                                    action,
+                                    lifecycle["member_id"],
+                                    "Current household rules require a new decision.",
+                                )
                         return decision
                 if action.target.adapter == "twin":
                     assert self.world is not None
@@ -301,7 +317,10 @@ class Executor:
                         await twin.execute(p, self.world, action, decision)
                     # A simulated write is a new event instant for versioned observations.
                     self.world.clock.jump(
-                        self.world.clock() + timedelta(microseconds=1)
+                        min(
+                            self.world.config.end,
+                            self.world.clock() + timedelta(microseconds=1),
+                        )
                     )
                 else:
                     adapter = self.registry.instances[("devices", "ha")]

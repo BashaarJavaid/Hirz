@@ -483,6 +483,8 @@ def test_memory_service_fallback_and_authority_free_references(monkeypatch):
             END.isoformat()
         )
         assert await memory.reference(p, "plan", "live") == "live"
+        mappings.one_or_none.return_value["document"]["status"] = "awaiting_approval"
+        assert await memory.reference(p, "plan", "waiting") == "waiting"
         mappings.one_or_none.return_value = {"execution_status": "cancelled"}
         with pytest.raises(Clarification, match="current"):
             await memory.reference(p, "action", "old")

@@ -321,3 +321,35 @@ initiator/approver on the scheduler surface. Rejected accepted-command-as-succes
 HA-to-twin write verification, caller-supplied readings, and local recovery claims
 while the database or worker remains offline. Failure notices are durable pending
 records, not delivered push/email messages.
+
+## Executable scenarios — 2026-09-22 (author-approved)
+
+Item 22 composes the existing Coordinator, Pipeline, PlanService, refresh worker,
+Executor and template Explainer inside a disposable PostgreSQL scenario host.
+Structured `{tool, arguments, save_as}` calls are simulation interfaces, not MCP or
+authentication. Bare tool names remain deferred. No solver or model runs inside a
+scripted call. Hourly retains its planning regression; parents retains observations
+and explicit deferred forbidden-action checks. Rejected a second execution engine
+and fabricated service/audit results.
+
+The author extends the disposable-test bootstrap exception to this scenario's
+seed, supplied room metadata, explicit bindings, rate plan and EV needed-by time.
+All later persisted changes and every device write require Pipeline decisions.
+Seeded validated v7 is the execution policy; simulated v8 preview stays separate
+and produces no activation audit event. Security, trust, Link, authenticated
+activation, MCP and UI remain deferred.
+
+Bindings map seed asset slug to `{adapter, entity}`. HA uses its explicit config
+for allowlisting and provenance; scenario-only read fallback stays labeled twin.
+Writes and verification use the primary adapter. The main evening uses twin
+devices, local published ComEd rates and supplied weather, with no live feeds or
+Bedrock. A separate current-time, normal-speed HA demo lamp scenario verifies and
+restores `light.bed_light` through signed Pipeline execution. The physical-plug
+check remains separate.
+
+Private artifacts retain the report, full signed audit and public key. Successful
+database deletion requires both database-chain and exported-file verification
+against the independently obtained signing-key fingerprint. Failed databases and
+available evidence remain. Step/unchecked/deferred checks cannot earn full evening
+success. Rejected treating an observation replay or an unverified export as the
+item 22 execution gate.

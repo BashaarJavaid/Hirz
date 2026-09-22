@@ -22,6 +22,11 @@ async def readings(registry: Registry) -> tuple[Observation, ...]:
     result = []
     for asset_id, binding in registry.bindings.items():
         domain = ASSET_DOMAINS[registry.assets[asset_id].kind]
+        if asset_id in registry.fallback_bindings:
+            # Explicit scenario reads may substitute labeled twin observations.
+            # Executor reads/writes still resolve the primary device adapter.
+            result.append(await registry.get_state(asset_id))
+            continue
         adapter: Any = registry.resolve(domain, asset_id=asset_id)
         name = {
             "ev": "get_charge_state",
@@ -56,7 +61,10 @@ async def readings(registry: Registry) -> tuple[Observation, ...]:
                 result.append(
                     registry.stamp(domain, implementation, reading, at=registry.clock())
                 )
-        if "get_tariff_state" in adapter.capabilities:
+        if (
+            "get_tariff_state" in adapter.capabilities
+            and implementation == registry.defaults.get("energy", implementation)
+        ):
             result.append(
                 registry.stamp(
                     domain,

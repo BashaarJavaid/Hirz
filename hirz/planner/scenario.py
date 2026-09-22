@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any
 from hirz.adapters.energy.real.tariff import CHICAGO, load_tariff
 from hirz.pipeline.models import PlanConstraint, Requester
 from hirz.planner.history import counterfactual_rate, hourly, persistence, read_raw
-from hirz.planner.models import MemberConstraint, Slot, boundaries
+from hirz.planner.models import MemberConstraint, PlannerInput, Slot, boundaries
 from hirz.planner.service import plan
 from hirz.planner.workload import workload
 from hirz.twin.physics import changed
@@ -17,13 +17,15 @@ if TYPE_CHECKING:
     from hirz.twin.scenario import LoadedScenario, PlanningSnapshot
 
 
-def snapshot(loaded: "LoadedScenario", spec: "PlanningSnapshot") -> dict[str, Any]:
+def workload_input(
+    loaded: "LoadedScenario", spec: "PlanningSnapshot", *, end: datetime | None = None
+) -> PlannerInput:
     from hirz.adapters.energy.real import feeds
 
     world = loaded.world
     at, state = world.read()
     member = loaded.ref("members", spec.member)
-    edges = boundaries(at)
+    edges = boundaries(at, end) if end is not None else boundaries(at)
     tariff = load_tariff(Path("tariffs/comed-time-of-day.yaml"))
     quotes: dict[datetime, Decimal | None] = {}
     if loaded.spec.rate_plan == "comed_hourly":
@@ -109,6 +111,12 @@ def snapshot(loaded: "LoadedScenario", spec: "PlanningSnapshot") -> dict[str, An
             else "Pinned 2026 tariff counterfactual; lagged persistence supply forecast",
         ),
     )
+    return p
+
+
+def snapshot(loaded: "LoadedScenario", spec: "PlanningSnapshot") -> dict[str, Any]:
+    p = workload_input(loaded, spec)
+    at = loaded.world.clock()
     result = plan(p)
     data = result.model_dump(mode="json")
     # Measurements are kept in smoke/backtest artifacts; scenario equality is stable.

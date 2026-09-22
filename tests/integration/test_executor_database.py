@@ -141,12 +141,13 @@ def test_sleep_at_execution_and_revoked_identity(scratch_database):
     asyncio.run(run())
 
 
-def test_bounded_end_survives_pause_restart_and_tampering(scratch_database):
+@pytest.mark.parametrize("seconds", [30, 30.000001])
+def test_bounded_end_survives_pause_restart_and_tampering(scratch_database, seconds):
     async def run():
         async with connect(scratch_database) as c:
             p, w, r, e = await environment(c)
             try:
-                a = bounded(w)
+                a = bounded(w, seconds)
                 assert (await p.enqueue(a, PRINCIPAL)).status == "executing"
                 assert (await e.sweep())[0].status == "verified"
                 assert state(w, a)["on"] is True
@@ -693,6 +694,193 @@ def test_twin_controls_and_bounded_stop(
                     ended = await e.sweep()
                     assert ended[0].status == "verified", ended
                     assert state(w, a)[attr] == stop[attr]
+            finally:
+                await r.close()
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize(
+    "response",
+    [
+        "approve",
+        "reject",
+        "expire",
+        "cancel",
+        "changed_policy",
+        "revoked",
+        "changed_hash",
+        "changed_inputs",
+        "revision",
+    ],
+)
+def test_planned_device_approval_resume(scratch_database, response):
+    async def run():
+        async with connect(scratch_database) as c:
+            p, w, r, e = await environment(c)
+            try:
+                raw = p.bundle.policy().model_dump()
+                raw["per_role"]["owner"] = {"environment.lights": {"mode": "ask"}}
+                p.bundle = await PolicyBundle.validate(
+                    p.household_id,
+                    type(p.bundle.policy()).model_validate(raw),
+                    p.boundary,
+                )
+                service = PlanService(p)
+                plan, actions = proposal(w)
+                await service.record(
+                    plan, actions, PRINCIPAL, runtime=runtime_for(plan)
+                )
+                assert (
+                    await service.approve(plan.plan_id, PRINCIPAL)
+                ).decision == "execute"
+                ask = (await e.sweep())[0]
+                assert ask.decision == "ask" and ask.approval
+                aid = ask.approval.approval_id
+                async with c.begin():
+                    assert (await p.approval(aid))["status"] == "pending"
+                    assert (await row(p, actions[0].action_id))[
+                        "execution_attempt_seq"
+                    ] is None
+                    assert (await c.scalar(sa.select(db.plans.c.document)))[
+                        "status"
+                    ] == "awaiting_approval"
+                assert not await e.sweep()
+                if response == "expire":
+                    w.clock.jump(ask.approval.expires_at)
+                elif response == "cancel":
+                    await service.cancel(plan.plan_id, PRINCIPAL)
+                elif response == "changed_policy":
+                    raw["version"] += 1
+                    p.bundle = await PolicyBundle.validate(
+                        p.household_id,
+                        type(p.bundle.policy()).model_validate(raw),
+                        p.boundary,
+                    )
+                elif response == "revoked":
+                    async with c.begin():
+                        await c.execute(
+                            db.member_accounts.delete().where(
+                                db.member_accounts.c.sub == "malik"
+                            )
+                        )
+                if response == "changed_hash":
+                    async with c.begin():
+                        original = await row(p, actions[0].action_id)
+                        from hirz.pipeline.models import Action
+
+                        modified = changed(
+                            Action.model_validate(original["proposal"]),
+                            params={"on": False},
+                            expected_effect=actions[0].expected_effect.model_copy(
+                                update={"value": False}
+                            ),
+                        )
+                        await c.execute(
+                            db.actions.update()
+                            .where(db.actions.c.action_id == modified.action_id)
+                            .values(
+                                proposal=modified.model_dump(mode="json", by_alias=True)
+                            )
+                        )
+                elif response == "changed_inputs":
+                    async with c.begin():
+                        original = await c.scalar(sa.select(db.plans.c.runtime))
+                        original["thresholds"] = {
+                            "test": {"temp_f": 2, "soc": 0.02, "power_kw": 0.25}
+                        }
+                        await c.execute(db.plans.update().values(runtime=original))
+                elif response == "revision":
+                    replacement, next_actions = proposal(
+                        w, supersedes=plan.plan_id, version=2
+                    )
+                    await service.revise(
+                        replacement,
+                        next_actions,
+                        PRINCIPAL,
+                        runtime=runtime_for(replacement),
+                    )
+                await service.respond_to_action(
+                    plan.plan_id, aid, PRINCIPAL, approved=response != "reject"
+                )
+                result = await e.sweep()
+                async with c.begin():
+                    stored = await row(p, actions[0].action_id)
+                    assert stored["principal"]["surface"] == "scheduler"
+                    assert (stored["execution_attempt_seq"] is not None) == (
+                        response == "approve"
+                    )
+                if response == "approve":
+                    assert result[0].status == "verified", result
+                    await service.respond_to_action(
+                        plan.plan_id, aid, PRINCIPAL, approved=True
+                    )
+                    assert not await e.sweep()
+            finally:
+                await r.close()
+
+    asyncio.run(run())
+
+
+def test_planned_approval_restart_concurrent_votes_and_required_ending(
+    scratch_database,
+):
+    from hirz.pipeline.service import Pipeline
+
+    async def run():
+        async with connect(scratch_database) as c:
+            p, w, r, e = await environment(c)
+            try:
+                opening = bounded(w, 30)
+                await p.enqueue(opening, PRINCIPAL)
+                assert (await e.sweep())[0].status == "verified"
+                raw = p.bundle.policy().model_dump()
+                raw["per_role"]["owner"] = {"environment.lights": {"mode": "ask"}}
+                p.bundle = await PolicyBundle.validate(
+                    p.household_id,
+                    type(p.bundle.policy()).model_validate(raw),
+                    p.boundary,
+                )
+                service = PlanService(p)
+                plan, actions = proposal(w)
+                await service.record(
+                    plan, actions, PRINCIPAL, runtime=runtime_for(plan)
+                )
+                await service.approve(plan.plan_id, PRINCIPAL)
+                asked = (await e.sweep())[0]
+                assert asked.approval
+                w.clock.jump(w.clock() + timedelta(seconds=31))
+                assert (await e.sweep(endings_only=True))[0].status == "verified"
+                async with c.begin():
+                    assert (await p.approval(asked.approval.approval_id))[
+                        "status"
+                    ] == "pending"
+                async with connect(scratch_database) as other:
+                    restarted = Pipeline(other, p.bundle, p.boundary, p.audit, p.clock)
+                    await asyncio.gather(
+                        service.respond_to_action(
+                            plan.plan_id,
+                            asked.approval.approval_id,
+                            PRINCIPAL,
+                            approved=True,
+                        ),
+                        PlanService(restarted).respond_to_action(
+                            plan.plan_id,
+                            asked.approval.approval_id,
+                            PRINCIPAL,
+                            approved=True,
+                        ),
+                    )
+                results = await e.sweep()
+                assert len(results) == 1 and results[0].status == "verified", results
+                assert not await e.sweep()
+                async with c.begin():
+                    assert (
+                        await c.scalar(
+                            sa.select(sa.func.count()).select_from(db.approval_votes)
+                        )
+                        == 1
+                    )
             finally:
                 await r.close()
 

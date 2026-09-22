@@ -3436,3 +3436,226 @@ git diff --check
 The Commands and Current phase sections match in `AGENTS.md` and `CLAUDE.md`;
 their pre-existing heading/introduction differences are preserved. The format
 check was repeated after this evidence append and passed.
+
+## Item 22 — 2026-09-22
+
+### Implementation and intermediate verification
+
+Implemented the internal scripted scenario host, disposable execution/artifacts,
+planned-device approval resumption, and the approved scenario bootstrap described
+in [ADR-005](./adr/ADR-005-deterministic-planner.md#planned-device-approval-resumption--2026-09-22-author-approved)
+and [ADR-006](./adr/ADR-006-twin-first-adapters.md#executable-scenarios--2026-09-22-author-approved).
+These intermediate checks do **not** close the overnight execution gate.
+
+Environment: local macOS ARM64, Python 3.12, existing PostgreSQL and HA demo services,
+pinned native Dogwood at `.tools/dogwood`, and the existing local signing key.
+Commands used `HIRZ_DOGWOOD="$PWD/.tools/dogwood"` and
+`UV_CACHE_DIR=/tmp/hirz-uv-cache`; socket/database checks ran with local network
+access. Development migrations were not applied. The stopped HA demo container
+was started using `docker compose -f compose.dev.yml start homeassistant`, retaining
+its volume. No AWS, Bedrock, public price/weather fetch, push or remote CI run occurred.
+
+- `uv run pytest -q`: **1,216 passed, 107 deselected, 80.48% coverage** (166.16 s).
+  Earlier full runs exposed the sandbox's loopback restriction and coverage below
+  80%; these were failures, not completion evidence. The host, export and prediction
+  regression checks were added before the passing coverage run.
+- `uv run pytest -m integration --no-cov -q`: **107 passed, 1,216 deselected**
+  (199.37 s), using uniquely named disposable databases. Planned-action cases cover
+  affirmative/rejected/expired votes, cancellation, revision, changed policy/hash/
+  inputs, revoked authority, restart, concurrent responses and required endings.
+- `uv run hirz scenario run scenarios/demo-evening-hourly.yaml --headless --assert`:
+  `item17_planning_and_observations_passed`, 16 checks and 22 explicit deferrals.
+  Parents: `item16_observations_passed`, 9 checks and 9 deferrals. Their unimplemented
+  execution assertions were not promoted.
+- `uv run python scripts/smoke_scenario.py --live-demo --artifacts-dir
+  secrets/scenario-runs/item22-ha-final`: `execution_checks_passed`, `restored: true`,
+  source `real API, demo devices`, **31 valid signed rows**. The lamp was restored
+  through its authorized ending; its disposable database was dropped. The later
+  `item22-ha-verified` run also passed with restoration. Physical-plug verification
+  remains separate and pending.
+- `uv build` built the sdist and wheel. The wheel was installed into
+  `/tmp/hirz-item22-wheel`; isolated import resolved to its `site-packages/hirz`.
+  Its `hirz scenario step scenarios/demo-evening.yaml --to 17:33 --assert
+  --artifacts-dir secrets/scenario-runs/item22-wheel-step` returned `stopped`,
+  with **9 valid signed rows**, no 17:33 planning event, and a dropped disposable
+  database. This step result is not an overnight pass.
+- Independent `verify_file` checks derived the public-key fingerprint from the
+  configured signing key, rather than trusting the export. They accepted the above
+  exports; changing a retained HA audit payload was rejected with
+  `Envelope hash mismatch`. Artifact directories were `0700` and report/audit/PEM
+  files `0600`; existing destinations were refused. Unit orchestration checks cover
+  pacing equivalence, target-time exclusion, assertion failures and retained versus
+  dropped database behavior at mocked service seams, not a second device integration.
+- Ruff and strict mypy passed (128 source files). The scenario CI job's YAML and
+  shell syntax passed local checks; its remote job has not run.
+
+The required full command was exercised repeatedly with new artifact directories.
+`item22-run12` retained **20,316 valid signed rows** and database
+`hirz_ha_smoke_2342c6fd95764fd4b77aacdb67c3411d`; 23:31 consent failed with
+`ValueError: Plan is not eligible for fresh consent`. Dad's 22:40 explicit revision
+paused the still-unstarted guest-room preheating. The author approved an earlier
+explicit 72°F request, now recorded at 17:35 and covered by 17:36 consent.
+
+`item22-run13` reached 07:00 but was **not successful**: it retained **18,012 valid
+signed rows** and database `hirz_ha_smoke_651bdaf1cbed44f18850ed538ecbd9a6`.
+Its final check hit `KeyError: 'claimed_author'` because absent optional provenance
+fields are omitted, and overnight plans remained held on invalid comparisons.
+The diagnostic exposed a timer baseline that restarted its window after midnight
+and a replaced EV target that could revert to the old default after its deadline.
+Those root causes were corrected, along with demonstrated charge-limit roundoff
+(`0.5000000000000001` for a 50% goal), normalized control comparisons and partial-slot
+EV power prediction. Interrupted and failed diagnostic runs retain their databases
+and available private evidence; none is counted as a successful execution.
+
+The initial forecast assertions were generated from run12's signed `PLAN_CREATED`
+summary, with the existing numeric tolerance. They are the initial 17:33 forecast,
+not accumulated savings across revisions. Historical backtest figures and retained
+inputs were not edited. Friction-log review found no new third-party API defect;
+the already-recorded local sandbox/cache restriction was handled with the existing
+cache/network procedure.
+
+### Final test and packaging pass
+
+After the startup-failure evidence guard and the last EV/battery rollover fixes:
+
+- `UV_CACHE_DIR=/tmp/hirz-uv-cache uv run pytest -q`: **1,219 passed,
+  107 deselected in 211.27 s; 80.51% coverage**. The existing loopback tests used
+  authorized local network access.
+- `uv run pytest -m integration --no-cov -q`: **107 passed, 1,219 deselected
+  in 251.92 s**, using disposable PostgreSQL databases.
+- Ruff and strict mypy passed: **128 source files**. `uv build` produced the sdist
+  and wheel; the rebuilt wheel's isolated step run (`item22-wheel-verified`)
+  returned `stopped`, with **9 valid signed rows** and an exclusive `0600` report.
+- The final Hourly regression again returned `item17_planning_and_observations_passed`
+  (16 checks, 22 deferrals). The final HA run (`item22-ha-verified`) returned
+  `execution_checks_passed` with restoration and **31 valid signed rows**.
+  Independent fingerprint verification accepted both retained wheel/HA exports;
+  their databases were absent afterward. Their directories were `0700` and all
+  three evidence files were `0600`. Development remained on `0005_execution_attempt`.
+- The scenario CI YAML and every workflow shell block passed local parsing checks.
+  A subsequently observed native solver stdout diagnostic earned an appended
+  [friction entry](./friction-log.md); CI uses `--output` for structured reports.
+  No remote CI run or push was performed.
+
+Run16 was interrupted after diagnosing the timer baseline's battery floor resetting
+at midnight. Its retained database is
+`hirz_ha_smoke_854f4e3b7ac54f0686850005e024b9f9` and its export contains
+**18,235 valid signed rows**. Replaying its remaining workload after anchoring the
+battery window to the same deadline-relative timer start made all three comparison
+baselines valid, each ending at **7.425 kWh** within numeric tolerance. This diagnostic
+is not an overnight completion claim.
+
+### Run17 final-gate failure and follow-up
+
+The full command reached 07:00, then correctly returned exit 1 with four failed
+checks: `separate_nighttime_votes`, `dad_kitchen_constraint_enforced`,
+`completed_current_plan`, and `battery_terminal_preserved`. Its database
+`hirz_ha_smoke_856085c4b05b4ee9bd2e4676e8ea8f0f` and private `item22-run17`
+artifacts are retained; **27,361 signed rows verified**, 68 visible device responses
+were recorded, and the EV delivery/ceiling, comfort and initial forecast checks
+passed. This is not an item 22 completion.
+
+The dishwasher had already run at 17:36. The author approved an explicit 17:35
+request to run it after 23:31; the script uses the existing normalized intake
+sentence, “Do not run the dishwasher before 23:31.” Dad's request and the fresh
+23:31 plan consent remain separate. The battery diagnostic showed that comparison
+baselines stopped charging at 06:00 despite the accepted 07:00 terminal obligation;
+late feasible workloads were held and subsequently became infeasible. The shared
+baseline now continues necessary restoration through the horizon, with a late
+04:45-start regression. Focused planner/scenario checks: **75 passed in 8.18 s**.
+
+After the author-approved dishwasher timing and late-morning baseline fix, the
+final regression suite returned **1,220 passed, 107 deselected in 174.81 s,
+80.51% coverage**; disposable PostgreSQL returned **107 passed, 1,220 deselected
+in 224.68 s**. Ruff and strict mypy again passed (128 source files). The sdist and
+wheel rebuilt successfully; the reinstalled wheel's `item22-wheel-final` step run
+returned `stopped` and removed its disposable database. Hourly and parents were
+rerun through `--output`: respectively `item17_planning_and_observations_passed`
+(16 checks, 22 deferrals) and `item16_observations_passed` (9 checks, 9 deferrals).
+No historical backtest output was edited; a new full-year reproduction was not
+part of this final rerun.
+
+### Run18 and exact-duration correction
+
+Run18 reached 07:00 with **26,512 valid signed rows** but failed
+`completed_current_plan` and `battery_terminal_preserved`. Its database
+`hirz_ha_smoke_59383ac7ac894c0180995fdac5b93cb0` and private `item22-run18`
+artifacts remain retained. The other 45 checks passed, including the dishwasher's
+separate approval and Dad's constraint: its verified opening was 23:46:01, after
+the explicit 23:31 consent. EV delivery and the ceiling also passed.
+
+The remaining failure exposed the host's one-second refresh delay after a simulated
+write's microsecond tick. At 06:00 a plan needed the full remaining charging interval;
+the artificial gap made that interval infeasible. On 2026-09-22 the author approved
+fractional `Revert.after_s` durations as an additional canonical interface amendment.
+The host no longer introduces that gap; planner/retry endings retain exact durations,
+existing integer hashes round-trip unchanged, and strict invalid/sub-microsecond
+inputs fail. Focused executor/scenario tests passed **36 tests in 3.28 s** after
+fixing a missing import in the new test. No failure above is counted as completion.
+
+After the approved fractional-duration amendment, the full service-free suite
+returned **1,221 passed, 108 deselected in 195.43 s; 80.53% coverage**. Disposable
+PostgreSQL returned **108 passed, 1,221 deselected in 250.56 s**, including the
+fractional-ending restart/tamper case. Ruff and strict mypy passed (128 files).
+The rebuilt/reinstalled wheel's `item22-wheel-fractional` step gate passed with
+`stopped` and a removed database. The fresh `item22-ha-fractional` live smoke
+returned `execution_checks_passed`, `restored: true`, and source
+`real API, demo devices`; its database was removed. The focused host seam test now
+advances the executor clock by a microsecond and asserts refresh occurs immediately,
+with paced/headless equivalence and no whole-second wait.
+
+### Full evening completion — 2026-09-22
+
+The required end-to-end command completed with exit 0:
+
+```bash
+HIRZ_DOGWOOD="$PWD/.tools/dogwood" UV_CACHE_DIR=/tmp/hirz-uv-cache \
+  uv run hirz scenario run scenarios/demo-evening.yaml --headless --assert \
+  --artifacts-dir secrets/scenario-runs/item22-run19 \
+  --output /tmp/hirz-item22-run19-report.json
+```
+
+Result: **`item22_execution_passed`; 47 passed checks; 30,637 valid signed rows**.
+The report retains two explicit assertion deferrals for simulated constitution
+activation and security/Link execution, plus the timeline's deferred tool calls.
+Execution used validated seed policy **v7**; the separate simulated preview was
+**v8**, without fabricated activation audit events.
+
+The EV was **50% at 06:30** and remained at its separate 50% ceiling. The dishwasher
+completed one cycle after its permitted overnight start. **93 visible affirmative
+turns** covered **92 HVAC requests and one dishwasher request**, separately from
+17:36 and 23:31 plan consent. Dad's linked-account attribution and normalized 23:00
+kitchen constraint passed. Guest-room temperature was **72°F at 07:00**; all checked
+comfort boundaries passed. Battery SoC returned to **55%**, preserving the original
+**7.425 kWh** terminal obligation within the existing tolerance, with dispatch stopped.
+All 151 superseded plans had their unstarted work cancelled; the sole remaining plan
+was **completed**. No plan for tomorrow was created. Initial forecast assertions
+passed without adding savings across revisions or changing historical backtest files.
+
+The runner verified the database chain and exported file before dropping
+`hirz_ha_smoke_9971ecbd8fbc4e749257fa5be89c5f32`. A separate `verify_file` invocation
+again accepted all **30,637 rows**, deriving the trusted public-key fingerprint from
+the configured signing key, independently of the export. The retained report and
+`--output` copy matched. The artifact directory was `0700`; report, audit and public
+key were `0600`, as was the separate report. PostgreSQL catalog reads confirmed
+this database, the latest HA database and the latest installed-wheel database were
+absent. Development remained on **`0005_execution_attempt`**; failed diagnostic
+databases and available evidence remain retained.
+
+The latest real-HA smoke (`item22-ha-fractional`) verified and restored the demo lamp
+with **25 valid signed rows**. The latest installed-wheel step
+(`item22-wheel-fractional`) stopped before 17:33 with **9 valid signed rows**.
+Both exports independently verified against the configured key's fingerprint and
+had the same private permissions. Corrupted-export rejection is covered by the
+retained tamper probe and passing scenario tests described above.
+
+Final regression evidence is the fractional-duration pass above: **1,221
+service-free tests, 80.53% coverage, 108 PostgreSQL tests**, strict mypy over
+128 files, Ruff, sdist/wheel build, installed-wheel CLI, Hourly planning, parents
+observations and live HA restoration. A final format probe found one wrapping-only
+change in `heuristic.py`; Ruff applied it, and the format gate is rerun after these
+evidence/documentation edits. The workflow YAML and shell syntax were checked
+locally; no push or remote CI run was performed. Friction review retained the actual
+SciPy stdout diagnostic entry. Physical-plug/absence verification, MCP/UI, trust,
+security execution, Link, authenticated activation and live Bedrock remain outside
+this completion; no threat-model claim was changed.

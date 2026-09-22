@@ -1,5 +1,6 @@
 """Explicit plan consent and revisions, committed through governance Decisions."""
 
+from datetime import timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
@@ -104,10 +105,18 @@ async def execution_authority(
     )
     from hirz.executor.refresh import fresh
 
+    command = p._refresh_command or {}
     if (
         not await fresh(p, stored)
         or not linked
-        or stored["document"]["status"] not in {"approved", "active"}
+        or (
+            stored["document"]["status"] not in {"approved", "active"}
+            and not (
+                stored["document"]["status"] == "awaiting_approval"
+                and command.get("operation") == "resume"
+                and command.get("action_id") == action.action_id
+            )
+        )
         or stored["approver"] != identity(principal)
         or principal.surface != "scheduler"
         or str(stored["member_id"]) != member.member_id
@@ -344,7 +353,12 @@ async def prepare_mutation(p: "Pipeline", action: Action, principal: Principal) 
 
 
 async def stop_unstarted(
-    p: "Pipeline", plan_id: str, event: EventType, status: str
+    p: "Pipeline",
+    plan_id: str,
+    event: EventType,
+    status: str,
+    *,
+    preserve_approval_for: str | None = None,
 ) -> None:
     ids = (
         (
@@ -369,6 +383,8 @@ async def stop_unstarted(
     )
     for action_id in ids:
         await transition(p, action_id, status, event, plan_id=plan_id)
+        if action_id == preserve_approval_for:
+            continue
         approvals = (
             (
                 await p.connection.execute(
@@ -391,6 +407,153 @@ async def stop_unstarted(
                 EventType.EXPIRED,
                 {"approval_id": approval["approval_id"], "reason": event.value},
             )
+
+
+async def await_approval(p: "Pipeline", action: Action, decision: Decision) -> None:
+    """Pause openings without expiring the ASK that caused the pause."""
+    assert action.plan_id and decision.approval
+    stored = await get(p, action.plan_id)
+    await stop_unstarted(
+        p,
+        action.plan_id,
+        EventType.EXECUTION_HELD,
+        "held",
+        preserve_approval_for=action.action_id,
+    )
+    from hirz.executor.storage import row
+
+    current = await row(p, action.action_id)
+    await p.connection.execute(
+        db.actions.update()
+        .where(p.scope(db.actions), db.actions.c.action_id == action.action_id)
+        .values(
+            lifecycle=current["lifecycle"]
+            | {"approval_id": decision.approval.approval_id}
+        )
+    )
+    seq = await p.audit.append(
+        p.connection,
+        p.household_id,
+        p.clock(),
+        EventType.EXECUTION_HELD,
+        {
+            "plan_id": action.plan_id,
+            "status": "awaiting_approval",
+            "trigger_action": action.action_id,
+            "approval_id": decision.approval.approval_id,
+            "decision_seq": decision.audit_id,
+        },
+    )
+    await p.connection.execute(
+        db.plans.update()
+        .where(p.scope(db.plans), db.plans.c.plan_id == action.plan_id)
+        .values(
+            document=stored["document"] | {"status": "awaiting_approval"}, audit_seq=seq
+        )
+    )
+
+
+async def resume(
+    p: "Pipeline", stored: dict[str, Any], action_id: str, approval_id: str
+) -> None:
+    """Called only by the audited internal refresh command, under the writer lock."""
+    from hirz.executor.refresh import fresh
+    from hirz.executor.storage import row
+
+    current = await row(p, action_id)
+    action = Action.model_validate(current["proposal"])
+    if action.plan_id != stored["plan_id"]:
+        raise ValueError("Approval belongs to another plan")
+    if stored["document"]["status"] != "awaiting_approval":
+        return
+    approval = await p.approval(approval_id)
+    principal = Principal.model_validate(current["principal"])
+    cost = Decimal(current["cost"]) if current["cost"] is not None else None
+    valid = bool(
+        approval
+        and approval["action_id"] == action_id
+        and current["lifecycle"].get("approval_id") == approval_id
+        and current["execution_attempt_seq"] is None
+        and current["execution_status"] == "held"
+        and action.content_hash == action_hash(action)
+        and action.scheduled_for
+        and action.scheduled_for <= p.clock()
+        and action.expected_effect
+        and p.clock() < action.expected_effect.by
+        and (
+            not action.revert
+            or p.clock()
+            < action.scheduled_for + timedelta(seconds=action.revert.after_s)
+        )
+        and approval["status"] in {"pending", "approved"}
+        and p.clock() < approval["expires_at"]
+        and await fresh(p, stored)
+    )
+    if valid:
+        assert approval is not None
+        ev = await p.assess_operation(action, principal, cost, (), p.clock())
+        valid = bool(
+            ev.decision.decision in {"execute", "ask"}
+            and ev.decision.event_type
+            not in {
+                EventType.ASK_UNRESOLVED_CONDITION,
+                EventType.ASK_REQUESTER_CONFIRMATION,
+            }
+            and p.compatible(
+                approval["binding"], p.binding(action, principal, cost, ev)
+            )
+        )
+        if valid:
+            satisfied, _ = await p.eligible_votes(approval, ev)
+            if not satisfied:
+                return
+    if not valid:
+        await hold(
+            p,
+            action,
+            current["lifecycle"]["member_id"],
+            "The pending device approval is no longer valid.",
+        )
+        return
+    # No grant is redeemed here. The worker checks the current boundary at dispatch.
+    seq = await p.audit.append(
+        p.connection,
+        p.household_id,
+        p.clock(),
+        EventType.PLAN_REVISED,
+        {"plan_id": action.plan_id, "status": "approved", "approval_id": approval_id},
+    )
+    await p.connection.execute(
+        db.plans.update()
+        .where(p.scope(db.plans), db.plans.c.plan_id == action.plan_id)
+        .values(document=stored["document"] | {"status": "approved"}, audit_seq=seq)
+    )
+    ids = (
+        (
+            await p.connection.execute(
+                sa.select(db.actions.c.action_id)
+                .join(
+                    db.plan_actions,
+                    sa.and_(
+                        db.actions.c.household_id == db.plan_actions.c.household_id,
+                        db.actions.c.action_id == db.plan_actions.c.action_id,
+                    ),
+                )
+                .where(
+                    p.scope(db.actions),
+                    db.plan_actions.c.plan_id == action.plan_id,
+                    db.actions.c.execution_status == "held",
+                    db.actions.c.execution_attempt_seq.is_(None),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    for ident in ids:
+        await transition(
+            p, ident, "scheduled", EventType.SCHEDULED, plan_id=action.plan_id
+        )
 
 
 async def hold(p: "Pipeline", action: Action, member_id: str, reason: str) -> None:
@@ -791,6 +954,45 @@ class PlanService:
         return await RefreshService(self.pipeline).update(
             plan_id, runtime, principal, explicit=explicit
         )
+
+    async def respond_to_action(
+        self, plan_id: str, approval_id: str, principal: Principal, *, approved: bool
+    ) -> Decision:
+        from hirz.executor.refresh import RefreshService
+
+        p = self.pipeline
+        async with p.connection.begin():
+            pending = await p.approval(approval_id)
+            if pending is None:
+                raise ValueError("Unknown planned approval")
+            from hirz.executor.storage import row
+
+            current = await row(p, pending["action_id"])
+            if current["proposal"].get("plan_id") != plan_id:
+                raise ValueError("Approval belongs to another plan")
+        vote = await p.vote(approval_id, principal, approved=approved)
+        # Voting and resumption serialize independently; a cancellation/revision in
+        # between is rechecked and cannot revive the old plan.
+        resumed = await RefreshService(p).command(
+            Principal.model_validate(current["principal"]),
+            dict(
+                plan_id=plan_id,
+                operation="resume",
+                action_id=pending["action_id"],
+                approval_id=approval_id,
+            ),
+        )
+        if resumed.decision != "execute":
+            async with p.repo.write(p.clock):
+                stored = await get(p, plan_id)
+                if stored["document"]["status"] == "awaiting_approval":
+                    await hold(
+                        p,
+                        Action.model_validate(current["proposal"]),
+                        current["lifecycle"]["member_id"],
+                        "The plan approver no longer has authority to resume this work.",
+                    )
+        return vote
 
     async def read_current(self, plan_id: str, principal: Principal) -> Plan:
         from hirz.executor.refresh import RefreshService

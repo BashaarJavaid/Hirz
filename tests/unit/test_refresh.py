@@ -813,3 +813,32 @@ def test_recorded_ha_changes_need_matching_dispatch_and_unchanged_mode(tmp_path)
             await ha.close()
 
     asyncio.run(run())
+
+
+def test_partial_ev_prediction_keeps_the_full_slot_charge_ceiling():
+    from hirz.planner.models import Control, Schedule
+    from hirz.twin.physics import EV
+
+    p = workload()
+    ev = EV(soc=0.34, plugged_in=True, charging=False, charge_limit=0.8)
+    p = changed(p, ev=ev)
+    controls = tuple(
+        Control(
+            targets=(72,) * len(p.zones),
+            modes=("heat",) * len(p.zones),
+            ev_kwh=1 if i == 0 else 0,
+            battery_kw=0,
+            appliance_start=False,
+        )
+        for i in range(len(p.slots))
+    )
+    r = RuntimeInputs.from_schedule(p, Schedule(method="greedy", controls=controls))
+    actual = changed(
+        ev, charging=True, charge_limit=ev.soc + ev.efficiency / ev.capacity_kwh
+    ).advance(1)
+    expected = predicted(r, p.slots[0].start + timedelta(seconds=1))["ev"]
+    assert expected["soc"] == pytest.approx(actual.soc)
+    assert expected["power_kw"] == actual.power_kw > 0
+    assert not deviates(
+        {"soc": actual.soc, "power_kw": actual.power_kw}, expected, Thresholds()
+    )

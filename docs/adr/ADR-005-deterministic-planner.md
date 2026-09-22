@@ -281,3 +281,71 @@ Inherited consent, hard bounds, holds and bounded endings are unchanged. Rejecte
 feeding provider hints or transcripts to the planner, inventing a default room,
 letting stale presence persist through the horizon, and treating memory acceptance
 as a fresh plan/device approval. [Contract](../../ARCHITECTURE.md#59-memory).
+
+## Planned device approval resumption — 2026-09-22 (author-approved)
+
+Item 22 adds canonical Plan status `awaiting_approval` and the internal
+`PlanService.respond_to_action` operation. A device ASK preserves its pending
+approval while pausing other unstarted work. Already-authorized endings continue.
+A Pipeline vote grants no execution authority. The audited refresh lifecycle
+rechecks the original action, accepted inputs, policy, linked scheduler identity,
+quorum, TTL and execution window before scheduling it again. Dispatch still
+requires the ordinary current boundary check. No freshness or approval clock is
+extended; revision and cancellation invalidate the old work. Rejected conflating
+plan consent with device approval, automatically voting in the worker, and copying
+an execution grant into a replacement action.
+
+The scenario declares its simulated affirmative turns explicitly. The EV target
+is replaced at 17:35, with a separate ceiling. Dad's kitchen request is attributed
+to Dad's linked account and explicitly normalized to 23:00; it does not claim to
+move an already-late dishwasher. Fresh plan consent is required at 23:31. The
+approved horizon ends at 07:00 and EV delivery is due at 06:30.
+
+The executable replay exposed that pausing unstarted work after the 22:40 request
+also prevents the guest room's late preheating. On 2026-09-22 the author approved
+an earlier explicit 72°F guest-room request. The 17:35 intake is included in the
+17:36 plan consent, so the room is warm before Dad's revision. Rejected silently
+executing a revised plan before consent or weakening its hard comfort minimum.
+
+Actuator rounding must preserve the existing replay guarantees. Four-decimal
+thermostat rounding can reduce electrical load enough to make a previously exact
+battery discharge export. The quantization pass removes that uncommitted export
+and correspondingly reduces later charging, preserving terminal energy. Existing
+replay checks still reject infeasible reserves or immutable commitments. Rejected
+loosening the no-export or terminal-energy tolerances and altering backtest claims.
+
+Partial-slot prediction retains the EV action's full charge ceiling while advancing
+the existing physics only to the observation time. Prorating the ceiling incorrectly
+predicted zero power during charging and repeatedly invalidated healthy plans.
+Control ownership compares observations and action parameters at the same existing
+graph precision. Neither correction relaxes drift thresholds or device authority.
+
+Remaining-work comparisons retain the fixed timer window across midnight, using
+the 21:00 start preceding the known EV deadline; the battery's morning terminal
+floor uses that same anchor. Refresh also carries the last
+coordinated EV target and deadline into its next workload: an expired 50% delivery
+request cannot resurrect the superseded 80% default. The historical evening-start
+backtest inputs and retained figures are unchanged.
+
+The author also approved an explicit 17:35 request to run the dishwasher after
+23:31. The host normalizes that to the existing `appliance_not_before` grammar,
+without adding a parser or inferring a timing constraint from the tariff. This
+ensures the declared nighttime device vote is exercised; Dad's later 23:00
+constraint remains separately attributed and does not claim to move the schedule.
+
+A late remaining-work baseline must restore terminal battery energy through the
+approved horizon, including after 06:00 when necessary. The former fixed morning
+cutoff could hold a physically feasible plan and make its terminal obligation
+unreachable. Surplus discharge and the existing no-export checks remain in force;
+the baseline cannot silently discard the terminal requirement.
+
+### Exact bounded durations — 2026-09-22 (author-approved)
+
+The author approved one additional canonical amendment after replay exposed a
+whole-second timing conflict: `Revert.after_s` accepts strict integer or finite
+floating-point seconds, at least one microsecond. Existing integer values and
+canonical hashes remain valid. Planner and retry durations retain the exact
+interval to their original absolute ending. The scripted host refreshes immediately
+after the executor's monotonic microsecond ticks instead of introducing a one-second
+gap. Rejected backdating the clock, rounding endings past the approved horizon,
+relaxing terminal energy, and hiding execution latency in a changed EV/battery goal.
