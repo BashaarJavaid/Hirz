@@ -3118,3 +3118,144 @@ existing executor integration test. After formatting that assertion,
 strict mypy and `git diff --check` also passed. All local item 19a gates are earned;
 completion records are updated below this evidence without changing published
 backtest artifacts or advancing the development database.
+
+## Item 20 — 2026-09-21
+
+### Backend implementation and local gates
+
+Implemented the approved consent-gated memory plan under
+[architecture §5.9](../ARCHITECTURE.md#59-memory), with the decisions and rejected
+alternatives in ADR-002, ADR-003 and ADR-005's item 20 amendments. No development
+migration, live HA write, AWS call or new dependency was introduced. Verification
+uses Python 3.12.13, native `.tools/dogwood`, local PostgreSQL disposable databases,
+and the existing local P-256 key for smoke exports; tests generate their own keys.
+
+Final service-free regression, including native policy conformance:
+
+```text
+.venv/bin/pytest -q --tb=short
+1111 passed, 95 deselected in 179.08s (0:02:59)
+Required test coverage of 80% reached. Total coverage: 80.70%
+```
+
+Final PostgreSQL regression:
+
+```text
+.venv/bin/pytest -m integration --no-cov -q --tb=short
+95 passed, 1111 deselected in 191.74s (0:03:11)
+```
+
+Both final commands ran with authorized localhost access. The first sandboxed
+service-free run reported six failures: two blocked localhost WebSocket fixtures
+and four stale risk-catalog assertions, with 79.25% coverage. Catalog assertions
+were updated for `governance.memory`, and the added command/provider/reference tests
+exercise the memory code without a database. Earlier targeted checks exposed a
+backdated synthetic clock after a concurrent review; advancing that fixture clock
+fixed the test. Final results above include these fixes. The shell initially
+selected Node 23; the package checks were repeated with the documented Node 24
+path, as recorded below. These failed/intermediate runs are not completion evidence.
+
+Memory-specific coverage exercises:
+
+- Private turn bounds, ordering, exclusive-cursor pagination, session/member/surface
+  and household isolation; exact provider hint scoping and provider outage fallback.
+- Source-turn ownership despite a claimed name; member-scoped numeric candidates,
+  confidence bounds, learning-disabled creation/acceptance, app-only subject review,
+  refusal of owner-on-behalf consent, acceptance with/without an existing preference,
+  stale versions and duplicate graph-row refusal.
+- Identical mutation retries, changed-content refusal, concurrent accept/reject with
+  exactly one terminal transition, preference history, rollback on signed-append or
+  commit failure, and rollback of preference/consent/plan holds when refresh auditing
+  fails. Malformed direct Pipeline memory envelopes are rejected before storing
+  transcript-bearing parameters.
+- Latest explicit references, missing/stale/unavailable objects, unavailable
+  VerificationCases, unknown kinds and database-outage clarification. References
+  convey no execution authority.
+- Presence freshness, expected-arrival start/end, contradictory room evidence,
+  explicit member request precedence, conflicting graph preferences, unchanged hard
+  bounds/manual holds, and graph identity/version/member provenance. A refresh
+  regression verifies that removing room evidence restores household baseline
+  targets instead of retaining an obsolete applied preference.
+- Native Dogwood operation/surface/learning gates and migration roundtrip/schema
+  checks; all existing Pipeline, graph, executor and refresh integration checks.
+
+The final feature smoke was run as a separate CLI process:
+
+```text
+HIRZ_DOGWOOD="$PWD/.tools/dogwood" .venv/bin/python scripts/smoke_memory.py --audit-output /tmp/hirz-memory-item20-verified-audit.json
+memory=PASS; pending/rejected=unchanged; accepted=74F; service_restart=persisted; worker_restart=published; approver=malik; device_grant=fresh; obsolete_attempts=0; source=twin; signed_rows=54; offline=valid; export=/tmp/hirz-memory-item20-verified-audit.json
+disposable_database=dropped; development_database=unchanged
+```
+
+The smoke compares effective PlannerInput before/pending/rejected/accepted states,
+reconstructs MemoryService with an empty provider, runs a fresh `hirz worker --once`
+process, checks inherited Malik consent, and verifies a post-acceptance native
+Dogwood grant plus simulated device read-back. Obsolete plan actions have zero
+dispatch attempts. Its 54-row export is independently verified using the original
+key's separately supplied fingerprint. The private export remains at the path above;
+it contains no session transcript. A final read-only query independently reported
+`development_revision=0005_execution_attempt`.
+
+Additional checks:
+
+```text
+.venv/bin/ruff check .
+All checks passed!
+.venv/bin/mypy hirz/ scripts/ alembic/
+Success: no issues found in 118 source files
+UV_CACHE_DIR=/tmp/hirz-uv uv build --offline --no-build-isolation
+Successfully built dist/hirz-0.0.0.tar.gz
+Successfully built dist/hirz-0.0.0-py3-none-any.whl
+```
+
+The wheel was installed with `uv pip install --offline --no-deps --target` in a new
+`/tmp` directory and imported from outside the checkout under isolated Python:
+`PASS installed memory service; 32 classes; 32 situation groups`. The CI wheel
+assertion now expects the same catalog size. With Node **24.21.0** and pnpm
+**12.4.2**, `pnpm -r lint`, `pnpm -r typecheck` and `pnpm -r test` all passed;
+web and mcp-app each reported **1 test passed**. `git diff --check` passed.
+Repeated uv/localhost sandbox friction is appended to the existing friction log;
+no new upstream API defect was observed.
+
+At this entry, the full retained-backtest reproduction is still running; item 20
+is not yet closed. Final reproduction and post-documentation formatting evidence
+will be appended below. No authenticated companion consent, AWS Memory integration,
+automatic extraction, other preference type, public memory CLI, cleanup job, live
+feed ingestion or remote CI result is claimed.
+
+
+### Retained reproduction and local completion
+
+The complete `.venv/bin/python scripts/backtest.py --verify` exited **0**, running
+all 18 profile/configuration/wear combinations from the retained archive. Every
+simulation reported an empty `stopped` list. Final output:
+
+```json
+{"offline_reproduction_matches": true, "derived_artifacts_match": true, "elapsed_seconds": 2731.716256540967}
+```
+
+The verifier reproduced the retained results and derived artifacts without changing
+published figures. This completes item 20's remaining reproduction gate. The full
+service-free/PostgreSQL suites, native policy conformance, fresh service/worker
+smoke, independently verified signed audit, package checks and development-database
+revision check are recorded above. Completion records and the local-backend-only
+threat-model qualification were updated after this result. The final
+post-documentation format and diff checks are recorded below.
+
+Final completion-record checks:
+
+```text
+.venv/bin/ruff check .
+All checks passed!
+.venv/bin/mypy hirz/ scripts/ alembic/
+Success: no issues found in 118 source files
+git diff --check
+(no output; exit 0)
+.venv/bin/ruff format --check .
+181 files already formatted
+```
+
+`AGENTS.md` and `CLAUDE.md` carry matching project guidance, including item 20's
+command and item 21 as next. The format check was repeated after this evidence
+append and passed. Development migrations remain manual; public authentication,
+companion consent UI and AWS integration remain outside the completed local item.

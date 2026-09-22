@@ -151,6 +151,7 @@ class Pipeline:
         self._observation_batch: tuple[Any, ...] | None = None
         self._observation_world: Any = None
         self._refresh_command: dict[str, Any] | None = None
+        self._memory_turn: Any = None
 
     def scope(self, table: sa.Table) -> sa.ColumnElement[bool]:
         return table.c.household_id == self.household_id
@@ -302,6 +303,13 @@ class Pipeline:
                         )
                     }
                 )
+                return ev
+        if action.action_class == "governance.memory":
+            from hirz.memory.service import prepare as prepare_memory
+
+            try:
+                await prepare_memory(self, action, principal)
+            except ValueError:
                 return ev
         from hirz.executor.plans import guarded, prepare_mutation
 
@@ -1009,6 +1017,11 @@ class Pipeline:
         principal = Principal.model_validate(principal.model_dump())
         estimate(cost)
         at = utc(self.clock())
+        if action.action_class == "governance.memory":
+            from hirz.memory.service import Command
+
+            # Reject malformed private-memory envelopes before storing any payload.
+            Command.model_validate(action.params)
         matched, granted, stored = await self.proposal(action, principal, cost)
         if enqueue and matched:
             from hirz.executor.storage import repeated, row
@@ -1034,6 +1047,7 @@ class Pipeline:
             ev = result(ev, EventType.DENY_APPROVAL_MISMATCH)
         elif granted is not None:
             if action.action_class in {
+                "governance.memory",
                 "governance.record_constraint",
                 "governance.withdraw_constraint",
             }:
@@ -1154,6 +1168,10 @@ class Pipeline:
 
         if action.action_class in guarded:
             await commit_mutation(self, ev.action, ev.decision, principal)
+        if action.action_class == "governance.memory":
+            from hirz.memory.service import commit as commit_memory
+
+            await commit_memory(self, ev.action, ev.decision, principal)
         stored_execution = await self.connection.scalar(
             sa.select(db.actions.c.lifecycle).where(
                 self.scope(db.actions), db.actions.c.action_id == action.action_id

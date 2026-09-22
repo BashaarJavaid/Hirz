@@ -306,7 +306,7 @@ def test_property_approval_traces(age, mutation, role):
 
 def test_native_operator_count_and_predicate_compilation():
     report = asyncio.run(ENGINE.run(COMPILED, "check-parse"))
-    assert report["policy_count"] == 72
+    assert report["policy_count"] == 74
     assert sum(p["temporal_count"] > 0 for p in report["policies"]) == 1
     assert max(p["temporal_count"] for p in report["policies"]) == 1
     data = HOME.model_dump()
@@ -390,3 +390,34 @@ def test_same_second_order_and_reserved_governance():
             assert allowed(COMPILED, voice) is (
                 role != "unknown" and name != "governance.resume_automation"
             )
+
+
+@pytest.mark.parametrize("learning", ["manual", "never"])
+@pytest.mark.parametrize("surface", ["app", "alexa"])
+@pytest.mark.parametrize(
+    "operation", ["append_turn", "propose", "accept", "reject", "invalid"]
+)
+def test_native_memory_learning_and_review_surface(learning, surface, operation):
+    data = HOME.model_dump()
+    data["learning"]["accept_memory_proposals"] = learning
+    policy = Constitution.model_validate(data)
+    compiled = compile_policy(policy)
+    action, facts = situation(
+        policy, "governance.memory", case={"params": {"operation": operation}}
+    )
+    action = action.model_copy(
+        update={
+            "requested_by": action.requested_by.model_copy(update={"surface": surface})
+        }
+    )
+    outcome = resolve(policy, action, facts)
+    expected = (
+        operation in {"append_turn", "propose", "accept", "reject"}
+        and not (learning == "never" and operation in {"propose", "accept"})
+        and not (surface != "app" and operation in {"accept", "reject"})
+    )
+    inputs = boundary_input(
+        compiled, action, facts, ttl_minutes=outcome.approval.ttl_minutes
+    )
+    assert allowed(compiled, Event(0, "governance.memory", inputs)) == expected
+    assert (outcome.effective_mode == "auto" and outcome.conditions_met) == expected

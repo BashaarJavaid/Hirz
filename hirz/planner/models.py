@@ -61,6 +61,9 @@ class Zone(Model):
     lower: tuple[float, ...]
     upper: tuple[float, ...]
     targets: tuple[float, ...]
+    baseline_targets: tuple[float, ...] = Field(
+        default=(), exclude_if=lambda value: not value
+    )
     occupants: tuple[int, ...]
     preferences: tuple[float | None, ...] = Field(
         default=(), exclude_if=lambda value: not value
@@ -168,7 +171,12 @@ class PlannerInput(Model):
             if fixed and len(fixed) != n:
                 raise ValueError("Fixed controls must cover every slot")
         for zone in self.zones:
-            for values in (zone.preferences, zone.held_targets, zone.held_modes):
+            for values in (
+                zone.preferences,
+                zone.held_targets,
+                zone.held_modes,
+                zone.baseline_targets,
+            ):
                 if values and len(values) != n:
                     raise ValueError("Coordinator arrays must cover every slot")
             if bool(zone.held_targets) != bool(zone.held_modes):
@@ -223,6 +231,7 @@ def split_at(p: PlannerInput, edges: tuple[datetime, ...]) -> PlannerInput:
                     "lower",
                     "upper",
                     "targets",
+                    "baseline_targets",
                     "occupants",
                     "preferences",
                     "held_targets",

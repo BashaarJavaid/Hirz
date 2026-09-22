@@ -506,3 +506,28 @@ manual-hold release inside the same signed transaction. These operations are not
 device actions and must not enter `execute_household_action`'s consumer enum.
 Coordinator quorum reporting reuses per-class `Rule.quorum`, channels and TTL;
 there is no `escalation.quorum` field or separate plan voting system.
+
+
+## Item 20 internal memory permissions — 2026-09-21
+
+Reserved LOW-risk `governance.memory` adds `append_turn`, `propose`, `accept` and
+`reject`; catalog/preview coverage is 32 classes. The operation is a validated
+string attribute (`action.params.operation`), using the existing Boolean grammar.
+Households cannot redefine this internal governance rule. Native Dogwood and the
+Python evaluator both reject unknown operations, require app surface for review,
+and disallow proposal creation or acceptance when
+`learning.accept_memory_proposals: never`. Existing preferences and private
+session context remain available; pending proposals can still be rejected.
+
+Pipeline additionally binds source evidence to the resolved linked member and
+requires that same subject to review, independent of role. Owner-on-behalf,
+another member, Alexa and scheduler reviews are refused. A name in a transcript
+is never a subject selector. The app principal is a trusted internal authentication
+result; this item does not implement public authentication or a companion screen.
+No passkey is added for memory consent. Preference identity/version checks,
+transactional persistence and replay semantics are specified in
+[architecture §5.9](../ARCHITECTURE.md#59-memory).
+
+`MEMORY_PROPOSED`, `MEMORY_ACCEPTED` and `MEMORY_REJECTED` accompany the signed
+canonical grant Decision. Acceptance alone triggers automatic plan refresh;
+inherited plan consent still cannot bypass current device rules or approvals.

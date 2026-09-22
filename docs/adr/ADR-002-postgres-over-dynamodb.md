@@ -201,3 +201,26 @@ Twin restore resumes the latest signed simulated instant, including lifecycle ro
 newer than the physical checkpoint, then advances physics from that checkpoint.
 Rejected process-local jobs, a second queue service, transactions held through
 network/solver calls, and backdating restart writes to an older checkpoint.
+
+
+## Consent-gated memory amendment — 2026-09-21
+
+Item 20 makes Postgres the durable short-term fallback with `session_turns` and
+immutable `memory_proposals` under household/member/audit foreign keys. The graph's
+existing preference rows and history remain the only planner source. Use one
+small async provider protocol with an in-process, recorded-only implementation;
+commit to Postgres before the advisory mirror. Exact household/member/surface/
+session scopes preserve the actor/session separation described by
+[AgentCore Memory organization](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/memory-organization.html).
+AWS namespace mapping and SDK calls remain item 38.
+
+The existing serialized Pipeline transaction owns recording, proposal transitions,
+preference replacement and automatic refresh holds. A proposal captures the single
+preference identity/version or absence, and acceptance checks it again. Session
+text is private; actions/audits carry identifiers and hashes. There is no second
+transaction manager, outbox, semantic index, duplicate preference-history table,
+cleanup job or automatic extraction. Provider unavailability cannot erase durable
+session reads or introduce unscoped hints. Rejected provider-first writes, raw
+transcripts in the ledger, mutable proposals, fallback to an older follow-up
+reference and unchecked last-writer-wins preference replacement. Exact limits and
+read contracts live in [architecture §5.9](../../ARCHITECTURE.md#59-memory).

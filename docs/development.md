@@ -869,3 +869,39 @@ ready at invocation and one execution sweep; it never waits for a future retry.
 missing required domains fail closed. Twin price/weather/calendar changes use the
 existing configured adapters; live price/weather ingestion remains deferred.
 MCP endpoints, companion delivery, AWS and remote CI are not verified here.
+
+
+## Item 20 consent-gated memory
+
+`hirz.memory.service.MemoryService` is an internal backend contract, documented in
+[architecture §5.9](../ARCHITECTURE.md#59-memory). Callers supply a trusted linked
+`Principal`, a unique mutation `action_id`, and typed `TurnInput` or `Candidate`
+objects. `review(..., proposal_id=..., accept=True|False)` requires the subject's
+app principal. Returned refusals carry a canonical Decision and no record. This
+is not a public authentication or companion consent workflow.
+
+Run the disposable twin demonstration with the existing Postgres service, local
+signing key and native Dogwood, using a **new** private output path:
+
+```sh
+export HIRZ_DOGWOOD="$PWD/.tools/dogwood"
+uv run python scripts/smoke_memory.py --audit-output /tmp/hirz-memory-audit.json
+uv run pytest tests/integration/test_memory_database.py -m integration --no-cov --tb=short
+```
+
+The smoke migrates only a uniquely named disposable database to `0009_memory`,
+uses synthetic linked principals, compares pending/rejected/accepted planner
+inputs, queues acceptance-driven refresh, starts a separate `hirz worker --once`
+process, checks inherited consent and held obsolete work, and exports/verifies the
+signed audit chain using an independently supplied key fingerprint. It drops its
+database on success and retains it on failure. There are no live HA writes.
+Retain the reported audit path privately; it contains identifiers and decisions,
+not session transcripts. An empty in-process provider after restart does not lose
+Postgres session context or accepted graph preferences.
+
+Development remains on `0005_execution_attempt`. Upgrading development through
+0006–0009 is a separate explicit operation (`uv run alembic upgrade head`), never
+startup behavior and not performed by these checks. `0009_memory` downgrade
+refuses retained session/proposal rows or memory audit events. No automatic
+retention cleanup, cloud calls, extraction, other preference types, public memory
+CLI or companion UI are included.

@@ -262,3 +262,22 @@ appliances, extending bounded operations during refresh, silently substituting t
 facts for real devices, adding savings across revisions, and hiding infeasibility
 behind historical claims. Internal refresh only: MCP, companion delivery, scenario
 orchestration, live price/weather ingestion and AWS remain outside this item.
+
+
+## Accepted preference coordination amendment — 2026-09-21
+
+Map declared/accepted graph temperature preferences into transient, provenance-bearing
+comfort windows in the existing Coordinator. They are not synthetic durable
+constraints. An explicit request by that member for the same room/window takes
+precedence. Fresh presence supplies a room until its existing deadline; arrival
+context applies only from expected arrival through event end. Conflicting rooms
+require clarification, and present-in-another-room evidence suppresses arrival
+context. Carry the graph identity/version through explanations and conflicts.
+
+Acceptance queues the existing automatic refresh in the preference transaction.
+Refresh recomputes evidence and retains the household baseline temperature separately
+from an applied preference, preventing stale overlays from becoming a default.
+Inherited consent, hard bounds, holds and bounded endings are unchanged. Rejected
+feeding provider hints or transcripts to the planner, inventing a default room,
+letting stale presence persist through the horizon, and treating memory acceptance
+as a fresh plan/device approval. [Contract](../../ARCHITECTURE.md#59-memory).

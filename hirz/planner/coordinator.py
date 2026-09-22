@@ -41,6 +41,7 @@ from hirz.planner.models import (
     PlannerResult,
     SolverDiagnostics,
 )
+from hirz.planner.preferences import PreferenceWindow, windows
 from hirz.planner.service import plan
 from hirz.risk import CLASSES
 from hirz.twin.physics import changed
@@ -95,7 +96,9 @@ def records(snapshot: ContextSnapshot) -> tuple[ConstraintRecord, ...]:
     )
 
 
-def active(record: ConstraintRecord, start: datetime, end: datetime) -> bool:
+def active(
+    record: ConstraintRecord | PreferenceWindow, start: datetime, end: datetime
+) -> bool:
     return (
         (record.withdrawn_at is None or utc(start) < utc(record.withdrawn_at))
         and utc(record.spec.starts_at) < utc(end)
@@ -659,8 +662,10 @@ class Coordinator:
 
 
 def comfort_rank(
-    record: ConstraintRecord, snapshot: ContextSnapshot
+    record: ConstraintRecord | PreferenceWindow, snapshot: ContextSnapshot
 ) -> tuple[int, float]:
+    if isinstance(record, PreferenceWindow):
+        return record.rank
     spec = record.spec
     threshold = CLASSES["energy.hvac_adjust"]["freshness_seconds"]
     for row in snapshot.data["observations"]:
@@ -692,7 +697,7 @@ def comfort_rank(
 
 
 def split_slots(
-    p: PlannerInput, constraints: tuple[ConstraintRecord, ...]
+    p: PlannerInput, constraints: tuple[ConstraintRecord | PreferenceWindow, ...]
 ) -> PlannerInput:
     edges = {
         utc(t)
@@ -729,8 +734,12 @@ def coordinate(
         raise GraphError("Planner requester must match household membership")
     if previous is not None and previous.household_id != p.household_id:
         raise GraphError("Previous plan belongs to another household")
-    selected = tuple(
+    explicit = tuple(
         r for r in records(snapshot) if active(r, p.slots[0].start, p.slots[-1].end)
+    )
+    selected: tuple[ConstraintRecord | PreferenceWindow, ...] = (
+        *explicit,
+        *windows(p, snapshot, explicit),
     )
     original = p
     p = split_slots(p, selected)
@@ -739,7 +748,9 @@ def coordinate(
     pending = set()
 
     def conflict(
-        rows: tuple[ConstraintRecord, ...], reason: str, relaxation: str
+        rows: tuple[ConstraintRecord | PreferenceWindow, ...],
+        reason: str,
+        relaxation: str,
     ) -> None:
         conflicts.append(
             Conflict(
@@ -981,6 +992,9 @@ def coordinate(
                     )
                     for i, t in enumerate(zone.targets)
                 ),
+                baseline_targets=(zone.baseline_targets or zone.targets)
+                if any(isinstance(r, PreferenceWindow) for r in related)
+                else zone.baseline_targets,
                 preferences=tuple(preferences),
                 held_targets=tuple(held_targets),
                 held_modes=tuple(held_modes),
@@ -989,7 +1003,9 @@ def coordinate(
     p = p.model_copy(update={"zones": tuple(zones)})
     # Resolve the existing policy's known class/bound restrictions, retaining
     # unresolved conditions for the execution-time pipeline instead of inventing facts.
-    checks: list[tuple[str, str, dict[str, Any], tuple[ConstraintRecord, ...]]] = []
+    checks: list[
+        tuple[str, str, dict[str, Any], tuple[ConstraintRecord | PreferenceWindow, ...]]
+    ] = []
     if p.ev:
         checks.append(
             (
@@ -1115,13 +1131,18 @@ def coordinate(
                 for record in sorted(
                     selected, key=lambda r: r.provenance.recorded_at, reverse=True
                 ):
+                    source = (
+                        "preferences"
+                        if isinstance(record, PreferenceWindow)
+                        else "constraints"
+                    )
                     reduced = changed(
                         snapshot,
                         data=snapshot.data
                         | {
-                            "constraints": [
+                            source: [
                                 r
-                                for r in snapshot.data["constraints"]
+                                for r in snapshot.data[source]
                                 if str(r["id"]) != str(record.id)
                             ]
                         },

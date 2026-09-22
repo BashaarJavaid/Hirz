@@ -194,6 +194,22 @@ class Constitution(Model):
         )
 
     def rule(self, action_class: str, role: Role) -> Rule:
+        if action_class == "governance.memory":
+            operations = (
+                ("append_turn", "reject")
+                if self.learning.accept_memory_proposals == "never"
+                else ("append_turn", "propose", "accept", "reject")
+            )
+            allowed = " or ".join(
+                f'action.params.operation == "{op}"' for op in operations
+            )
+            return Rule(
+                mode="auto",
+                conditions=(
+                    f"({allowed})",
+                    '((action.params.operation != "accept" and action.params.operation != "reject") or requester.surface == "app")',
+                ),
+            )
         if action_class in {
             "governance.pause_automation",
             "governance.resume_automation",

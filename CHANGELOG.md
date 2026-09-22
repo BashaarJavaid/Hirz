@@ -8,6 +8,8 @@ All notable changes are documented here. The format follows
 
 ### Changed
 
+- 2026-09-21: Add private Postgres sessions, consent-gated temperature preferences and acceptance-driven plan refresh with native policy enforcement; verify the local backend while keeping companion authentication and AWS Memory outside scope ([item 20 evidence](./docs/verification-log.md#item-20--2026-09-21), [memory contract](./ARCHITECTURE.md#59-memory)).
+
 - 2026-09-21: Add durable local plan refresh, remaining-work recovery, inherited consent with fresh device checks, append-only reservation transfers and truthful held reads; verify twin/HA restart and restoration without migrating development data ([item 19a evidence](./docs/verification-log.md#item-19a--2026-09-21), [refresh contract](./ARCHITECTURE.md#54-planner)).
 
 - 2026-09-21: Add durable local execution, explicit plan consent/revisions, signed bounded endings and recoverable twin checkpoints; retain automatic refresh as item 19a ([item 19 evidence](./docs/verification-log.md#item-19--2026-09-21), [execution contracts](./docs/development.md#item-19-durable-local-execution)).

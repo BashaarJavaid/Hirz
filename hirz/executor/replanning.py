@@ -108,6 +108,8 @@ def outstanding(
             held_targets=(),
             held_modes=(),
             preferences=(),
+            targets=z.baseline_targets or z.targets,
+            baseline_targets=(),
         )
         if binding["adapter"] == "ha":
             device = ha.get(z.entity)

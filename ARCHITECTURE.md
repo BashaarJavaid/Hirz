@@ -742,6 +742,72 @@ Two stores with a clear split:
 - **AgentCore Memory is the conversational and preference memory.** Short-term: per-session turns so multi-turn planning ("make it 50 instead") resolves against the right plan. Long-term with the user-preference and semantic strategies, namespaced per household and per member: "Mom prefers the living room warmer", "Malik doesn't drive on Wednesdays". Locally, an in-process store with the same interface.
 - **Remember is consent-gated.** Extracted preferences arrive as `MEMORY_PROPOSED` audit rows and companion-app cards ("Hirz noticed you usually skip the car on Wednesdays. Remember that?"). Only accepted proposals are written to the graph (`source: learned_accepted`). The planner uses graph preferences only. A proposal that has not been accepted is never planner input; an explanation may say that a proposal is waiting in the app.
 
+**Item 20 local contract.** `hirz.memory.service.MemoryService` accepts trusted
+internal `Principal` objects. Public authentication and companion consent screens
+remain later work. `record_turn`, `propose` and `review` return the canonical
+`Decision` with a typed `Turn` or `Proposal`; a refusal has no returned record.
+`turns`, `proposals`, `hints` and `resolve` are scoped reads, with no audit mutation.
+There is no public memory CLI, extraction model, semantic search or AWS dependency.
+
+Postgres `session_turns` keys conversations by household, linked member, surface
+and opaque session ID (1–256 characters), orders turns by a session-local sequence,
+and stores user/assistant text (1–8,000 characters). Each turn may explicitly name
+one Plan, Action and VerificationCase. Reads use an exclusive sequence cursor,
+default 50 and maximum 100 records; proposal pagination uses its recording audit
+sequence. There is no automatic expiration or cleanup. Transcript text stays in
+private session storage; the governance Action carries a content hash, and its
+signed Decision is the turn's audit reference. It never enters graph context,
+planner inputs, action parameters or exported audit payloads.
+
+The async provider contract appends/lists turns and lists recorded hints for the
+exact `Session` scope. Postgres commits first. Provider failures leave durable
+session reads available and hints absent; returned hints are scope-checked again.
+The in-process provider extracts nothing, and a fresh provider can start empty.
+The separation follows AgentCore's actor/session/namespace organization, not its
+unimplemented cloud API ([ADR-002](./docs/adr/ADR-002-postgres-over-dynamodb.md#consent-gated-memory-amendment--2026-09-21)).
+
+Follow-ups resolve the latest explicit reference of the requested kind in exactly
+that conversation. The object must still belong to this household and be current:
+terminal/held actions, ended or refreshing/superseded plans, missing objects and
+unavailable VerificationCases require clarification. A later unusable reference
+never falls back to an older one. These identifiers carry no execution or approval
+authority. Verification-case resolution stays unavailable until Protect exists.
+
+Proposals accept only a typed member-scoped `temperature_target_f` and confidence.
+They bind immutable source-turn evidence to that turn's linked member and to the
+single current graph preference identity/version, or its absence. Another member's
+name in a transcript has no effect. The subject alone may accept/reject through an
+app principal, including non-owner roles; there is no added passkey requirement.
+Proposal states are `pending`, `accepted`, `rejected`, with no editing or expiry.
+Acceptance writes `source: learned_accepted` through the existing versioned graph
+repository. Duplicate rows or stale expected versions are refused; a stale proposal
+needs a new proposal. Terminal transitions serialize with the existing graph lock.
+Identical mutation-ID/content/principal retries return the original Decision;
+changed retries cannot mutate anything again. Session recording, proposal events,
+acceptance history and refresh holds commit with signed audit evidence or roll back
+together. Learning-disabled and native-policy rules are in
+[the constitution contract](./docs/constitution.md#item-20-internal-memory-permissions--2026-09-21).
+
+Only declared and accepted graph preferences enter the Coordinator. A member's
+explicit temperature request/band for the same room/window takes precedence over
+that member's graph preference. Room evidence comes from available fresh zone
+presence, ending at its 300-second deadline, or an arrival's
+`[expected_at, ends_at)` window. Fresh presence elsewhere suppresses the arrival;
+conflicting current rooms or overlapping arrival rooms require clarification.
+Absent room evidence supplies no preference. Evidence and request boundaries split
+slots; physically-present/soonest-expected selection, conflict reporting, hard
+comfort bands, manual holds and existing bounded controls remain in force.
+Derived `PreferenceWindow` inputs contain real preference identity/version and
+member provenance, without fabricating durable constraints or audit rows.
+
+Acceptance atomically queues automatic refresh and holds obsolete unstarted work.
+Proposing/rejecting/reading never queues it. Refresh fingerprints include graph
+preferences, and each recomputation reconstructs room/time evidence. Coordinated
+zones retain baseline temperatures so an obsolete preference cannot become the
+fallback on refresh. Pending proposals, private turns and advisory hints never
+enter the workload. Automatic replacement preserves the approver and still requires
+fresh device-level Pipeline authorization; memory consent grants no device rights.
+
 ### 5.10 Audit Ledger
 
 Append-only Postgres table with a SHA-256 hash chain and per-row ECDSA P-256 signatures, the same design as the author's PortunusMCP gateway: `seq`, `event_type`, `payload` (canonical JSON, RFC 8785 via `rfc8785`), `prev_hash`, `curr_hash`, `signature`, `key_fingerprint`, `created_at`. Each household has its own sequence and pointer. Its chain pointer is updated in the same transaction as the insert (one writer at a time per household, `SELECT ... FOR UPDATE` on that household's pointer row), which is what keeps the chain contiguous under concurrent decisions. `hirz verify-audit` walks and verifies the chain and every signature; `hirz audit export --range` produces a self-contained verifiable file. The companion app's audit view and the MCP `get_action_audit` tool read from this table and never from logs.
@@ -1083,7 +1149,7 @@ specified in §6.2.
 | `actions`, `action_transitions` | Executor lifecycle |
 | `approvals`, `approval_votes` (household/action binding, expiry, state and distinct member votes; §6.2) | Ask outcomes |
 | `verification_cases`, `verification_signals` | Protect |
-| `memory_proposals` | Consent-gated learning |
+| `session_turns`, `memory_proposals` | Private session context and consent-gated learning (item 20) |
 | `audit_log` (+ `audit_pointer`), `audit_anchors` (seq, curr_hash, object key, anchored_at) | Hash chain and its external anchors |
 | `link_agents` (household, credential hash, last_seen), `link_commands` (signed envelope, nonce, status) | Hirz Link registration and the signed-command outbox |
 | `scenarios`, `scenario_runs` | Twin |

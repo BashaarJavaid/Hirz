@@ -216,6 +216,7 @@ async def fingerprint(p: "Pipeline", stored: dict[str, Any]) -> dict[str, Any]:
         "asset_policies",
         "schedule_events",
         "constraints",
+        "preferences",
     ):
         structural[name] = [
             {

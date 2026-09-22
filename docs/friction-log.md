@@ -264,3 +264,15 @@ authorized localhost access resolved it. Subsequent database tests use `--tb=sho
 to suppress third-party traceback locals. These are the same sandbox workarounds,
 not new upstream API defects. References: [uv cache directory](https://docs.astral.sh/uv/reference/cli/#uv--cache-dir)
 and [pytest traceback styles](https://docs.pytest.org/en/stable/how-to/output.html#modifying-python-traceback-printing).
+
+Item 20 follow-up to the existing sandbox entries (2026-09-21, **Minor**): uv
+reported `Failed to initialize cache at /Users/bashaarjavaid/.cache/uv` and
+`failed to open file /Users/bashaarjavaid/.cache/uv/sdists-v9/.git: Operation not permitted (os error 1)`.
+Using the installed `.venv/bin` tools and `UV_CACHE_DIR=/tmp/hirz-uv` for builds
+avoided a new dependency install. Disposable PostgreSQL tests initially returned
+`connection to server at "127.0.0.1", port 5432 failed: Operation not permitted`;
+the existing WebSocket tests also could not bind localhost. Authorized local
+socket access resolved both. Database reruns used `--tb=short` to suppress
+third-party traceback locals. These repeat sandbox workarounds, not new upstream
+API defects. References: [uv cache directory](https://docs.astral.sh/uv/reference/cli/#uv--cache-dir)
+and [pytest traceback styles](https://docs.pytest.org/en/stable/how-to/output.html#modifying-python-traceback-printing).

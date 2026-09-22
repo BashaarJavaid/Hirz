@@ -186,3 +186,20 @@ expire. New actions receive fresh IDs, current device authorization, quorum and 
 Reservation transfers use the append-only rules in constitution §2.4, inside the
 same transaction as publication and consent. Rejected plan consent as device
 permission, retry reset through new plan IDs, and releasing uncertain expenditure.
+
+
+## Memory consent permissions amendment — 2026-09-21
+
+Use one reserved `governance.memory` class with four validated operations rather
+than four new classes or a parallel authorization path. The existing compiler
+carries operation/surface/learning conditions into native Dogwood, without a grammar
+extension or precedence change. Pipeline enforces subject membership and expected
+version inside the grant transaction. Only the subject's app principal can review,
+regardless of owner/adult status. Learning `never` blocks creation and acceptance,
+while recording context and rejecting pending proposals remain available.
+
+Rejected voice consent because an Echo is shared, owner-on-behalf consent because
+a preference belongs to its subject, passkey gating because this is not a security
+approval, and reusing action-approval quorum as memory consent. This verifies only
+the local backend under trusted internal principals; public companion authentication
+remains unverified. [Contract](../constitution.md#item-20-internal-memory-permissions--2026-09-21).

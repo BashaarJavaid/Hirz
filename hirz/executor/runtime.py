@@ -157,6 +157,7 @@ def slice_input(p: PlannerInput, start: datetime, end: datetime) -> PlannerInput
                 "lower",
                 "upper",
                 "targets",
+                "baseline_targets",
                 "occupants",
                 "preferences",
                 "held_targets",

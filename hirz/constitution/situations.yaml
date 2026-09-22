@@ -55,3 +55,9 @@ governance.revise_plan: {params: {}}
 governance.cancel_plan: {params: {}}
 governance.record_observations: {params: {}}
 governance.refresh_plan: {params: {}}
+governance.memory:
+  params: {operation: propose}
+  cases:
+    - {label: Accept memory, params: {operation: accept}}
+    - {label: Reject memory, params: {operation: reject}}
+    - {label: Record session context, params: {operation: append_turn}}
