@@ -7,6 +7,7 @@ import sqlalchemy as sa
 
 from hirz import db
 from hirz.executor.runtime import RuntimeInputs, Thresholds, deviates, predicted
+from hirz.explainer.core import context, prepared
 from hirz.pipeline.hashing import digest
 from hirz.pipeline.models import Action, Decision, EventType, Plan, Principal
 
@@ -606,6 +607,7 @@ class RefreshService:
         async with p.connection.begin():
             stored = await get(p, plan_id)
             current = await job(p, stored)
+            narration_context = context(await p.snapshot(p.clock()))
         plan = Plan.model_validate(stored["document"])
         if current and current["state"] in {"queued", "running", "blocked"}:
             reason = (
@@ -642,4 +644,4 @@ class RefreshService:
                     },
                 )
             )
-        return plan
+        return prepared(plan, narration_context)

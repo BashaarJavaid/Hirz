@@ -13,6 +13,7 @@ from hirz import db
 from hirz.constitution.conditions import PolicyFacts
 from hirz.constitution.evaluator import ApprovalRequirements, resolve
 from hirz.constitution.schema import Constitution
+from hirz.explainer.core import Explainer, TemplateExplainer, attach, context
 from hirz.graph.context import ContextSnapshot
 from hirz.graph.models import (
     Asset,
@@ -555,8 +556,9 @@ async def commit_constraint(
 
 
 class Coordinator:
-    def __init__(self, pipeline: "Pipeline"):
+    def __init__(self, pipeline: "Pipeline", explainer: Explainer | None = None):
         self.pipeline = pipeline
+        self.explainer = explainer or TemplateExplainer()
 
     async def intake(
         self,
@@ -658,6 +660,16 @@ class Coordinator:
                     raise GraphError(
                         "Claimed role cannot authorize this planning workload"
                     )
+        if result.result.plan is not None:
+            proposal = result.result.plan
+            narration = await self.explainer.narrate(proposal, context(snapshot))
+            result = result.model_copy(
+                update={
+                    "result": result.result.model_copy(
+                        update={"plan": attach(proposal, narration)}
+                    )
+                }
+            )
         return result
 
 

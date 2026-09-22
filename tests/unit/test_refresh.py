@@ -607,6 +607,7 @@ def test_blocked_read_labels_history_and_never_rewrites_saved_plan(monkeypatch):
     import hirz.executor.plans as plans
     import hirz.executor.refresh as module
     from scripts.smoke_executor import PRINCIPAL
+    from tests.unit.test_pipeline import snapshot as graph_snapshot
 
     @asynccontextmanager
     async def transaction():
@@ -627,6 +628,8 @@ def test_blocked_read_labels_history_and_never_rewrites_saved_plan(monkeypatch):
         p = SimpleNamespace(
             connection=SimpleNamespace(begin=transaction),
             requester=AsyncMock(return_value=r.workload.requester),
+            snapshot=AsyncMock(return_value=graph_snapshot()),
+            clock=lambda: AT,
         )
         monkeypatch.setattr(plans, "get", AsyncMock(return_value=stored))
         monkeypatch.setattr(module, "job", AsyncMock(return_value=current))
@@ -639,7 +642,7 @@ def test_blocked_read_labels_history_and_never_rewrites_saved_plan(monkeypatch):
         assert all(
             not a.validity.valid and a.cost_delta_usd is None for a in held.alternatives
         )
-        assert "Historical" in held.speakable["details"][0]
+        assert "historical" in str(held.speakable).lower()
         assert "forecast" in held.speakable["details"][1]
         assert stored["document"] == snapshot
         current["state"] = "idle"

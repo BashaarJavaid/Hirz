@@ -12,3 +12,5 @@ One file per consequential decision, each with the alternatives that were reject
 - [`ADR-008-agentcore-topology.md`](./ADR-008-agentcore-topology.md) — Runtime hosts the MCP server; Gateway + Policy is the second enforcement point; cost posture
 - [`ADR-009-signed-commands-home-agent.md`](./ADR-009-signed-commands-home-agent.md) — The home obeys only commands the boundary signed; Hirz Link holds the Home Assistant token in the house
 - [`ADR-010-passkey-verified-approvals.md`](./ADR-010-passkey-verified-approvals.md) — Security approvals proven to the signer by the member's passkey, so the worker can relay an approval and cannot make one (below the cut line)
+
+- [`ADR-012-explainer.md`](./ADR-012-explainer.md) — validated narration, selected facts, fixed Converse contract and audited persistence; live Bedrock remains item 38

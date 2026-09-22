@@ -5,6 +5,7 @@ from time import perf_counter
 from typing import Any, Literal
 
 from hirz.adapters.energy.real.tariff import CHICAGO
+from hirz.explainer.core import Context, prepared
 from hirz.pipeline.hashing import action_hash, digest
 from hirz.pipeline.models import (
     Action,
@@ -354,7 +355,7 @@ def plan(
         comparison_validity=validity,
     )
     return PlannerResult(
-        plan=proposal,
+        plan=prepared(proposal, Context(p.household_id)),
         actions=proposed,
         schedule=schedule,
         replay=checked,

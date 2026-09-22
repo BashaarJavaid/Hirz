@@ -18,6 +18,7 @@ from hirz.constitution.boundary import Dogwood
 from hirz.constitution.schema import loads
 from hirz.executor.refresh_worker import RefreshWorker
 from hirz.executor.service import Executor
+from hirz.explainer.bedrock import configured
 from hirz.graph.models import (
     AdapterDomain,
     Asset,
@@ -201,7 +202,10 @@ async def worker(args: argparse.Namespace) -> int:
                     await refresh_registry.start()
                     try:
                         refresh = RefreshWorker(
-                            refresh_pipeline, refresh_registry, world=world
+                            refresh_pipeline,
+                            refresh_registry,
+                            world=world,
+                            explainer=configured(),
                         )
                         while True:
                             refresh_pipeline.bundle = await policy(refresh_pipeline)

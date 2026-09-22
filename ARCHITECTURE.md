@@ -732,7 +732,32 @@ The trust layer. Two halves: gating physical actions (through the pipeline like 
 
 ### 5.8 Explainer
 
-Turns structured facts into narration *data*, never speech. Input: a `Plan` or `Decision` with `explain.facts`, `considered`, `rejected`, the constitution rule, and the risk factors. Output: `speakable` (headline ≤ 2 sentences, details ≤ 3 bullets, options ≤ 5) and a screen summary. Bedrock Claude Haiku 4.5 by default; Sonnet 5 for constitution drafting. Constraints enforced in code, not by prompt: outputs are schema-validated; numbers in the output must appear in the input facts (a regex-and-set check rejects invented figures); no internal IDs. Explanations are generated when the plan or decision is created and cached by content hash, so no tool call waits on a model. `HIRZ_LLM=off` uses templates that produce grammatically plain but correct narration.
+`hirz/explainer/` narrates canonical Plans and Decisions without changing their
+execution fields. `core.py` selects and formats trusted facts, supplies validated
+templates, checks complete approved numeric forms, and validates persisted reuse.
+`bedrock.py` implements the same async interface with lazy Converse calls in a
+thread. Code owns headlines, options and source labels; the provider supplies only
+explanatory details and screen text. Raw utterances, private memory and contact
+channels are excluded. A valid figure can still be used in the wrong context;
+validation does not establish narrative truth.
+
+The optional canonical `narration` field stores `input_hash`, `version`, `provider`,
+`model_id`, `screen_summary` and `fallback_reason`; legacy objects omit it. Existing
+audited writes store narration without migrations. The pure planner and immediate
+Decision paths use templates. Coordinator and RefreshWorker allow explicit async
+enrichment outside transactions; refresh freshness checks run afterwards.
+Publication validates prepared narration or supplies templates. Reads reuse valid
+stored output, including fallback, and supply current templates for changed status
+or facts without writing narration or calling Bedrock. Historical signed payloads
+remain untouched. Planning estimates are labeled simulated; real execution labels
+require matching real observation provenance, otherwise display remains simulated.
+
+`HIRZ_LLM=off` is the default; `bedrock` uses the fixed approved Haiku US inference
+profile. Invalid configuration raises an error. Local SDK stubs exercise the native
+JSON-schema contract; live Bedrock remains item 38. Full validation limits, provider
+settings, privacy selection and rejected alternatives are in
+[ADR-012](./docs/adr/ADR-012-explainer.md); run procedures are in
+[development](./docs/development.md#item-21-explainer).
 
 ### 5.9 Memory
 

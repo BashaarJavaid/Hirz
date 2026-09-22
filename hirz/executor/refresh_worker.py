@@ -15,6 +15,7 @@ from hirz.executor.refresh import RefreshService, fingerprint, job
 from hirz.executor.replanning import bind_result, outstanding
 from hirz.executor.runtime import RuntimeInputs
 from hirz.executor.storage import notice
+from hirz.explainer.core import Explainer, TemplateExplainer, attach, context
 from hirz.pipeline.models import Plan, Principal
 from hirz.pipeline.service import Pipeline
 from hirz.planner.coordinator import coordinate
@@ -23,10 +24,16 @@ from hirz.twin.world import TwinWorld
 
 class RefreshWorker:
     def __init__(
-        self, pipeline: Pipeline, registry: Registry, *, world: TwinWorld | None = None
+        self,
+        pipeline: Pipeline,
+        registry: Registry,
+        *,
+        world: TwinWorld | None = None,
+        explainer: Explainer | None = None,
     ):
         self.pipeline, self.registry, self.world = pipeline, registry, world
         self.service = RefreshService(pipeline)
+        self.explainer = explainer or TemplateExplainer()
 
     async def transition(
         self,
@@ -444,6 +451,9 @@ class RefreshWorker:
                     "prediction_workload": coordinated.inputs,
                 }
             )
+            narration = await self.explainer.narrate(result.plan, context(snapshot))
+            result = result.model_copy(update={"plan": attach(result.plan, narration)})
+            assert result.plan is not None
             # Network reads may finish after new inputs arrive; publication compares the generation again.
             await self.poll()
             async with p.repo.write(p.clock):

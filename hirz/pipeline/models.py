@@ -17,6 +17,7 @@ from pydantic import (
     model_validator,
 )
 
+from hirz.explainer.models import NarrationMetadata
 from hirz.risk import CLASSES, RiskBand
 
 Role = Literal["owner", "adult", "caregiver", "teen", "child", "guest", "unknown"]
@@ -247,6 +248,9 @@ class Decision(Model):
         ]
         | None
     ) = Field(default=None, exclude_if=lambda value: value is None)
+    narration: NarrationMetadata | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
     speakable: dict[str, JsonValue] | None = Field(
         default=None, exclude_if=lambda value: value is None
     )
@@ -337,6 +341,9 @@ class Plan(Model):
     summary: PlanSummary
     alternatives: tuple[PlanAlternative, ...]
     explain: Explanation
+    narration: NarrationMetadata | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
     speakable: dict[str, JsonValue]
     status: Literal[
         "proposed",

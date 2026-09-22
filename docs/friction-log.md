@@ -276,3 +276,13 @@ socket access resolved both. Database reruns used `--tb=short` to suppress
 third-party traceback locals. These repeat sandbox workarounds, not new upstream
 API defects. References: [uv cache directory](https://docs.astral.sh/uv/reference/cli/#uv--cache-dir)
 and [pytest traceback styles](https://docs.pytest.org/en/stable/how-to/output.html#modifying-python-traceback-printing).
+
+
+Item 21 follow-up to entry 6 (2026-09-22, **Minor**): installing the approved
+Boto3 dependency with `uv add 'boto3==1.43.90'` encountered the same sandbox cache
+restriction: `error: Failed to initialize cache at /Users/bashaarjavaid/.cache/uv`
+and `failed to open file /Users/bashaarjavaid/.cache/uv/sdists-v9/.git: Operation not permitted (os error 1)`.
+[uv cache contract](https://docs.astral.sh/uv/concepts/cache/). Authorized escalation
+installed and locked the dependency; repository-local tool binaries handled focused
+checks, and escalated uv handled full-suite loopback/database checks. This is the
+existing sandbox limitation, not an SDK or uv defect; no live Bedrock call was made.

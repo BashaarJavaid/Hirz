@@ -3259,3 +3259,180 @@ git diff --check
 command and item 21 as next. The format check was repeated after this evidence
 append and passed. Development migrations remain manual; public authentication,
 companion consent UI and AWS integration remain outside the completed local item.
+
+## Item 21 — 2026-09-22
+
+Scope: validated narration for canonical Plans and Decisions, the fixed offline-tested
+Bedrock Converse provider, backend integration and persisted reuse. The approved
+choices and rejected alternatives are in [ADR-012](./adr/ADR-012-explainer.md).
+No migration, backfill, new cache table, live model call, MCP tool or UI was added.
+
+Environment: macOS, repository Python 3.12 virtual environment, native pinned
+Dogwood, and the existing Compose PostgreSQL 16.15 service. Boto3 1.43.90 and its
+resolved dependencies are pinned in `uv.lock`. Dependency resolution used
+`uv add 'boto3==1.43.90'`. The standard uv cache and loopback checks required the
+existing sandbox escalation; [friction log entry 6 follow-up](./friction-log.md)
+records the observed restriction. No AWS credential/client initialization occurs
+in the offline implementation; SDK tests supply dummy credentials explicitly.
+
+Implementation evidence:
+
+- The planner's schedules, action hashes, physical replay, savings calculations and
+  authorization fields remain unchanged. Narration attaches only `speakable` and
+  optional metadata. Existing planner, pipeline, executor and refresh regressions
+  pass; injected provider fields cannot modify decisions or actions.
+- Unit checks cover all canonical Plan statuses, execute/ask/deny/verify outcomes
+  and execution statuses; phone-only security wording; source labels; legacy
+  metadata omission; ROUND_HALF_UP, signed/rounded-zero figures, units and local
+  times; schema/length boundaries; invalid and negative saving comparisons;
+  private text/IDs; linked-account and explicitly claimed attribution; provider
+  failures, truncation, malformed output, status claims and cancellation.
+- Botocore `Stubber` validates the actual Converse request, including native
+  `outputConfig.textFormat` schema, inference profile, temperature and output token
+  limit. A lazy-client test verifies region, 2/5-second timeouts and one total
+  attempt. Successful output and fallback survive JSON round-trip/restart without
+  a second provider invocation. Offline configuration initializes no AWS client;
+  invalid `HIRZ_LLM` fails configuration.
+- PostgreSQL tests verify audited Decision/Plan publication, valid signed rows,
+  stored fallback reuse through a fresh service/provider, held-read honesty,
+  household isolation, and a changed execution outcome receiving a new template.
+  A refresh input arriving while async narration is in progress prevents the
+  obsolete result from publishing. Coordinator and worker tests assert the database
+  connection is outside a transaction during enrichment.
+
+Commands and observed results:
+
+```text
+.venv/bin/pytest tests/unit/test_explainer.py --no-cov -q
+80 passed in 2.28s
+
+uv run pytest -q
+1191 passed, 97 deselected in 127.11s (0:02:07)
+Required test coverage of 80% reached. Total coverage: 81.00%
+
+uv run pytest -m integration --no-cov -q --tb=short
+97 passed, 1191 deselected in 130.07s (0:02:10)
+
+.venv/bin/ruff check .
+All checks passed!
+.venv/bin/mypy hirz/ scripts/ alembic/
+Success: no issues found in 123 source files
+
+uv build
+Successfully built dist/hirz-0.0.0.tar.gz
+Successfully built dist/hirz-0.0.0-py3-none-any.whl
+```
+
+The attribution guard received a final refinement after the full-suite run above:
+provider prose must include both `Linked account: <name>` and
+`Claimed author: <name>` for claimed authorship, rather than merely the word
+"claimed". The 80-test focused run above includes that refinement; a final
+full-coverage rerun is appended below. Package lint, strict typing and build were
+run after the refinement. Wheel inspection found the four Explainer Python files
+and `Requires-Dist: boto3==1.43.90`.
+
+User-facing offline invocation:
+
+```text
+.venv/bin/python scripts/smoke_explainer.py
+offline=PASS; fabricated_figure=rejected; canonical_plan=unchanged; actions=105; cached=valid
+{'headline': 'An energy plan is ready for review.', 'details': ['Simulated data.', 'Estimated difference versus your timer schedule: $0.37.'], 'options': ['Review']}
+```
+
+The displayed figure is derived from this run's planner output, not a new published
+savings claim. The simulated source label is code-owned.
+
+Disposable database smoke (with `HIRZ_DOGWOOD="$PWD/.tools/dogwood"`):
+
+```text
+uv run python scripts/smoke_explainer.py --integration --audit-output /tmp/hirz-item21-final-audit.json
+integration=PASS; decision=audited; plan=audited; restart=reused; source=twin; signed_rows=7; offline=valid; export=/tmp/hirz-item21-final-audit.json
+disposable_database=dropped; development_database=unchanged
+```
+
+The smoke independently verifies the export against the trusted signing-key
+fingerprint. It uses only a uniquely named disposable database and existing
+synthetic bootstrap conventions. The earlier successful export is also retained
+at `/tmp/hirz-item21-audit.json`; both exports are private local artifacts, not
+committed evidence. A read-only development revision check returned:
+
+```text
+docker compose -f compose.dev.yml exec -T postgres psql -U hirz -d hirz -Atc 'select version_num from alembic_version'
+0005_execution_attempt
+```
+
+Existing scenario gates, all exit 0, with the same native Dogwood environment:
+
+| Command suffix after `.venv/bin/hirz scenario run` | Result | Checks | Planning snapshots | Deferred assertions/events |
+|---|---|---:|---:|---:|
+| `scenarios/demo-evening.yaml --headless --assert` | `item17_planning_and_observations_passed` | 16 | 2 | 22 |
+| `scenarios/demo-evening-hourly.yaml --headless --assert` | `item17_planning_and_observations_passed` | 16 | 2 | 22 |
+| `scenarios/parents-scam-check.yaml --headless --assert` | `item16_observations_passed` | 9 | 0 | 9 |
+
+The JSON reports are `/tmp/hirz-item21-evening.json`,
+`/tmp/hirz-item21-hourly.json` and `/tmp/hirz-item21-parents.json`. These are the
+existing observation/planning assertions, not full tool or demo execution.
+
+Failures observed and resolved during implementation:
+
+- The first new unit run reported `2 failed, 76 passed`: heading and list formatting
+  were not rejected. The shared artifact guard now rejects both.
+- The first PostgreSQL attempt reported `1189 deselected, 95 errors` because local
+  PostgreSQL was stopped. `docker compose -f compose.dev.yml up -d postgres`
+  started the existing service; subsequent disposable tests ran against it.
+- The first complete service-free run reported `1 failed, 1188 passed, 95 deselected`
+  with 80.96% coverage. Its held-read mock lacked the newly required snapshot and
+  expected the old detail ordering. The test now supplies trusted context and
+  verifies the current source label/historical forecast wording without modifying
+  the persisted plan.
+- The first database run after startup reported `2 failed, 93 passed`: missing or
+  foreign approval lookups carry no Action, which the new narration context lookup
+  initially assumed existed. The shared context helper handles that existing denial
+  path conservatively; the missing-approval and cross-household tests then passed.
+- The first new publication assertion matched both the Decision and the publication
+  audit event with the same event name; it now selects the publication's `mutation`
+  payload. The focused database rerun reported `16 passed in 15.31s`.
+- The first smoke exposed a fixture clock mismatch:
+  `hirz.graph.models.GraphError: Coordination requires the current household snapshot`.
+  The forecast and scenario clock are now aligned before observations are ingested.
+  As required by the existing disposable helper, that failed synthetic database was
+  retained: `hirz_ha_smoke_5c994afc63074cb3a0b78f162dff3656`. It contains no real device
+  writes; successful smoke databases were dropped.
+- Strict typing initially found a lost Optional narrowing after updating a
+  PlannerResult and an un-narrowed audit JSON value in the smoke. Both are corrected;
+  final strict mypy passes without broad ignores.
+
+Limits: figure-set membership does not prove prose truth; an approved figure can
+still be associated with the wrong fact. Live Bedrock availability, credentials,
+model/native-schema acceptance and latency remain item 38. Protect, drafting,
+external orchestrator behavior, MCP/UI and full scenario execution are unverified.
+No live HA check, remote CI run or full year-long backtest rerun was claimed.
+
+Final coverage run after the attribution refinement:
+
+```text
+uv run pytest -q
+1191 passed, 97 deselected in 110.52s (0:01:50)
+Required test coverage of 80% reached. Total coverage: 81.03%
+```
+
+Item 21's local gates are complete. The roadmap, changelog, narrowly qualified
+threat-model claims and both instruction files were updated after these results.
+Live Bedrock verification remains item 38; item 22 is next.
+
+Final completion-record checks after documentation edits:
+
+```text
+.venv/bin/ruff check .
+All checks passed!
+.venv/bin/mypy hirz/ scripts/ alembic/
+Success: no issues found in 123 source files
+git diff --check
+(no output; exit 0)
+.venv/bin/ruff format --check .
+189 files already formatted
+```
+
+The Commands and Current phase sections match in `AGENTS.md` and `CLAUDE.md`;
+their pre-existing heading/introduction differences are preserved. The format
+check was repeated after this evidence append and passed.

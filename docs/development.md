@@ -905,3 +905,36 @@ startup behavior and not performed by these checks. `0009_memory` downgrade
 refuses retained session/proposal rows or memory audit events. No automatic
 retention cleanup, cloud calls, extraction, other preference types, public memory
 CLI or companion UI are included.
+
+
+## Item 21 Explainer
+
+`uv run python scripts/smoke_explainer.py` uses offline planner facts, validates
+templates, rejects a fabricated figure and verifies unchanged canonical planning
+fields and serialization/reuse. It initializes no AWS client or credentials.
+
+With local PostgreSQL running and the existing audit key initialized:
+
+```sh
+export HIRZ_DOGWOOD="$PWD/.tools/dogwood"
+uv run python scripts/smoke_explainer.py --integration --audit-output /tmp/hirz-explainer-audit.json
+```
+
+The output file must be new. The smoke creates and removes a uniquely named
+disposable database, applies migrations there, uses the existing synthetic bootstrap,
+publishes a plan and queued Decision through the Pipeline, reconstructs the service,
+and verifies the signed export independently. The development database is never
+upgraded. Keep the private export outside version control.
+
+Internal callers may pass `TemplateExplainer` or `BedrockExplainer` to `Coordinator`
+and `RefreshWorker`; omitted providers use templates. The local worker reads
+`HIRZ_LLM=off|bedrock` from its process environment, defaulting to `off`. Invalid
+values fail configuration. Bedrock uses the standard AWS credential chain and may
+incur inference charges when explicitly enabled; item 21 checks use SDK stubs only.
+Do not put provider credentials in graph records or narration metadata.
+
+The Explainer's cache is the existing audited Plan/Decision JSON document. Reads do
+not generate model text or write replacement narration. A held read may still run
+the pre-existing audited freshness detection from item 19a. See
+[ADR-012](./adr/ADR-012-explainer.md) for hash inputs, length/figure guards and their
+semantic limits. MCP, UI, full scenario execution and live Bedrock remain later work.

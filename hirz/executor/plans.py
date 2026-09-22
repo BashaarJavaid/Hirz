@@ -10,6 +10,7 @@ from hirz import db
 from hirz.executor.contracts import validate
 from hirz.executor.runtime import RuntimeInputs
 from hirz.executor.storage import notice, scheduled, transition
+from hirz.explainer.core import context, prepared
 from hirz.pipeline.hashing import action_hash, digest
 from hirz.pipeline.models import (
     Action,
@@ -456,6 +457,11 @@ async def commit_mutation(
         "approve_plan": EventType.PLAN_APPROVED,
         "cancel_plan": EventType.PLAN_CANCELLED,
     }[name]
+    mutation = action.params
+    if name in {"record_plan", "revise_plan"}:
+        proposal = Plan.model_validate(action.params["plan"])
+        proposal = prepared(proposal, context(await p.snapshot(p.clock())))
+        mutation = action.params | {"plan": proposal.model_dump(mode="json")}
     seq = await p.audit.append(
         p.connection,
         p.household_id,
@@ -466,11 +472,11 @@ async def commit_mutation(
             "decision_seq": decision.audit_id,
             "member_id": member.member_id,
             "surface": principal.surface,
-            "mutation": action.params,
+            "mutation": mutation,
         },
     )
     if name in {"record_plan", "revise_plan"}:
-        plan = Plan.model_validate(action.params["plan"])
+        plan = Plan.model_validate(mutation["plan"])
         if plan.supersedes:
             old = await get(p, plan.supersedes)
             from hirz.executor.refresh import job

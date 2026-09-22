@@ -6,6 +6,7 @@ from uuid import UUID
 import sqlalchemy as sa
 
 from hirz import db
+from hirz.explainer.core import decision_context, prepared
 from hirz.pipeline.hashing import digest
 from hirz.pipeline.models import Action, Decision, EventType
 
@@ -139,6 +140,7 @@ async def scheduled(
             "speakable": {"headline": "Your request is queued."},
         }
     )
+    decision = prepared(decision, await decision_context(p, action))
     seq = await transition(
         p,
         action.action_id,
@@ -166,25 +168,14 @@ async def repeated(p: "Pipeline", stored: dict[str, Any]) -> Decision:
     lifecycle = stored["lifecycle"]
     decision = Decision.model_validate(lifecycle["decision"])
     status = stored["execution_status"]
-    headline = (
-        "Your request is queued."
-        if status == "scheduled"
-        else {
-            "verified": "The requested setting was verified.",
-            "failed": "The requested setting could not be verified.",
-            "held": "This request needs your attention.",
-            "cancelled": "This request was cancelled.",
-            "skipped": "This request's execution window has ended.",
-        }.get(status, "The request's outcome is not yet verified.")
-    )
-    if status == "verified" and stored["proposal"]["target"]["adapter"] == "twin":
-        headline = "The simulated setting was verified."
-    return decision.model_copy(
+    current = decision.model_copy(
         update={
             "status": "executing" if status == "scheduled" else status,
-            "speakable": {"headline": headline},
             "audit_id": stored["lifecycle_seq"],
         }
+    )
+    return prepared(
+        current, await decision_context(p, Action.model_validate(stored["proposal"]))
     )
 
 

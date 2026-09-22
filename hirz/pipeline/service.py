@@ -19,6 +19,7 @@ from hirz.constitution.compiler import Compiled, boundary_input, compile_policy
 from hirz.constitution.conditions import PolicyFacts
 from hirz.constitution.evaluator import RuleOutcome, resolve
 from hirz.constitution.schema import Constitution
+from hirz.explainer.core import decision_context, prepared
 from hirz.graph.context import ContextSnapshot, validate_snapshot
 from hirz.graph.models import Household, now, utc
 from hirz.graph.repository import GraphRepository, snapshot_sql
@@ -646,7 +647,7 @@ class Pipeline:
                 )
                 if ev.decision.decision == "execute":
                     ev = await self.boundary_check(ev, utc(self.clock()))
-                return ev.decision
+                return prepared(ev.decision, await decision_context(self, ev.action))
         except Exception as exc:
             await self.connection.invalidate()
             await self.connection.rollback()
@@ -660,6 +661,7 @@ class Pipeline:
             ) from None
 
     async def record(self, ev: Evaluation, at: datetime) -> Decision:
+        ev.decision = prepared(ev.decision, await decision_context(self, ev.action))
         for path in ev.diagnostics:
             await self.audit.append(
                 self.connection,
