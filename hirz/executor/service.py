@@ -40,9 +40,11 @@ class Executor:
         *,
         world: TwinWorld | None = None,
         reload_policy: Callable[[], Awaitable[PolicyBundle]] | None = None,
+        refresh_polls: bool = False,
     ):
         self.pipeline, self.registry, self.world = pipeline, registry, world
         self.reload_policy = reload_policy
+        self.refresh_polls = refresh_polls
 
     async def read(self, action: Action) -> dict[str, Any]:
         if action.target.adapter == "twin":
@@ -57,13 +59,14 @@ class Executor:
         data = await adapter.raw_state(action.target.entity)
         if action.action_class == "energy.hvac_adjust":
             return {
+                "mode": data["state"],
                 "target_f": fahrenheit(
                     data["attributes"]["temperature"], await adapter.temperature_unit()
-                )
+                ),
             }
         return {"on": data["state"] == "on"}
 
-    async def sweep(self) -> tuple[Decision, ...]:
+    async def sweep(self, *, endings_only: bool = False) -> tuple[Decision, ...]:
         p = self.pipeline
         if p.connection.in_transaction():
             raise ValueError("Worker requires an idle database connection")
@@ -102,6 +105,8 @@ class Executor:
             )
             results = []
             for stored in ordered:
+                if endings_only and not stored["lifecycle"].get("ending_of"):
+                    continue
                 if not stored["lifecycle"].get("ending_of"):
                     async with p.connection.begin():
                         endings = (
@@ -134,7 +139,12 @@ class Executor:
                 }:
                     continue
                 results.append(await self.run(current))
-            if self.world is not None and not ordered:
+            if (
+                self.world is not None
+                and not ordered
+                and not endings_only
+                and not self.refresh_polls
+            ):
                 async with p.connection.begin():
                     owner = await p.connection.scalar(
                         sa.select(db.actions.c.principal)
@@ -196,8 +206,43 @@ class Executor:
                 else:
                     if self.reload_policy:
                         p.bundle = await self.reload_policy()
-                    await observations.ingest(p, self.registry, principal)
-                    previous = inverse(action, await self.read(action))
+                    if not self.refresh_polls or not action.plan_id:
+                        await observations.ingest(p, self.registry, principal)
+                    actual = await self.read(action)
+                    if action.plan_id and self.refresh_polls:
+                        async with p.connection.begin():
+                            snapshot = await p.snapshot(p.clock())
+                        data: Any = snapshot.data
+                        asset = next(
+                            b["asset_id"]
+                            for b in data["asset_bindings"]
+                            if b["adapter"] == action.target.adapter
+                            and b["entity_id"] == action.target.entity
+                        )
+                        sample: dict[str, Any] = next(
+                            (
+                                o["state"]
+                                for o in data["observations"]
+                                if o.get("asset_id") == asset
+                            ),
+                            {},
+                        )
+                        controls = (
+                            ("target_f", "mode")
+                            if action.action_class == "energy.hvac_adjust"
+                            else tuple(action.params)
+                        )
+                        if any(actual.get(k) != sample.get(k) for k in controls):
+                            await observations.ingest(p, self.registry, principal)
+                        if (
+                            action.target.adapter == "ha"
+                            and action.action_class == "energy.hvac_adjust"
+                            and actual.get("mode") not in {"heat", "cool"}
+                        ):
+                            raise ValueError(
+                                "The observed thermostat mode is unsupported"
+                            )
+                    previous = inverse(action, actual)
                     async with p.repo.write(p.clock):
                         current = await row(p, action.action_id)
                         captured = (
@@ -262,7 +307,8 @@ class Executor:
                     adapter = self.registry.instances[("devices", "ha")]
                     assert isinstance(adapter, HomeAssistant)
                     await adapter.execute(action, decision)
-                await observations.ingest(p, self.registry, principal)
+                if not is_ending and not self.refresh_polls:
+                    await observations.ingest(p, self.registry, principal)
             except PipelineError:
                 raise
             except Exception:
@@ -371,18 +417,28 @@ class Executor:
                 )
             )
             if not pending:
+                status = (
+                    "completed"
+                    if p.clock()
+                    >= datetime.fromisoformat(
+                        stored["document"]["horizon"]["end"].replace("Z", "+00:00")
+                    )
+                    else "active"
+                )
+                if stored["document"]["status"] == status:
+                    return
                 seq = await p.audit.append(
                     p.connection,
                     p.household_id,
                     p.clock(),
                     EventType.PLAN_REVISED,
-                    {"plan_id": action.plan_id, "status": "completed"},
+                    {"plan_id": action.plan_id, "status": status},
                 )
                 await p.connection.execute(
                     db.plans.update()
                     .where(p.scope(db.plans), db.plans.c.plan_id == action.plan_id)
                     .values(
-                        document=stored["document"] | {"status": "completed"},
+                        document=stored["document"] | {"status": status},
                         audit_seq=seq,
                     )
                 )

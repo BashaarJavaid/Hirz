@@ -1,5 +1,6 @@
 """Trusted Registry reads and audited graph ingestion; no caller-supplied readings."""
 
+from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 from uuid import uuid5
 
@@ -9,6 +10,7 @@ from hirz import db
 from hirz.adapters.registry import Registry
 from hirz.executor.plans import governance
 from hirz.graph.models import ASSET_DOMAINS, Observation
+from hirz.graph.repository import row_model
 from hirz.pipeline.hashing import digest
 from hirz.pipeline.models import Action, Decision, EventType, Principal
 
@@ -110,6 +112,7 @@ async def ingest(p: "Pipeline", registry: Registry, principal: Principal) -> Dec
 async def commit(p: "Pipeline", action: Action, decision: Decision) -> None:
     assert p._observation_batch is not None
     committed = []
+    manual = []
     for observation in p._observation_batch:
         match = (
             db.observations.c.asset_id == observation.asset_id
@@ -133,6 +136,25 @@ async def commit(p: "Pipeline", action: Action, decision: Decision) -> None:
         if existing:
             observation = observation.model_copy(update={"id": existing})
         old = await p.repo.get("observations", {"id": observation.id})
+        if old:
+            previous = Observation.model_validate(
+                row_model("observations", old).model_dump()
+            )
+            before, after = previous.state, observation.state
+            if (
+                after.target_f is not None
+                and after.mode is not None
+                and (after.target_f, after.mode) != (before.target_f, before.mode)
+            ):
+                from hirz.executor.refresh import owned_control
+
+                if not await owned_control(
+                    p,
+                    observation,
+                    since=previous.observed_at,
+                    previous_mode=before.mode,
+                ):
+                    manual.append(observation)
         await p.repo.put(
             "observations",
             observation,
@@ -151,6 +173,39 @@ async def commit(p: "Pipeline", action: Action, decision: Decision) -> None:
             "readings": [o.model_dump(mode="json") for o in committed],
         },
     )
+
+    from hirz.executor.refresh import detect
+    from hirz.pipeline.models import Principal
+    from hirz.planner.coordinator import Intake
+
+    principal = Principal.model_validate(
+        await p.connection.scalar(
+            sa.select(db.actions.c.principal).where(
+                p.scope(db.actions), db.actions.c.action_id == action.action_id
+            )
+        )
+    )
+    for observation in manual:
+        request = Intake(
+            text="Thermostat changed; physical actor unknown",
+            horizon_end=p.clock() + timedelta(hours=2),
+            manual=observation,
+        )
+        result = await p.mutate_locked(
+            governance(
+                p, "record_constraint", request.model_dump(mode="json"), principal
+            ),
+            principal,
+        )
+        if result.decision != "execute":
+            raise ValueError("Manual hold could not be recorded")
+    rows = (
+        (await p.connection.execute(sa.select(db.plans).where(p.scope(db.plans))))
+        .mappings()
+        .all()
+    )
+    for stored in rows:
+        await detect(p, dict(stored), decision=decision.audit_id)
 
     if p._observation_world is not None:
         from hirz.executor.twin import checkpoint

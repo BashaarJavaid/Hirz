@@ -544,6 +544,7 @@ def test_bound_doorbell_approval(never, expected, second, legacy, seconds, event
         # are mocked here. The PostgreSQL case covers their actual contracts.
         p.connection.in_transaction = Mock(return_value=False)
         p.repo.write = Mock(return_value=AsyncMock())
+        p.repo._at = AT
         p.proposal = AsyncMock(return_value=(True, None, a))
         p.pending = AsyncMock(return_value=None)
         p.record = AsyncMock(

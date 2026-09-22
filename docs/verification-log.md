@@ -2989,3 +2989,132 @@ two unformatted additions in HA verification and twin battery observations; Ruff
 formatted both, and the sdist/wheel were rebuilt successfully. The subsequent
 `ruff format --check .` returned **163 files already formatted**; the check is
 repeated after this evidence append as the final validation command.
+
+## Item 19a — 2026-09-21
+
+### Local implementation and regression evidence
+
+Implemented the approved local refresh contract in [architecture §5.4](../ARCHITECTURE.md#54-planner), with persistence/ownership in [ADR-002](./adr/ADR-002-postgres-over-dynamodb.md#durable-refresh-amendment--2026-09-21), authority/accounting in [ADR-003](./adr/ADR-003-constitution-yaml-to-cedar.md#durable-refresh-amendment--2026-09-21), and remaining-work planning in [ADR-005](./adr/ADR-005-deterministic-planner.md#durable-refresh-amendment--2026-09-21). Procedures are in [development](./development.md#item-19a-durable-local-plan-refresh).
+
+Environment: macOS arm64, Python 3.12.13 in the existing `.venv`, pinned native
+`.tools/dogwood`, local PostgreSQL 16 and the configured HA demo. Tests and smokes
+migrate uniquely named disposable databases through `0008_plan_refresh`. A separate
+read of development's `alembic_version` returned `0005_execution_attempt` after the
+smokes. No development migration or reset was performed. Local sockets and uv's
+existing cache required the already documented sandbox access; no dependencies or
+AWS resources were added.
+
+Final commands and observed results:
+
+```text
+.venv/bin/pytest --tb=short -q
+1065 passed, 88 deselected in 220.28s (0:03:40)
+Required test coverage of 80% reached. Total coverage: 80.32%
+
+.venv/bin/pytest tests/integration -m integration --no-cov --tb=short -q
+88 passed in 222.65s (0:03:42)
+
+.venv/bin/ruff check .
+All checks passed!
+
+.venv/bin/mypy hirz/ scripts/ alembic/
+Success: no issues found in 111 source files
+
+uv build --out-dir /tmp/hirz-19a-dist-final
+Successfully built hirz-0.0.0.tar.gz and hirz-0.0.0-py3-none-any.whl
+```
+
+The full Python run includes native YAML/Dogwood conformance, planner and latency
+checks. A separate isolated import from the extracted wheel passed the CI catalog
+assertion: **31 classes, 31 situation groups**, and imported the packaged refresh
+worker. The CI wheel assertion was updated with the added internal governance class;
+remote CI was not run. Full run logs are `/tmp/hirz-19a-coverage-verified.log`,
+`/tmp/hirz-19a-integration-verified.log` and `/tmp/hirz-19a-build-final.log`.
+
+The refresh tests cover all eight trigger sources and duplicate polls against
+persisted generations; strict threshold boundaries; first-sample/manual hold
+creation, renewal, release and expiry; recorded HA attribution with preserved
+upstream timestamps; unapproved and inherited consent; a same-instant consent
+race; legacy-input refusal; cross-household reads; concurrent solver ownership;
+an ending during a delayed solve; changes arriving during computation; cancelled
+and abandoned-running work; audit failure; revoked authority; polling recovery;
+5/30/60/300/300-second backoff and no waiting for future retries; notice deduplication;
+required missing domains; fixed controls, running/completed appliances and original
+battery/EV obligations; exhausted operations; historical held reads; retained grant
+dates, negative estimates, uncertain dispatch and transactional budget refusal.
+The existing concurrent-budget, boundary, dispatch/retry and migration tests also
+pass in the full PostgreSQL suite. No delivery or actual-billing settlement is
+claimed.
+
+Final separate-worker smoke commands (with `HIRZ_DOGWOOD="$PWD/.tools/dogwood"`):
+
+```text
+.venv/bin/python scripts/smoke_refresh.py --audit-output /tmp/hirz-refresh-twin-20260921-verified.json
+restart=queued; replacement=published; approver=malik; per_device_evaluation=fresh
+restart=running; replacement=published; approver=malik; per_device_evaluation=fresh
+refresh=PASS; source=twin; signed_rows=74; offline=valid
+
+.venv/bin/python scripts/smoke_refresh.py --live-demo --audit-output /tmp/hirz-refresh-ha-20260921-verified.json
+restart=queued; replacement=published; approver=malik; per_device_evaluation=fresh
+restart=running; replacement=published; approver=malik; per_device_evaluation=fresh
+refresh=PASS; source=real API, demo devices; ecobee=read_only
+restoration=light.bed_light; verified=True
+restoration=climate.heatpump; verified=True
+audit=valid; rows=106; offline=valid
+live_demo=PASS; ecobee=read_only
+```
+
+Both successful disposable databases were dropped; private signed exports remain
+at the named paths. Logs are `/tmp/hirz-19a-twin-verified.log` and
+`/tmp/hirz-19a-ha-verified.log`. The HA smoke uses explicitly synthetic thermal
+parameters, not a calibrated home model. Its real API/demo-device provenance remains
+visible, and all changed settings were restored through Pipeline.
+
+Earlier runs were not treated as completion: coverage initially passed the tests
+but failed the gate at **77.34%**, then **78.97%** and **79.79%**. Added behavioral
+checks reached **80.36%**, and the final source state above reaches **80.32%**.
+Early failures exposed missing legacy test inputs, optional HA setpoint increments,
+HA workload/domain budget scoping, retained prediction coverage when slots split,
+and premature plan completion. Failed live trials restored their changed settings
+and retained signed exports (`/tmp/hirz-refresh-ha-20260921.json`, and `-b` through
+`-f` variants). A twin restart also failed closed with `Invalid audit pointer or
+incompatible signing key`: a lifecycle row was later than the physical checkpoint.
+Restore now uses the latest signed simulated instant and advances from the
+checkpoint; the final separate-worker runs above verify it. The failed disposable
+database `hirz_ha_smoke_5568fefa8c0d495e9b6204276db3b4a8` remains retained as evidence.
+A late test fixture reused a deterministic plan ID after cancellation; a distinct
+explicit workload corrected that fixture, and the full 88-test run passes.
+
+Checked `docs/friction-log.md`. Cache/socket restrictions repeat its existing
+entries; the HA increment issue was our incorrect assumption, not an upstream
+contract defect. No new third-party friction entry was earned. HA's optional
+increment contract is linked in `RefreshWorker.ha_facts`.
+
+At this entry, the offline backtest has finished all 18 combinations with no stopped
+runs and is still comparing retained outputs. Item 19a is not closed until that
+result and the final formatting check are appended below. MCP tools, companion
+endpoints/delivery, full scenario orchestration, live price/weather ingestion,
+AWS, remote CI and item 15's physical-plug gate remain outside this verification.
+
+### Retained reproduction and closure — 2026-09-21
+
+`.venv/bin/python scripts/backtest.py --verify` exited **0** after all 18
+profile/configuration/wear combinations (26,280 strategy-days), with no stopped
+runs. The reported computation elapsed time was **3007.7092511251103 seconds**;
+retained-result loading and artifact comparison followed it. Final output:
+
+```json
+{"offline_reproduction_matches": true, "derived_artifacts_match": true, "elapsed_seconds": 3007.7092511251103}
+```
+
+Full log: `/tmp/hirz-19a-backtest.log`. Published files and figures were not rewritten.
+Hourly billing coverage remains 194/365 days (0.5315068493150685); all strategy days
+completed, and completion is not represented as complete historical billing data.
+The source distribution and wheel were rebuilt from the final source state.
+
+The first final format check found one assertion needing line wrapping in the
+existing executor integration test. After formatting that assertion,
+`.venv/bin/ruff format --check .` passed: **172 files already formatted**. Ruff lint,
+strict mypy and `git diff --check` also passed. All local item 19a gates are earned;
+completion records are updated below this evidence without changing published
+backtest artifacts or advancing the development database.

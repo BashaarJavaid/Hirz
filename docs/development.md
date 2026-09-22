@@ -761,7 +761,7 @@ print connection parameters. Verification evidence: [item 18](./verification-log
 
 ## Item 19 durable local execution
 
-Item 19 remains local (`dogwood-local`). The migration head is
+Item 19 remains local (`dogwood-local`). The execution migration is
 `0007_execution_lifecycle`; the development database is intentionally still on
 `0005_execution_attempt`. No command below implicitly migrates or initializes it.
 Use the disposable smoke paths for verification before choosing an explicit
@@ -815,8 +815,8 @@ nonzero EV/battery control also requires an explicit new bounded ending.
 Plan approval reserves its derived electricity-plus-wear estimate under a separate
 `energy.optimize_cost` grant. Device rules, votes and TTLs still apply. Unknown
 per-device estimates remain unknown, and a configured device budget can refuse them.
-A `refreshing` plan cannot be approved: record an explicit new revision. Refunds,
-settlement, automatic refresh (19a), notification delivery, and full scenario wiring
+A refreshing or blocked plan cannot be approved; item 19a supplies durable refresh
+below. Actual billing settlement, notification delivery and full scenario wiring
 (22) are deferred. Pending notices are records to show the addressed member; no push
 or email delivery is claimed.
 
@@ -826,3 +826,46 @@ configuration requires a separate disposable household/database; do not overwrit
 a checkpoint to force compatibility. Due endings precede new openings and survive
 pause, cancellation and policy changes. A stopped local worker/database cannot
 perform endings until it returns; offline home-owned endings remain item 38a.
+
+
+## Item 19a: durable local plan refresh
+
+The migration head is `0008_plan_refresh`. Development remains on
+`0005_execution_attempt`; only disposable verification databases were migrated.
+The migration preserves legacy proposals and audit evidence. A legacy plan needs a
+complete replacement workload from an eligible member before further openings;
+existing authorized endings remain runnable.
+
+```sh
+export HIRZ_DOGWOOD="$PWD/.tools/dogwood"
+uv run python scripts/smoke_refresh.py --audit-output /tmp/hirz-refresh-twin-NEW.json
+uv run python scripts/smoke_refresh.py --live-demo --audit-output /tmp/hirz-refresh-ha-NEW.json
+uv run pytest tests/unit/test_refresh.py --no-cov
+uv run pytest tests/integration/test_refresh_database.py -m integration --no-cov --tb=short
+```
+
+Both smokes create isolated databases and launch separate workers for queued and
+abandoned-running restart cases. They retain signed exports and verify them offline.
+The live variant uses the reviewed HA demo mapping, a declared synthetic thermal
+workload, and restores every changed thermostat/light setting through Pipeline;
+it leaves ecobee read-only. These checks do not calibrate a real home's thermal
+model. A failed run retains its disposable database; use a new audit output path
+for each attempt. No command above migrates development data.
+
+`PlanService.record/revise(..., runtime=RuntimeInputs.from_schedule(inputs, schedule))`
+requires complete supplied physical/forecast inputs for execution. Internal callers
+can request refresh (including plain explicit “change”), update supplied inputs or
+read the canonical current Plan through `request_refresh`, `update_inputs` and
+`read_current`. `explicit=False` is for trusted automatic triggers, not a consumer
+consent shortcut. An explicit eligible member retry names `retry_action_id`; failed
+operations otherwise retain exhaustion across plan versions. Inspect held reads and
+signed job transitions for blocking reasons. Successful reads clear transient read
+failure; conflicts need a relevant change or an explicit request.
+
+The normal worker now polls configured adapters and services refresh with a separate
+connection/solver thread while prioritizing endings. `--once` finishes the batch
+ready at invocation and one execution sweep; it never waits for a future retry.
+`HIRZ_ADAPTERS=devices:ha` and the reviewed HA mapping support HA-only thermal plans;
+missing required domains fail closed. Twin price/weather/calendar changes use the
+existing configured adapters; live price/weather ingestion remains deferred.
+MCP endpoints, companion delivery, AWS and remote CI are not verified here.

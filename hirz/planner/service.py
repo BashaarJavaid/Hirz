@@ -31,6 +31,30 @@ from hirz.planner.models import (
 from hirz.planner.solver import solve
 
 
+def quantized(p: PlannerInput, schedule: Schedule) -> Schedule:
+    if not p.actuator_precision and not any(z.setpoint_step_f for z in p.zones):
+        return schedule
+    controls = []
+    for control in schedule.controls:
+        targets = tuple(
+            (round(t, 4) if p.actuator_precision else t)
+            if z.setpoint_step_f is None
+            else round((t - z.setpoint_origin_f) / z.setpoint_step_f)
+            * z.setpoint_step_f
+            + z.setpoint_origin_f
+            for t, z in zip(control.targets, p.zones, strict=True)
+        )
+        targets = tuple(
+            min(
+                z.setpoint_upper_f if z.setpoint_upper_f is not None else t,
+                max(z.setpoint_lower_f if z.setpoint_lower_f is not None else t, t),
+            )
+            for z, t in zip(p.zones, targets, strict=True)
+        )
+        controls.append(control.model_copy(update={"targets": targets}))
+    return schedule.model_copy(update={"controls": tuple(controls)})
+
+
 def peak(p: PlannerInput, r: Replay) -> float:
     return sum(
         energy
@@ -216,6 +240,7 @@ def plan(
         schedule, diagnostics = solve(p)
         if schedule is None and diagnostics.status == "timeout":
             schedule = baseline(p)
+    schedule = quantized(p, schedule) if schedule is not None else None
     checked = forecast_replay(p, schedule) if schedule is not None else None
     if schedule is None or checked is None or not checked.valid:
         blocking = []
@@ -247,7 +272,7 @@ def plan(
             provenance=p.provenance,
         )
     baselines = {
-        name: forecast_replay(p, baseline(p, name))
+        name: forecast_replay(p, quantized(p, baseline(p, name)))
         for name in ("timer", "immediate", "greedy")
     }
     alternatives = []

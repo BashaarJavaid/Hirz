@@ -20,7 +20,7 @@ BASES = {
     "low": "energy.optimize_cost energy.hvac_adjust energy.ev_charge energy.battery_dispatch "
     "environment.lights environment.comfort_profile environment.shades "
     "health.routine_reminders health.comfort_preferences communication.notify_member "
-    "communication.contact_trusted_contact finance.verify_request governance.pause_automation governance.resume_automation governance.record_constraint governance.withdraw_constraint governance.record_plan governance.approve_plan governance.revise_plan governance.cancel_plan governance.record_observations",
+    "communication.contact_trusted_contact finance.verify_request governance.pause_automation governance.resume_automation governance.record_constraint governance.withdraw_constraint governance.record_plan governance.approve_plan governance.revise_plan governance.cancel_plan governance.record_observations governance.refresh_plan",
     "medium": "energy.appliance_start",
     "high": "communication.contact_emergency_services security.door_unlock "
     "security.camera_disable security.arm_disarm",

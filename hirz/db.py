@@ -485,6 +485,11 @@ plans = sa.Table(
     ),
     sa.Column("plan_id", sa.Text, primary_key=True),
     sa.Column("document", JSONB, nullable=False),
+    sa.Column("runtime", JSONB),
+    sa.Column("reservation", JSONB),
+    sa.Column("requester", JSONB),
+    sa.Column("lineage_id", sa.Text),
+    sa.Column("accepted_at", sa.DateTime(timezone=True)),
     sa.Column("approver", JSONB),
     sa.Column("member_id", sa.UUID),
     sa.Column("audit_seq", sa.BigInteger, nullable=False),
@@ -494,6 +499,31 @@ plans = sa.Table(
     sa.ForeignKeyConstraint(
         ["household_id", "audit_seq"], ["audit_log.household_id", "audit_log.seq"]
     ),
+)
+plan_refresh_jobs = sa.Table(
+    "plan_refresh_jobs",
+    metadata,
+    sa.Column("household_id", sa.UUID, primary_key=True),
+    sa.Column("lineage_id", sa.Text, primary_key=True),
+    sa.Column("plan_id", sa.Text, nullable=False),
+    sa.Column("state", sa.Text, nullable=False),
+    sa.Column("requested_generation", sa.BigInteger, nullable=False),
+    sa.Column("running_generation", sa.BigInteger),
+    sa.Column("reasons", JSONB, nullable=False),
+    sa.Column("explicit", sa.Boolean, nullable=False),
+    sa.Column("attempts", sa.Integer, nullable=False),
+    sa.Column("next_retry", sa.DateTime(timezone=True)),
+    sa.Column("blocking_reason", sa.Text),
+    sa.Column("fingerprint", JSONB, nullable=False),
+    sa.Column("audit_seq", sa.BigInteger, nullable=False),
+    sa.ForeignKeyConstraint(
+        ["household_id", "plan_id"], ["plans.household_id", "plans.plan_id"]
+    ),
+    sa.ForeignKeyConstraint(
+        ["household_id", "audit_seq"], ["audit_log.household_id", "audit_log.seq"]
+    ),
+    sa.CheckConstraint("state IN ('queued','running','blocked','idle','cancelled')"),
+    sa.CheckConstraint("requested_generation >= 0 AND attempts >= 0"),
 )
 plan_actions = sa.Table(
     "plan_actions",

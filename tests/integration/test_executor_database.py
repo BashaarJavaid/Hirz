@@ -101,6 +101,7 @@ def test_sleep_at_execution_and_revoked_identity(scratch_database):
     async def run():
         async with connect(scratch_database) as c:
             p, w, r, e = await environment(c)
+            e.refresh_polls = True
             try:
                 a = action(w, "energy.hvac_adjust")
                 assert (await p.enqueue(a, PRINCIPAL)).status == "executing"
@@ -304,6 +305,44 @@ def proposal(w, *, supersedes=None, version=1, cost=1):
     return plan, (a,)
 
 
+def runtime_for(plan):
+    from hirz.executor.runtime import RuntimeInputs
+    from hirz.pipeline.models import Requester
+    from hirz.planner.models import Control, PlannerInput, Schedule, Slot
+
+    slot = Slot(
+        start=plan.horizon.start,
+        end=plan.horizon.end,
+        price=1,
+        outdoor_f=70,
+        solar_kw=0,
+    )
+    inputs = PlannerInput(
+        household_id=plan.household_id,
+        requester=Requester(member_id=None, role="unknown", surface="app"),
+        slots=(slot,),
+        ev=None,
+        ev_target=0,
+        ev_deadline=slot.end,
+        battery=None,
+        zones=(),
+        appliance=None,
+        appliance_release=slot.start,
+        appliance_deadline=slot.end,
+        base_load_kw=plan.summary.electricity_usd / slot.hours,
+        provenance=("Explicit synthetic consent fixture",),
+    )
+    schedule = Schedule(
+        controls=(
+            Control(
+                ev_kwh=0, battery_kw=0, targets=(), modes=(), appliance_start=False
+            ),
+        ),
+        method="greedy",
+    )
+    return RuntimeInputs.from_schedule(inputs, schedule)
+
+
 def test_plan_consent_revision_budget_cancel_and_attribution(scratch_database):
     async def run():
         async with connect(scratch_database) as c:
@@ -312,7 +351,9 @@ def test_plan_consent_revision_budget_cancel_and_attribution(scratch_database):
                 service = PlanService(p)
                 plan, actions = proposal(w)
                 assert (
-                    await service.record(plan, actions, PRINCIPAL)
+                    await service.record(
+                        plan, actions, PRINCIPAL, runtime=runtime_for(plan)
+                    )
                 ).decision == "execute"
                 assert (
                     await p.redeem(actions[0], PRINCIPAL, cost=Decimal(0))
@@ -327,7 +368,9 @@ def test_plan_consent_revision_budget_cancel_and_attribution(scratch_database):
                     w, supersedes=plan.plan_id, version=2, cost=2
                 )
                 assert (
-                    await service.revise(revision, revised, PRINCIPAL)
+                    await service.revise(
+                        revision, revised, PRINCIPAL, runtime=runtime_for(revision)
+                    )
                 ).decision == "execute"
                 async with c.begin():
                     assert (await row(p, actions[0].action_id))[
@@ -348,7 +391,9 @@ def test_plan_consent_revision_budget_cancel_and_attribution(scratch_database):
                         .date()
                         .isoformat(),
                     )
-                    assert budget == Decimal(3)
+                    assert budget == Decimal(
+                        2
+                    )  # unstarted predecessor reservation was released
                 assert (await e.sweep())[0].status == "verified"
                 assert (
                     await service.cancel(revision.plan_id, PRINCIPAL)
@@ -375,14 +420,18 @@ def test_plan_role_restrictions_refreshing_and_cross_household(scratch_database)
                     await service.record(foreign, actions, PRINCIPAL)
                 ).decision == "deny"
                 assert (
-                    await service.record(plan, actions, PRINCIPAL)
+                    await service.record(
+                        plan, actions, PRINCIPAL, runtime=runtime_for(plan)
+                    )
                 ).decision == "execute"
                 assert (
                     await service.approve(plan.plan_id, PRINCIPAL)
                 ).decision == "execute"
                 pause = governance(p, "pause_automation", {}, PRINCIPAL)
                 await p.redeem(pause, PRINCIPAL)
-                assert (await e.sweep())[0].decision == "ask"
+                assert (await e.sweep())[
+                    0
+                ].decision == "deny"  # pause invalidates the accepted plan
                 with pytest.raises(ValueError, match="consent"):
                     await service.approve(plan.plan_id, PRINCIPAL)
                 async with c.begin():
@@ -539,7 +588,9 @@ def test_autonomous_revision_inherits_and_cancellation_retains_ending(scratch_da
                 a = changed(bounded(w, 60), plan_id=plan.plan_id)
                 plan = plan.model_copy(update={"actions": (a.action_id,)})
                 assert (
-                    await service.record(plan, (a,), PRINCIPAL)
+                    await service.record(
+                        plan, (a,), PRINCIPAL, runtime=runtime_for(plan)
+                    )
                 ).decision == "execute"
                 assert (
                     await service.approve(plan.plan_id, PRINCIPAL)
@@ -554,13 +605,21 @@ def test_autonomous_revision_inherits_and_cancellation_retains_ending(scratch_da
                 assert (await e.sweep())[0].status == "verified"
                 assert state(w, a)["on"] is False
                 plan2, actions2 = proposal(w)
-                await service.record(plan2, actions2, PRINCIPAL)
+                await service.record(
+                    plan2, actions2, PRINCIPAL, runtime=runtime_for(plan2)
+                )
                 assert (
                     await service.approve(plan2.plan_id, PRINCIPAL)
                 ).decision == "execute"
                 newer, newest = proposal(w, supersedes=plan2.plan_id, version=2)
                 scheduler = PRINCIPAL.model_copy(update={"surface": "scheduler"})
-                result = await service.revise(newer, newest, scheduler, autonomous=True)
+                result = await service.revise(
+                    newer,
+                    newest,
+                    scheduler,
+                    autonomous=True,
+                    runtime=runtime_for(newer),
+                )
                 assert result.decision == "execute", result.model_dump_json()
                 async with c.begin():
                     stored = await row(p, newest[0].action_id)

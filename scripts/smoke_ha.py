@@ -276,7 +276,12 @@ async def disposable(values: dict[str, str]) -> AsyncIterator[AsyncConnection]:
 
 
 async def live(
-    config_path: Path, plug: bool, audit_output: Path, *, durable: bool = False
+    config_path: Path,
+    plug: bool,
+    audit_output: Path,
+    *,
+    durable: bool = False,
+    refresh: bool = False,
 ) -> None:
     if audit_output.exists() or audit_output.is_symlink():
         raise AdapterError("Audit output must be a new file.")
@@ -342,6 +347,26 @@ async def live(
                         )
                 for row in observations:
                     await repo.put("observations", row)
+                if refresh:
+                    for asset in assets:
+                        if asset.kind == "ev":
+                            await repo.put(
+                                "observations",
+                                Observation(
+                                    id=uuid4(),
+                                    household_id=home.id,
+                                    asset_id=asset.id,
+                                    domain="ev",
+                                    source="twin",
+                                    observed_at=bootstrap_at,
+                                    state=ObservationState(
+                                        soc=0.5,
+                                        plugged_in=True,
+                                        available=True,
+                                        charging=False,
+                                    ),
+                                ),
+                            )
                 for member in members:
                     await repo.put(
                         "observations",
@@ -501,6 +526,14 @@ async def live(
                         )
                     print(
                         f"subscription={entity}; source={row.source}; power_kw={row.state.power_kw}; direct_power_kw={direct.state.power_kw}"
+                    )
+                if refresh:
+                    from scripts.smoke_refresh import exercise
+
+                    assert executor_registry is not None
+                    await exercise(pipeline, executor_registry)
+                    print(
+                        "refresh=PASS; source=real API, demo devices; ecobee=read_only"
                     )
             except Exception as exc:
                 failure = exc

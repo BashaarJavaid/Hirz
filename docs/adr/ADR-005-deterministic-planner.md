@@ -239,3 +239,26 @@ verification. Coordinator-supplied HVAC asset IDs populate target zones before
 hashing. Rejected retroactively changing approved commands, extending a late
 opening's interval, cancelling a required ending, and counting future temperature
 or delivered charge as immediate command verification.
+
+## Durable refresh amendment — 2026-09-21
+
+Refresh rebuilds an explicitly supplied workload from current configured facts;
+physical parameters and forecast coverage are never inferred. It preserves the
+approved horizon, original battery terminal obligation, delivered EV energy,
+completed appliance work and running cycles. Started bounded controls remain fixed
+until their existing endings. Forecast slots split at commitments and rate changes.
+HA thermal plans use observed heat/cool mode, device limits and optional advertised
+setpoint increments; unsupported modes or missing required facts are held conflicts.
+
+Timer, immediate and greedy comparisons replay the same remaining workload and
+commitments. Published comparisons are labeled remaining-horizon estimates; a
+blocked read invalidates claims without rewriting the historical proposal. Strict
+per-asset prediction defaults are >1°F, >2 percentage points SoC and >0.25 kW.
+Persisted fingerprints omit retrieval timestamps; unmatched observed thermostat
+controls create renewable two-hour holds, with no inferred physical actor.
+
+Rejected resetting battery obligations to the current SoC, restarting completed
+appliances, extending bounded operations during refresh, silently substituting twin
+facts for real devices, adding savings across revisions, and hiding infeasibility
+behind historical claims. Internal refresh only: MCP, companion delivery, scenario
+orchestration, live price/weather ingestion and AWS remain outside this item.

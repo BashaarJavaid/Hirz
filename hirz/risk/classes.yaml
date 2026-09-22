@@ -28,3 +28,4 @@ governance.approve_plan: {impact: 1, reversibility: reversible, band: LOW, fresh
 governance.revise_plan: {impact: 1, reversibility: reversible, band: LOW, freshness_seconds: 300}
 governance.cancel_plan: {impact: 1, reversibility: reversible, band: LOW, freshness_seconds: 300}
 governance.record_observations: {impact: 1, reversibility: reversible, band: LOW, freshness_seconds: 300}
+governance.refresh_plan: {impact: 1, reversibility: reversible, band: LOW, freshness_seconds: 300}

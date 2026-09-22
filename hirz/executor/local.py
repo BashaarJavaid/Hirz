@@ -16,6 +16,7 @@ from hirz.adapters.energy.real import factories as energy_factories
 from hirz.adapters.registry import Registry, parse_config
 from hirz.constitution.boundary import Dogwood
 from hirz.constitution.schema import loads
+from hirz.executor.refresh_worker import RefreshWorker
 from hirz.executor.service import Executor
 from hirz.graph.models import (
     AdapterDomain,
@@ -28,6 +29,7 @@ from hirz.graph.models import (
 )
 from hirz.local import read_env, signing_key
 from hirz.pipeline.audit import AuditWriter
+from hirz.pipeline.models import Decision
 from hirz.pipeline.service import Pipeline, PolicyBundle
 from hirz.planner.coordinator import clean
 from hirz.twin.adapters import factories
@@ -106,6 +108,10 @@ async def compose(
             )
         )
         sources[("energy", "real", home.id)] = "real"
+    if world is None:
+        # Without a configured world, synthetic domains cannot be read or executed.
+        # A refresh requiring one will fail its required-device check.
+        bindings = tuple(b for b in bindings if b.adapter != "twin")
     return Registry(
         home,
         members=members,
@@ -171,31 +177,69 @@ async def worker(args: argparse.Namespace) -> int:
                 else None,
             )
             executor = Executor(
-                p, registry, world=world, reload_policy=lambda: policy(p)
+                p,
+                registry,
+                world=world,
+                reload_policy=lambda: policy(p),
+                refresh_polls=True,
             )
             await registry.start()
             try:
-                while True:
-                    decisions = await executor.sweep()
-                    print(
-                        json.dumps(
-                            {
-                                "engine": "dogwood-local",
-                                "sources": sorted(
-                                    set(registry.sources.values())
-                                    | ({"twin"} if world else set())
-                                ),
-                                "decisions": [
-                                    d.model_dump(mode="json", by_alias=True)
-                                    for d in decisions
-                                ],
-                            }
-                        ),
-                        flush=True,
+                async with db.connect_database(
+                    values, database=args.database
+                ) as refresh_connection:
+                    refresh_pipeline = Pipeline(
+                        refresh_connection, p.bundle, boundary, p.audit, clock
                     )
-                    if args.once:
-                        return 0
-                    await asyncio.sleep(1)
+                    refresh_registry = await compose(
+                        refresh_pipeline,
+                        world=world,
+                        ha_path=Path(os.environ["HIRZ_HA_CONFIG"])
+                        if os.environ.get("HIRZ_HA_CONFIG")
+                        else None,
+                    )
+                    await refresh_registry.start()
+                    try:
+                        refresh = RefreshWorker(
+                            refresh_pipeline, refresh_registry, world=world
+                        )
+                        while True:
+                            refresh_pipeline.bundle = await policy(refresh_pipeline)
+                            task = asyncio.create_task(refresh.batch())
+                            decisions: list[Decision] = []
+                            try:
+                                while not task.done():
+                                    decisions.extend(
+                                        await executor.sweep(endings_only=True)
+                                    )
+                                    await asyncio.wait({task}, timeout=0.1)
+                                await task
+                            finally:
+                                if not task.done():
+                                    task.cancel()
+                                    await asyncio.gather(task, return_exceptions=True)
+                            decisions.extend(await executor.sweep())
+                            print(
+                                json.dumps(
+                                    {
+                                        "engine": "dogwood-local",
+                                        "sources": sorted(
+                                            set(registry.sources.values())
+                                            | ({"twin"} if world else set())
+                                        ),
+                                        "decisions": [
+                                            d.model_dump(mode="json", by_alias=True)
+                                            for d in decisions
+                                        ],
+                                    }
+                                ),
+                                flush=True,
+                            )
+                            if args.once:
+                                return 0
+                            await asyncio.sleep(1)
+                    finally:
+                        await refresh_registry.close()
             finally:
                 await registry.close()
     except Exception:

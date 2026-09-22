@@ -8,6 +8,8 @@ All notable changes are documented here. The format follows
 
 ### Changed
 
+- 2026-09-21: Add durable local plan refresh, remaining-work recovery, inherited consent with fresh device checks, append-only reservation transfers and truthful held reads; verify twin/HA restart and restoration without migrating development data ([item 19a evidence](./docs/verification-log.md#item-19a--2026-09-21), [refresh contract](./ARCHITECTURE.md#54-planner)).
+
 - 2026-09-21: Add durable local execution, explicit plan consent/revisions, signed bounded endings and recoverable twin checkpoints; retain automatic refresh as item 19a ([item 19 evidence](./docs/verification-log.md#item-19--2026-09-21), [execution contracts](./docs/development.md#item-19-durable-local-execution)).
 
 - 2026-09-21: Add audited, account-attributed coordinator intake, explicit conflict resolution, comfort precedence and two-hour twin thermostat holds ([ADR-005](./docs/adr/ADR-005-deterministic-planner.md#coordinator-amendment--2026-09-21), [item 18 evidence](./docs/verification-log.md#item-18--2026-09-21)); keep plan persistence and execution deferred.

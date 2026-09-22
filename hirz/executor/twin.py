@@ -63,9 +63,29 @@ async def restore(p: "Pipeline", world: TwinWorld) -> None:
             raise ValueError("Twin checkpoint does not match its signed evidence")
         if row["config_hash"] != configuration(world):
             raise ValueError("Twin configuration differs from its committed checkpoint")
+        async with p.connection.begin():
+            latest = dict(
+                (
+                    await p.connection.execute(
+                        sa.select(db.audit_log)
+                        .where(p.scope(db.audit_log))
+                        .order_by(db.audit_log.c.seq.desc())
+                        .limit(1)
+                    )
+                )
+                .mappings()
+                .one()
+            )
+        Verification(p.household_id, p.audit.key.public_key()).feed(latest)
+        # Lifecycle commits can follow the last physical checkpoint. Resume the last
+        # signed simulated instant, never backdate writes or add wall-clock downtime.
+        committed_at = max(row["at"], latest["created_at"])
         world._state = State.model_validate(row["state"])
         world._at = world._last_read = row["at"]
-        world.clock = SimClock(row["at"], world.clock._speed, timer=world.clock._timer)
+        world.clock = SimClock(
+            committed_at, world.clock._speed, timer=world.clock._timer
+        )
+        world.read()
 
 
 async def checkpoint(p: "Pipeline", world: TwinWorld, state: State, seq: int) -> None:

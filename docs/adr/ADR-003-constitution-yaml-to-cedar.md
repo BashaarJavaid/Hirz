@@ -171,3 +171,18 @@ opening policy and retained under that operation's grant. Ordinary rollback is a
 fresh request evaluated under current policy. Rejected transferring an approval to
 a retry, allowing a new target in an ending, and treating plan consent as an
 exception to household device rules. Enforcement remains `dogwood-local`.
+
+## Durable refresh amendment — 2026-09-21
+
+Add reserved internal `governance.refresh_plan` (31 catalog classes) for trusted
+refresh input changes, requests and transitions. Background operations use the
+approver's linked account, or the requester before consent, with scheduler surface;
+current account/role/policy authority is checked again at publication and dispatch.
+No synthetic system member or consumer free-form mutation tool is introduced.
+
+Plan consent is inherited only for automatic replacements; a coalesced explicit
+member change wins and requires fresh consent. All unstarted predecessor approvals
+expire. New actions receive fresh IDs, current device authorization, quorum and TTL.
+Reservation transfers use the append-only rules in constitution §2.4, inside the
+same transaction as publication and consent. Rejected plan consent as device
+permission, retry reset through new plan IDs, and releasing uncertain expenditure.

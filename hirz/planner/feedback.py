@@ -28,7 +28,11 @@ def battery_envelope(p: PlannerInput) -> tuple[list[float], list[float]]:
     if p.battery is None:
         return [0.0] * (len(p.slots) + 1), [0.0] * (len(p.slots) + 1)
     battery = p.battery
-    opening = battery.soc * battery.capacity_kwh
+    opening = (
+        p.battery_terminal_kwh
+        if p.battery_terminal_kwh is not None
+        else battery.soc * battery.capacity_kwh
+    )
     eta = math.sqrt(battery.efficiency)
     upper = [opening] * (len(p.slots) + 1)
     lower = [opening] * (len(p.slots) + 1)

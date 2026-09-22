@@ -12,7 +12,7 @@ from hirz.twin.physics import changed
 
 
 def appliance_windows(p: PlannerInput) -> dict[int, tuple[float, ...]]:
-    if p.appliance is None:
+    if p.appliance is None or p.appliance.running:
         return {}
     _, _, release = effective(p)
     result = {}
@@ -30,6 +30,22 @@ def appliance_windows(p: PlannerInput) -> dict[int, tuple[float, ...]]:
     return result
 
 
+def running_load(p: PlannerInput) -> tuple[float, ...]:
+    appliance = p.appliance
+    result = []
+    for slot in p.slots:
+        after = (
+            appliance.advance(slot.hours * 3600)
+            if appliance and appliance.running
+            else appliance
+        )
+        result.append(
+            after.energy_kwh - appliance.energy_kwh if after and appliance else 0.0
+        )
+        appliance = after
+    return tuple(result)
+
+
 def baseline(
     p: PlannerInput, method: Literal["timer", "immediate", "greedy"] = "greedy"
 ) -> Schedule:
@@ -40,10 +56,14 @@ def baseline(
     need = (
         0 if p.ev is None else (target - p.ev.soc) * p.ev.capacity_kwh / p.ev.efficiency
     )
+    if p.fixed_ev_kwh:
+        ev = [v or 0.0 for v in p.fixed_ev_kwh]
+        need -= sum(ev)
     eligible = [
         i
         for i, s in enumerate(p.slots)
         if p.ev is not None
+        and (not p.fixed_ev_kwh or p.fixed_ev_kwh[i] is None)
         and s.start >= ev_start
         and s.end <= p.ev_deadline
         and (
@@ -90,12 +110,14 @@ def baseline(
     battery = p.battery
     controls = []
     net_load = []
+    running = running_load(p)
     envelopes = [comfort_envelope(z, p.slots) for z in p.zones]
     for i, slot in enumerate(p.slots):
         targets: list[float] = []
         modes: list[Literal["heat", "cool", "off"]] = []
         load = (
             p.base_load_kw * slot.hours
+            + running[i]
             + ev[i]
             + (windows[start][i] if start >= 0 else 0)
         )
@@ -115,6 +137,8 @@ def baseline(
             mode: Literal["heat", "cool", "off"] = (
                 "heat" if passive.temp_f < target_f else "cool"
             )
+            if spec.control_mode is not None:
+                mode = spec.control_mode
             if spec.held_targets and spec.held_targets[i] is not None:
                 target_f = float(spec.held_targets[i] or 0)
                 mode = spec.held_modes[i] or "off"
@@ -140,7 +164,11 @@ def baseline(
         )
     if battery is not None:
         eta = math.sqrt(battery.efficiency)
-        opening = battery.soc * battery.capacity_kwh
+        opening = (
+            p.battery_terminal_kwh
+            if p.battery_terminal_kwh is not None
+            else battery.soc * battery.capacity_kwh
+        )
         # Equal terminal energy: only store surplus that can serve forecast load
         # before the boundary. This uses the same forecast as every strategy.
         ceiling = [opening] * (len(p.slots) + 1)
@@ -182,6 +210,8 @@ def baseline(
                 dispatch = min(
                     net, battery.power_kw, max(0, energy - floor) * eta / slot.hours
                 )
+            if p.fixed_battery_kw and p.fixed_battery_kw[i] is not None:
+                dispatch = float(p.fixed_battery_kw[i] or 0)
             battery = changed(battery, dispatch_kw=dispatch).advance(slot.hours * 3600)
             controls[i] = changed(controls[i], battery_kw=dispatch)
     return Schedule(controls=tuple(controls), method=method)

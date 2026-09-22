@@ -212,6 +212,22 @@ Not in the grammar, on purpose: loops, recursion, user functions, string manipul
 turns `auto` into `ask`; an action crossing it is `DENY_BUDGET`, including after
 approval. Item 7 validates and renders this configuration; item 9 enforces it.
 
+Plan refresh reservations (item 19a) use nonnegative per-interval electricity plus
+wear estimates. Elapsed and irrevocably committed allocations stay on their original
+grant's local date. Uncertain dispatch retains its allocation; negative prices never
+refund committed usage. Whole-house intervals are conservatively retained through
+the latest outstanding ending or running cycle. Replacement estimates deduct only
+the overlapping retained allocation, avoiding a second reservation for commitments.
+Demonstrably replaceable amounts are released by signed `RESERVATION_ADJUSTED`
+entries referencing the original grant/date; grants are never rewritten. New amounts
+require a fresh `energy.optimize_cost` grant on the replacement's local date.
+Release, publication and the new grant are one serialized transaction: a refused
+increase rolls everything back and leaves execution held. Equality/over-cap rules
+above still apply, including concurrent requests and midnight. Actual billing
+settlement remains deferred. A stored plan's validated workload determines required
+budget facts; an EV-floor rule still requires fresh EV evidence even in an HA-only
+thermal workload.
+
 Bounds are hard authorization limits, including after approval: `min_f/max_f`
 compare `action.params.target_f`, `ev_soc_floor` compares the same-named parameter,
 `max_open_minutes` compares `action.params.open_minutes`, and `max_minutes`

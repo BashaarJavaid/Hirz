@@ -13,7 +13,7 @@ from scipy.optimize import (  # type: ignore[import-untyped]
 from scipy.sparse import coo_matrix  # type: ignore[import-untyped]
 
 from hirz.planner.feedback import battery_envelope, comfort_envelope
-from hirz.planner.heuristic import appliance_windows
+from hirz.planner.heuristic import appliance_windows, running_load
 from hirz.planner.models import Control, PlannerInput, Schedule, SolverDiagnostics
 from hirz.planner.replay import effective
 from hirz.twin.physics import changed
@@ -60,7 +60,7 @@ def solve(p: PlannerInput) -> tuple[Schedule | None, SolverDiagnostics]:
     target, ev_start, _ = effective(p)
     windows = appliance_windows(p)
     starts = {i: m.var(1, high=1, integer=True)[0] for i in windows}
-    if p.appliance is not None:
+    if p.appliance is not None and not p.appliance.running:
         m.row(
             dict.fromkeys(starts.values(), 1.0),
             1,
@@ -89,7 +89,9 @@ def solve(p: PlannerInput) -> tuple[Schedule | None, SolverDiagnostics]:
         for i, v in enumerate(energy):
             m.lower[v], m.upper[v] = lower[i], upper[i]
     m.lower[energy[0]] = m.upper[energy[0]] = opening
-    m.lower[energy[-1]] = m.upper[energy[-1]] = opening
+    m.lower[energy[-1]] = m.upper[energy[-1]] = (
+        p.battery_terminal_kwh if p.battery_terminal_kwh is not None else opening
+    )
     preferences: dict[int, float] = {}
     temperatures, heating, cooling = [], [], []
     for spec in p.zones:
@@ -147,6 +149,10 @@ def solve(p: PlannerInput) -> tuple[Schedule | None, SolverDiagnostics]:
                 m.lower[heat[i]] = m.upper[heat[i]] = max(0, thermal)
                 m.lower[cool[i]] = m.upper[cool[i]] = max(0, -thermal)
                 held_zone = after
+            if spec.control_mode == "heat":
+                m.upper[cool[i]] = 0
+            elif spec.control_mode == "cool":
+                m.upper[heat[i]] = 0
             dt = s.hours
             passive = (
                 s.outdoor_f / z.resistance_f_per_kw
@@ -172,6 +178,7 @@ def solve(p: PlannerInput) -> tuple[Schedule | None, SolverDiagnostics]:
                 z.hvac_kw * dt,
                 "cooling power",
             )
+    running = running_load(p)
     for i, s in enumerate(p.slots):
         dt = s.hours
         m.upper[ev[i]] = (
@@ -179,6 +186,12 @@ def solve(p: PlannerInput) -> tuple[Schedule | None, SolverDiagnostics]:
             if p.ev is None or s.start < ev_start or s.end > p.ev_deadline
             else p.ev.charger_kw * dt
         )
+        if p.fixed_ev_kwh and p.fixed_ev_kwh[i] is not None:
+            m.lower[ev[i]] = m.upper[ev[i]] = float(p.fixed_ev_kwh[i] or 0)
+        if p.fixed_battery_kw and p.fixed_battery_kw[i] is not None:
+            fixed = float(p.fixed_battery_kw[i] or 0)
+            m.lower[charge[i]] = m.upper[charge[i]] = max(0, -fixed * dt)
+            m.lower[discharge[i]] = m.upper[discharge[i]] = max(0, fixed * dt)
         for c in p.constraints:
             if (
                 c.kind == "ev_ceiling"
@@ -256,7 +269,7 @@ def solve(p: PlannerInput) -> tuple[Schedule | None, SolverDiagnostics]:
             balance[heating[j][i]] = balance[cooling[j][i]] = -1 / spec.physical.cop
         for start, v in starts.items():
             balance[v] = -windows[start][i]
-        rhs = (p.base_load_kw - s.solar_kw) * dt
+        rhs = (p.base_load_kw - s.solar_kw) * dt + running[i]
         m.row(balance, rhs, rhs, "household energy balance")
     row, col, data = [], [], []
     for i, terms in enumerate(m.rows):
@@ -388,6 +401,8 @@ def solve(p: PlannerInput) -> tuple[Schedule | None, SolverDiagnostics]:
                 modes=tuple(
                     p.zones[j].held_modes[i] or "off"
                     if p.zones[j].held_modes and p.zones[j].held_modes[i] is not None
+                    else p.zones[j].control_mode or "off"
+                    if p.zones[j].control_mode is not None
                     else "heat"
                     if x[h[i]] > 1e-8
                     else "cool"

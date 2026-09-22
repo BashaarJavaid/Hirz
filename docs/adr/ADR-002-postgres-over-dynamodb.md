@@ -182,3 +182,22 @@ from the committed simulated instant, excluding downtime. Rejected an in-memory
 queue, a second job service, database locks held during device calls, and resending
 an uncertain Action ID. Local recovery requires the worker and database to return;
 this does not implement Hirz Link's offline ending guarantee.
+
+## Durable refresh amendment — 2026-09-21
+
+`0008_plan_refresh` extends plans with explicit runtime/prediction inputs, requester,
+acceptance time and reservation lineage. A household/lineage primary key coalesces
+`queued`, `running`, `blocked`, `idle` and `cancelled` jobs with requested/running
+generations, reasons, attempts, retry time, fingerprints and signed audit references.
+Downgrade refuses retained refresh evidence. Pipeline-guarded lifecycle operations
+and the existing graph transaction make triggering mutations and opening holds
+atomic; there is no job-history table because the signed audit already records it.
+
+A separate session advisory lock permits one solver per household; transactions
+close during polling/computation. A second connection services authorized endings.
+Generation and input checks precede publication. Lost ownership permits restart
+recovery; cancellation waits for the solver thread before releasing ownership.
+Twin restore resumes the latest signed simulated instant, including lifecycle rows
+newer than the physical checkpoint, then advances physics from that checkpoint.
+Rejected process-local jobs, a second queue service, transactions held through
+network/solver calls, and backdating restart writes to an older checkpoint.

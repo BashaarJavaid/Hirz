@@ -291,6 +291,9 @@ class HomeAssistant:
                 state = ObservationState(
                     available=True,
                     temp_f=fahrenheit(attrs["current_temperature"], unit),
+                    mode=data["state"]
+                    if data["state"] in {"heat", "cool", "off"}
+                    else None,
                     target_f=fahrenheit(attrs["temperature"], unit)
                     if attrs.get("temperature") is not None
                     else None,

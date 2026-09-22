@@ -45,6 +45,18 @@ def replay(p: PlannerInput, schedule: Schedule) -> Replay:
                 )
             ):
                 reasons.append("Manual thermostat hold changed")
+        if (
+            p.fixed_ev_kwh
+            and p.fixed_ev_kwh[i] is not None
+            and abs(control.ev_kwh - (p.fixed_ev_kwh[i] or 0)) > ENERGY_TOL
+        ):
+            reasons.append("Authorized EV commitment changed")
+        if (
+            p.fixed_battery_kw
+            and p.fixed_battery_kw[i] is not None
+            and abs(control.battery_kw - (p.fixed_battery_kw[i] or 0)) > ENERGY_TOL
+        ):
+            reasons.append("Authorized battery commitment changed")
         seconds = slot.hours * 3600
         load = p.base_load_kw * slot.hours
         if ev is not None:
@@ -142,7 +154,15 @@ def replay(p: PlannerInput, schedule: Schedule) -> Replay:
     if (
         battery is not None
         and p.battery is not None
-        and abs((battery.soc - p.battery.soc) * battery.capacity_kwh) > ENERGY_TOL
+        and abs(
+            battery.soc * battery.capacity_kwh
+            - (
+                p.battery_terminal_kwh
+                if p.battery_terminal_kwh is not None
+                else p.battery.soc * battery.capacity_kwh
+            )
+        )
+        > ENERGY_TOL
     ):
         reasons.append("Ending battery energy differs from opening energy")
     completions = (

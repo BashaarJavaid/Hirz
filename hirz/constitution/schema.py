@@ -199,6 +199,7 @@ class Constitution(Model):
             "governance.resume_automation",
             "governance.record_constraint",
             "governance.withdraw_constraint",
+            "governance.refresh_plan",
             "governance.record_plan",
             "governance.approve_plan",
             "governance.revise_plan",

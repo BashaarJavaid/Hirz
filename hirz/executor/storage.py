@@ -47,6 +47,20 @@ async def transition(
 
 
 async def notice(p: "Pipeline", member_id: str, action_id: str, message: str) -> None:
+    # All callers own the graph writer lock; a pending reason needs one member notice.
+    if (
+        await p.connection.scalar(
+            sa.select(db.pending_notifications.c.audit_seq)
+            .where(
+                p.scope(db.pending_notifications),
+                db.pending_notifications.c.member_id == UUID(member_id),
+                db.pending_notifications.c.message == message,
+            )
+            .limit(1)
+        )
+        is not None
+    ):
+        return
     seq = await p.audit.append(
         p.connection,
         p.household_id,

@@ -54,3 +54,4 @@ governance.approve_plan: {params: {}}
 governance.revise_plan: {params: {}}
 governance.cancel_plan: {params: {}}
 governance.record_observations: {params: {}}
+governance.refresh_plan: {params: {}}

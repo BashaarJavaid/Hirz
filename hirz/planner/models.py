@@ -71,6 +71,15 @@ class Zone(Model):
     held_modes: tuple[Literal["heat", "cool", "off"] | None, ...] = Field(
         default=(), exclude_if=lambda value: not value
     )
+    control_mode: Literal["heat", "cool"] | None = Field(
+        default=None, exclude_if=lambda v: v is None
+    )
+    setpoint_lower_f: float | None = Field(default=None, exclude_if=lambda v: v is None)
+    setpoint_upper_f: float | None = Field(default=None, exclude_if=lambda v: v is None)
+    setpoint_step_f: float | None = Field(
+        default=None, gt=0, exclude_if=lambda v: v is None
+    )
+    setpoint_origin_f: float = Field(default=0, exclude_if=lambda v: v == 0)
     end_lower: float = 66
     end_upper: float = 76
 
@@ -125,13 +134,25 @@ class PlannerInput(Model):
     battery: Battery | None
     zones: tuple[Zone, ...]
     appliance: Appliance | None
+    appliance_completed: bool = Field(default=False, exclude_if=lambda v: not v)
     appliance_release: AwareDatetime
     appliance_deadline: AwareDatetime
     base_load_kw: float = Field(ge=0, allow_inf_nan=False)
     wear_per_kwh: float = Field(default=0.01, ge=0, allow_inf_nan=False)
+    actuator_precision: bool = Field(default=False, exclude_if=lambda v: not v)
     causal_controls: bool = False  # Explicit hypothetical study-device behavior.
     constraints: tuple[MemberConstraint, ...] = ()
     provenance: tuple[str, ...]
+
+    battery_terminal_kwh: float | None = Field(
+        default=None, ge=0, exclude_if=lambda v: v is None
+    )
+    fixed_ev_kwh: tuple[float | None, ...] = Field(
+        default=(), exclude_if=lambda v: not v
+    )
+    fixed_battery_kw: tuple[float | None, ...] = Field(
+        default=(), exclude_if=lambda v: not v
+    )
 
     @model_validator(mode="after")
     def consistency(self) -> Self:
@@ -143,6 +164,9 @@ class PlannerInput(Model):
                 raise ValueError(
                     "Slots must be consecutive and at most fifteen minutes"
                 )
+        for fixed in (self.fixed_ev_kwh, self.fixed_battery_kw):
+            if fixed and len(fixed) != n:
+                raise ValueError("Fixed controls must cover every slot")
         for zone in self.zones:
             for values in (zone.preferences, zone.held_targets, zone.held_modes):
                 if values and len(values) != n:
@@ -174,14 +198,58 @@ class PlannerInput(Model):
             )
         if self.battery and self.battery.soc < self.battery.reserve_soc:
             raise ValueError("Battery opening energy is below reserve")
-        if self.appliance and self.appliance.running:
-            raise ValueError("New workload requires an idle appliance")
         if any(
             utc(c.provenance.recorded_at) > utc(self.slots[0].start)
             for c in self.constraints
         ):
             raise ValueError("Future constraints are not planner inputs")
         return self
+
+
+def split_at(p: PlannerInput, edges: tuple[datetime, ...]) -> PlannerInput:
+    slots, indices = [], []
+    for i, slot in enumerate(p.slots):
+        points = sorted(
+            {slot.start, slot.end} | {t for t in edges if slot.start < t < slot.end}
+        )
+        for left, right in zip(points, points[1:]):
+            slots.append(slot.model_copy(update={"start": left, "end": right}))
+            indices.append(i)
+    zones = tuple(
+        z.model_copy(
+            update={
+                name: tuple(getattr(z, name)[i] for i in indices)
+                for name in (
+                    "lower",
+                    "upper",
+                    "targets",
+                    "occupants",
+                    "preferences",
+                    "held_targets",
+                    "held_modes",
+                )
+                if getattr(z, name)
+            }
+        )
+        for z in p.zones
+    )
+    return p.model_copy(
+        update=dict(
+            slots=tuple(slots),
+            zones=zones,
+            fixed_ev_kwh=tuple(
+                None
+                if p.fixed_ev_kwh[i] is None
+                else (p.fixed_ev_kwh[i] or 0) * s.hours / p.slots[i].hours
+                for i, s in zip(indices, slots, strict=True)
+            )
+            if p.fixed_ev_kwh
+            else (),
+            fixed_battery_kw=tuple(p.fixed_battery_kw[i] for i in indices)
+            if p.fixed_battery_kw
+            else (),
+        )
+    )
 
 
 class Control(Model):

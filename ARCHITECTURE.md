@@ -555,9 +555,50 @@ Solved with `scipy.optimize.milp` (HiGHS). Typical instance: ~800 variables, sol
 
 **Backtest.** `scripts/` holds a backtest that pulls a year of ComEd hourly history through the feed's date-range parameters, runs the planner on the demo loads for every day on both ComEd rate profiles, and writes the nightly spread, the annualized saving per profile, the worst spike night avoided, and the hours charged at negative prices. The scenario assertion range, the scorecard's annualized figure, and the README table all come from its output. The backtest has no hindsight: on Hourly Pricing each day's plan is made only from what was knowable at decision time (a lagged persistence forecast from matching Chicago hours within the preceding seven days, ended at least 24 hours before the decision; day-ahead responses are archived as evidence only) and is then billed at the realized hourly prices, which is how ComEd bills. Battery and car state carry from one day to the next, round-trip efficiency and the battery-wear term are included, and the output is a distribution (median, 10th and 90th percentile, and the share of days on which Hirz adds almost nothing), for three households: solar, battery, and car; car only; and no car. A year-long replay on Time-of-Day, whose full rate began on 2026-07-23, is labeled a counterfactual simulation. On Time-of-Day the windows are fixed and a timer could shift one load; the optimizer earns its place through coupling (the car's deadline, the battery, a guest's comfort band, a member's kitchen constraint) and, on Hourly, through prices that move every five minutes and sometimes go negative.
 
-**Re-plan triggers.** New price data, weather update, calendar change, presence change, member constraint added by voice, asset state deviating from prediction by more than a threshold, constitution change, and a member's explicit "change" request. Re-planning produces a new plan version that `supersedes` the previous one; already-executed actions are kept; pending approvals for actions whose `content_hash` changed are expired with `PLAN_REVISED`.
+**Re-plan triggers.** New price data, weather update, calendar change, presence change, member constraint added by voice, asset state deviating from prediction by more than a threshold, constitution change, and a member's explicit "change" request. Re-planning produces a new plan version that `supersedes` the previous one; already-executed actions are kept; all unstarted predecessor approvals expire; replacement actions receive fresh IDs and device evaluation.
 
-**Latency posture.** The planner never runs inside an MCP tool call. `get_household_plan` returns the current plan if it is fresh (< 5 min and no trigger since), otherwise returns the last plan with `status: "refreshing"` and a `speakable` that says a fresh plan is seconds away, and enqueues a re-plan. A tiny greedy heuristic (`planner/heuristic.py`: charge cheapest slots first, respect deadlines) produces a plan in under 50 ms for cold starts and is labeled as such. A revision by voice follows the same rule: `revise_household_plan` records the constraint, marks the plan `refreshing`, enqueues the re-plan, and speaks the constraint, which is certain ("Got it, the car stops at 50. I'm updating the plan."), never a savings figure that has not been computed. The card re-fetches when the new version lands (about a second later); a voice-only member hears the new plan the next time they ask. `approve_action` refuses a `refreshing` plan ("Still updating, one moment"), so nobody approves a cached plan as though it held the change they just asked for.
+**Latency posture.** The planner never runs inside an MCP tool call. `get_household_plan` returns the current plan if it is fresh (< 5 min and no trigger since), otherwise returns the last plan with `status: "refreshing"` and a `speakable` that labels it as a historical reference while an update is pending, and enqueues a re-plan. A tiny greedy heuristic (`planner/heuristic.py`: charge cheapest slots first, respect deadlines) produces a plan in under 50 ms for cold starts and is labeled as such. A revision by voice follows the same rule: `revise_household_plan` records the constraint, marks the plan `refreshing`, enqueues the re-plan, and speaks the constraint, which is certain ("Got it, the car stops at 50. I'm updating the plan."), never a savings figure that has not been computed. The card re-fetches when a new version lands; a voice-only member hears the new plan the next time they ask. `approve_action` refuses a refreshing or blocked plan without promising a completion time, so nobody approves a cached plan as though it held the change they just asked for.
+
+**Implemented refresh contract (item 19a).** Internal `PlanService` accepts validated
+`RuntimeInputs` on record/revise and exposes `request_refresh`, `update_inputs`,
+and `read_current`. Canonical Plan/Action/Decision shapes remain unchanged. Migration
+`0008_plan_refresh` stores input/prediction evidence, reservation lineage and one
+coalescing job per household/lineage. The signed audit is its transition history.
+Input mutation, invalidation and the opening hold commit together. Legacy proposals
+remain readable but require complete replacement inputs before further openings.
+
+The local worker polls configured twin facts/feeds and HA thermostats before new
+openings. It detects the eight triggers above, constraint/calendar boundaries,
+manual holds, recovery and five-minute freshness. Prediction thresholds are strict
+per-asset defaults of >1°F, >0.02 SoC and >0.25 kW; discrete control/availability
+changes are immediate. First control samples establish a baseline. Verified durable
+dispatch evidence explains Hirz's changes; unmatched thermostat changes create a
+two-hour `manual:device` hold with physical actor unknown. Upstream timestamps and
+catalog freshness remain authoritative.
+
+A separate connection and household session lock own refresh. Polling and a solver
+thread do not overlap; short transactions snapshot inputs and recheck generation,
+current lineage, policy, inputs and linked authority before atomic publication.
+Endings continue through the executor connection. Restart reclaims abandoned running
+jobs after lock loss. Transient failures retry after 5/30/60/300 seconds (300 cap),
+ending at the approved horizon; conflicts wait for relevant input change or an
+explicit request. Twins use committed simulation time; HA-only runs use UTC wall
+time; timeouts use elapsed time. `--once` handles the ready batch and due endings,
+then one execution sweep, without waiting for future retries.
+
+Automatic replacements inherit the original approver; explicit requests take
+precedence and require fresh consent. Unapproved plans remain unapproved. Current
+device rules, quorum and TTL still apply, and exhausted operations require an
+explicit member retry. Original horizon/terminal obligations, delivered EV energy,
+completed/running appliance work and immutable bounded endings constrain the
+remaining workload. HA uses observed heat/cool mode, setpoint-only writes and
+advertised limits/increments. Required missing facts hold the plan without twin
+substitution. Every baseline shares the remaining state and commitments; savings
+are remaining-horizon estimates, never accumulated across revisions. A blocked
+read returns a labeled historical Plan with invalid comparisons and null savings
+and peak claims; pending notices are deduplicated by reason and claim no delivery.
+See [ADR-005](./docs/adr/ADR-005-deterministic-planner.md#durable-refresh-amendment--2026-09-21)
+and [budget accounting](./docs/constitution.md#24-budgets-and-bounds).
 
 ### 5.5 Coordinator
 
@@ -659,7 +700,7 @@ checks setpoint/control state, never future temperature or delivered EV energy.
 plans. Plan consent and the separate electricity-plus-wear budget grant do not
 replace device rules, quorum or approval TTL. Explicit revisions need fresh consent;
 autonomous replacements retain the prior approver. A held plan becomes `refreshing`
-and requires explicit revision. Automatic triggers/refresh jobs are item 19a;
+and queues durable refresh under item 19a;
 notifications here are pending member-addressed records, without delivery claims.
 
 `Executor.sweep/rollback` uses a household session lock and closes transactions

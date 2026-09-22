@@ -74,6 +74,7 @@ class Conflict(Model):
 
 
 class Coordination(Model):
+    inputs: PlannerInput | None = None
     result: PlannerResult
     conflicts: tuple[Conflict, ...]
     quorum: dict[str, ApprovalRequirements]
@@ -367,7 +368,15 @@ async def prepare(
             },
             at,
         )
-        if (
+        trusted = (
+            principal.surface == "scheduler"
+            and pipeline._observation_batch is not None
+            and any(
+                observation.model_copy(update={"id": candidate.id}) == candidate
+                for candidate in pipeline._observation_batch
+            )
+        )
+        if not trusted and (
             observation.source != "twin"
             or observation.domain != "devices"
             or observation.observed_at != at
@@ -383,11 +392,12 @@ async def prepare(
             for r in snapshot.data["assets"]
         ):
             raise Clarification("Manual holds require a thermostat.")
+        assert observation.asset_id is not None
         spec = ConstraintSpec(
             kind="manual_hold",
             asset_id=observation.asset_id,
-            starts_at=at,
-            ends_at=at + timedelta(hours=2),
+            starts_at=observation.observed_at,
+            ends_at=observation.observed_at + timedelta(hours=2),
             value=observation.state.target_f,
             mode=observation.state.mode,
         )
@@ -530,6 +540,15 @@ async def commit_constraint(
                 observation,
                 expected_version=current["valid_from"] if current else None,
             )
+
+    from hirz.executor.refresh import invalidate_all
+
+    await invalidate_all(
+        pipeline,
+        "Member constraint or manual hold changed",
+        explicit=observation is None,
+        decision=decision.audit_id,
+    )
 
 
 class Coordinator:
@@ -681,26 +700,9 @@ def split_slots(
         for t in (c.spec.starts_at, c.spec.ends_at, c.spec.at, c.withdrawn_at)
         if t is not None
     }
-    slots, indices = [], []
-    for i, slot in enumerate(p.slots):
-        boundaries = sorted(
-            {utc(slot.start), utc(slot.end)}
-            | {t for t in edges if utc(slot.start) < t < utc(slot.end)}
-        )
-        for left, right in zip(boundaries, boundaries[1:]):
-            slots.append(changed(slot, start=left, end=right))
-            indices.append(i)
-    zones = tuple(
-        changed(
-            z,
-            **{
-                name: tuple(getattr(z, name)[i] for i in indices)
-                for name in ("lower", "upper", "targets", "occupants")
-            },
-        )
-        for z in p.zones
-    )
-    return changed(p, slots=tuple(slots), zones=zones)
+    from hirz.planner.models import split_at
+
+    return split_at(p, tuple(edges))
 
 
 def coordinate(
@@ -751,7 +753,6 @@ def coordinate(
     bindings = {
         UUID(str(r["asset_id"])): str(r["entity_id"])
         for r in snapshot.data["asset_bindings"]
-        if r["adapter"] == "twin"
     }
     for record in selected:
         if (
@@ -767,7 +768,10 @@ def coordinate(
             or (kind.startswith("ev_") and (entity != "ev" or p.ev is None))
             or (
                 kind.startswith("appliance_")
-                and (entity != "dishwasher" or p.appliance is None)
+                and (
+                    entity != "dishwasher"
+                    or (p.appliance is None and not p.appliance_completed)
+                )
             )
             or (
                 kind in {"manual_hold", "temperature", "temperature_band"}
@@ -872,7 +876,7 @@ def coordinate(
                     "The EV ceiling conflicts with the required charge.",
                     f"Raise the ceiling to {max(target, p.ev.soc):.0%}, or explicitly revise the target; a ceiling does not lower it.",
                 )
-    if p.appliance and not appliance_windows(p):
+    if p.appliance and not p.appliance.running and not appliance_windows(p):
         conflict(
             tuple(r for r in selected if r.spec.kind.startswith("appliance_")),
             "No complete dishwasher cycle fits its allowed window.",
@@ -935,8 +939,23 @@ def coordinate(
                     "Multiple active thermostat holds overlap.",
                     "Release one hold explicitly.",
                 )
-            held_targets.append(holds[0].spec.value if holds else None)
-            held_modes.append(holds[0].spec.mode if holds else None)
+            fixed_target = zone.held_targets[i] if zone.held_targets else None
+            fixed_mode = zone.held_modes[i] if zone.held_modes else None
+            if (
+                holds
+                and fixed_target is not None
+                and (
+                    holds[0].spec.value != fixed_target
+                    or holds[0].spec.mode != fixed_mode
+                )
+            ):
+                conflict(
+                    holds,
+                    "A manual hold conflicts with an authorized bounded operation.",
+                    "Wait for the existing ending.",
+                )
+            held_targets.append(holds[0].spec.value if holds else fixed_target)
+            held_modes.append(holds[0].spec.mode if holds else fixed_mode)
         zones.append(
             changed(
                 zone,
@@ -1123,6 +1142,7 @@ def coordinate(
     # Deduplicate repeated slot evidence, keeping every independently owned request.
     unique = {c.model_dump_json(): c for c in conflicts}
     return Coordination(
+        inputs=p if result.plan is not None else None,
         result=result,
         conflicts=tuple(unique.values()),
         quorum=quorum,
