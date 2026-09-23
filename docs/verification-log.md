@@ -4986,3 +4986,18 @@ Final command, after the records: `uv run ruff check . && uv run ruff format --c
 Batch C and first C2 audit/report/public-key hashes match their captured values;
 all verified code hashes match the full-gate run and scenario YAML hashes are
 unchanged. The final Ruff command was repeated after recording this summary.
+
+
+### HA smoke CI diagnostics — 2026-09-22
+
+The author requested investigation of [run 35824038863](https://github.com/BashaarJavaid/Hirz/actions/runs/35824038863), then authorized exposing the underlying failure before changing execution behavior. Ten jobs passed; `scenarios` failed at `Live HA lamp and bounded restoration`. The original log reported `status: failed`, `restored: true` and only the wrapper exception. It did not publish the retained scenario report, so the original CI cause remains unconfirmed.
+
+The smoke now prints the report error and failed/not-reached checks. A refused scripted lamp request also names its decision, risk band and factor names, without dumping the canonical decision or audit payload. No approval, freshness, device or assertion behavior changed.
+
+Local verification:
+
+- `UV_CACHE_DIR=/tmp/hirz-uv-cache uv run --locked pytest tests/unit/test_scenario_execution.py --no-cov`: **23 passed in 2.47s**.
+- Strict mypy initially caught optional risk access in the diagnostic; after guarding it, `UV_CACHE_DIR=/tmp/hirz-uv-cache uv run --locked mypy hirz/twin/execution.py scripts/smoke_scenario.py`: **Success: no issues found in 2 source files**.
+- `HIRZ_DOGWOOD="$PWD/.tools/dogwood" UV_CACHE_DIR=/tmp/hirz-uv-cache uv run --locked python scripts/smoke_scenario.py --live-demo --artifacts-dir /tmp/hirz-ci-35824038863-diagnostic`: **exit 1**, now visibly reporting `ValueError: Lamp request was not queued: decision=ask, risk=medium, factors=['state_stale']`; observation and both VERIFIED assertions were `not_reached`. The final lamp state matched its original state; this does not establish a toggle or bounded restoration. Evidence and disposable database `hirz_ha_smoke_224d0e268631439590cc6697e49348d0` remain retained. Development was not migrated.
+
+This verifies diagnostics, not a fix of the live smoke. Remote verification follows the diagnostic push. Third-party friction review found only the already-recorded sandbox network/cache restrictions; no new upstream defect was established. Ruff runs after this entry.

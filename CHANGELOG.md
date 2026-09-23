@@ -33,6 +33,8 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- 2026-09-22: Expose HA smoke errors, unsuccessful checks and refused lamp decision factors in CI output ([diagnostic verification](./docs/verification-log.md#ha-smoke-ci-diagnostics--2026-09-22)).
+
 - 2026-09-22: Require adult lineage for app-only automation resume in Python and compiled Cedar/Dogwood; preserve linked-member pause ([batch A evidence](./docs/verification-log.md#phase-3-review-batch-a--2026-09-22)).
 
 - 2026-09-21: Update the installed-wheel CI assertion to the 25 catalog classes introduced by item 18; reproduce the failure and verify the corrected check outside the checkout ([evidence](./docs/verification-log.md#installed-wheel-ci-count-correction--2026-09-21)).

@@ -221,7 +221,11 @@ class Host:
             action = action.model_copy(update={"content_hash": action_hash(action)})
             decision = await self.p.enqueue(action, principal)
             if decision.status != "executing":
-                raise ValueError("Lamp request was not queued")
+                raise ValueError(
+                    f"Lamp request was not queued: decision={decision.decision}, "
+                    f"risk={decision.risk.band if decision.risk else None}, "
+                    f"factors={[f.factor for f in decision.risk.factors] if decision.risk else []}"
+                )
             result = decision.model_dump(mode="json")
             value = action.action_id
         if call.save_as:

@@ -116,6 +116,12 @@ async def live(folder: Path) -> None:
                     restored=restored,
                     source="real API, demo devices",
                     artifacts_dir=str(folder),
+                    error=report.get("error"),
+                    unsuccessful_checks=[
+                        check
+                        for check in report["checks"]
+                        if check["status"] in {"failed", "not_reached"}
+                    ],
                 )
             )
         )
