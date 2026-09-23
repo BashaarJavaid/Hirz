@@ -202,7 +202,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: BashaarJavaid/addon-check
-          ref: f9bf2914c136c4e5b196558c2795477dd21c2a46
+          ref: c8b65e0977204883d2ec23d5ac0f7a08300d021e
           path: .tools/addon-check
           persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0

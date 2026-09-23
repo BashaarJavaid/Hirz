@@ -5901,3 +5901,21 @@ passed at `f9bf2914c136c4e5b196558c2795477dd21c2a46`: locked install, lint,
 strict types, 42 HTTP/CLI tests, package inspection/build, and clean tarball
 installation against passing/broken fixtures. npm registry publication remains
 separate; no certification is implied.
+
+### Final local checks and release artifact
+
+The full integration suite passed **129 tests, 1401 deselected in 237.75s**.
+Combined coverage is **92% (11981 statements, 957 missed)** and
+`uv run --locked coverage report --fail-under=80` passed. Outputs:
+`/private/tmp/hirz-item25a-integration.log` and `/private/tmp/hirz-item25a-coverage.log`.
+Ruff and strict mypy (150 source files) pass; instruction files match below their
+headings. No development migrations were applied.
+
+Final checker review added acceptance of equivalent standard schema dialect URIs
+with/without an empty fragment. Revision
+`c8b65e0977204883d2ec23d5ac0f7a08300d021e` passes lint and all **42 tests**
+(`/private/tmp/addon-check-final-tests-2.log`), including those URI cases. `npm pack`
+and fresh installation again pass both fixtures. The final nine-file tarball
+SHA-1 is **`c8beb6918c065ecb0e7fdee5feaa489906c6d53e`**; this supersedes the earlier
+artifact above. Hirz pins this exact source revision. npm login is still missing;
+publication and installation from the registry have not happened.
