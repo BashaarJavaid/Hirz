@@ -968,3 +968,86 @@ public MCP/authentication claim is included.
 For machine-readable results, use `--output <new-file>` or the retained
 `report.json`: native solver diagnostics can also appear on stdout
 ([recorded friction](./friction-log.md)).
+
+## Item 23: local MCP transport
+
+The existing `hirz.api.app:app` entrypoint serves `/mcp` and liveness-only `/health`.
+Only `what_can_you_do` is registered. Its typed structured result includes the
+existing `Speakable` and explicitly says household tools are not connected.
+There is no authentication or household data in this local preview; OAuth is item
+24. Exact limits, allowed headers, and the GET 405 decision are in
+[ADR-013](./adr/ADR-013-mcp-transport.md#local-boundary).
+
+Use Node 24 for Inspector. With locked Python dependencies installed, start the
+standalone server (stop it before starting Compose on the same port):
+
+```sh
+uv run --locked uvicorn hirz.api.app:app --host 127.0.0.1 --port 8000
+```
+
+In another terminal:
+
+```sh
+uv run --locked python scripts/smoke_mcp.py
+```
+
+The smoke runs `initialize → tools/list → tools/call` using the official SDK,
+asserts protocol `2025-11-25` and no session ID, validates the structured result,
+and prints it with a PASS summary (failure exits nonzero). `--url` supports a
+separate test app's allocated loopback port; changing only Uvicorn's port does not
+change the fixed production allowlist. Tests use `create_app(port=allocated_port)`.
+
+For the existing initialized Compose stack:
+
+```sh
+docker compose -f compose.dev.yml up -d --build --wait --wait-timeout 180
+uv run --locked python scripts/smoke_mcp.py
+```
+
+This check requires no development-database migration, seeding or action. The CI
+Python test job runs the same smoke immediately after server startup.
+
+Inspector 2.7.0 uses `--transport http` and `--server-url`. Isolate its state without
+changing HOME, and keep authentication enabled:
+
+```sh
+inspector_dir=$(mktemp -d)
+chmod 700 "$inspector_dir"
+export MCP_STORAGE_DIR="$inspector_dir/storage"
+export MCP_CATALOG_PATH="$inspector_dir/catalog.json"
+export MCP_CLIENT_CONFIG_PATH="$inspector_dir/client.json"
+export MCP_INSPECTOR_OAUTH_STATE_PATH="$inspector_dir/oauth.json"
+export MCP_INSPECTOR_LOG_DIR="$inspector_dir/logs"
+export MCP_INSPECTOR_SECRET_STORE=memory
+export MCP_AUTO_OPEN_ENABLED=false
+unset DANGEROUSLY_OMIT_AUTH
+pnpm dlx @modelcontextprotocol/inspector@2.7.0 --web
+```
+
+Open the launch URL containing the generated local token; do not save the token in
+repository evidence. Add a Streamable HTTP server with URL
+`http://127.0.0.1:8000/mcp`, connect, list Tools, select `what_can_you_do`, and run it
+with no inputs. Record the displayed structured result. The web launcher rejects
+an ad-hoc server URL combined with `MCP_CATALOG_PATH`, so enter the URL in the UI.
+The browser uses Inspector's authenticated backend; no CORS is needed on Hirz.
+
+For CLI checks, use the same temporary state paths, but unset the catalog variable
+for the ad-hoc target (the CLI does not need a catalog):
+
+```sh
+unset MCP_CATALOG_PATH
+pnpm dlx @modelcontextprotocol/inspector@2.7.0 --cli --transport http \
+  --server-url http://127.0.0.1:8000/mcp --method initialize --format json
+pnpm dlx @modelcontextprotocol/inspector@2.7.0 --cli --transport http \
+  --server-url http://127.0.0.1:8000/mcp --method tools/list --format json
+pnpm dlx @modelcontextprotocol/inspector@2.7.0 --cli --transport http \
+  --server-url http://127.0.0.1:8000/mcp --method tools/call \
+  --tool-name what_can_you_do --tool-args-json '{}' --format json
+```
+
+Stop Inspector with Ctrl-C and remove only the temporary directory created above
+when finished. Inspector is not a project dependency. Focused checks:
+`uv run --locked pytest tests/unit/test_mcp.py --no-cov`; full Python coverage uses
+the service-free, integration-with-append, then 80 percent report sequence in
+`AGENTS.md`. UI verification and all completion evidence are tracked in the
+[item 23 log](./verification-log.md#item-23--2026-09-23).

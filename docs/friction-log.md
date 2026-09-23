@@ -322,3 +322,48 @@ returned the completed job's diagnostics through the documented
 [job-log endpoint](https://docs.github.com/en/rest/actions/workflow-jobs#download-job-logs-for-a-workflow-run).
 Feature request: let `gh run view --job --log` retrieve a completed job without
 waiting for the whole run. This was a CLI limitation, not a failed Actions service.
+
+## Item 23 local transport and Inspector — 2026-09-23
+
+- **Tool/task:** MCP Python SDK 1.30.0, implement stateless JSON without persistent
+  event streams. **Steps/expected:** inspect the documented
+  [stateless JSON setup](https://py.sdk.modelcontextprotocol.io/v1/server/#streamable-http-transport).
+  **Actual:** the pinned `_handle_get_request` still creates an SSE response even
+  when `json_response=True`; no exception is emitted. **Severity:** Minor.
+  **Workaround:** the author explicitly approved a GET `/mcp` 405 guard; other
+  protocol handling remains in the SDK. **Suggestion:** document GET streaming
+  separately from JSON POST responses and offer an explicit disable switch.
+- **Tool/task:** Inspector 2.7.0, start an isolated authenticated UI.
+  **Steps/expected:** set `MCP_CATALOG_PATH` to a temporary catalog and pass
+  `--transport http --server-url http://127.0.0.1:8000/mcp`.
+  **Actual:** `Error: --catalog cannot be combined with an ad-hoc server URL/command.`
+  **Severity:** Minor. **Workaround:** launch only the isolated catalog and enter
+  the server URL in the UI. **Suggestion:** name the environment variable in the
+  error when no `--catalog` flag was supplied. Reference:
+  [Inspector environment variables](https://github.com/modelcontextprotocol/inspector/blob/2.7.0/docs/environment-variables.md).
+- **Tool/task:** browser connection for Inspector UI verification.
+  **Actual:** `No browser is available` and an empty browser list, including after
+  the author enabled the connection and requested a retry. **Severity:** Minor.
+  **Workaround:** the author explicitly authorized a temporary standalone Playwright
+  browser. Its sandboxed Chrome launch exited with `signal=SIGABRT`; the same
+  temporary browser was launched with authorized sandbox escalation. Reference:
+  [Playwright browser launch](https://playwright.dev/docs/api/class-browsertype#browser-type-launch).
+  These are local tooling restrictions, not an Inspector or MCP failure.
+
+The uv cache, Docker socket and loopback-binding restrictions from entry 6 also
+recurred. Initial focused tests reported `2 failed, 92 passed` because the two
+existing WebSocket checks could not bind `127.0.0.1`; the full service-free rerun
+with authorized loopback access passed. No upstream defect is claimed for these
+repeated sandbox restrictions.
+
+Inspector UI follow-up (2026-09-23, **Minor**): installed Chrome reported
+`97.0.4692.71` and rendered the main content beneath the header/footer; Playwright
+reported `TimeoutError: locator.click: Timeout 30000ms exceeded.` with the header
+intercepting pointer events. Using Playwright 1.63.0's bundled Chromium
+153.0.8010.12 restored the layout. The connection switch's styled track also
+intercepted pointer clicks, so keyboard focus + Space connected normally. The
+browser-control process needed loopback access outside the sandbox after
+`WebSocket error: connect EPERM 127.0.0.1:63888 - Local (0.0.0.0:0)`.
+Reference: [Playwright browser compatibility](https://playwright.dev/docs/browsers).
+Suggestion: show a browser compatibility warning for unsupported browser engines.
+No Hirz code or security rule was changed to work around these UI/environment issues.

@@ -24,12 +24,12 @@ def env_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 def test_liveness_has_no_application_or_docs_routes() -> None:
     async def run() -> None:
         async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=app), base_url="http://test"
+            transport=httpx.ASGITransport(app=app), base_url="http://localhost:8000"
         ) as client:
             response = await client.get("/health")
             assert response.status_code == 200
             assert response.json() == {"status": "ok"}
-            for path in ("/ready", "/docs", "/redoc", "/openapi.json", "/mcp"):
+            for path in ("/ready", "/docs", "/redoc", "/openapi.json"):
                 assert (await client.get(path)).status_code == 404
 
     asyncio.run(run())

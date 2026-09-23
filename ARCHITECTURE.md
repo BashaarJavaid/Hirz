@@ -1115,6 +1115,29 @@ and full demo assertions are explicit deferrals, not mock success results.
 
 ### 5.13 MCP Server (the Alexa+ surface)
 
+**Implemented local transport (item 23).** The existing FastAPI entrypoint owns
+one official FastMCP 1.30.0 instance per app and runs its session manager in
+lifespan. `/mcp` serves stateless JSON directly; `/health` remains liveness only.
+Only generic, no-input `what_can_you_do` is registered, with typed schemas,
+structured output and the existing `Speakable`. It performs no household read,
+identity resolution, model call or persisted change. There are no session IDs,
+UI resources or legacy SSE endpoint; GET `/mcp` returns 405 to prevent persistent
+streams. SDK negotiation includes protocol 2025-11-25.
+
+The edge requires exactly one Host among `localhost:8000`, `127.0.0.1:8000` and
+`[::1]:8000` (421 otherwise). Origin may be absent; a supplied Origin must be one
+nonempty HTTP origin for those hosts on port 8000 or 6274 (403 otherwise).
+The SDK allowlists are supplemented by duplicate/empty-header checks. Its body
+limiter bounds declared and received bytes at 1,048,576 (413); then a strict UTF-8,
+string-aware depth guard allows at most 32 containers including the root (400).
+Interrupted bodies fail before dispatch. Forwarded headers are not trusted and
+CORS is not enabled. Tests may explicitly supply their allocated loopback port;
+there is no deployment allowlist configuration. Decisions and sources:
+[ADR-013](./docs/adr/ADR-013-mcp-transport.md); reproducible checks:
+[development](./docs/development.md#item-23-local-mcp-transport).
+
+**Target surface after item 23 (not all implemented):**
+
 - **Transport.** Streamable HTTP on the official Python SDK, stateless mode by default (AgentCore Runtime adds `Mcp-Session-Id` continuity), stateful mode available for elicitation. Endpoint `/mcp`. Origin/Host validation on every request; 403 on invalid Origin per spec.
 - **Auth.** Bearer JWT from the household's authorization server (Cognito in AWS, a local dev issuer otherwise). `401` with `WWW-Authenticate: Bearer resource_metadata=...` when missing or invalid; PRM document at `/.well-known/oauth-protected-resource` listing the authorization server, S256, and scopes (`hirz:read`, `hirz:plan`, `hirz:act`, `hirz:verify`). Token `sub` → member (§7). Guest experience for unlinked users: `what_can_you_do` and a generic capability summary only.
 - **Tool surface.** Twelve tools in five groups (context, planning, action, trust, governance), deliberately few so the orchestrator picks reliably, fully specified in [`docs/tool-catalog.md`](./docs/tool-catalog.md). Design rules from Alexa+'s functional requirements are enforced by a schema test: every tool has a complete `inputSchema` with synonyms in parameter descriptions, every tool is invocable, outputs conform to `outputSchema`, errors are MCP tool-execution errors with consumer-language messages, and every output carries a `speakable` block.

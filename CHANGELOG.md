@@ -81,6 +81,11 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- 2026-09-23: Add the local stateless JSON MCP endpoint and typed generic onboarding tool,
+  with fixed loopback guards and real SDK/Inspector checks; OAuth and household
+  tools remain later work ([ADR-013](./docs/adr/ADR-013-mcp-transport.md),
+  [item 23 evidence](./docs/verification-log.md#item-23--2026-09-23)).
+
 - 2026-09-20: Item 16 offline scenario runner, explicit twin fixtures, scripted
   deferred tool traces, simulated recorded-policy patches, observation assertions
   and JSON reports; scenario CI now exercises the approved observation gate

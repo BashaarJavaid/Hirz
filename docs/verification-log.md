@@ -5028,3 +5028,123 @@ No new third-party friction was earned: the encountered errors were in the new f
 Remote completion: fix commit `7492c2a2ce8fecb83e0abbf0ecb47c9c7444eec7` was pushed to `phase-3`. [Run 35827170454](https://github.com/BashaarJavaid/Hirz/actions/runs/35827170454) passed **all 11 jobs**. Python: **1,247 passed, 119 deselected in 132.39s**; PostgreSQL: **119 passed, 1,247 deselected in 202.71s**; combined coverage **93%** (10,252 statements, 733 missed), passing the 80% gate. The scenarios job passed evening, Hourly and parents regressions, then the live HA smoke returned `execution_checks_passed`, `restored: true`, `error: null`, and no unsuccessful checks at `2026-09-23T06:39:00Z` (01:39 America/Chicago, during quiet hours). The disposable database was dropped. Lint, types, Cedar conformance and build jobs also passed; pre-existing placeholder jobs remain placeholders.
 
 Final friction review caught an omitted minor CLI limitation from the diagnostic turn: completed-job logs required the REST endpoint while the overall workflow was still active. The exact message and workaround are now recorded in [the friction log](./friction-log.md). Final Ruff checks follow these append-only records; no application code changed after the green run.
+
+## Item 23 — 2026-09-23
+
+Local Streamable HTTP transport and generic onboarding only. The author approved
+[ADR-013](./adr/ADR-013-mcp-transport.md), including the additional GET 405 guard,
+and explicitly authorized temporary standalone Playwright after the browser
+connector twice reported no available browser. No household tool, OAuth, policy
+activation, device action, new audit event or AWS deployment was introduced.
+
+### Implementation and automated checks
+
+Environment: macOS arm64, Python 3.12.13, official `mcp==1.30.0`, Node 24 for
+Inspector `2.7.0` through pnpm 12.4.2. All prior direct Python dependency pins were
+compared against HEAD and preserved; only MCP was added. The lock resolved 70
+packages. The app factory owns each SDK manager's startup/shutdown; the Docker
+entrypoint and Compose loopback binding remain unchanged.
+
+Commands and observed output:
+
+- `.venv/bin/pytest tests/unit/test_mcp.py --no-cov -q`:
+  **76 passed in 1.20s**. Coverage includes concurrent/repeated independent SDK
+  sessions, fresh app lifecycles, generated input/output schemas and speech limits,
+  protocol 2025-11-25, JSON/no session ID/no redirect, health, unsupported methods
+  and versions, Host/Origin allowlists and duplicates/empty/deceptive/forwarded
+  headers, declared and streamed byte boundaries, 32/33-level arrays and objects,
+  escapes/brackets in strings, Unicode, UTF-16/32, malformed UTF-8/JSON and
+  interrupted bodies without dispatch.
+- First combined focused run inside the sandbox: **2 failed, 92 passed in 2.68s**.
+  Both failures were existing WebSocket tests denied loopback binding, not MCP
+  assertions. The full runs below used authorized sandbox escalation.
+- `uv run --locked pytest --tb=short`:
+  **1323 passed, 119 deselected in 120.59s (0:02:00)**; service-free coverage 81%.
+- `uv run --locked pytest -m integration --cov=hirz --cov-append --tb=short`:
+  **119 passed, 1323 deselected in 205.14s (0:03:25)**. Existing fixtures create
+  uniquely named disposable databases; no development upgrade was run.
+- `uv run --locked coverage report --fail-under=80`: **93%**, 10,354 statements,
+  739 missed; exit 0. MCP server and API app 100%, edge guard 96%.
+- `uv build`: built `dist/hirz-0.0.0.tar.gz` and
+  `dist/hirz-0.0.0-py3-none-any.whl` successfully.
+- `.venv/bin/ruff check .`: **All checks passed!**
+- `.venv/bin/mypy hirz/ scripts/ alembic/`:
+  **Success: no issues found in 132 source files**.
+- Read-only `uv run --locked alembic current`: **0005_execution_attempt**.
+
+### Real HTTP clients
+
+A standalone Uvicorn server used an explicitly allocated socket on
+`127.0.0.1:63568`, with `create_app(port=63568)` and its socket passed to Uvicorn.
+`uv run --locked python scripts/smoke_mcp.py --url http://127.0.0.1:63568/mcp`
+passed. Then `docker compose -f compose.dev.yml up -d --build --wait --wait-timeout 180`
+rebuilt Hirz and reported Postgres, Home Assistant and Hirz healthy. Running
+`uv run --locked python scripts/smoke_mcp.py` against Compose on 8000 also passed.
+Both real HTTP runs printed:
+
+```text
+protocol=2025-11-25; session_id=none
+tools=what_can_you_do
+PASS initialize -> tools/list -> tools/call; structured output validated
+```
+
+Both printed this validated structured output (formatted here for readability):
+
+```json
+{
+  "speakable": {
+    "headline": "Hirz helps families set rules for home automation, plan energy use, and check suspicious requests.",
+    "details": [
+      "This local preview only describes Hirz. Household tools are not connected yet."
+    ],
+    "options": []
+  },
+  "data": {
+    "available_tools": ["what_can_you_do"]
+  }
+}
+```
+
+Inspector CLI checks used Node 24, `pnpm dlx @modelcontextprotocol/inspector@2.7.0
+--cli --transport http --server-url http://127.0.0.1:8000/mcp`, and temporary storage.
+Each of `--method initialize --format json`, `--method tools/list --format json`,
+and `--method tools/call --tool-name what_can_you_do --tool-args-json '{}' --format json`
+exited 0. Initialization reported protocol 2025-11-25 and Hirz; listing contained
+exactly the typed onboarding tool; invocation returned `isError:false`, the same
+structured output above, and the SDK's corresponding text content.
+
+The Python CI job now runs the smoke after Compose startup. Remote CI was not run
+for this change. No latency, authentication, household isolation, live Alexa or AWS
+claim is made. `THREAT_MODEL.md` is unchanged. Third-party friction and environment
+workarounds are recorded in the [friction log](./friction-log.md#item-23-local-transport-and-inspector--2026-09-23).
+
+### Inspector UI verification
+
+Inspector 2.7.0's web launcher ran with authentication enabled, a random token,
+`MCP_INSPECTOR_SECRET_STORE=memory`, and catalog/storage/client/OAuth/log paths in
+`/tmp/hirz-inspector-ui.F1IgBM`. No auth token was copied into repository evidence.
+The built-in sample servers stayed disconnected.
+
+The authorized standalone Playwright 1.63.0 browser used a fresh temporary profile
+and Chromium 153.0.8010.12. After opening Inspector's authenticated launch URL,
+selected Add Servers → Add manually, entered `hirz-item23`, selected
+`streamable-http`, and entered `http://127.0.0.1:8000/mcp`. The connection switch
+was operated with keyboard Space because its styled track intercepted Playwright's
+pointer click. The UI showed **Connected**, **Hirz** and **MCP 2025-11-25**.
+
+Tools listed exactly `what_can_you_do`; its detail had no input fields and an
+Execute Tool button. Invoking it displayed **Results** and **Structured Output**,
+both containing exactly the JSON recorded above, including the full headline,
+local-preview detail, empty options and one available tool. The protocol panel
+showed **OK INITIALIZE**, **OK TOOLS/LIST**, and **OK TOOLS/CALL**. Its individual
+call observation was 73 ms; this is not a latency-suite or p95 claim. A screenshot
+was visually inspected and retained locally at `/tmp/hirz-item23-inspector-result.png`.
+The temporary browser was closed after verification.
+
+### Completion
+
+All item 23 gates passed locally, including Inspector UI/CLI and both real Python
+SDK runs. `.venv/bin/ruff format --check .` reported **201 files already formatted**
+after evidence/procedure edits; it is rerun as the final check after the completion
+records. OAuth is next (item 24); the development database remains unmigrated and
+remote CI remains unverified for this change.

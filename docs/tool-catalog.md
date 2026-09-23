@@ -1,5 +1,15 @@
 # MCP Tool Catalog
 
+**Implemented in item 23:** only `what_can_you_do`, with no input parameters.
+Its generated output schema wraps the existing `Speakable` in `speakable` and
+`data.available_tools` containing only its own name. The headline describes Hirz;
+the detail explicitly says household tools are not connected. There are no
+household reads, authentication, UI resources or side effects. The exact output
+and client checks are recorded in the [item 23 evidence](./verification-log.md#item-23--2026-09-23).
+[Local transport contract](./adr/ADR-013-mcp-transport.md).
+
+The remainder describes the target surface for later roadmap items.
+
 The tool surface Alexa+ (and the simulator) sees. Five groups, twelve tools. The surface is deliberately small: an orchestrator picks reliably among a dozen distinct verbs and unreliably among two dozen near-duplicates, and Alexa's own guidance is tools whose outputs feed each other. The tool-selection test in `ROADMAP.md` item 25 is the arbiter of this surface: if a tool misfires there, the surface changes. Every tool follows the same contract:
 
 - **Input** is a JSON Schema 2020-12 `inputSchema` that is **flat**: enums and scalar parameters only, no free-form objects, no `oneOf`. Every parameter is described in consumer terms and with synonyms (Alexa+ resolves "the living room", "lounge", "front room" through the description). Internal action-class names (`energy.ev_charge`) never appear in an input schema.

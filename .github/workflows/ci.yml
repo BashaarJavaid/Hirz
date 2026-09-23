@@ -72,6 +72,8 @@ jobs:
         run: uv run --locked python scripts/init_dev.py
       - name: Build and start Hirz with readiness checks
         run: docker compose -f compose.dev.yml up -d --build --wait --wait-timeout 180
+      - name: MCP client SDK handshake and onboarding
+        run: uv run --locked python scripts/smoke_mcp.py
       - run: uv run --locked alembic upgrade head
       - run: uv run --locked alembic check
       - run: uv run --locked hirz doctor

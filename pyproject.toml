@@ -20,6 +20,7 @@ dependencies = [
     "websockets==17.1",
     "scipy==1.18.0",
     "boto3==1.43.90",
+    "mcp==1.30.0",
 ]
 
 [project.scripts]

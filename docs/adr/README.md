@@ -14,3 +14,4 @@ One file per consequential decision, each with the alternatives that were reject
 - [`ADR-010-passkey-verified-approvals.md`](./ADR-010-passkey-verified-approvals.md) — Security approvals proven to the signer by the member's passkey, so the worker can relay an approval and cannot make one (below the cut line)
 
 - [`ADR-012-explainer.md`](./ADR-012-explainer.md) — validated narration, selected facts, fixed Converse contract and audited persistence; live Bedrock remains item 38
+- [`ADR-013-mcp-transport.md`](./ADR-013-mcp-transport.md) — fixed local guards, stateless JSON transport and generic onboarding; OAuth and household tools remain later work
