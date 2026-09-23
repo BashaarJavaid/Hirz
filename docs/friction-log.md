@@ -310,3 +310,15 @@ error: Failed to initialize cache at `/Users/bashaarjavaid/.cache/uv`
 Authorized sandbox escalation allowed the existing cache and disposable local
 PostgreSQL verification. This is the previously recorded environment limitation,
 not a new upstream defect. Reference: [uv cache configuration](https://docs.astral.sh/uv/concepts/cache/).
+
+
+HA smoke CI investigation (2026-09-22, **Minor**):
+`gh run view 35825693255 --job 107066790316 --log` refused to read the completed
+scenario job while another job remained active:
+`run 35825693255 is still in progress; logs will be available when it is complete`.
+The [CLI reference](https://cli.github.com/manual/gh_run_view) supports selecting
+an individual job's logs. Workaround: `gh api repos/BashaarJavaid/Hirz/actions/jobs/107066790316/logs`
+returned the completed job's diagnostics through the documented
+[job-log endpoint](https://docs.github.com/en/rest/actions/workflow-jobs#download-job-logs-for-a-workflow-run).
+Feature request: let `gh run view --job --log` retrieve a completed job without
+waiting for the whole run. This was a CLI limitation, not a failed Actions service.

@@ -5023,3 +5023,8 @@ Verification:
 - An independent `verify_file` invocation against the fingerprint derived from the configured signing key accepted **28/28 signed rows**. The private report, audit and public key remain in `/tmp/hirz-ci-lamp-consent-run2`.
 
 No new third-party friction was earned: the encountered errors were in the new fixture and response-time input, not upstream behavior. This fixes the current smoke's initial approval path; it does not add a generic resumption API for standalone work held after dispatch-time re-evaluation. Remote CI follows the push. Ruff is run after this entry.
+
+
+Remote completion: fix commit `7492c2a2ce8fecb83e0abbf0ecb47c9c7444eec7` was pushed to `phase-3`. [Run 35827170454](https://github.com/BashaarJavaid/Hirz/actions/runs/35827170454) passed **all 11 jobs**. Python: **1,247 passed, 119 deselected in 132.39s**; PostgreSQL: **119 passed, 1,247 deselected in 202.71s**; combined coverage **93%** (10,252 statements, 733 missed), passing the 80% gate. The scenarios job passed evening, Hourly and parents regressions, then the live HA smoke returned `execution_checks_passed`, `restored: true`, `error: null`, and no unsuccessful checks at `2026-09-23T06:39:00Z` (01:39 America/Chicago, during quiet hours). The disposable database was dropped. Lint, types, Cedar conformance and build jobs also passed; pre-existing placeholder jobs remain placeholders.
+
+Final friction review caught an omitted minor CLI limitation from the diagnostic turn: completed-job logs required the REST endpoint while the overall workflow was still active. The exact message and workaround are now recorded in [the friction log](./friction-log.md). Final Ruff checks follow these append-only records; no application code changed after the green run.
