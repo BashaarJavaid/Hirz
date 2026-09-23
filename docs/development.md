@@ -974,8 +974,8 @@ For machine-readable results, use `--output <new-file>` or the retained
 The existing `hirz.api.app:app` entrypoint serves `/mcp` and liveness-only `/health`.
 Only `what_can_you_do` is registered. Its typed structured result includes the
 existing `Speakable` and explicitly says household tools are not connected.
-There is no authentication or household data in this local preview; OAuth is item
-24. Exact limits, allowed headers, and the GET 405 decision are in
+There is no household data in this local preview. Authenticated startup is
+documented under item 24 below; supplied credentials in this preview return 503. Exact limits, allowed headers, and the GET 405 decision are in
 [ADR-013](./adr/ADR-013-mcp-transport.md#local-boundary).
 
 Use Node 24 for Inspector. With locked Python dependencies installed, start the
@@ -1051,3 +1051,82 @@ when finished. Inspector is not a project dependency. Focused checks:
 the service-free, integration-with-append, then 80 percent report sequence in
 `AGENTS.md`. UI verification and all completion evidence are tracked in the
 [item 23 log](./verification-log.md#item-23--2026-09-23).
+
+## Item 24: local OAuth
+
+The Compose entrypoint remains the generic preview. To run authenticated local
+MCP, use three terminals from the checkout root (port 8000 must be free):
+
+```sh
+uv run --locked python scripts/dev_oauth.py init
+uv run --locked python scripts/dev_oauth.py serve
+```
+
+```sh
+uv run --locked uvicorn --factory hirz.api.app:create_local_oauth_app \
+  --host 127.0.0.1 --port 8000 --no-access-log
+```
+
+`init` creates only a missing, separate RSA-2048 dev OAuth key in the regular,
+nonsymlink `0600` `.env`. It preserves unrelated entries, refuses malformed or
+empty existing keys, and never uses/replaces the audit key. `serve` never creates
+a key. Keep access logging disabled: authorization URLs and callbacks contain
+short-lived grant material. This is a **simulated login**, never proof of a real
+person's identity. Its choices come from the canonical seeds; selecting one does
+not seed the database or create a link. Normal startup registers no household
+or diagnostic tool. No migration or development seed is needed for this item.
+
+The only client is `hirz-dev-sdk`, public (`token_endpoint_auth_method=none`), with
+callback `http://127.0.0.1:8765/callback`. Preload that static client information
+in SDK token storage, then use its OAuthClientProvider. Request canonical resource
+`http://127.0.0.1:8000/mcp`, an exact callback, S256, and supported scopes. An omitted
+scope requests `hirz:read`; Approve grants exactly the displayed scopes. Deny
+returns `access_denied`. No dynamic registration or revocation endpoint exists.
+See [ADR-014](./adr/ADR-014-local-oauth.md) for lifetimes, request limits, rotation,
+key-cache behavior and the approved in-memory dev-state exception.
+
+For a reproducible full SDK flow, run:
+
+```sh
+uv run --locked python scripts/smoke_oauth.py
+uv run --locked python scripts/smoke_oauth.py --browser
+```
+
+The smoke allocates loopback ports and a uniquely named disposable database,
+explicitly migrates/seeds only that database, and starts separate issuer and MCP
+processes with ephemeral signing material. A third listener receives SDK callbacks.
+It preloads static registration, then lets the SDK discover PRM/issuer metadata,
+generate PKCE, receive consent, exchange the code, call its test-only `oauth_probe`
+and refresh automatically. Mom links to both homes with different roles. The smoke
+also denies consent, checks a wrong audience returns 401, and compares the complete
+seeded graph/policy/history plus empty audit/action tables after the requests.
+It prints only redacted identities/status, never codes, tokens or keys. Successful
+runs drop their database; failures retain the uniquely named database using the
+existing disposable-database procedure. Development is untouched.
+
+`--browser` prints a local callback-harness root URL. Open it to reach the SDK's
+live consent page; select **Mom — Malik's home**, check the displayed scopes, and
+Approve. The page shows callback completion and the terminal reports SDK success.
+The second household links automatically; when the terminal requests Deny, reopen
+the same root URL and click Deny. The callback page reports no access was granted.
+The ordinary smoke drives these same HTML forms with HTTP for CI. Browser checks
+must actually run before claiming visual verification.
+
+Anonymous Inspector regression continues to use the item 23 commands above;
+Inspector OAuth registration is deferred. Supplied credentials in generic-preview
+mode return 503. Authenticated mode returns 401 with the root PRM challenge for
+invalid/missing required credentials; valid insufficient scopes return 403 with
+`insufficient_scope`. Unmapped/child members get generic onboarding only, with
+403 for protected calls. Required keys or database unavailable returns 503.
+Anonymous generic onboarding does not require either dependency.
+
+Focused checks:
+
+```sh
+uv run --locked pytest tests/unit/test_oauth.py tests/unit/test_mcp.py --no-cov
+uv run --locked pytest tests/integration/test_oauth_database.py -m integration --no-cov
+```
+
+Use the ordinary service-free/integration/combined-coverage sequence for the full
+suite. The Python CI job runs `smoke_oauth.py`; remote CI and production linking
+are not implied by local success.

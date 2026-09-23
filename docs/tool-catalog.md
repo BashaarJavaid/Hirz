@@ -18,7 +18,7 @@ The tool surface Alexa+ (and the simulator) sees. Five groups, twelve tools. The
 - **Errors** are MCP tool-execution errors with a consumer-language `message` and a machine `code`; never protocol errors for validation problems, so the host can self-correct. A parameter combination that makes no sense for the chosen action ("set_temperature" with no temperature) is this kind of error.
 - **No internal IDs in speakable text.** Plan, action, and case ids, and internal class names, travel in `data` and in `_meta` only.
 - **Latency** under the §8 budget; nothing in a tool waits on a model, a solver, the Gateway, an adapter, or a third-party network call. Tools that act hand execution to the worker and say so in `speakable`.
-- **Scopes** (OAuth): `hirz:read`, `hirz:plan`, `hirz:act`, `hirz:verify`. A token without the scope gets a friendly refusal, not a 401. The Skill-bridge demo token carries `hirz:read` only (ADR-007).
+- **Scopes** (OAuth): `hirz:read`, `hirz:plan`, `hirz:act`, `hirz:verify`. A valid token without the required scope gets HTTP 403, a friendly JSON message and an `insufficient_scope` challenge naming the required scope. Missing or invalid credentials get HTTP 401 with PRM discovery. The Skill-bridge demo token carries `hirz:read` only (ADR-007).
 
 Naming follows the 2025-11-25 guidance: lowercase, underscores, verb first. Amazon's "Tools, Schema, Data Design" page of the add-on design guide is read and cited when the tools are built (`ROADMAP.md` item 25).
 
@@ -122,3 +122,16 @@ Item 25 maps the flat tool input onto these three cases and adds no fourth path.
 `revise_household_plan`'s text field is provenance: item 25 builds `ConstraintSpec`
 from `applies_to`, `kind` and `window`; the sentence grammar in
 `hirz/planner/coordinator.py` stays for the scenario host and tests only.
+
+## Local authentication (item 24)
+
+Generic `what_can_you_do` remains anonymous. The authenticated startup and separate
+simulated issuer are documented in [development procedures](./development.md#item-24-local-oauth).
+Other tools default to protected `hirz:read` access and cannot register without
+authentication wiring; their eventual catalog scopes must be supplied explicitly.
+The normal catalog still contains only generic onboarding. `oauth_probe` is a
+test/smoke-only read of resolved identity, with a fixed required scope per test.
+Unmapped/child tokens can use generic onboarding but receive 403 for protected
+calls. Required keys/database unavailable gives 503. Policy denials remain tool
+results. Full household tools/isolation and Inspector OAuth registration remain
+later work; [ADR-014](./adr/ADR-014-local-oauth.md) records the exact local contract.

@@ -1,6 +1,6 @@
 """The onboarding-only public surface; household tools follow authentication."""
 
-from typing import Literal
+from typing import Any, Literal
 
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
@@ -33,14 +33,47 @@ async def what_can_you_do() -> Onboarding:
     )
 
 
-def create_server(security: TransportSecuritySettings) -> FastMCP:
-    server = FastMCP(
+class HirzMCP(FastMCP):
+    """New tools require auth wiring and default to the read scope."""
+
+    def __init__(self, *args: Any, authentication: bool = False, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.authentication = authentication
+        self.tool_scopes: dict[str, str] = {}
+
+    def add_tool(
+        self,
+        fn: Any,
+        name: str | None = None,
+        *args: Any,
+        required_scope: str = "hirz:read",
+        **kwargs: Any,
+    ) -> None:
+        from hirz.mcp.auth import SCOPES
+
+        tool_name = name or fn.__name__
+        if tool_name != "what_can_you_do":
+            if not self.authentication:
+                raise ValueError("Protected tools require authentication wiring")
+            if required_scope not in SCOPES:
+                raise ValueError("Unsupported tool scope")
+            self.tool_scopes[tool_name] = required_scope
+        elif fn is not what_can_you_do:
+            raise ValueError("Only generic onboarding may be anonymous")
+        super().add_tool(fn, name, *args, **kwargs)
+
+
+def create_server(
+    security: TransportSecuritySettings, *, authentication: bool = False
+) -> HirzMCP:
+    server = HirzMCP(
         "Hirz",
+        authentication=authentication,
         stateless_http=True,
         json_response=True,
         streamable_http_path="/mcp",
         transport_security=security,
         max_request_body_size=MAX_BODY_BYTES,
     )
-    server.add_tool(what_can_you_do)
+    server.add_tool(what_can_you_do, name="what_can_you_do")
     return server

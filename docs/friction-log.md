@@ -367,3 +367,34 @@ browser-control process needed loopback access outside the sandbox after
 Reference: [Playwright browser compatibility](https://playwright.dev/docs/browsers).
 Suggestion: show a browser compatibility warning for unsupported browser engines.
 No Hirz code or security rule was changed to work around these UI/environment issues.
+
+## Item 24 local OAuth — 2026-09-23
+
+- **Tool/task:** MCP Python SDK 1.30.0, bind local authorization-code/refresh
+  exchange to the canonical MCP resource. **Steps/expected:** inspected the
+  installed [token handler](https://github.com/modelcontextprotocol/python-sdk/blob/v1.30.0/src/mcp/server/auth/handlers/token.py)
+  against [RFC 8707](https://www.rfc-editor.org/rfc/rfc8707.html).
+  **Actual:** the handler parses `resource` but does not compare it with the
+  grant; its `TokenErrorCode` omits `invalid_target`. No upstream exception was
+  emitted; this is a provider integration gap, not a claim that the SDK promises
+  automatic resource enforcement. **Severity:** Minor. **Workaround:** validate
+  resource before the SDK handler and return `invalid_target`; regression tests
+  verify omitted/wrong code-exchange resources are rejected before issuing tokens.
+  **Suggestion:** pass requested resource to provider exchange methods or document
+  the required HTTP-boundary adaptation alongside the provider protocol.
+- **Tool/task:** browser-plugin consent-page and Inspector verification.
+  **Steps/expected:** initialized the installed browser runtime, selected the local
+  harness URL, read its bootstrap troubleshooting guide and listed browsers;
+  retried after the author enabled the connection. **Actual:** both attempts
+  returned `No browser is available`; discovery returned `[]`. **Severity:** Minor.
+  **Workaround:** the author approved temporary standalone Playwright; Chromium
+  153.0.8010.12 completed the SDK consent and callback checks.
+  **Suggestion:** distinguish disconnected browser integration from disabled
+  integration and expose recovery status. This repeats the item 23 local browser
+  limitation; [Playwright browser launch](https://playwright.dev/docs/api/class-browsertype#browser-type-launch)
+  is the proposed fallback reference, not evidence of a Playwright defect.
+
+The entry 6 uv-cache restriction recurred during `uv lock --offline`:
+`failed to open file /Users/bashaarjavaid/.cache/uv/sdists-v9/.git: Operation not permitted (os error 1)`.
+Authorized escalation resolved it without a dependency change beyond the approved
+PyJWT direct pin. No new upstream defect is claimed.

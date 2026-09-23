@@ -74,6 +74,8 @@ jobs:
         run: docker compose -f compose.dev.yml up -d --build --wait --wait-timeout 180
       - name: MCP client SDK handshake and onboarding
         run: uv run --locked python scripts/smoke_mcp.py
+      - name: Local OAuth SDK linking and refresh in a disposable database
+        run: uv run --locked python scripts/smoke_oauth.py
       - run: uv run --locked alembic upgrade head
       - run: uv run --locked alembic check
       - run: uv run --locked hirz doctor

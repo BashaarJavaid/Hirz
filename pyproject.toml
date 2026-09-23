@@ -21,6 +21,7 @@ dependencies = [
     "scipy==1.18.0",
     "boto3==1.43.90",
     "mcp==1.30.0",
+    "PyJWT[crypto]==2.14.0",
 ]
 
 [project.scripts]

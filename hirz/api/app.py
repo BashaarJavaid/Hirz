@@ -1,11 +1,16 @@
 """Local MCP and liveness; dependency readiness remains later work."""
 
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from collections.abc import AsyncIterator, Callable
+from contextlib import AsyncExitStack, asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
+from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
-from hirz.mcp.server import create_server
+from hirz.db import database_url
+from hirz.local import read_env
+from hirz.mcp.auth import SCOPES, KeyCache, OAuthGate
+from hirz.mcp.server import HirzMCP, create_server
 from hirz.mcp.transport import MCPGuard, local_security
 
 
@@ -13,21 +18,67 @@ async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-def create_app(*, port: int = 8000) -> FastAPI:
-    """Own one SDK manager per app; tests may supply an allocated loopback port."""
+def create_app(
+    *,
+    port: int = 8000,
+    cache: KeyCache | None = None,
+    engine: AsyncEngine | None = None,
+    register: Callable[[HirzMCP], None] | None = None,
+) -> FastAPI:
+    """One SDK manager per app; only tests/smoke register diagnostic tools."""
     security = local_security(port)
-    server = create_server(security)
+    server = create_server(
+        security, authentication=cache is not None and engine is not None
+    )
+    if register is not None:
+        register(server)
     mcp_app = server.streamable_http_app()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        async with server.session_manager.run():
-            yield
+        try:
+            async with AsyncExitStack() as stack:
+                if cache is not None:
+                    await stack.enter_async_context(cache.run())
+                await stack.enter_async_context(server.session_manager.run())
+                yield
+        finally:
+            if engine is not None:
+                await engine.dispose()
 
     app = FastAPI(openapi_url=None, docs_url=None, redoc_url=None, lifespan=lifespan)
     app.add_api_route("/health", health)
-    app.mount("/", MCPGuard(mcp_app, security))
+    if cache is not None:
+
+        async def metadata() -> dict[str, object]:
+            return {
+                "resource": cache.resource,
+                "authorization_servers": [cache.issuer],
+                "scopes_supported": list(SCOPES),
+                "bearer_methods_supported": ["header"],
+            }
+
+        app.add_api_route("/.well-known/oauth-protected-resource", metadata)
+        app.add_api_route("/.well-known/oauth-protected-resource/mcp", metadata)
+    app.mount(
+        "/",
+        MCPGuard(
+            OAuthGate(
+                mcp_app, cache=cache, engine=engine, tool_scopes=server.tool_scopes
+            ),
+            security,
+        ),
+    )
     return app
+
+
+def create_local_oauth_app() -> FastAPI:
+    engine = create_async_engine(
+        database_url(read_env(Path(".env"))),
+        hide_parameters=True,
+        connect_args={"connect_timeout": 2},
+    )
+    return create_app(cache=KeyCache(), engine=engine)
 
 
 app = create_app()

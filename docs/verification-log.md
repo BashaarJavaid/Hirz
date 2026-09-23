@@ -5148,3 +5148,181 @@ SDK runs. `.venv/bin/ruff format --check .` reported **201 files already formatt
 after evidence/procedure edits; it is rerun as the final check after the completion
 records. OAuth is next (item 24); the development database remains unmigrated and
 remote CI remains unverified for this change.
+
+## Item 24 — 2026-09-23
+
+### Local implementation and verification
+
+Implemented the accepted [local OAuth decision](./adr/ADR-014-local-oauth.md):
+separate simulated issuer, explicit RSA-key initialization, SDK authorization and
+token handlers with resource-binding checks, bounded in-memory consent/grants,
+rotating refresh families, PRM, RS256 access-token validation, periodic bounded
+JWKS cache, scope enforcement and current household/member mapping. No household
+tools, production login, companion authentication or AWS deployment are claimed.
+The test/smoke `oauth_probe` is absent from both ordinary app factories.
+
+Environment: macOS arm64, Python 3.12.13, MCP SDK 1.30.0, PyJWT 2.14.0,
+PostgreSQL disposable databases; Inspector 2.7.0 on Node 24, temporary Playwright
+1.63.0 with Chromium 153.0.8010.12. Only the already-installed PyJWT dependency
+became a direct pin. Development was neither migrated nor seeded.
+
+Commands and actual summaries:
+
+| Check | Result |
+|---|---|
+| `uv lock --offline` | 70 packages resolved; direct PyJWT crypto pin locked |
+| `uv run --locked pytest` | **1,331 passed, 120 deselected in 117.57s**; service-free coverage 81% |
+| `uv run --locked pytest -m integration --cov=hirz --cov-append` | **120 passed, 1,331 deselected in 195.07s**; combined coverage 93% |
+| Final focused regression after malformed-input and browser-header fixes: `uv run --locked pytest tests/unit/test_oauth.py tests/unit/test_mcp.py --cov=hirz --cov-append -q` | **86 passed in 10.04s** |
+| `uv run --locked coverage report --fail-under=80` | **93%**, 10,839 statements, 765 missed; exit 0 |
+| `uv run --locked ruff check .` | **All checks passed!** |
+| `uv run --locked mypy hirz/ scripts/ alembic/` | **Success: no issues found in 137 source files** |
+| `uv build` | sdist and wheel built successfully |
+| `uv run --locked alembic current` | **0005_execution_attempt** (read-only) |
+| `.venv/bin/ruff format --check .` | **209 files already formatted** before evidence finalization; rerun as the final check afterward |
+
+The full suite preceded two additional OAuth regressions and the browser-header
+fixes; the 86-test final focused run covers those final changes. Integration
+mapping code did not change after its full run. Local command logs are
+`/private/tmp/hirz-item24-unit.log`, `hirz-item24-integration.log`,
+`hirz-item24-final-oauth.log` and `hirz-item24-coverage.log`. No remote CI run was
+triggered or claimed; the CI Python test job now invokes `scripts/smoke_oauth.py`.
+
+The focused checks exercise code expiry/replay, denied consent, CSRF and one-time
+consumption, exact redirects, S256/verifier validation, missing/wrong resource,
+unsupported scopes, refresh omission/preservation of resource, scope narrowing
+and escalation refusal, refresh replay revocation and atomic rotation. Limit
+branches are exercised at a reduced injected limit with the production 1,024
+constant asserted; expired state is purged before capacity refusal. Refresh-family
+expiry remains fixed through rotation. Forged refresh generations cannot revoke
+another family. A restarted provider loses codes and refresh grants while its
+already-issued access JWT still verifies with the retained key.
+
+JWT checks cover wrong scalar/list audience, signature with a known key ID,
+issuer, expiry, future issuance/nbf, missing or wrongly typed claims, non-finite
+timestamps, maximum lifetime, missing/unknown key ID, token type, unsupported
+algorithm and malformed/duplicate Authorization headers. Cache checks cover
+initial outage, freshness expiry and recovery, 60-second polling, the 2-second
+fetch deadline, redirects, different-origin JWKS, wrong issuer, empty/malformed
+keys, body size and JSON nesting. No key lookup runs inside a tool request.
+Database failure yields 503; anonymous generic onboarding remains available.
+Supplied credentials never downgrade to guest access.
+
+The PostgreSQL integration test linked all five canonical identities and exercised
+all four fixed scope gates, including 16 interleaved requests per gate. The same
+subject `mom` resolved to different member IDs and adult/owner roles in the two
+homes. Token role/provider/surface/passkey claims did not change authority.
+Unmapped and child accounts were refused protected access. A rollback-only
+synthetic membership change was exposed through the test resolver's database
+connection for the next request; the subsequent restored role was read again.
+No change was persisted. Complete seeded graph/policy/history comparison and empty
+audit/action tables proved the authentication exercise made no household writes.
+No adapter or device call is part of these entrypoints.
+
+### Official SDK and documented commands
+
+`uv run --locked python scripts/dev_oauth.py init` reported
+`Dev OAuth RSA key ready; existing entries preserved.` The documented `serve`
+command ran at loopback 8001 with access logs disabled; public metadata and JWKS
+both returned 200, advertised S256, and contained one RSA public key. The issuer
+was stopped after this check. Key contents were not included in repository evidence.
+
+`uv run --locked python scripts/smoke_oauth.py` passed through separate issuer and
+MCP processes with allocated loopback ports, a callback listener, and a uniquely
+named disposable database. SDK token storage began with static client registration
+only; it did not inject an access token. Redacted output:
+
+```text
+PASS SDK discovery -> simulated consent -> S256 exchange -> authenticated MCP -> SDK refresh
+resolved={'household': '536fa8ee-854e-56ca-8c5d-5ba418e710a0', 'member': '5d3aca33-ac5e-5bd7-a277-1034c1dca469', 'role': 'adult'}
+PASS SDK discovery -> simulated consent -> S256 exchange -> authenticated MCP -> SDK refresh
+resolved={'household': 'bf745178-9146-5952-a310-f1d7e563977b', 'member': 'c718c622-1d64-5512-bde3-cacbeff62893', 'role': 'owner'}
+PASS SDK denial; same subject resolves adult/owner in two homes
+PASS wrong audience -> 401
+PASS zero household changes, audit events and device actions
+disposable_database=dropped; development_database=unchanged
+```
+
+Initial development failures were reported rather than counted as passes: six
+existing invalid-body tests hit the new registration guard when monkeypatching the
+onboarding function; registering its explicit public name fixed this. The first
+HTTP smoke incorrectly called httpx `raise_for_status` on an intentional 302;
+expecting that redirect fixed the harness. An integration probe initially used an
+unparameterized `dict` return annotation and omitted SDK structured output; its
+annotation was corrected to `dict[str, Any]`. Failed smoke databases were retained
+by the existing disposable helper; successful reruns dropped their databases.
+The normal generic SDK smoke passed against both the existing loopback preview
+and a separate process built from the changed checkout on an allocated port:
+
+```text
+protocol=2025-11-25; session_id=none
+tools=what_can_you_do
+PASS initialize -> tools/list -> tools/call; structured output validated
+```
+
+### Browser consent and anonymous Inspector regression
+
+The browser plugin reported `No browser is available` and `[]`; retry after the
+author enabled it still failed. One waiting browser smoke timed out. The author
+then explicitly approved a temporary standalone Playwright browser. The initial
+browser run found two genuine Hirz consent-page problems that HTTP-only tests
+could not expose: `no-referrer` caused `Origin: null` and a 403 `Invalid Origin
+header`; after fixing that, the initial self-only CSP blocked navigation to the
+registered callback. The final page uses same-origin referrer policy and permits
+only self plus the exact registered callback in `form-action`. Origin and CSRF
+checks remain enforced; regression assertions cover those response headers.
+
+The final `uv run --locked python scripts/smoke_oauth.py --browser` displayed
+**Hirz simulated login**, the local-development explanation, requested
+`hirz:read` scope, all five seed-derived member/home choices, and visible Approve
+and Deny buttons with a labeled native select. Selecting **Mom — Malik's home**
+and Approve rendered **Callback complete**; the SDK completed exchange, protected
+call and refresh. The second home's SDK link ran automatically. Reopening the
+harness and clicking Deny rendered **Consent denied** and **No household access
+was granted.** The smoke then printed all PASS lines above and dropped its database.
+Screenshots were visually inspected at `/private/tmp/hirz-item24-consent.png`,
+`hirz-item24-callback-approve.png` and `hirz-item24-callback-deny.png`; no grant
+material is visible in them.
+
+Inspector CLI `initialize`, `tools/list`, and `tools/call` each exited 0 against the
+changed checkout's isolated preview on port 49904. The catalog contained only
+`what_can_you_do`; initialization used 2025-11-25 and invocation returned
+`isError:false` with validated structured onboarding.
+
+Inspector UI used a fresh temporary catalog, memory-only secret store and its
+normal launcher authentication. The default sample servers stayed disconnected.
+Adding `hirz-item24` with Streamable HTTP and the isolated preview URL showed
+**Connected**, **Hirz** and **MCP 2025-11-25**. In Tools, invoking the sole
+`what_can_you_do` displayed Results and Structured Output containing:
+
+```json
+{
+  "speakable": {
+    "headline": "Hirz helps families set rules for home automation, plan energy use, and check suspicious requests.",
+    "details": ["This local preview only describes Hirz. Household tools are not connected yet."],
+    "options": []
+  },
+  "data": {"available_tools": ["what_can_you_do"]}
+}
+```
+
+The protocol panel showed successful initialization, listing and invocation. The
+result screenshot is `/private/tmp/hirz-item24-inspector-result.png`; it was
+visually inspected. No p95/latency claim is inferred from these individual calls.
+Inspector OAuth registration remains deferred. Browser/SDK integration friction
+is recorded in the [friction log](./friction-log.md#item-24-local-oauth--2026-09-23).
+
+### Local completion scope
+
+Item 24's local gates passed. Only local stolen-token protection is marked
+Partial; full cross-household tool isolation stays Planned until item 26.
+Production identity, real login, companion authentication, household tools,
+AWS deployment and remote CI remain unverified. Development remains on 0005;
+no policy was activated and no device action was authorized or performed.
+
+Cleanup: stopped this task's standalone dev issuer, isolated preview and Inspector;
+removed its temporary Playwright installation, Inspector catalog and launch
+credentials. Redacted screenshots and test summaries remain under `/private/tmp`.
+The existing Compose preview was left running. `AGENTS.md` and `CLAUDE.md` match
+apart from their heading; `git diff --check` passed. No commit, push or deployment
+was performed. The final format check follows this evidence/documentation update.

@@ -15,3 +15,5 @@ One file per consequential decision, each with the alternatives that were reject
 
 - [`ADR-012-explainer.md`](./ADR-012-explainer.md) — validated narration, selected facts, fixed Converse contract and audited persistence; live Bedrock remains item 38
 - [`ADR-013-mcp-transport.md`](./ADR-013-mcp-transport.md) — fixed local guards, stateless JSON transport and generic onboarding; OAuth and household tools remain later work
+
+- [`ADR-014-local-oauth.md`](./ADR-014-local-oauth.md) — simulated local consent, SDK PKCE linking, resource-bound JWTs, bounded key cache and current member mapping

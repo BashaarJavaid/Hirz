@@ -20,6 +20,7 @@ from hirz.constitution.conditions import PolicyFacts
 from hirz.constitution.evaluator import RuleOutcome, resolve
 from hirz.constitution.schema import Constitution
 from hirz.explainer.core import decision_context, prepared
+from hirz.graph.accounts import resolve_member
 from hirz.graph.context import ContextSnapshot, validate_snapshot
 from hirz.graph.models import Household, now, utc
 from hirz.graph.repository import GraphRepository, snapshot_sql
@@ -182,28 +183,7 @@ class Pipeline:
         )
 
     async def requester(self, principal: Principal) -> Requester:
-        row = (
-            await self.connection.execute(
-                sa.select(db.members.c.id, db.members.c.role)
-                .join(
-                    db.member_accounts,
-                    sa.and_(
-                        db.members.c.household_id == db.member_accounts.c.household_id,
-                        db.members.c.id == db.member_accounts.c.member_id,
-                    ),
-                )
-                .where(
-                    self.scope(db.members),
-                    db.member_accounts.c.provider == principal.provider,
-                    db.member_accounts.c.sub == principal.sub,
-                )
-            )
-        ).one_or_none()
-        return Requester(
-            member_id=str(row.id) if row else None,
-            role=cast(Role, row.role) if row else "unknown",
-            surface=principal.surface,
-        )
+        return await resolve_member(self.connection, self.household_id, principal)
 
     async def usage(self, name: str, local_date: str) -> Decimal:
         budget = db.audit_log.c.payload["budget"]

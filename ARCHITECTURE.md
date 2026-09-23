@@ -1139,7 +1139,7 @@ there is no deployment allowlist configuration. Decisions and sources:
 **Target surface after item 23 (not all implemented):**
 
 - **Transport.** Streamable HTTP on the official Python SDK, stateless mode by default (AgentCore Runtime adds `Mcp-Session-Id` continuity), stateful mode available for elicitation. Endpoint `/mcp`. Origin/Host validation on every request; 403 on invalid Origin per spec.
-- **Auth.** Bearer JWT from the household's authorization server (Cognito in AWS, a local dev issuer otherwise). `401` with `WWW-Authenticate: Bearer resource_metadata=...` when missing or invalid; PRM document at `/.well-known/oauth-protected-resource` listing the authorization server, S256, and scopes (`hirz:read`, `hirz:plan`, `hirz:act`, `hirz:verify`). Token `sub` → member (§7). Guest experience for unlinked users: `what_can_you_do` and a generic capability summary only.
+- **Auth.** Bearer JWT from the household's authorization server (Cognito in AWS, a local dev issuer otherwise). `401` with `WWW-Authenticate: Bearer resource_metadata=...` when missing or invalid; PRM document at `/.well-known/oauth-protected-resource` listing the authorization server and scopes (`hirz:read`, `hirz:plan`, `hirz:act`, `hirz:verify`). Token `sub` → member (§7). Guest experience for unlinked users: `what_can_you_do` and a generic capability summary only.
 - **Tool surface.** Twelve tools in five groups (context, planning, action, trust, governance), deliberately few so the orchestrator picks reliably, fully specified in [`docs/tool-catalog.md`](./docs/tool-catalog.md). Design rules from Alexa+'s functional requirements are enforced by a schema test: every tool has a complete `inputSchema` with synonyms in parameter descriptions, every tool is invocable, outputs conform to `outputSchema`, errors are MCP tool-execution errors with consumer-language messages, and every output carries a `speakable` block.
 - **Visuals.** MCP Apps (`ui://hirz/...` resources) for the plan card, approval card, verification card, doorbell card, and daily scorecard, built with `@modelcontextprotocol/ext-apps` to the spec in `docs/design.md`: Amazon's published tokens verbatim, a 768×480 base canvas, one job per card, light and dark. Cards are overlays: the `speakable` block always carries the critical information so voice-only devices are complete.
 - **Modality.** Amazon's display modes, verbatim: voice-only is the always-on baseline (every output is voice-complete); tools with a card declare inline and, for dense content, fullscreen, entered through a control the customer operates; outputs stay clean enough for Alexa's hydrated rendering when no UI is sent. The earlier custom `presentation` hint is now only the simulator's device switch.
@@ -1312,6 +1312,18 @@ or any attempt audit row, preserving evidence even if a claim pointer was remove
 - **Children and guests.** Child profiles cannot link; requests come through a parent's account and the constitution's `child_requests` rules apply (`ask` the parent, or `never`). Unlinked users get the guest experience.
 - **Companion app.** Separate Hirz login (email + passkey) bound to the same `member` row; the app is where trusted-contact channel verification and approvals with quorum happen. A member can enroll more than one passkey (a phone and a laptop) and is given a one-time recovery code at setup. A member who has lost every passkey signs in with the recovery code and enrolls a new one; without the code, the household's owner re-invites them. An owner with neither has no in-product path in v1, which is why setup asks the owner for a second passkey. Losing a phone never loosens anything: pending security approvals simply expire. A lost device's passkey is revoked on the Household page.
 
+Local item 24 implements a separate simulated issuer and authenticated startup;
+[ADR-014](./docs/adr/ADR-014-local-oauth.md) specifies the lifetimes, limits,
+SDK resource-binding adaptations and failure responses. The canonical resource is
+`http://127.0.0.1:8000/mcp`; root and `/mcp`-suffixed PRM documents agree, and
+S256 is advertised by the issuer. Anonymous generic onboarding survives dependency
+outages. Supplied invalid credentials never become guest access. Protected tools
+require a scope and a current non-child member resolved from the signed household
+and subject; token role/surface/provider claims confer no authority. No household
+tool is registered yet. Key refresh is outside tool calls; required key/database
+failure returns 503. This local implementation does not prove production linking
+or the full household-tool isolation gate (item 26).
+
 ---
 
 ## 8. Latency budget
@@ -1367,7 +1379,7 @@ Things that never run inside a tool call: the MILP planner, Bedrock calls, the G
 ## 10. Security hardening checklist
 
 - Request bounds on the MCP edge: 1 MiB body, JSON depth 32, strict UTF-8, Host/Origin validation, per-household rate limits.
-- Tokens: JWT validated against the issuer's JWKS, `aud` bound to Hirz's resource URI, short lifetime, refresh handled by the AS; tokens never logged; `sub` → member lookups are constant-time on a hash.
+- Tokens: JWT validated against the issuer's JWKS, `aud` bound to Hirz's resource URI, short lifetime, refresh handled by the AS; tokens never logged; `sub` → member resolution uses the indexed `(household_id, provider, sub)` account lookup joined to the current member row.
 - Household isolation: every query scoped by `household_id` derived from the token, never from a parameter; a test drives two households through the same server and asserts zero leakage.
 - Prompt-injection posture: text that arrives from Alexa (member utterances, contact names, calendar titles) is data. It is never concatenated into a Bedrock prompt as instructions; the Explainer and Protect prompts put such text in delimited data fields with schema-validated outputs; the pipeline and risk engine never consult model output for a decision.
 - Constitution and Cedar: non-Turing-complete grammar; AgentCore Policy's automated reasoning rejects always-allow and never-satisfiable policies in AWS mode; activation is journaled; rollback is a first-class path.
