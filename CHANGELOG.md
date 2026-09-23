@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-09-23: Add the independent `addon-check` CLI integration and pinned conformance CI, replacing the placeholder with explicit twelve-tool cases after restart; publication/CI verification remains pending ([ADR-016](./docs/adr/ADR-016-add-on-conformance-checker.md), [evidence](./docs/verification-log.md#item-25a--2026-09-23)).
+
 ### Changed
 
 - 2026-09-23: Complete the approved twelve-tool household scope with durable retries, simulated trust, per-device profiles, deterministic objectives and a confirmation-gated host; clarify approval argument combinations and verify all 31 live selection cases within the approved $2 ceiling. Later UI/app/trust integrations retain their assigned roadmap items ([ADR-015](./docs/adr/ADR-015-household-tools.md), [evidence](./docs/verification-log.md#item-25-completion-within-approved-scope--2026-09-23)).

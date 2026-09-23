@@ -21,12 +21,12 @@ import uvicorn
 import yaml
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
-from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
 from mcp import ClientSession
 from mcp.client.auth import OAuthClientProvider
 from mcp.client.streamable_http import streamable_http_client
 from mcp.shared.auth import OAuthClientMetadata
 from pydantic import AnyUrl
+from pydantic_core import to_jsonable_python
 from sqlalchemy.ext.asyncio import create_async_engine
 from starlette.applications import Starlette
 from starlette.routing import Route
@@ -146,11 +146,19 @@ async def worker(database: str, scenario: str) -> None:
 
 
 async def smoke(
-    output: Path, *, live_selection: bool = False, budget_path: Path | None = None
+    output: Path,
+    *,
+    live_selection: bool = False,
+    budget_path: Path | None = None,
+    conformance_cli: Path | None = None,
 ) -> None:
     logging.disable(logging.CRITICAL)
     if output.exists() or output.is_symlink():
         raise ValueError("Audit export requires a new path")
+    report_path = output.with_suffix(".conformance.json")
+    if conformance_cli and (report_path.exists() or report_path.is_symlink()):
+        raise ValueError("Conformance report requires a new path")
+    conformance_cases: dict[str, dict[str, Any]] = {}
     values = read_env(Path(".env"))
     listeners = []
     try:
@@ -284,13 +292,31 @@ async def smoke(
                                             flush=True,
                                         )
                                     assert not result.isError, (name, result)
-                                    Draft202012Validator(
-                                        Result.model_json_schema()
-                                    ).validate(result.structuredContent)
+                                    # First successful arguments retain durable request IDs.
+                                    conformance_cases.setdefault(
+                                        name,
+                                        dict(
+                                            tool=name,
+                                            arguments=to_jsonable_python(arguments),
+                                            speechPointers=[
+                                                "/structuredContent/speakable/headline",
+                                                "/structuredContent/speakable/details",
+                                                "/structuredContent/speakable/options",
+                                            ],
+                                            repeatable=name
+                                            in {
+                                                "what_can_you_do",
+                                                "get_household_context",
+                                            },
+                                            expectError=False,
+                                            authProbe=name == "get_household_context",
+                                        ),
+                                    )
                                     return Result.model_validate(
                                         result.structuredContent
                                     )
 
+                                await call("what_can_you_do", {})
                                 context = await call(
                                     "get_household_context", {"scope": "all"}
                                 )
@@ -634,7 +660,60 @@ async def smoke(
                                     Result.model_validate(result.structuredContent)
                                     == recorded
                                 )
-                print("PASS durable retry after MCP process restart", flush=True)
+                    print("PASS durable retry after MCP process restart", flush=True)
+                    if conformance_cli:
+                        assert set(conformance_cases) == set(TOOLS)
+                        cases_path = Path(fixture_dir.name) / "conformance-cases.json"
+                        with open(
+                            cases_path,
+                            "x",
+                            opener=lambda path, flags: os.open(path, flags, 0o600),
+                        ) as cases_file:
+                            json.dump(
+                                dict(version=1, cases=list(conformance_cases.values())),
+                                cases_file,
+                            )
+                        command = (
+                            ["node", str(conformance_cli.resolve())]
+                            if conformance_cli.suffix == ".js"
+                            else [str(conformance_cli.resolve())]
+                        )
+                        checker = await asyncio.create_subprocess_exec(
+                            *command,
+                            config["resource"],
+                            "--token-env",
+                            "HIRZ_CONFORMANCE_TOKEN",
+                            "--cases",
+                            str(cases_path),
+                            "--json",
+                            "--require-complete",
+                            env=os.environ
+                            | {"HIRZ_CONFORMANCE_TOKEN": storage.tokens.access_token},
+                            stdout=asyncio.subprocess.PIPE,
+                            stderr=asyncio.subprocess.PIPE,
+                        )
+                        try:
+                            stdout, _ = await checker.communicate()
+                        finally:
+                            cases_path.unlink(missing_ok=True)
+                        report = json.loads(stdout)
+                        with open(
+                            report_path,
+                            "x",
+                            opener=lambda path, flags: os.open(path, flags, 0o600),
+                        ) as report_file:
+                            json.dump(report, report_file, indent=2)
+                        print("CONFORMANCE", json.dumps(report["summary"]), flush=True)
+                        for check in report["checks"]:
+                            if check["status"] == "FAIL":
+                                print(
+                                    "FAIL",
+                                    check["id"],
+                                    check.get("tool"),
+                                    check["message"],
+                                    flush=True,
+                                )
+                        assert checker.returncode == 0 and report["summary"]["complete"]
             finally:
                 callback_server.should_exit = True
                 await callback_task
@@ -671,6 +750,11 @@ def main() -> None:
     parser.add_argument("--audit-output", type=Path, required=True)
     parser.add_argument("--live-selection", action="store_true")
     parser.add_argument("--budget-ledger", type=Path)
+    parser.add_argument(
+        "--conformance-cli",
+        type=Path,
+        help="Built addon-check CLI (.js or executable); requires complete evidence",
+    )
     args = parser.parse_args()
     if args.live_selection and not args.budget_ledger:
         parser.error("Live selection needs the retained task budget ledger")
@@ -680,6 +764,7 @@ def main() -> None:
                 args.audit_output,
                 live_selection=args.live_selection,
                 budget_path=args.budget_ledger,
+                conformance_cli=args.conformance_cli,
             )
         )
     except Exception as exc:

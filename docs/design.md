@@ -28,7 +28,7 @@ Principles taken from the guide: reduced content density (fewer metadata fields,
 - **Inline** is the default for a card: it complements the spoken reply.
 - **Fullscreen** is for dense content (the plan timeline, the decision list). It is entered through a control the customer operates, never spontaneously.
 - **Hydrated**: when no UI payload is sent, Alexa renders the data natively, so `data` stays clean.
-- Tools declare the modes they support. The declaration syntax is taken from the guide when the tools are built, not guessed here. The old custom `presentation` hint survives only as the simulator's Echo Show / Echo Dot switch.
+- Views declare supported modes in `ui/initialize` through `appCapabilities.availableDisplayModes`; hosts provide their available modes in host context ([MCP Apps specification](https://github.com/modelcontextprotocol/ext-apps/blob/main/specification/2026-01-26/apps.mdx), checked 2026-09-23). These are browser exchanges, not tool metadata. The old custom `presentation` hint survives only as the simulator's Echo Show / Echo Dot switch.
 
 ## 3. Card rules
 

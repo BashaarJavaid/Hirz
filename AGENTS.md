@@ -118,20 +118,20 @@ The verified toolchain and scaffold setup are in `README.md`; use Node 24.
 - `uv run hirz constitution preview OLD NEW` — deterministic situation differences; no activation. `analyze`/`activate` remain later work.
 - `uv run pytest` — service-free tests with coverage; `uv run pytest -m integration --cov=hirz --cov-append` — live PostgreSQL tests in uniquely named disposable databases, appending coverage; `uv run --locked coverage report --fail-under=80` — 80 percent over service-free and integration tests combined (run those three commands in order); `uv run pytest -m integration --no-cov` — standalone integration checks without coverage; `uv run pytest tests/latency` — budget; `uv run pytest tests/cedar_conformance` — YAML/native Dogwood agreement; AWS comparison remains item 37.
 - `uv run ruff check . && uv run ruff format --check . && uv run mypy hirz/ scripts/ alembic/`.
-- The add-on conformance checker (separate open-source repository, name to be chosen) run against the local MCP server.
+- `uv run --locked python scripts/smoke_household_tools.py --audit-output <new-file> --conformance-cli ../addon-check/dist/cli.js` — independent twelve-tool checks with `--require-complete` after restart; private cases, environment token and signed audit verification. Build the separate Node 24 checker first; only onboarding/context are timed. Procedure: `docs/development.md`.
 - `pnpm -r lint && pnpm -r typecheck && pnpm -r test`; `pnpm --filter web dev` (companion pages + simulator route), `pnpm --filter mcp-app build`.
 - `cd infra/cdk && pnpm cdk deploy` / `pnpm cdk destroy` — the AWS stack for the judging window.
 - `HIRZ_LLM=off|bedrock`, `HIRZ_ADAPTERS=devices:ha,ev:twin,energy:real,...` — runtime configuration.
 
 ## Current phase
 
-**Phase 4 item 25 is complete within its approved scope.**
-Twelve tools, profiles, objective tilts, durable retries and simulated trust passed
-SDK/restart/audit checks; the full live selection gate passed. Item 26's latency
-and isolation gate is next. Later UI/app/trust integrations retain their roadmap
-owners. Preserve the existing $2 budget ledger. Development stays on 0005;
-migrations through 0011 are manual. Real phone/security execution remains unverified.
-Evidence: `docs/verification-log.md`; procedure: `docs/development.md`.
+**Phase 4 item 25 is complete; item 25a is in verification.**
+The independent addon-check source and twelve-tool integration pass locally;
+CI evidence and npm publication/registry verification remain owed. Item 26 owns
+full latency/isolation. Preserve the $2 budget ledger; Bedrock stays off for
+conformance. Development stays on 0005; migrations through 0011 are manual.
+Real phone/security execution remains unverified. Evidence: `docs/verification-log.md`;
+procedure: `docs/development.md`.
 
 ---
 

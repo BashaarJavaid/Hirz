@@ -5840,3 +5840,64 @@ The successful run used a fresh temporary uv cache and installed 51 packages:
 the fresh cache were removed. Initial sandbox DNS and existing-cache failures
 are recorded in the friction log. No GitHub rerun, push, Docker build, database
 mutation or AWS call was performed for this workflow-only fix.
+
+## Item 25a — 2026-09-23
+
+### Local implementation and publication preparation
+
+Independent repository: <https://github.com/BashaarJavaid/addon-check>, revision
+`f9bf2914c136c4e5b196558c2795477dd21c2a46`. Node 24.21.0; SDK 1.30.1, Ajv 8.20.0,
+strict TypeScript 6.0.3; npm lockfile and Apache-2.0. Decision/source distinctions:
+[ADR-016](./adr/ADR-016-add-on-conformance-checker.md).
+
+- Checker `npm run lint`, `npm run typecheck`, `npm test` and build passed:
+  **42 tests, 42 passed, 0 failed**, including JSON/SSE fixture transport,
+  cursor bounds, response/body deadlines and size bounds, auth metadata/challenges,
+  explicit calls, schema references, expected errors, UI references/manual review,
+  74/75-word boundaries, exact repetition count, 500 ms failure boundary and CLI
+  exit codes. Output retained locally at `/private/tmp/addon-check-final-tests.log`.
+- `npm pack --dry-run`, `npm pack`, then
+  `node test/package.mjs ./addon-check-0.1.0.tgz` passed from a clean temporary
+  installation: complete fixture exited 0; broken 75-word fixture exited 1 and
+  identified `speech.estimate`. Nine packed files; tarball SHA-1
+  `b11fca27fb49eb688b42d06ad04ad7cdbeaef5d1`. No real tokens or case payloads are packed.
+- The first two Hirz smoke attempts stopped at private cases-file creation
+  (`TypeError`; `Path.open` does not accept `opener`). Corrected to built-in open
+  with 0600 permissions; arguments also use the SDK's Pydantic JSON conversion.
+  The failed disposable databases were retained by the existing helper:
+  `hirz_ha_smoke_498ba51249774d99bf460270143624bd` and
+  `hirz_ha_smoke_e23395aa46bf45d5859de26c41f8d6c2`. No conformance result or audit
+  export is claimed for those attempts.
+- `PATH=/opt/homebrew/opt/node@24/bin:$PATH HIRZ_DOGWOOD=$PWD/.tools/dogwood
+  HIRZ_LLM=off uv run --locked python scripts/smoke_household_tools.py
+  --audit-output /private/tmp/hirz-item25a-audit-3.json
+  --conformance-cli ../addon-check/dist/cli.js` passed all existing SDK, worker,
+  scope and restart assertions, followed by **117 PASS, 0 FAIL/WARN/SKIP/MANUAL**,
+  complete evidence for twelve tools, and **611 signed rows independently valid**.
+  Export fingerprint: `385589f309b374189ea1b391f4a3ad193f3674cf7fb6e72e1a97caf76e21912b`.
+  Adjacent `.conformance.json` retains every check/sample. Onboarding warm-up
+  17.713 ms, 20 measured calls 3.891–6.914 ms; context warm-up 22.619 ms,
+  20 measured calls 13.677–20.862 ms. Only these two tools were timed.
+  The successful disposable database was dropped; development remained unchanged.
+- Generic JSON Schema assertions in the smoke and household contract unit test
+  moved after this replacement passed. Runtime models, flat/strict Hirz inputs,
+  transport/security regressions and behavior assertions remain.
+- Full service-free Python suite: **1401 passed, 129 deselected in 127.00s**;
+  standalone coverage was 78%, with the combined integration gate still pending
+  at this entry. Ruff passed; strict mypy passed **150 source files**.
+  Output: `/private/tmp/hirz-item25a-unit.log`.
+
+No Bedrock request was made; the retained budget ledger and developer database
+were unchanged. Browser display modes, production OAuth and Amazon certification
+are not claimed. Item 26's full latency/isolation suite remains separate.
+At this entry, checker/Hirz CI runs and npm publication/registry installation remain
+owed. npm readiness returned `ENEEDAUTH`; interactive author login was requested
+only after the artifact passed clean installation. Item 25a is not complete.
+
+### Independent source CI
+
+[addon-check CI run 35930153274](https://github.com/BashaarJavaid/addon-check/actions/runs/35930153274)
+passed at `f9bf2914c136c4e5b196558c2795477dd21c2a46`: locked install, lint,
+strict types, 42 HTTP/CLI tests, package inspection/build, and clean tarball
+installation against passing/broken fixtures. npm registry publication remains
+separate; no certification is implied.

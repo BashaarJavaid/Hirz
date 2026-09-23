@@ -19,3 +19,5 @@ One file per consequential decision, each with the alternatives that were reject
 - [`ADR-014-local-oauth.md`](./ADR-014-local-oauth.md) — simulated local consent, SDK PKCE linking, resource-bound JWTs, bounded key cache and current member mapping
 
 - [`ADR-015-household-tools.md`](./ADR-015-household-tools.md) — partial local twelve-tool contract, durable retries, private simulated trust checks and bounded headless host
+
+- [`ADR-016-add-on-conformance-checker.md`](./ADR-016-add-on-conformance-checker.md) — independent explicit-case MCP checker, source distinctions, scoped evidence and disposable Hirz integration

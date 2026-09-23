@@ -155,7 +155,7 @@ The simulator's emulated host is given these rules, which mirror Alexa+'s publis
 - In voice-only mode, never refer to the screen.
 - On tool error, say what happened in plain words and offer a next step.
 
-The generic, black-box parts of this contract (Streamable HTTP on 2025-11-25, Protected Resource Metadata, the `401` challenge, schema completeness, naming, declared display modes, warm round trip under 500 ms, spoken length under 30 seconds, no formatting artefacts) are checked by the open-source conformance checker (`ROADMAP.md` item 25a), which Hirz's CI runs against its own server. Hirz's own tests keep only the Hirz-specific rules: `speakable` present, options ≤ 5, headline length, no internal IDs or class names in consumer strings.
+The independent [addon-check](https://github.com/BashaarJavaid/addon-check) checks the generic contract through explicit cases in Hirz CI: transport, PRM/scoped challenges, schemas, naming, selected speech and authorized latency samples. All twelve tools have output/speech cases; only onboarding/context are timed. MCP Apps references are checked when declared; display-mode behavior belongs to the browser initialization exchange and requires manual review. This is scoped evidence, not Amazon certification ([ADR-016](./adr/ADR-016-add-on-conformance-checker.md)). Hirz retains runtime validators, transport/security regressions and its specific flat inputs, `speakable`, option/headline limits, privacy and authority checks.
 
 
 Item 18's reserved `governance.record_constraint` and

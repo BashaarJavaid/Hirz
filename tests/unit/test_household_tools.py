@@ -3,7 +3,6 @@
 from datetime import UTC, datetime
 
 import pytest
-from jsonschema import Draft202012Validator
 from pydantic import ValidationError
 
 from hirz.mcp.contracts import (
@@ -13,26 +12,18 @@ from hirz.mcp.contracts import (
     AuditInput,
     ContextInput,
     PermissionInput,
-    Result,
     RevisionInput,
     input_schema,
-    response,
 )
 from hirz.mcp.household import audit_window, horizon_end
 from hirz.risk import CONSUMER_ACTIONS
 
 
-def test_every_tool_is_flat_strict_and_has_a_structured_output():
+def test_every_tool_has_flat_strict_consumer_inputs():
     assert len(TOOLS) == 12
-    output = Result.model_json_schema()
-    Draft202012Validator.check_schema(output)
-    Draft202012Validator(output).validate(
-        response("Your request is recorded.").model_dump(mode="json")
-    )
     for schema, _, _ in TOOLS.values():
         value = input_schema(schema)
         assert value["additionalProperties"] is False
-        Draft202012Validator.check_schema(value)
         for field in value["properties"].values():
             assert field["description"]
             assert field.get("type") not in {"array", "object"}

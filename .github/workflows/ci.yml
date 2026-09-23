@@ -190,11 +190,69 @@ jobs:
 
   conformance:
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 30
+    env:
+      HIRZ_LLM: "off"
+      COMPOSE_PROJECT_NAME: hirz-conformance-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
-      - name: Phase 0 placeholder — add-on checker not implemented
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check out reviewed independent checker
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: BashaarJavaid/addon-check
+          ref: f9bf2914c136c4e5b196558c2795477dd21c2a46
+          path: .tools/addon-check
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24.21.0"
+          package-manager-cache: false
+      - name: Build locked checker
+        working-directory: .tools/addon-check
+        run: npm ci && npm run build
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version: "0.12.15"
+          enable-cache: false
+      - run: uv python install
+      - run: uv sync --locked
+      - name: Build pinned native Dogwood (required)
         run: |
-          echo 'DEFERRED: No add-on contract checks ran. Item 25a adds the separate conformance checker against the local MCP server.' | tee -a "$GITHUB_STEP_SUMMARY"
+          rustup toolchain install 1.98.1 --profile minimal
+          RUSTUP_TOOLCHAIN=1.98.1 uv run --locked python scripts/build_dogwood.py
+          echo "HIRZ_DOGWOOD=$PWD/.tools/dogwood" >> "$GITHUB_ENV"
+      - name: Initialize isolated PostgreSQL and HA demo
+        run: uv run --locked python scripts/init_dev.py
+      - name: Twelve-tool conformance, restart and signed audit verification
+        run: >-
+          uv run --locked python scripts/smoke_household_tools.py
+          --audit-output "$RUNNER_TEMP/conformance-audit.json"
+          --conformance-cli "$PWD/.tools/addon-check/dist/cli.js"
+      - name: Publish payload-free conformance summary
+        run: |
+          python - <<'PYTHON'
+          import json, os
+          from pathlib import Path
+          report = json.loads((Path(os.environ["RUNNER_TEMP"]) / "conformance-audit.conformance.json").read_text())
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              print("addon-check: " + json.dumps(report["summary"]), file=summary)
+              print("Twelve output/speech cases; only onboarding/context timed. Scoped evidence, not Amazon certification. Full latency/isolation remains item 26.", file=summary)
+          PYTHON
+      - name: Service status on failure (no configuration or raw logs)
+        if: failure()
+        run: >-
+          docker ps -a
+          --filter "label=com.docker.compose.project=$COMPOSE_PROJECT_NAME"
+          --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+      - name: Remove only this runner's isolated services and credentials
+        if: always()
+        run: |
+          trap 'rm -f .env' EXIT
+          if [ -f .env ]; then
+            docker compose -f compose.dev.yml down --volumes --remove-orphans
+          fi
 
   latency:
     runs-on: ubuntu-24.04

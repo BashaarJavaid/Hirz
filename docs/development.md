@@ -1217,3 +1217,37 @@ The first suite includes native local policy conformance when Dogwood is configu
 If sandbox cache access fails, set `UV_CACHE_DIR=/tmp/hirz-uv-cache`; local PostgreSQL
 and loopback process verification require local network access. Item 26 latency and
 full isolation gates remain separate. Retained run evidence is in the verification log.
+
+## Independent add-on checks (item 25a)
+
+The [addon-check repository](https://github.com/BashaarJavaid/addon-check) is a
+separate Node 24/TypeScript checkout; its README owns the generic CLI contract,
+synthetic fixtures and publication procedure. [ADR-016](./adr/ADR-016-add-on-conformance-checker.md)
+records the scope and Amazon/MCP authentication distinction. Passing scoped checks
+is not Amazon certification.
+
+Build its locked dependencies (`npm ci && npm run build` in that checkout), then
+run from Hirz with Node 24 on PATH and native Dogwood configured:
+
+```sh
+HIRZ_LLM=off uv run --locked python scripts/smoke_household_tools.py \
+  --audit-output /private/tmp/hirz-conformance-audit-NEW.json \
+  --conformance-cli ../addon-check/dist/cli.js
+```
+
+The audit and adjacent `.conformance.json` report paths must both be new. The smoke
+creates disposable households, performs existing SDK/worker/restart assertions,
+then invokes the built checker with `--require-complete`. Explicit cases cover all
+twelve tools and reuse durable request IDs. Only context/onboarding are timed;
+context gets missing/malformed-token probes. Cases are transient and private,
+the bearer is a subprocess environment variable, and the report has no payloads.
+The smoke independently verifies its signed audit export after the checker returns.
+The developer database is neither migrated nor reset. Do not add live selection
+or reset the retained Bedrock budget ledger for this gate. A failure retains its
+disposable database according to the existing smoke procedure.
+
+The conformance CI job uses the same path with a full checker commit SHA, Node 24,
+npm's lockfile and native Dogwood. It initializes and cleans up only its runner's
+Compose project. The checker measures two tools; the full tool latency/isolation
+suite remains item 26. See the [evidence log](./verification-log.md#item-25a--2026-09-23)
+for publication state and actual runs.

@@ -473,3 +473,19 @@ the interrupted report and reservations remain retained. See the [completion evi
   installation and the exact CI smoke step passed. The cause of the missing cache
   file was not established. **Suggestion:** identify incomplete cache entries and
   offer a targeted refetch in installation diagnostics.
+
+## Item 25a: Amazon and MCP authentication guidance conflict — 2026-09-23
+
+- **Tool/task:** implement independent add-on checks using the
+  [Amazon authentication guidance](https://developer.amazon.com/docs/alexaplus/add-ons/mcp-toolkit-authentication.html)
+  and [MCP authorization specification](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization).
+  **Steps/expected:** read both current documents; expect consistent discovery guidance.
+  **Actual:** Amazon's “What isn't supported” list includes
+  “`WWW-Authenticate` headers in 401 responses”; MCP says
+  “MCP clients MUST be able to parse `WWW-Authenticate` headers”.
+  No runtime error is involved; these are the exact conflicting documentation excerpts.
+  **Severity:** Minor. **Workaround:** label the check as scoped MCP evidence,
+  document Amazon's differing guidance, preserve Hirz's existing authentication,
+  and make no Amazon certification claim ([ADR-016](./adr/ADR-016-add-on-conformance-checker.md)).
+  **Suggestion:** publish a reconciled discovery contract and explain whether the
+  restriction concerns the Alexa client or server behavior.
