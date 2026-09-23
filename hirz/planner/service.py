@@ -23,6 +23,7 @@ from hirz.pipeline.models import (
 from hirz.planner.feedback import forecast_replay
 from hirz.planner.heuristic import baseline
 from hirz.planner.models import (
+    OBJECTIVE_GOALS,
     PlannerInput,
     PlannerResult,
     Replay,
@@ -333,7 +334,9 @@ def plan(
         version=previous.version + 1 if previous else 1,
         supersedes=previous.plan_id if previous else None,
         horizon=PlanHorizon(start=p.slots[0].start, end=p.slots[-1].end),
-        goals=(
+        goals=(OBJECTIVE_GOALS[p.objective] + ("comfort", "ev_deadline"))
+        if p.objective
+        else (
             ("minimize_degree_hours",)
             if any(any(t is not None for t in z.preferences) for z in p.zones)
             else ()
@@ -357,10 +360,16 @@ def plan(
         explain=Explanation(
             facts=(
                 "Simulated devices; supply plus distribution; zero export credit",
+                *(
+                    ("Greenest reduces grid electricity; emissions are not measured.",)
+                    if p.objective == "greenest"
+                    else ()
+                ),
                 *diagnostics.binding,
                 *(
                     (diagnostics.message,)
-                    if any(any(t is not None for t in z.preferences) for z in p.zones)
+                    if p.objective
+                    or any(any(t is not None for t in z.preferences) for z in p.zones)
                     else ()
                 ),
             )

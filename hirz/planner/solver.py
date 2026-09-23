@@ -120,8 +120,14 @@ def solve(p: PlannerInput) -> tuple[Schedule | None, SolverDiagnostics]:
                 spec.upper[i],
                 f"{spec.entity} opening comfort {i}",
             )
-            if spec.preferences and spec.preferences[i] is not None:
-                preferred = float(spec.preferences[i] or 0)
+            preferred = spec.preferences[i] if spec.preferences else None
+            if p.objective is not None:
+                preferred = (
+                    (preferred if preferred is not None else spec.targets[i])
+                    if spec.occupants[i]
+                    else None
+                )
+            if preferred is not None:
                 deviation = m.var(1)[0]
                 preferences[deviation] = s.hours
                 m.row(
@@ -307,52 +313,125 @@ def solve(p: PlannerInput) -> tuple[Schedule | None, SolverDiagnostics]:
             elapsed_seconds=perf_counter() - began,
             message="Solver budget exhausted before optimization",
         )
-    result: Any = milp(
-        preference_cost if preferences else np.array(m.cost),
-        integrality=np.array(m.integer),
-        bounds=bounds,
-        constraints=constraints,
-        options={
-            "time_limit": remaining,
-            "mip_rel_gap": 0.0 if preferences else 0.001,
-        },
-    )
-    cost_incumbent = not preferences
-    refinement = (
-        "Preference optimization unfinished; cost refinement not started."
-        if preferences
-        else ""
-    )
-    if preferences and valid(result):
-        refinement = "Preference optimization unfinished; cost refinement not started."
-        remaining = 5.0 - (perf_counter() - began)
-        if result.status == 0 and remaining > 0:
-            optimum = float(preference_cost @ result.x)
-            second: Any = milp(
-                np.array(m.cost),
+    if p.objective is None:
+        result: Any = milp(
+            preference_cost if preferences else np.array(m.cost),
+            integrality=np.array(m.integer),
+            bounds=bounds,
+            constraints=constraints,
+            options={
+                "time_limit": remaining,
+                "mip_rel_gap": 0.0 if preferences else 0.001,
+            },
+        )
+        cost_incumbent = not preferences
+        refinement = (
+            "Preference optimization unfinished; cost refinement not started."
+            if preferences
+            else ""
+        )
+        if preferences and valid(result):
+            refinement = (
+                "Preference optimization unfinished; cost refinement not started."
+            )
+            remaining = 5.0 - (perf_counter() - began)
+            if result.status == 0 and remaining > 0:
+                optimum = float(preference_cost @ result.x)
+                second: Any = milp(
+                    np.array(m.cost),
+                    integrality=np.array(m.integer),
+                    bounds=bounds,
+                    constraints=[
+                        constraints,
+                        LinearConstraint(
+                            preference_cost.reshape(1, -1), -math.inf, optimum + 1e-7
+                        ),
+                    ],
+                    options={"time_limit": remaining, "mip_rel_gap": 0.001},
+                )
+                refinement = "Preference optimum validated; cost refinement unfinished."
+                if (
+                    valid(second)
+                    and float(preference_cost @ second.x) <= optimum + 2e-7
+                ):
+                    result = second
+                    cost_incumbent = True
+                    if second.status == 0:
+                        refinement = "Preference optimum and cost refinement complete."
+                else:
+                    result.status = 1
+            elif result.status == 0:
+                refinement = "Preference optimum validated; no budget remains for cost refinement."
+                result.status = 1
+    else:
+        costs = np.array(m.cost)
+        imports = np.array([1.0 if i in g else 0.0 for i in range(len(m.cost))])
+        objectives = {
+            "cheapest": [
+                ("cost and wear", costs),
+                ("occupied comfort", preference_cost),
+            ],
+            "most_comfortable": [
+                ("occupied comfort", preference_cost),
+                ("cost and wear", costs),
+            ],
+            "greenest": [
+                ("grid electricity", imports),
+                ("occupied comfort", preference_cost),
+                ("cost and wear", costs),
+            ],
+        }[p.objective]
+        objectives = [
+            (name, vector) for name, vector in objectives if np.any(vector)
+        ] or [("cost and wear", costs)]
+        limits: list[tuple[Any, float]] = []
+        result = None
+        cost_incumbent = False
+        refinement = ""
+        for index, (label, vector) in enumerate(objectives):
+            remaining = 5.0 - (perf_counter() - began)
+            if remaining <= 0:
+                if result is None:
+                    return None, SolverDiagnostics(
+                        status="timeout",
+                        elapsed_seconds=perf_counter() - began,
+                        message="Solver budget exhausted before optimization",
+                    )
+                result.status = 1
+                refinement += " Refinement budget exhausted."
+                break
+            candidate = milp(
+                vector,
                 integrality=np.array(m.integer),
                 bounds=bounds,
                 constraints=[
                     constraints,
-                    LinearConstraint(
-                        preference_cost.reshape(1, -1), -math.inf, optimum + 1e-7
-                    ),
+                    *[
+                        LinearConstraint(v.reshape(1, -1), -math.inf, optimum + 1e-7)
+                        for v, optimum in limits
+                    ],
                 ],
-                options={"time_limit": remaining, "mip_rel_gap": 0.001},
+                options={"time_limit": remaining, "mip_rel_gap": 0.0},
             )
-            refinement = "Preference optimum validated; cost refinement unfinished."
-            if valid(second) and float(preference_cost @ second.x) <= optimum + 2e-7:
-                result = second
-                cost_incumbent = True
-                if second.status == 0:
-                    refinement = "Preference optimum and cost refinement complete."
-            else:
-                result.status = 1
-        elif result.status == 0:
-            refinement = (
-                "Preference optimum validated; no budget remains for cost refinement."
+            accepted = valid(candidate) and all(
+                float(v @ candidate.x) <= optimum + 2e-7 for v, optimum in limits
             )
-            result.status = 1
+            if not accepted:
+                if result is None:
+                    result = candidate
+                else:
+                    result.status = 1
+                refinement += f" {label} refinement unavailable."
+                break
+            result = candidate
+            cost_incumbent = label == "cost and wear" and index == len(objectives) - 1
+            refinement += (
+                f" {label}: {'optimal' if result.status == 0 else 'unfinished'}."
+            )
+            if result.status != 0:
+                break
+            limits.append((vector, float(vector @ result.x)))
+        assert result is not None
     elapsed = perf_counter() - began
     gap = getattr(result, "mip_gap", None)
     gap = (

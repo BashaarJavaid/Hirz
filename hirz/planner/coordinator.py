@@ -54,12 +54,19 @@ if TYPE_CHECKING:
 class Clarification(ValueError):
     """A bounded request could not be resolved without asking the member."""
 
+    def __init__(self, message: str, *, options: tuple[str, ...] = ()):
+        super().__init__(message)
+        self.options = options
+
 
 class Intake(Model):
     text: str
     horizon_end: AwareDatetime
     replaces: UUID | None = None
     manual: Observation | None = None
+    spec: ConstraintSpec | None = None
+    claimed_author: str | None = None
+    kind: str | None = None
 
 
 class IntakeResult(Model):
@@ -357,6 +364,24 @@ async def prepare(
         and intake.replaces is not None
     ):
         spec, claimed, revision = None, None, False
+    elif intake.spec is not None:
+        spec, claimed, revision = intake.spec, intake.claimed_author, False
+        assets = {str(r["id"]): r["kind"] for r in snapshot.data["assets"]}
+        expected = (
+            "ev"
+            if spec.kind.startswith("ev_")
+            else "appliance"
+            if spec.kind.startswith("appliance_")
+            else "hvac_zone"
+        )
+        if assets.get(str(spec.asset_id)) != expected or spec.kind == "manual_hold":
+            raise Clarification(
+                "The constraint target is unavailable in this household."
+            )
+        if utc(spec.starts_at) < utc(pipeline.repo._at or at) or utc(
+            spec.ends_at
+        ) > utc(intake.horizon_end):
+            raise Clarification("The constraint must fit this planning window.")
     elif observation is None:
         spec, claimed, revision, release = parse(
             intake.text, snapshot, intake.horizon_end
@@ -570,10 +595,19 @@ class Coordinator:
         replaces: UUID | None = None,
         manual: Observation | None = None,
         withdraw: bool = False,
+        spec: ConstraintSpec | None = None,
+        claimed_author: str | None = None,
+        kind: str | None = None,
     ) -> IntakeResult:
         p = self.pipeline
         request = Intake(
-            text=text, horizon_end=horizon_end, replaces=replaces, manual=manual
+            text=text,
+            horizon_end=horizon_end,
+            replaces=replaces,
+            manual=manual,
+            spec=spec,
+            claimed_author=claimed_author,
+            kind=kind,
         )
         withdraw = withdraw or bool(
             re.fullmatch(r"release .+ hold\.?", text.strip(), re.IGNORECASE)

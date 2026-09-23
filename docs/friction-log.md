@@ -398,3 +398,63 @@ The entry 6 uv-cache restriction recurred during `uv lock --offline`:
 `failed to open file /Users/bashaarjavaid/.cache/uv/sdists-v9/.git: Operation not permitted (os error 1)`.
 Authorized escalation resolved it without a dependency change beyond the approved
 PyJWT direct pin. No new upstream defect is claimed.
+
+Item 25 follow-up to entry 6 (2026-09-23): the existing sandbox uv-cache
+restriction recurred (`failed to open file /Users/bashaarjavaid/.cache/uv/sdists-v9/.git: Operation not permitted (os error 1)`).
+`UV_CACHE_DIR=/tmp/hirz-uv-cache` resolved it. A service-free suite rerun also hit
+`PermissionError: [Errno 1] error while attempting to bind on address ('127.0.0.1', 0): [errno 1] operation not permitted`
+in the two WebSocket contract tests; authorized loopback access is required.
+These are sandbox restrictions, not new upstream defects. Reference:
+[uv cache configuration](https://docs.astral.sh/uv/concepts/cache/).
+The Bedrock selection attempt lacked local credentials (`NoCredentialsError`)
+and stopped before inference; this is a pending access gate, not an SDK defect.
+
+## Item 25 Bedrock token counting and model access — 2026-09-23
+
+- **Tool/task:** Bedrock runtime CountTokens for the pinned US Haiku 4.5 host.
+  **Steps/expected:** authenticate with the supplied `hirz` profile and count a
+  one-message request before reserving any inference spend.
+  **Actual:** `ValidationException: The provided model doesn't support counting tokens.`
+  **Severity:** Blocker. **Workaround:** none verified; fail closed before inference.
+  AWS's [counting guide](https://docs.aws.amazon.com/bedrock/latest/userguide/count-tokens.html)
+  documents a separate Mantle Anthropic counter for cross-region-only models.
+  A SigV4-signed request there returned HTTP 403 `permission_error`:
+  `anthropic.claude-haiku-4-5 is not available for this account. You can explore other available models on Amazon Bedrock. For additional access options, contact AWS Sales at https://aws.amazon.com/contact-us/sales-support/`
+  **Suggestion:** expose counting support and endpoint requirements in model
+  discovery, with actionable agreement/access status in counting errors.
+- **Access diagnosis:** the use-case form exists; the model availability API
+  reports authorization, entitlement and region available, but agreement
+  `NOT_AVAILABLE`. No agreement was created or inference invoked. The
+  [access procedure](https://docs.aws.amazon.com/bedrock/latest/userguide/model-access.html)
+  requires provider terms for model use. These observations do not prove that
+  accepting an agreement alone resolves the separate Mantle denial.
+
+Follow-up on 2026-09-23: the user requested a retry after the setup wait. The US
+inference profile still failed CountTokens, but the underlying foundation model
+ID succeeded (24 counted tokens). The host had passed the inference profile to
+both APIs; that was our integration mistake. CountTokens now uses the foundation
+model ID, while Converse retains the US profile. A bounded Converse probe then
+succeeded (8 input, 16 output tokens) without manual account changes. Mantle's
+model metadata still reports an account restriction, with compatible retention
+settings, so that separate denial is not evidence of runtime unavailability.
+Our earlier suggestion to find an "enable access" button was misleading under
+AWS's current automatic first-invocation subscription procedure.
+
+## Item 25 interrupted Bedrock selection run — 2026-09-23
+
+- **Tool/task:** Bedrock-backed Strands host, complete 31-case live selection gate.
+  **Steps/expected:** run `smoke_household_tools.py --live-selection` with working
+  `hirz` credentials and the retained budget ledger; collect all selections.
+  **Actual:** after 16 passing selections, the retained error was
+  `LIVE_GATE_PENDING InternalServerException`. The harness retained the exception
+  class only, so no endpoint-specific message or request ID is claimed.
+  **Severity:** Minor. **Workaround:** retain the interrupted report and budget
+  history, then retry the full gate within the approved ceiling; no partial-run
+  result substitutes for a complete passing gate.
+  **Reference:** [Bedrock Converse error contract](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_Converse.html).
+  This is a transient service error documented by the API, not evidence of an
+  incorrect API contract. **Suggestion:** structured SDK diagnostics should make
+  request IDs easy to retain without logging prompts, credentials or tool data.
+
+Follow-up: the complete retry passed all 31 selections within the same $2 ledger;
+the interrupted report and reservations remain retained. See the [completion evidence](./verification-log.md#item-25-completion-within-approved-scope--2026-09-23).

@@ -306,7 +306,7 @@ def test_property_approval_traces(age, mutation, role):
 
 def test_native_operator_count_and_predicate_compilation():
     report = asyncio.run(ENGINE.run(COMPILED, "check-parse"))
-    assert report["policy_count"] == 74
+    assert report["policy_count"] == 82
     assert sum(p["temporal_count"] > 0 for p in report["policies"]) == 1
     assert max(p["temporal_count"] for p in report["policies"]) == 1
     data = HOME.model_dump()

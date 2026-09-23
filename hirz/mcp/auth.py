@@ -240,6 +240,7 @@ class OAuthGate:
         request = Request(scope, receive)
         body = await request.body()
         required: str | None = None
+        value: Any = None
         try:
             value = json.loads(body)
             if isinstance(value, dict) and value.get("method") == "tools/call":
@@ -297,13 +298,21 @@ class OAuthGate:
             if access is None:
                 await error(401, "invalid_token", "Please link your account again.")
                 return
-        if required:
+        contextual = bool(
+            access
+            and "hirz:read" in access.scopes
+            and isinstance(value, dict)
+            and value.get("method") == "tools/call"
+            and isinstance(value.get("params"), dict)
+            and value["params"].get("name") == "what_can_you_do"
+        )
+        if required or contextual:
             if access is None:
                 await error(
                     401, "invalid_token", "Link your account to use household tools."
                 )
                 return
-            if required not in access.scopes:
+            if required and required not in access.scopes:
                 await error(
                     403,
                     "insufficient_scope",
@@ -336,12 +345,16 @@ class OAuthGate:
                 )
                 return
             if member.member_id is None or member.role in ("child", "unknown"):
-                await error(
-                    403,
-                    "account_not_linked",
-                    "This account cannot access household tools. You can still ask what Hirz can do.",
+                if required:
+                    await error(
+                        403,
+                        "account_not_linked",
+                        "This account cannot access household tools. You can still ask what Hirz can do.",
+                    )
+                    return
+                identity = (
+                    None  # Generic onboarding remains available without member access.
                 )
-                return
         sent = False
 
         async def replay() -> Message:

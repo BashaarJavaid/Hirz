@@ -154,6 +154,7 @@ class Pipeline:
         self._observation_world: Any = None
         self._refresh_command: dict[str, Any] | None = None
         self._memory_turn: Any = None
+        self._household_command: dict[str, Any] | None = None
 
     def scope(self, table: sa.Table) -> sa.ColumnElement[bool]:
         return table.c.household_id == self.household_id
@@ -286,6 +287,14 @@ class Pipeline:
                 await prepare_memory(self, action, principal)
             except ValueError:
                 return ev
+        from hirz.mcp.persistence import CLASSES as tool_classes
+        from hirz.mcp.persistence import prepare as prepare_tool
+
+        if action.action_class in tool_classes:
+            try:
+                await prepare_tool(self, action, principal)
+            except ValueError:
+                return ev
         from hirz.executor.plans import guarded, prepare_mutation
 
         try:
@@ -320,7 +329,12 @@ class Pipeline:
             policy.role_mode(action.action_class, role) == "never" for role in roles
         ):
             return ev
-        snapshot = snapshot or await self.snapshot(at)
+        snapshot = snapshot or await self.snapshot(min(at, self.clock()))
+        if at > self.clock():
+            # Known schedules remain usable; today's readings are not future facts.
+            snapshot = snapshot.model_copy(
+                update={"as_of": at, "data": snapshot.data | {"observations": []}}
+            )
         local_date = at.astimezone(
             ZoneInfo(str(snapshot.data["households"][0]["timezone"]))
         ).date()
@@ -1152,6 +1166,11 @@ class Pipeline:
         )
         if approval:
             await self.status(approval, "redeemed")
+        from hirz.mcp.persistence import CLASSES as tool_classes
+        from hirz.mcp.persistence import commit as commit_tool
+
+        if action.action_class in tool_classes:
+            await commit_tool(self, ev.action, ev.decision, principal)
         from hirz.executor.plans import commit_mutation, guarded
 
         if action.action_class in guarded:
@@ -1439,158 +1458,7 @@ class Pipeline:
             raise PipelineError("Pipeline requires an idle connection")
         try:
             async with self.repo.write(self.clock):
-                at = utc(self.clock())
-                approval = await self.approval(approval_id)
-                if approval is None:
-                    policy = self.bundle.policy()
-                    ev = Evaluation(
-                        Decision(
-                            decision="deny",
-                            event_type=EventType.DENY_APPROVAL_MISMATCH,
-                            action_id="unknown",
-                            constitution=ConstitutionEvidence(
-                                version=policy.version,
-                                rule="unknown",
-                                mode="never",
-                                conditions_met=False,
-                            ),
-                        ),
-                        cast(Action, None),
-                        (),
-                        None,
-                        {},
-                    )
-                    return await self.record(ev, at)
-                stored = (
-                    (
-                        await self.connection.execute(
-                            sa.select(db.actions).where(
-                                self.scope(db.actions),
-                                db.actions.c.action_id == approval["action_id"],
-                            )
-                        )
-                    )
-                    .mappings()
-                    .one()
-                )
-                action = ingest(Action.model_validate(stored["proposal"]))
-                # Ordinary votes check eligibility/channels; bound visitor votes also
-                # re-evaluate live facts using the approval's original press.
-                policy = self.bundle.policy()
-                requester = await self.requester(
-                    Principal.model_validate(stored["principal"])
-                )
-                outcome = resolve(
-                    policy,
-                    action.model_copy(update={"requested_by": requester}),
-                    PolicyFacts(policy.household, at, {}),
-                )
-                ev = Evaluation(
-                    Decision(
-                        decision="ask",
-                        event_type=EventType.ASK_CONSTITUTION,
-                        action_id=action.action_id,
-                        constitution=ConstitutionEvidence(
-                            version=policy.version,
-                            rule=action.action_class,
-                            mode=outcome.effective_mode,
-                            conditions_met=False,
-                        ),
-                    ),
-                    action,
-                    (outcome,),
-                    None,
-                    {},
-                )
-                if bound_press := approval["binding"].get("doorbell"):
-                    ev = await self.assess(
-                        action,
-                        Principal.model_validate(stored["principal"]),
-                        Decimal(stored["cost"]) if stored["cost"] is not None else None,
-                        (),
-                        at,
-                        bound_press=bound_press,
-                    )
-                    if ev.outcomes:
-                        outcome = ev.outcomes[0]
-                member = await self.requester(principal)
-                event = EventType.APPROVED if approved else EventType.REJECTED
-                if approval["status"] == "redeemed":
-                    event = EventType.DENY_APPROVAL_USED
-                elif at >= approval["expires_at"] or approval["status"] == "expired":
-                    await self.status(approval, "expired")
-                    event = EventType.DENY_APPROVAL_EXPIRED
-                elif bound_press and ev.decision.decision == "deny":
-                    event = ev.decision.event_type
-                elif (
-                    approval["status"] == "rejected"
-                    or member.role not in outcome.approval.approver_roles
-                    or not self.channel_allowed(principal, ev)
-                ):
-                    event = EventType.DENY_APPROVAL_UNAUTHORIZED
-                else:
-                    existing = await self.connection.scalar(
-                        sa.select(db.approval_votes.c.approved).where(
-                            self.scope(db.approval_votes),
-                            db.approval_votes.c.approval_id == approval_id,
-                            db.approval_votes.c.member_id
-                            == UUID(cast(str, member.member_id)),
-                        )
-                    )
-                    if existing is None:
-                        await self.connection.execute(
-                            db.approval_votes.insert().values(
-                                household_id=self.household_id,
-                                approval_id=approval_id,
-                                member_id=UUID(cast(str, member.member_id)),
-                                approved=approved,
-                                principal=principal.model_dump(mode="json"),
-                                created_at=at,
-                            )
-                        )
-                        await self.audit.append(
-                            self.connection,
-                            self.household_id,
-                            at,
-                            event,
-                            {
-                                "approval_id": approval_id,
-                                "member_id": member.member_id,
-                                "action_hash": action.content_hash,
-                                "approved": approved,
-                                "surface": principal.surface,
-                                "passkey_verified": principal.passkey_verified,
-                                "verified_action_hash": principal.verified_action_hash,
-                            },
-                        )
-                        satisfied, _ = await self.eligible_votes(approval, ev)
-                        await self.status(
-                            approval,
-                            "rejected"
-                            if not approved
-                            else "approved"
-                            if satisfied
-                            else "pending",
-                        )
-                    else:
-                        approved = existing
-                        event = EventType.APPROVED if approved else EventType.REJECTED
-                ev.decision = ev.decision.model_copy(
-                    update={
-                        "approval": ApprovalEvidence(
-                            approval_id=approval_id,
-                            quorum=outcome.approval.quorum,
-                            expires_at=approval["expires_at"],
-                        )
-                    }
-                )
-                # A vote is not an execution authorization.
-                ev = result(ev, event)
-                if event in {EventType.APPROVED, EventType.REJECTED}:
-                    ev.decision = ev.decision.model_copy(
-                        update={"decision": "ask" if approved else "deny"}
-                    )
-                return await self.record(ev, at)
+                return await self.vote_locked(approval_id, principal, approved=approved)
         except Exception as exc:
             # A failed COMMIT hook/connection can leave a physical transaction open
             # after SQLAlchemy has closed its transaction object. Discard it.
@@ -1606,3 +1474,160 @@ class Pipeline:
             raise PipelineError(
                 "Pipeline transaction failed; no authorization returned"
             ) from None
+
+    async def vote_locked(
+        self, approval_id: str, principal: Principal, *, approved: bool
+    ) -> Decision:
+        if self.repo._at is None or type(approved) is not bool:
+            raise PipelineError(
+                "An owned Pipeline transaction and Boolean vote are required"
+            )
+        at = utc(self.clock())
+        approval = await self.approval(approval_id)
+        if approval is None:
+            policy = self.bundle.policy()
+            ev = Evaluation(
+                Decision(
+                    decision="deny",
+                    event_type=EventType.DENY_APPROVAL_MISMATCH,
+                    action_id="unknown",
+                    constitution=ConstitutionEvidence(
+                        version=policy.version,
+                        rule="unknown",
+                        mode="never",
+                        conditions_met=False,
+                    ),
+                ),
+                cast(Action, None),
+                (),
+                None,
+                {},
+            )
+            return await self.record(ev, at)
+        stored = (
+            (
+                await self.connection.execute(
+                    sa.select(db.actions).where(
+                        self.scope(db.actions),
+                        db.actions.c.action_id == approval["action_id"],
+                    )
+                )
+            )
+            .mappings()
+            .one()
+        )
+        action = ingest(Action.model_validate(stored["proposal"]))
+        # Ordinary votes check eligibility/channels; bound visitor votes also
+        # re-evaluate live facts using the approval's original press.
+        policy = self.bundle.policy()
+        requester = await self.requester(Principal.model_validate(stored["principal"]))
+        outcome = resolve(
+            policy,
+            action.model_copy(update={"requested_by": requester}),
+            PolicyFacts(policy.household, at, {}),
+        )
+        ev = Evaluation(
+            Decision(
+                decision="ask",
+                event_type=EventType.ASK_CONSTITUTION,
+                action_id=action.action_id,
+                constitution=ConstitutionEvidence(
+                    version=policy.version,
+                    rule=action.action_class,
+                    mode=outcome.effective_mode,
+                    conditions_met=False,
+                ),
+            ),
+            action,
+            (outcome,),
+            None,
+            {},
+        )
+        if bound_press := approval["binding"].get("doorbell"):
+            ev = await self.assess(
+                action,
+                Principal.model_validate(stored["principal"]),
+                Decimal(stored["cost"]) if stored["cost"] is not None else None,
+                (),
+                at,
+                bound_press=bound_press,
+            )
+            if ev.outcomes:
+                outcome = ev.outcomes[0]
+        member = await self.requester(principal)
+        event = EventType.APPROVED if approved else EventType.REJECTED
+        if approval["status"] == "redeemed":
+            event = EventType.DENY_APPROVAL_USED
+        elif at >= approval["expires_at"] or approval["status"] == "expired":
+            await self.status(approval, "expired")
+            event = EventType.DENY_APPROVAL_EXPIRED
+        elif bound_press and ev.decision.decision == "deny":
+            event = ev.decision.event_type
+        elif (
+            approval["status"] == "rejected"
+            or member.role not in outcome.approval.approver_roles
+            or not self.channel_allowed(principal, ev)
+        ):
+            event = EventType.DENY_APPROVAL_UNAUTHORIZED
+        else:
+            existing = await self.connection.scalar(
+                sa.select(db.approval_votes.c.approved).where(
+                    self.scope(db.approval_votes),
+                    db.approval_votes.c.approval_id == approval_id,
+                    db.approval_votes.c.member_id == UUID(cast(str, member.member_id)),
+                )
+            )
+            if existing is None:
+                await self.connection.execute(
+                    db.approval_votes.insert().values(
+                        household_id=self.household_id,
+                        approval_id=approval_id,
+                        member_id=UUID(cast(str, member.member_id)),
+                        approved=approved,
+                        principal=principal.model_dump(mode="json"),
+                        created_at=at,
+                    )
+                )
+                await self.audit.append(
+                    self.connection,
+                    self.household_id,
+                    at,
+                    event,
+                    {
+                        "approval_id": approval_id,
+                        "member_id": member.member_id,
+                        "action_hash": action.content_hash,
+                        "approved": approved,
+                        "surface": principal.surface,
+                        "passkey_verified": principal.passkey_verified,
+                        "verified_action_hash": principal.verified_action_hash,
+                    },
+                )
+                satisfied, _ = await self.eligible_votes(approval, ev)
+                await self.status(
+                    approval,
+                    "rejected"
+                    if not approved
+                    else "approved"
+                    if satisfied
+                    else "pending",
+                )
+            else:
+                approved = existing
+                event = EventType.APPROVED if approved else EventType.REJECTED
+        ev.decision = ev.decision.model_copy(
+            update={
+                "approval": ApprovalEvidence(
+                    approval_id=approval_id,
+                    quorum=outcome.approval.quorum,
+                    expires_at=approval["expires_at"],
+                )
+            }
+        )
+        # A vote is not an execution authorization.
+        ev = result(ev, event)
+        if event in {EventType.APPROVED, EventType.REJECTED}:
+            ev.decision = ev.decision.model_copy(
+                update={"decision": "ask" if approved else "deny"}
+            )
+        return await self.record(ev, at)

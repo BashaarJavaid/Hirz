@@ -104,6 +104,39 @@ def test_hand_computed_ev_optimum_negative_prices_and_hashes():
         plan(p, previous=other.plan)
 
 
+def test_explicit_objectives_change_priorities_without_relaxing_constraints():
+    p = tiny((-0.1, 0.4))
+    p = changed(p, slots=(p.slots[0], changed(p.slots[1], solar_kw=4)))
+    cheapest = plan(changed(p, objective="cheapest"))
+    greenest = plan(changed(p, objective="greenest"))
+    assert cheapest.plan and greenest.plan
+    assert cheapest.replay.valid and greenest.replay.valid
+    assert cheapest.schedule.controls[0].ev_kwh == pytest.approx(1)
+    assert greenest.schedule.controls[1].ev_kwh == pytest.approx(1)
+    assert sum(greenest.replay.grid_kwh) < sum(cheapest.replay.grid_kwh)
+    assert greenest.replay.ev_delivered_kwh == cheapest.replay.ev_delivered_kwh
+    assert greenest.plan.goals[0] == "minimize_grid_import"
+    assert "emissions are not measured" in " ".join(greenest.plan.explain.facts)
+    zone = Zone(
+        entity="hvac.test",
+        physical=ThermalZone(temp_f=70, target_f=71, mode="heat", solar_gain_area_m2=0),
+        lower=(66, 66),
+        upper=(76, 76),
+        targets=(71, 71),
+        occupants=(1, 1),
+    )
+    p = tiny((0.4, 0.4), ev=None, ev_target=0, zones=(zone,))
+    cost = plan(changed(p, objective="cheapest"))
+    comfort = plan(changed(p, objective="most_comfortable"))
+    assert cost.plan and comfort.plan
+    assert cost.replay.valid and comfort.replay.valid
+    assert abs(comfort.replay.zones[0].temp_f - 71) < abs(
+        cost.replay.zones[0].temp_f - 71
+    )
+    assert comfort.replay.electricity_usd > cost.replay.electricity_usd
+    assert comfort.plan.goals[0] == "minimize_degree_hours"
+
+
 def test_hand_computed_battery_optimum_and_conservation():
     p = tiny(
         (0.1, 0.4),

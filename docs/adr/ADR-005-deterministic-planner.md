@@ -404,3 +404,11 @@ assertion amendment are recorded in the
 dispatches never change its freshness; observations at the dispatch instant
 predate the write, and detection and execution-authority checks use the same
 owned-control compensation.
+
+## Household tools amendment — 2026-09-23
+
+MCP intake supplies validated ConstraintSpec values directly while retaining sentences as provenance. The worker prepares durable first-plan requests from explicit twin inputs; missing inputs or infeasibility fail honestly. Exact-version consent rejects same-second revisions, and cancellation permits changing a horizon while preserving bounded endings. Full contract and rejected alternatives: [ADR-015](./ADR-015-household-tools.md).
+
+### Profiles/objectives follow-up — 2026-09-23
+
+Explicit household objectives now use the author-approved lexicographic priorities, sharing the five-second solver budget. Omitted objectives preserve existing default/backtest behavior. Durable explicit refresh inputs may replace goals with the requested ordering, with fresh consent required; ordinary automatic refresh still preserves goals. Hard constraints and replay validation are unchanged. Exact contract and rejected alternatives: [ADR-015](./ADR-015-household-tools.md#completion-scope-amendment--2026-09-23-author-approved).

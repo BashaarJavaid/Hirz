@@ -1130,3 +1130,90 @@ uv run --locked pytest tests/integration/test_oauth_database.py -m integration -
 Use the ordinary service-free/integration/combined-coverage sequence for the full
 suite. The Python CI job runs `smoke_oauth.py`; remote CI and production linking
 are not implied by local success.
+
+
+## Item 25 local household tools
+
+The implemented contract and boundaries are in [ADR-015](./adr/ADR-015-household-tools.md)
+and [the tool catalog](./tool-catalog.md). Migrations `0010_household_tools` and
+`0011_planning_objective` are explicit; startup never migrates. Development remains on `0005_execution_attempt`.
+Use a disposable database for item 25 verification, not the development database.
+The existing authenticated factory requires the local audit signing key and native
+Dogwood: policy validation/compilation happens at startup, and a changed stored
+policy requires restart. OAuth issuance remains a separate local process.
+
+```sh
+export HIRZ_DOGWOOD="$PWD/.tools/dogwood"
+uv run --locked python scripts/smoke_household_tools.py --audit-output /tmp/household-audit.json
+```
+
+Choose an unused output path. The script creates two disposable twin households,
+starts separate OAuth/MCP processes, uses SDK PKCE and real tools/list/tools/call,
+starts and restarts the worker, tests durable objective changes and fresh consent,
+checks configured profiles per device, tests a same-second revision/approval refusal,
+restarts MCP for a durable retry, and independently verifies a signed audit export.
+The smoke extends its temporary evening fixture to 08:00 because the original
+scenario ends at 07:00; it does not alter the main scenario. Success drops its
+scratch database; failures retain it for diagnosis. Audit files are private.
+Initial explicitly labeled verified-channel fixtures are permitted only during
+that disposable bootstrap; all later case changes require Pipeline decisions.
+
+For manual first-plan work, configure `HIRZ_TWIN_SCENARIO` with explicit scenario
+inputs covering the requested horizon and run the existing `hirz worker` command.
+Tonight/overnight/tomorrow_morning end at the next household-local 08:00; next_24h
+needs a full 24 hours of configured inputs. Missing coverage fails; no fabricated
+plan substitutes for missing inputs. The worker continues bounded device endings
+while preparation/refresh runs. Security and real contact delivery remain unavailable.
+
+For household profiles, export `HIRZ_PROFILES_FILE` to an explicitly authored YAML
+file before starting authenticated MCP. Its shape is `households` → household UUID
+→ profile name → `settings` list. Names are `recovery_morning`, `guests_arriving`,
+`night` and `away`. Each of 1–20 entries has `action` (`set_temperature`,
+`turn_on_light` or `turn_off_light`) and `room`; only temperature settings also
+require `temperature_f` (66–76). No profiles or device settings are installed by
+default. Configuration is validated at startup and changes require restart;
+approvals already issued retain their frozen settings. The smoke writes its own
+explicit temporary twin configuration. Every device is separately checked and
+may need approval or be blocked; later automation may change an immediate setting.
+
+`get_household_plan` accepts `objective` plus `request_id`; use `cheapest`,
+`most_comfortable` or `greenest`. The worker computes the approved priorities from
+existing explicit inputs. Greenest reduces grid electricity, without an emissions
+claim. A changed objective holds the old plan and requires fresh consent for its
+replacement; reads preserve the choice and fixed horizon.
+
+The reusable host is `hirz.host.headless.HeadlessHost` (Strands pinned at 1.57.0).
+Its turn method preserves conversation context, discovers actual MCP tools and
+holds a proposed commitment until `confirm(approved=True)` is explicitly called.
+Selection tests use that host with tool execution canceled; SDK smoke proves execution.
+To rerun the verified live selection gate, provide working US Bedrock credentials/model
+access and append `--live-selection --budget-ledger /tmp/household-bedrock-budget.json`
+to the smoke command. Reuse the **same budget file across retries**; never reset it
+to bypass the author-approved aggregate $2.00 ceiling. Check current pricing before
+any later invocation. The ledger reserves native-counted input and maximum output
+cost before each wire attempt, including retries, with no heuristic fallback.
+Missing credentials/counting support, exhaustion or any wrong selection keeps the
+gate pending. The adjacent `.selection.json` records outcomes and actual token
+usage; retain or move an existing report before rerunning (the report refuses overwrite).
+Use `AWS_PROFILE=hirz` for the supplied profile. The runtime counter requires
+the foundation model ID without `us.`, while Converse requires the US inference
+profile; both have now succeeded. The separate Mantle denial does not block this
+route. AWS enables model subscriptions on first use; there need not be an
+"enable access" button, and pre-invocation agreement status alone does not prove
+runtime access is blocked. Retain the existing ledger across diagnostic probes
+and full runs. See the
+[ADR amendment](./adr/ADR-015-household-tools.md#accesscounting-amendment--2026-09-23).
+
+```sh
+uv run --locked pytest --tb=short
+uv run --locked pytest -m integration --cov=hirz --cov-append --tb=short
+uv run --locked coverage report --fail-under=80
+uv run --locked ruff check .
+uv run --locked mypy hirz/ scripts/ alembic/
+uv run --locked ruff format --check .
+```
+
+The first suite includes native local policy conformance when Dogwood is configured.
+If sandbox cache access fails, set `UV_CACHE_DIR=/tmp/hirz-uv-cache`; local PostgreSQL
+and loopback process verification require local network access. Item 26 latency and
+full isolation gates remain separate. Retained run evidence is in the verification log.

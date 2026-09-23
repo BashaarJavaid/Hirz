@@ -120,3 +120,7 @@ Policy refusals remain MCP tool results when household tools are added.
 
 The public contract pages were fetched on 2026-09-23; SDK adaptations were checked
 against the installed pinned source and exercised through the handlers.
+
+## Household tools amendment — 2026-09-23
+
+Household tools consume request-local linked member identity and the existing four scopes. Anonymous onboarding remains generic; a valid read grant permits contextual capabilities only when current member resolution succeeds. HTTP 401/403/503 behavior remains at the OAuth gate; tool validation failures are typed MCP execution errors. Full contract and rejected alternatives: [ADR-015](./ADR-015-household-tools.md).

@@ -17,3 +17,5 @@ One file per consequential decision, each with the alternatives that were reject
 - [`ADR-013-mcp-transport.md`](./ADR-013-mcp-transport.md) — fixed local guards, stateless JSON transport and generic onboarding; OAuth and household tools remain later work
 
 - [`ADR-014-local-oauth.md`](./ADR-014-local-oauth.md) — simulated local consent, SDK PKCE linking, resource-bound JWTs, bounded key cache and current member mapping
+
+- [`ADR-015-household-tools.md`](./ADR-015-household-tools.md) — partial local twelve-tool contract, durable retries, private simulated trust checks and bounded headless host

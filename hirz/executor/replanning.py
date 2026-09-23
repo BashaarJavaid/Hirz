@@ -306,7 +306,7 @@ def bind_result(
     plan = result.plan.model_copy(
         update=dict(
             actions=tuple(a.action_id for a in actions),
-            goals=previous.goals,
+            goals=result.plan.goals if inputs.objective is not None else previous.goals,
             explain=result.plan.explain.model_copy(
                 update={
                     "facts": (

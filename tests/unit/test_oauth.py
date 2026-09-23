@@ -354,8 +354,8 @@ def test_jwt_validation_and_fresh_key_errors():
             {"aud": [RESOURCE]},
             {"iss": "wrong"},
             {"exp": at - 31, "iat": at - 331},
-            {"iat": at + 31, "exp": at + 300},
-            {"nbf": at + 31},
+            {"iat": at + 61, "exp": at + 300},
+            {"nbf": at + 61},
             {"nbf": "1"},
             {"iat": str(at)},
             {"exp": float(at + 300)},
@@ -365,7 +365,8 @@ def test_jwt_validation_and_fresh_key_errors():
             {"household_id": "invalid"},
             {"scope": ["hirz:read"]},
             {"scope": "root"},
-            {"exp": at + 301},
+            # Pin both endpoints: a new default iat after a clock tick shortens the TTL.
+            {"exp": at + 301, "iat": at},
             {"exp": at - 1, "iat": at},
             {"nbf": at + 400},
         ]
@@ -721,6 +722,19 @@ def test_authenticated_factory_has_no_probe_and_survives_initial_issuer_outage(
     monkeypatch.setattr(api, "read_env", lambda path: {"POSTGRES_PASSWORD": "unused"})
     monkeypatch.setattr(KeyCache, "document", unavailable)
 
+    from cryptography.hazmat.primitives.asymmetric import ec
+
+    from hirz.mcp.contracts import TOOLS
+
+    @asynccontextmanager
+    async def no_households(self):
+        yield
+
+    monkeypatch.setattr(
+        api, "signing_key", lambda values: ec.generate_private_key(ec.SECP256R1())
+    )
+    monkeypatch.setattr(api.HouseholdRuntime, "run", no_households)
+
     async def run():
         app = api.create_local_oauth_app()
         async with app.router.lifespan_context(app):
@@ -732,9 +746,9 @@ def test_authenticated_factory_has_no_probe_and_survives_initial_issuer_outage(
                 listed = await client.post(
                     "/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"}
                 )
-                assert [t["name"] for t in listed.json()["result"]["tools"]] == [
-                    "what_can_you_do"
-                ]
+                assert {t["name"] for t in listed.json()["result"]["tools"]} == set(
+                    TOOLS
+                )
                 assert (
                     await client.post("/mcp", json=call("what_can_you_do"))
                 ).status_code == 200

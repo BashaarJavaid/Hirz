@@ -5326,3 +5326,498 @@ credentials. Redacted screenshots and test summaries remain under `/private/tmp`
 The existing Compose preview was left running. `AGENTS.md` and `CLAUDE.md` match
 apart from their heading; `git diff --check` passed. No commit, push or deployment
 was performed. The final format check follows this evidence/documentation update.
+
+## Item 25 — partial (2026-09-23)
+
+The author approved a local subset, disposable twin households and a reusable
+headless host; **item 25 remains partial**. The original roadmap specification is
+preserved. Decisions and rejected alternatives live in
+[ADR-015](./adr/ADR-015-household-tools.md); operational procedure and exact public
+inputs live in [development](./development.md#item-25-local-household-tools-partial)
+and [the catalog](./tool-catalog.md). No threat-model row changed.
+
+Implemented: all twelve authenticated tool names with described flat strict
+schemas, canonical structured results and bounded speech; durable principal/tool/
+argument-bound retries; atomic constraint intake/refresh invalidation; exact-version
+consent and cancellation during refresh; queued settings and tightening-only pause;
+first-plan worker requests with honest missing-input/failure results; sentence-only
+rule proposals; private advisory assessments and explicitly simulated contact
+checks; household-local safe audit summaries; and a pinned Strands host that holds
+commitments for explicit confirmation. The author separately approved the bounded
+phrase vocabulary/negation and US/international phone normalization in ADR-015.
+Migration 0010 is explicit and was exercised only in disposable databases.
+
+### Environment and commands
+
+Local macOS, Python 3.12.13, locked uv dependencies, PostgreSQL 16 in the existing
+local stack, pinned native Dogwood at `.tools/dogwood`, official MCP SDK 1.30.0 and
+Strands 1.57.0. `UV_CACHE_DIR=/tmp/hirz-uv-cache` avoids the known sandbox cache
+restriction. PostgreSQL and HTTP process checks used authorized local network
+access. No real device or contact was used. No development schema upgrade occurred.
+
+The required service-free then integration coverage sequence ran as follows
+(stdout retained locally; no secrets copied into this record):
+
+```text
+uv run --locked pytest --tb=short -q
+1396 passed, 127 deselected in 129.20s (0:02:09)
+
+uv run --locked pytest -m integration --cov=hirz --cov-append -q --tb=short
+127 passed, 1397 deselected in 221.39s (0:03:41)
+
+uv run --locked pytest tests/unit/test_household_tools.py tests/unit/test_oauth.py --cov=hirz --cov-append -q --tb=short
+42 passed in 10.14s
+
+uv run --locked pytest -m integration tests/integration/test_household_tools_database.py --cov=hirz --cov-append -q --tb=short
+7 passed in 18.09s
+
+uv run --locked coverage report --fail-under=80
+TOTAL 11844 948 92%
+
+uv run --locked ruff check .
+All checks passed!
+
+uv run --locked mypy hirz/ scripts/ alembic/
+Success: no issues found in 148 source files
+
+uv run --locked ruff format --check .
+223 files already formatted
+```
+
+The focused runs cover final schema/explanation changes and the additional host
+confirmation test (hence the later service-free collection count is 1397). The
+full service-free run includes native YAML/Dogwood conformance; the updated
+catalog has 36 classes and the two policies' expected native count is 82. Tests
+exercise schema/parameter validation, speech bounds, approved signal weights and
+negation, phone normalization, durable budget reservations, exact held host calls,
+retry conflicts/restart, privacy, missing and failed worker inputs, simulated
+reply outcomes and expiry, ambiguous cases, number match/mismatch/absence,
+organization unavailability, same-second revision consent, exact versions,
+cancellation during refresh, claimed-author provenance and claimed-requester
+restriction. Alexa approval and rejection both leave a pending security approval
+unresolved with zero votes. A tool-path guard forbids compiler, planner and
+external HTTP calls after setup. Changed-policy checks run under the household
+transaction lock. Source labels and canonical output aliases are checked by SDK
+schema validation and the focused explanation tests.
+
+Earlier runs exposed expected catalog/count updates and an OAuth onboarding
+regression: a read token whose member is no longer linked must still get generic
+onboarding; it cannot get contextual data. The first complete integration attempt
+reported `1 failed, 125 passed`; the corrected full run above passes. A later
+service-free attempt reported `2 failed, 1394 passed` because the sandbox refused
+two existing WebSocket listeners; the authorized loopback rerun above passes.
+A focused OAuth test exposed a clock-tick test bug: generating a fresh default iat
+could shorten a deliberately invalid 301-second lifetime to 300 seconds. Pinning
+both endpoints and leaving margin for future-time checks fixed the test; production
+JWT validation was not weakened. Initial smoke iterations also corrected OAuth
+scope re-consent, temporary fixture paths and input coverage through 08:00; an
+invocation without HIRZ_DOGWOOD failed closed before tool work. No failed run is
+used as passing evidence. Third-party friction was reviewed and the existing
+sandbox entry was updated; missing Bedrock credentials are an access gate.
+
+### Separate-process SDK execution
+
+```sh
+export HIRZ_DOGWOOD="$PWD/.tools/dogwood"
+uv run --locked python scripts/smoke_household_tools.py --audit-output /tmp/hirz-item25-schema-audit.json
+```
+
+Actual final output:
+
+```text
+PASS SDK OAuth linking; twelve typed tools; scoped context
+PASS first plan prepared by separate worker; source=simulated
+PASS revision/approval race refused; separate worker restarted
+PASS proposal retries, ambiguity, advisory privacy, security and pause
+PASS read-only OAuth token refused act tool with HTTP 403
+PASS durable retry after MCP process restart
+household_tools=PASS; signed_rows=300; offline=valid
+trusted_fingerprint=385589f309b374189ea1b391f4a3ad193f3674cf7fb6e72e1a97caf76e21912b
+disposable_database=dropped; development_database=unchanged
+```
+
+This uses separate OAuth, MCP and worker processes, SDK PKCE and actual
+initialize/tools/list/tools/call for all twelve names, a verified queued twin lamp
+setting, worker restart, server restart receipt replay, friendly invalid-field
+execution errors, plan/action/goal explanations and independent offline signed
+export verification. Both homes are disposable; the temporary evening fixture
+extends input coverage to 08:00 without changing the source scenario. The export
+is private and local at `/tmp/hirz-item25-schema-audit.json`; intermediate successful
+runs retained 284 and then 300 signed rows as the smoke expanded. A separate
+read-only query confirmed `development_migration=0005_execution_attempt`.
+
+### Live selection gate — pending
+
+A live invocation was attempted with the approved $1 ceiling:
+
+```sh
+uv run --locked python scripts/smoke_household_tools.py --audit-output /tmp/hirz-item25-live-audit.json --live-selection --budget-ledger /tmp/hirz-item25-bedrock-budget.json
+```
+
+The deterministic smoke portion passed with 284 signed rows at that iteration.
+The model portion returned `LIVE_GATE_PENDING NoCredentialsError` before any
+inference. `/tmp/hirz-item25-bedrock-budget.selection.json` contains exactly one
+failure record: `{"passed": false, "pending": "NoCredentialsError"}`. There was
+no budget ledger created, no inference tokens consumed and no inference charge.
+This **does not pass** tool selection. The prepared corpus now contains 26 cases
+plus a missing-value ambiguity probe, drawn from README/demo/main-scenario
+utterances with explicit values where necessary, plus money, permission, pause,
+approval and security cases. No live selection success or token-efficiency claim
+is made. Pricing was checked before the attempted invocation; ADR-015 records
+the source and conservative rates. Native CountTokens and durable reservations
+bound subsequent attempts, including retries; retain the same ledger across runs.
+
+Remaining: successful live selection with Bedrock access, profiles, objective
+tilts, MCP elicitation, cards, drafting/activation, real phone delivery, additional
+trust methods, organization verification and the full simulator. Item 26's full
+latency/isolation gate remains separate. Development stays unmigrated; no AWS
+resource was deployed, no production linking added and no security execution or
+real contact delivery claimed. The final format check is rerun after this record,
+roadmap, changelog and synchronized instruction-file updates.
+
+Native-count clarification: both seeded constitutions pass native validation;
+the `policy_count == 82` assertion specifically checks the main household's
+compiled bundle, not a combined or separately asserted count for both households.
+Final record checks confirmed identical AGENTS/CLAUDE bodies, a 65-word current
+phase, the original item 25 specification preserved, and no THREAT_MODEL diff.
+
+### AWS profile preflight — 2026-09-23, live gate still pending
+
+The author supplied AWS profile `hirz`. Boto3 STS authenticated it successfully
+as the account's root identity; no key material or use-case form contents were
+copied into repository records. Read-only/free preflights in `us-east-1` found:
+
+- Runtime CountTokens with the pinned US Haiku 4.5 inference profile failed with
+  `ValidationException: The provided model doesn't support counting tokens.`
+- The documented Mantle Anthropic counting endpoint, signed using SigV4 service
+  `bedrock-mantle`, returned HTTP 403 `permission_error`: the Haiku model is not
+  available for this account (exact message in the friction log).
+- `get_foundation_model_availability` reported `AUTHORIZED`, entitlement and
+  region `AVAILABLE`, and agreement `NOT_AVAILABLE`; `get_use_case_for_model_access`
+  confirmed a form exists. No form contents were printed.
+- `list_foundation_model_agreement_offers` confirmed US standard rates matching
+  $1.10/M input and $5.50/M output, with legal terms and a no-refunds policy.
+  No agreement was accepted, AWS configuration changed or inference invoked.
+
+The approved ledger path remains `/tmp/hirz-item25-bedrock-budget.json`; it does
+not yet exist, with zero reservations, inference tokens and inference spend.
+The previous `.selection.json` failure report was preserved; this was an access
+preflight, not a rerun or successful completion of the 27-case selection gate.
+The runner's runtime CountTokens integration cannot count this model; adapting
+and verifying supported counting remains required before any paid invocation.
+The separate Mantle access denial also remains unresolved. No heuristic counting,
+model substitution or scripted selection evidence was used. Local implementation
+and earlier test results are unchanged; this follow-up changes documentation only.
+
+### AWS retry and first live selection run — 2026-09-23
+
+At the author's request, repeated the availability and free counting checks after
+the setup wait. At 19:53:58 UTC, agreement remained `NOT_AVAILABLE`, authorization
+was `AUTHORIZED`, and entitlement/region were `AVAILABLE`. Mantle still returned
+403; its model metadata reported an account restriction, while default retention
+was compatible with the model's allowed modes. No retention setting was changed.
+
+The decisive additional probe was runtime CountTokens using
+`anthropic.claude-haiku-4-5-20251001-v1:0` instead of the US inference profile ID:
+it succeeded with 24 counted tokens. The previous conclusion that this model
+could not be counted was too broad. Fixed the host to use the foundation model
+ID for counting and the existing US inference profile for inference, retaining
+full conversation/tool counting and durable reservations without fallback.
+
+A single diagnostic Converse call reserved 24 input / 16 maximum output tokens
+in the existing ledger, then succeeded with actual usage of 8 input / 16 output.
+The full run used:
+
+```sh
+HIRZ_DOGWOOD="$PWD/.tools/dogwood" AWS_PROFILE=hirz AWS_EC2_METADATA_DISABLED=true UV_CACHE_DIR=/tmp/hirz-uv-cache uv run --locked python scripts/smoke_household_tools.py --audit-output /tmp/hirz-item25-live-profile-audit.json --live-selection --budget-ledger /tmp/hirz-item25-bedrock-budget.json
+```
+
+Actual result: **24/27 live selection checks passed; live gate remains pending.**
+The retained report at `/tmp/hirz-item25-bedrock-budget.selection.json` records:
+
+- Money request: no tool selected; expected `assess_request_risk`.
+- Plan explanation: selected `get_household_plan`; expected `explain_plan`.
+- Exact plan/version approval: requested the already-supplied plan ID instead of
+  selecting `approve_action`.
+
+No scripted substitution, changed expectations or second paid selection run was
+used. The SDK execution portion passed all twelve tools, worker/MCP restart,
+read-only-token HTTP 403 and independent signed export verification:
+`household_tools=PASS; signed_rows=300; offline=valid`. The fingerprint remains
+`385589f309b374189ea1b391f4a3ad193f3674cf7fb6e72e1a97caf76e21912b`.
+The disposable database was dropped; development was unchanged.
+
+Final cumulative selection usage was **191,547 input / 3,068 output tokens**;
+including the diagnostic, **191,555 input / 3,084 output**. At the checked US
+standard rates of $1.10/M input and $5.50/M output, estimated inference cost is
+**$0.2276725**, not a reconciled bill. The ledger conservatively reserves
+**$0.2942522 across 28 attempts**, leaving **$0.7057478** of the $1 ceiling.
+Keep this ledger for every later retry. The prior NoCredentialsError report was
+archived at `/tmp/hirz-item25-bedrock-budget.no-credentials.selection.json`.
+
+The live report exposed a separate reporting bug: Strands' mutable accumulated
+usage dictionary was retained by reference, causing all saved rows to show the
+final total. The stdout snapshots were correct, and the final cumulative usage
+above is valid; never sum those rows. The host now copies usage per turn, with
+a regression test. The historical report remains unchanged. After the run,
+the AWS CLI availability check returned agreement `AVAILABLE`, confirming that
+automatic model setup completed; no explicit agreement-creation call was made.
+
+Focused verification after both host fixes: **34 tests passed**, repository Ruff
+passed, and strict mypy passed for **148 source files**. Full service-free and
+integration suites were not repeated for these two small host changes; the new
+separate-process smoke above covers the integration route. Formatting is checked
+last after these records. Item 25 remains partial for the three live-selection
+failures and the previously listed product omissions; no threat-model claim moves.
+
+### Item 25 completion scope and routing follow-up — 2026-09-23
+
+The author approved completing profiles and objective tilts in item 25, moving
+MCP elicitation explicitly to item 29, and retaining cards/app/trust work in their
+existing later items. Item 29 now includes authenticated elicitation completion,
+refusal and cancellation checks. ADR-015 records the assignments. Repository
+inspection found profile names but no settings/durations, and no objective-tilt
+weights or carbon-intensity inputs. Questions about explicit household profile
+bundles and deterministic objective meanings were sent to the author; dependent
+implementation awaits those answers, with no invented defaults or emissions claims.
+
+Tool descriptions and the host prompt were revised to route money commands to
+risk assessment, explanation questions directly to stored explanation, and exact
+approval references verbatim to server validation. A second full live run used
+the same ledger after archiving the first report. Pricing was rechecked against
+the AWS source in ADR-015. The second run still passed **24/27**: money and
+explanation passed, but exact approval still asked for the supplied reference;
+energy optimization and a named-room lamp command also asked unnecessary
+clarifications. Failures are retained unchanged at
+`/tmp/hirz-item25-bedrock-budget.second-live.selection.json`.
+It used **197,343 input / 2,915 output tokens** and brought cumulative conservative
+reservations to **$0.5949768**. Its separate SDK/worker/restart smoke passed and
+independently verified **300 signed rows**, retaining
+`/tmp/hirz-item25-routing-audit.json`; the disposable database was dropped and
+development was unchanged.
+
+A further prompt/description correction leaves reference validity and household
+target resolution to the server, describes plan-reference/version extraction,
+and uses ordinary planning defaults for a general optimization request. No test
+utterance or expected tool/key arguments were changed, and no deterministic
+router was substituted for the live model.
+
+### Profiles, objective tilts and retained live gate — 2026-09-23
+
+The author approved explicit household-configured thermostat/light bundles and
+these objective meanings: cheapest orders electricity plus battery wear before
+comfort; most_comfortable orders occupied temperature deviation before cost;
+greenest orders grid-import kWh, comfort, then cost, without an emissions claim.
+ADR-015 records the resulting contract and rejected alternatives. No demo profile
+settings were inferred: tests supply labeled temporary fixtures, while missing
+household configurations return unavailable.
+
+The third full live selection run passed **25/27** original cases. Money advice
+and exact plan approval still failed to select the expected tool. It used
+**202,342 input / 2,999 output tokens** (the final cumulative snapshot for that
+run), retained at `/tmp/hirz-item25-bedrock-budget.selection.json`. Its ordinary
+SDK smoke verified **300 signed rows** at
+`/tmp/hirz-item25-routing-final-audit.json`. Across all attempts, the unchanged
+ledger `/tmp/hirz-item25-bedrock-budget.json` reserves **$0.9009891** of the
+approved $1 ceiling, leaving **$0.0990109**; these are conservative reservations,
+not an AWS billing claim. Another full run does not fit. No further paid calls
+were made after this run. Four profile/objective cases were subsequently added
+without changing the original cases; those four have not run live. The current
+31-case gate remains pending, with no scripted substitute or budget reset.
+
+Implementation uses existing Pipeline transactions, canonical Actions/Decisions,
+worker execution, refresh inputs and PlanService. Migration 0011 persists first
+request objectives. Profile approvals bind frozen concrete settings; child actions
+still need independent authorization. Explicit objective changes invalidate old
+consent, survive worker restart and yield proposed replacements. The refresh
+path now preserves the explicitly requested goals instead of overwriting them
+with predecessor goals; its authorization guard permits only that durable explicit
+choice, while automatic refresh retains its previous goal restriction.
+
+Verification commands used `UV_CACHE_DIR=/tmp/hirz-uv-cache` and
+`HIRZ_DOGWOOD=$PWD/.tools/dogwood`:
+
+- `uv run --locked pytest --tb=short`: **1,401 passed, 129 deselected**, 131.66 s.
+  Log: `/tmp/hirz-item25-expanded-unit-tests.log`.
+- `uv run --locked pytest -m integration --cov=hirz --cov-append --tb=short`:
+  **129 passed, 1,401 deselected**, 238.74 s, all databases disposable.
+  Log: `/tmp/hirz-item25-expanded-integration-tests.log`.
+- `uv run --locked coverage report --fail-under=80`: **92%**, 11,980 statements,
+  992 missed, exit 0. This is combined service-free/integration coverage.
+- `uv run --locked python scripts/smoke_household_tools.py --audit-output
+  /tmp/hirz-item25-profiles-objectives-verified-audit.json`: **PASS**, all twelve
+  authenticated tools, separate OAuth/MCP/worker processes, objective change and
+  revision consent races, worker restart, per-device profile decisions, durable
+  MCP retry, read-only HTTP 403, security non-resolution and pause; **611 signed
+  rows independently verified offline**. Export fingerprint:
+  `385589f309b374189ea1b391f4a3ad193f3674cf7fb6e72e1a97caf76e21912b`.
+  Log: `/tmp/hirz-item25-expanded-smoke.log`; successful scratch database dropped.
+- Ruff passed; strict mypy passed for **150 source files**. The final formatting
+  check follows the documentation updates below.
+- A read-only query confirms development is still **0005_execution_attempt**;
+  neither migration 0010 nor 0011 was applied there.
+
+The extended smoke initially exposed two fixture assertions: its missing sleeping
+observation correctly denies the thermostat, so the test now verifies that denial
+alongside light execution; and multiple device writes advance the twin by
+microseconds, so the simulated MCP clock must advance past those recorded events.
+The integration fixture separately verifies both configured devices when required
+observations are present. No risk rule, observation requirement or temporal graph
+check was weakened. Earlier failed disposable runs remain retained for diagnosis.
+
+Local coverage also exercises missing configurations, restart-safe profile retries,
+request conflicts, claimed-identity reductions, preview without authority, pause
+and aggregate/child approvals. Hand-computed planner tests distinguish cheap
+negative-price grid energy from solar/grid-minimizing choices and verify comfort
+priority with all replay constraints intact. The host's confirmation regression
+now includes objective mutations. Live selection failures remain the only item 25
+completion gate; later product integrations have explicit roadmap owners in
+ADR-015. Item 26 and threat-model claims remain unchanged. The friction-log review
+found no additional third-party defect; model selection failures and fixture
+mistakes are recorded here as verification failures.
+
+Final follow-up: `pytest tests/unit/test_household_tools.py tests/cedar_conformance
+--no-cov --tb=short` passed **108 tests** (35 household/host tests and 73 native
+policy conformance tests), 72.88 s. This includes confirmation before objective
+changes. Final Ruff passed; strict mypy passed **150 source files**;
+`ruff format --check .` reported **225 files already formatted**;
+`git diff --check` passed. AGENTS.md and CLAUDE.md bodies are synchronized.
+
+### Approved $1.50 live rerun — 2026-09-23
+
+The author approved the recommended increase from $1 to **$1.50 total** for one
+additional full run. The original ledger retained all **82 earlier calls** and
+**$0.9009891** reservations. Its previous report was preserved as
+`/tmp/hirz-item25-bedrock-budget.third-live.selection.json`; the ledger was neither
+reset nor refunded. AWS pricing was checked again before invocation against
+[the published Haiku rates](https://aws.amazon.com/blogs/machine-learning/live-meeting-assistant-with-amazon-transcribe-amazon-bedrock-and-strands-agents/):
+$1.10/M input and $5.50/M output for the configured route.
+
+The host prompt now distinguishes tool selection from the confirmation gate that
+follows selection, and requires a new deterministic assessment for each money
+request. Tool descriptions now explicitly include profile requests; the plan
+version description accepts a user-supplied reviewed version. No corpus utterance,
+expected selection or expected key argument was changed. Budget enforcement now
+uses the author-approved $1.50 constant and includes a persistence/ceiling regression.
+
+Command: `AWS_PROFILE=hirz HIRZ_DOGWOOD="$PWD/.tools/dogwood"
+UV_CACHE_DIR=/tmp/hirz-uv-cache uv run --locked python
+scripts/smoke_household_tools.py --audit-output /tmp/hirz-item25-fourth-live-audit.json
+--live-selection --budget-ledger /tmp/hirz-item25-bedrock-budget.json`.
+
+Result: **30/31 live selections passed**. Money routing, the configured night
+profile, all three objective tilts, pause, security requests and ambiguous
+missing-temperature handling passed. The one remaining failure is unchanged:
+`I reviewed plan selection-plan version 3. Approve exactly that plan. Do it.`
+The model selected no tool and asked whether the supplied plan reference really
+was `selection-plan`. The expected selection remains `approve_action` with
+`plan_id=selection-plan`, `version=3`, `approved=true`. This is a failure, not an
+accepted clarification. No scripted fallback or expected-result relaxation was used.
+Report: `/tmp/hirz-item25-bedrock-budget.selection.json`;
+log: `/tmp/hirz-item25-fourth-live.log`.
+
+The run used **245,540 input / 3,265 output tokens**, an estimated **$0.2880515**
+at the checked rates (not a reconciled AWS bill). It reserved **$0.3666289** under
+the conservative maximum-output policy. The retained ledger now contains **113
+calls** and **$1.2676180** total reservations, leaving **$0.2323820** of the $1.50
+ceiling. No further model invocations were made; another full run is not covered
+by that remaining headroom.
+
+The same process run passed SDK/tool schemas, objective and revision races,
+worker and MCP restart, per-device profile enforcement, pause, privacy and
+read-only scope denial. It independently verified **611 signed audit rows** in
+`/tmp/hirz-item25-fourth-live-audit.json`, fingerprint
+`385589f309b374189ea1b391f4a3ad193f3674cf7fb6e72e1a97caf76e21912b`.
+The disposable database was dropped; development remained unchanged.
+
+`pytest tests/unit/test_household_tools.py --no-cov --tb=short`: **35 passed**,
+2.05 s. Ruff passed; strict mypy passed for **150 source files**. Existing full
+service-free/integration coverage evidence above remains applicable; this change
+is limited to host prompting, schema descriptions and the approved budget constant.
+Formatting is checked last after these records. Item 25 remains partial solely
+for the exact-approval live-selection failure. No new third-party defect was
+identified; the failed model selection is retained as gate evidence. No
+threat-model claims or later-item scopes changed.
+
+### Item 25 completion within approved scope — 2026-09-23
+
+The author approved a **$2.00 aggregate ceiling** for the remaining targeted
+approval check and full rerun. All prior ledger entries were retained. Pricing
+was rechecked against the AWS source above before invocation. The approval tool
+now documents its plan-ID/version and action-ID/approval-ID input combinations;
+the host has a generic reference-extraction example using `oak-42`, version 7,
+which is not a corpus case. The unchanged server still enforces exact-version
+consent, household scope and security non-resolution. No test utterance or expected
+selection was changed and no deterministic router substituted for the model.
+
+A separate targeted diagnostic passed **2/2**: the previously failing original
+utterance and another reference, `north-lantern`, version 12. This diagnostic
+was explicitly labeled insufficient for the full gate. It used **13,738 input /
+223 output tokens** and reserved **$0.0208164**. Report:
+`/tmp/hirz-item25-approval-probe.json`; log:
+`/tmp/hirz-item25-approval-probe.log`; its SDK smoke independently verified 611
+signed rows at `/tmp/hirz-item25-approval-probe-audit.json` and dropped its database.
+
+The subsequent full attempt stopped after **16 passing selections** with
+`LIVE_GATE_PENDING InternalServerException`. Its final recorded cumulative usage
+was **125,261 input / 1,687 output tokens**. It reserved **$0.1868383**, bringing
+the ledger to $1.4752727; no reservations were removed. The endpoint-specific
+message was not retained and is not inferred. Preserved report:
+`/tmp/hirz-item25-bedrock-budget.fifth-live.selection.json`; log:
+`/tmp/hirz-item25-fifth-live.log`; independently verified 611-row export:
+`/tmp/hirz-item25-fifth-live-audit.json`. This interrupted run did not satisfy the
+gate. The service interruption and retained-history retry are documented in the
+[friction log](./friction-log.md#item-25-interrupted-bedrock-selection-run--2026-09-23).
+
+Retry command: `AWS_PROFILE=hirz HIRZ_DOGWOOD="$PWD/.tools/dogwood"
+UV_CACHE_DIR=/tmp/hirz-uv-cache uv run --locked python
+scripts/smoke_household_tools.py --audit-output /tmp/hirz-item25-sixth-live-audit.json
+--live-selection --budget-ledger /tmp/hirz-item25-bedrock-budget.json`.
+
+**Full live gate PASS: 31/31 cases**, including the exact `selection-plan`,
+version 3 approval, money routing, profile selection, all three objective tilts,
+ambiguous missing temperature, pause and Alexa security requests. The host used
+real authenticated tools/list, preserved conversation context and selected through
+Claude Haiku 4.5 on Bedrock; selection-only hooks canceled execution, while the
+separate SDK path verified actual service behavior. The report preserves every
+selected tool, key argument and cumulative token snapshot:
+`/tmp/hirz-item25-bedrock-budget.selection.json`; complete stdout:
+`/tmp/hirz-item25-sixth-live.log`. The earlier 30/31 report remains at
+`/tmp/hirz-item25-bedrock-budget.fourth-live.selection.json`.
+
+The successful run used **251,280 input / 3,327 output tokens**, estimated
+**$0.2947065** at the checked rates, and conservatively reserved **$0.3732597**.
+The unchanged aggregate ledger contains **162 calls**, **$1.8485324** reserved,
+and **$0.1514676** remaining under the approved $2 ceiling. This is not an AWS
+billing reconciliation. No further inference was performed after success.
+
+The successful run also passed all twelve authenticated tools, durable retries,
+MCP and worker restart, objective-change and same-second revision consent refusal,
+per-device profile decisions, privacy, pause and read-only HTTP 403. It verified
+**611 signed rows independently offline**, fingerprint
+`385589f309b374189ea1b391f4a3ad193f3674cf7fb6e72e1a97caf76e21912b`, in
+`/tmp/hirz-item25-sixth-live-audit.json`. Its disposable database was dropped;
+development stayed unchanged on 0005. Migrations through 0011 remain explicit.
+
+Focused verification after the final prompt/schema/budget changes:
+`pytest tests/unit/test_household_tools.py --no-cov --tb=short` **35 passed**,
+2.14 s; Ruff passed; strict mypy passed **150 source files**. The preceding full
+implementation evidence remains **1,401 service-free tests, 129 PostgreSQL tests,
+92% combined coverage**, plus **73 native policy conformance tests**. These full
+suites were not repeated for description/prompt changes and the budget constant;
+the new live SDK smoke and focused tests verify those changes. Final formatting
+and whitespace checks follow the documentation updates.
+
+Item 25 is complete within the author-approved scope and allocation: cards 27,
+app drafting/activation and phone approvals 28, elicitation/full simulator 29,
+real contact checks/further trust methods 31, organization verification 33. No
+production Alexa deployment, real phone delivery or universal model reliability
+is claimed. The requirement was one successful full live selection run; earlier
+failures remain retained. Item 26's latency/isolation gate is next and remains
+unverified. No threat-model row advances.
+
+Final closure checks passed: Ruff; strict mypy (**150 source files**);
+`ruff format --check .` (**225 files already formatted**); `git diff --check`;
+and identical AGENTS.md/CLAUDE.md bodies. The original item 25 specification and
+verification clause were preserved; only its completion status and evidence
+sentence changed. No deployment, development migration or item 26 work was run.

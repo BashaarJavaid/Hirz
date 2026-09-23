@@ -58,5 +58,6 @@ dev = [
     "pytest==9.1.1",
     "pytest-cov==7.1.0",
     "ruff==0.16.8",
+    "strands-agents==1.57.0",
     "types-PyYAML==6.0.12.20260906",
 ]

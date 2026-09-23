@@ -385,25 +385,22 @@ requiring the current code to understand a historical event's payload.
 
 ### 4.5 VerificationCase (Protect)
 
-```json
-{
-  "case_id": "ver_01J8...",
-  "claim": {"text": "Malik is in trouble and needs five hundred dollars", "channel": "phone", "presented_number": null},
-  "subject": {"contact_id": "tc_malik", "trusted": true},
-  "signals": [
-    {"signal": "unfamiliar_channel_reported", "weight": "high"},
-    {"signal": "urgency_language", "weight": "medium"},
-    {"signal": "financial_request", "weight": "high"},
-    {"signal": "third_party_recipient", "weight": "high"}
-  ],
-  "risk_band": "critical",
-  "recommended": ["verify_via_verified_channel", "do_not_transfer"],
-  "verification": {"method": "app_confirmation", "status": "pending", "sent_to": "tc_malik", "expires_at": "..."},
-  "speakable": {"headline": "...", "options": ["Check with Malik", "Call Malik's verified number", "Ignore"]}
-}
-```
+The canonical validated shape is defined once in `hirz/pipeline/models.py`.
+An assessment carries case_id, claim (text, reported channel, optional supplied
+number), subject (optional trusted contact, claimed party and person/organization),
+weighted advisory signals, risk_band, recommended next steps, optional
+number_comparison, and speakable. Verification is **null** until an explicit check
+starts; it then includes method, status, sent_to, started_at, expires_at and source.
 
-`verification.status` ∈ `pending | genuine | not_genuine | will_call | no_answer`. `presented_number` is null unless the member read the number out; Hirz cannot see the call. The check-in asks about the specific request ("Did you just call her from another number asking for $500?"), so `genuine` means "I made that request", never a blanket "it was me", and it is never an endorsement of paying: Hirz still says to talk to the contact on their saved number. The subject is a trusted contact, who may or may not be a member and may live in another Hirz household; they answer in their own app.
+`verification.status` is pending, genuine, not_genuine, will_call or no_answer.
+The implemented method is app_confirmation with source twin. A genuine reply
+confirms only that specific request, never identity generally or permission to pay.
+No supplied number means no caller-number or comparison speech. Matching a
+verified stored phone hash never establishes identity. Cases are restricted to the
+initiating linked member within the household; public context/audit omit their
+private history. Approved vocabulary, normalization and bootstrap exception:
+[ADR-015](./docs/adr/ADR-015-household-tools.md#trust-contract-approved-during-implementation).
+Real contact delivery and other trust methods remain target state.
 
 ---
 
@@ -560,6 +557,13 @@ Constraints: energy balance per slot; SoC dynamics with round-trip efficiency; `
 Solved with `scipy.optimize.milp` (HiGHS). Typical instance: ~800 variables, solves in well under a second on a laptop; a 5-second solver time limit returns the incumbent with `optimality_gap` recorded in the plan.
 
 **Item 17 implementation boundary.** `hirz/planner/` uses SciPy 1.18.0, five seconds and 0.001 relative gap; electricity plus $0.01/internal-throughput-kWh wear, with zero peak/soft-comfort penalties. Exports are solar-only, zero-valued, and exclusive with imports. Schedules replay through the existing pure EV/battery/thermal/appliance transitions; EV targets above 80% are rejected. Every accepted comparison uses absolute 0.000001 kWh and 0.0001°F tolerances. The approved workload, forecast cutoff, baseline terminal-reserve rule, tariff counterfactual and stopped-run behavior are specified in [ADR-005](./docs/adr/ADR-005-deterministic-planner.md#read-only-planner-and-historical-experiment--2026-09-21). Historical replay adds shared causal thermostat and battery protection, with requested/applied controls retained and strict replay validation afterwards; the once-daily economic schedule remains fixed. Thermal preparation uses declared occupied targets and existing power, while battery correction preserves exact terminal energy without export or a state reset ([amendment](./docs/adr/ADR-005-deterministic-planner.md#causal-historical-replay-amendment--2026-09-21)). Physical completion is reported separately from billing coverage. No endpoint, persistence, coordinator intake or execution is added.
+
+**Explicit objective tilts (item 25).** Cheapest orders cost plus wear before
+occupied comfort; most comfortable orders occupied target deviation before cost;
+greenest orders grid import kWh, comfort, then cost. These are lexicographic
+passes sharing five seconds, with all hard constraints preserved. Greenest is
+labeled reduced grid electricity, without a carbon claim. Omitted objectives keep
+the established default/backtest behavior; explicit changes require new consent.
 
 **Inputs.** One all-in price per slot (supply plus delivery) from the household's rate plan: ComEd's published Time-of-Day table, the ComEd Hourly Pricing feed (day-ahead hourly + 5-minute real-time for the current hour) with delivery added, or the twin tariff (`docs/twin-and-scenarios.md` §2.6), weather forecast (Open-Meteo hourly temperature and cloud cover → solar estimate), asset parameters from the graph, occupancy forecast from `Schedule` and presence, member constraints, comfort preferences per expected occupant (Mom's 72 °F applies to the living room while she is expected).
 
@@ -1135,6 +1139,42 @@ CORS is not enabled. Tests may explicitly supply their allocated loopback port;
 there is no deployment allowlist configuration. Decisions and sources:
 [ADR-013](./docs/adr/ADR-013-mcp-transport.md); reproducible checks:
 [development](./docs/development.md#item-23-local-mcp-transport).
+
+**Implemented authenticated local household scope (item 25).**
+The item 24 authenticated factory registers twelve strictly validated tools;
+the generic app above retains anonymous onboarding only. Identity comes from
+OAuth's request context and current member lookup. Tool schemas and exact inputs
+are in [the catalog](./docs/tool-catalog.md); [ADR-015](./docs/adr/ADR-015-household-tools.md)
+records the approved local contract.
+
+Startup validates/compiles policy bundles. Calls check the current bundle under
+the household lock, reuse Pipeline and Coordinator for synchronous bookkeeping,
+and queue device work for the executor. Durable request receipts bind household,
+principal, tool and arguments in the same transaction as effects. Rule proposals,
+first-plan requests and member-private verification cases have explicit migration
+0010 tables; migration 0011 adds the explicit first-plan objective. Permission previews record only DRY_RUN evidence and never grant authority.
+No call invokes a model, solver, compiler, Gateway or adapter network operation.
+
+The worker prepares first plans from explicitly configured twin inputs and fails
+honestly on missing coverage or infeasibility. Constraint intake accepts validated
+ConstraintSpec values and invalidates plans atomically. Exact-version consent
+refuses refreshing plans; cancellation preserves existing bounded endings. Voice
+security approvals remain unresolved. Simulated trust replies and two-minute
+expiry are worker-only Pipeline transitions. Delayed results require another call.
+Outputs support speech and native rendering without invented UI resources.
+Configured profiles freeze explicit light/thermostat settings and check every device
+through Pipeline; missing configurations are unavailable. Explicit objective tilts
+persist through first-plan requests or refresh inputs, invalidate old consent and
+require approval of the replacement. Configuration and exact priority orders:
+[ADR-015 scope amendment](./docs/adr/ADR-015-household-tools.md#completion-scope-amendment--2026-09-23-author-approved).
+
+The reusable headless Strands host consumes actual tools/list, maintains context,
+injects retry keys and holds commitments for explicit confirmation. Its live
+selection gate retains its ledger under the author-approved $2 ceiling; missing
+access or incorrect selections leave the gate pending. Cards belong to item 27;
+drafting/activation and phone approvals to 28; elicitation and the full simulator
+to 29; real contact checks and further trust methods to 31; organization verification
+to 33. Item 26 owns the full latency/isolation gate.
 
 **Target surface after item 23 (not all implemented):**
 

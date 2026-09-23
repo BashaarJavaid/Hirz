@@ -279,7 +279,28 @@ async def prepare_mutation(p: "Pipeline", action: Action, principal: Principal) 
             ):
                 raise ValueError("A refresh must preserve the approved horizon end")
             if autonomous and plan.goals != predecessor.goals:
-                raise ValueError("Automatic refresh must preserve approved goals")
+                from hirz.executor.refresh import job
+                from hirz.planner.models import OBJECTIVE_GOALS
+
+                requested = await job(p, old)
+                objective = (
+                    RuntimeInputs.model_validate(old["runtime"]).workload.objective
+                    if old["runtime"]
+                    else None
+                )
+                if not (
+                    requested
+                    and requested["explicit"]
+                    and objective is not None
+                    and plan.goals
+                    == OBJECTIVE_GOALS[objective] + ("comfort", "ev_deadline")
+                    and action.params.get("runtime") is not None
+                    and RuntimeInputs.model_validate(
+                        action.params["runtime"]
+                    ).workload.objective
+                    == objective
+                ):
+                    raise ValueError("Automatic refresh must preserve approved goals")
             if old["runtime"] and action.params.get("runtime") is not None:
                 prior_inputs = RuntimeInputs.model_validate(old["runtime"])
                 next_inputs = RuntimeInputs.model_validate(action.params["runtime"])
@@ -900,16 +921,26 @@ class PlanService:
             return decision
 
     async def approve(
-        self, plan_id: str, principal: Principal, *, approval_id: str | None = None
+        self,
+        plan_id: str,
+        principal: Principal,
+        *,
+        approval_id: str | None = None,
+        version: int | None = None,
     ) -> Decision:
         p = self.pipeline
         async with p.repo.write(p.clock):
             return await self.approve_locked(
-                plan_id, principal, approval_id=approval_id
+                plan_id, principal, approval_id=approval_id, version=version
             )
 
     async def approve_locked(
-        self, plan_id: str, principal: Principal, *, approval_id: str | None = None
+        self,
+        plan_id: str,
+        principal: Principal,
+        *,
+        approval_id: str | None = None,
+        version: int | None = None,
     ) -> Decision:
         from hirz.executor.refresh import fresh
 
@@ -917,7 +948,8 @@ class PlanService:
         stored = await get(p, plan_id)
         plan = Plan.model_validate(stored["document"])
         if (
-            plan.status != "proposed"
+            (version is not None and plan.version != version)
+            or plan.status != "proposed"
             or not await fresh(p, stored)
             or not eligible(p, await p.requester(principal), principal)
         ):

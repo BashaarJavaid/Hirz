@@ -146,7 +146,8 @@ async def worker(args: argparse.Namespace) -> int:
             if key.startswith("HIRZ_") and key not in os.environ:
                 os.environ[key] = value
         scenario = os.environ.get("HIRZ_TWIN_SCENARIO")
-        world = LoadedScenario(Path(scenario)).world if scenario else None
+        loaded = LoadedScenario(Path(scenario)) if scenario else None
+        world = loaded.world if loaded else None
         clock = (lambda: world.clock()) if world else now
         if world:
             world.clock.set_speed(float(os.environ.get("HIRZ_SIM_SPEED", "1")))
@@ -223,7 +224,16 @@ async def worker(args: argparse.Namespace) -> int:
                         )
                         while True:
                             refresh_pipeline.bundle = await policy(refresh_pipeline)
-                            task = asyncio.create_task(refresh.batch())
+                            from hirz.mcp.trust import advance
+                            from hirz.mcp.worker import prepare_plans
+
+                            await advance(refresh_pipeline, world)
+
+                            async def preparation_and_refresh() -> None:
+                                await prepare_plans(refresh_pipeline, loaded)
+                                await refresh.batch()
+
+                            task = asyncio.create_task(preparation_and_refresh())
                             decisions: list[Decision] = []
                             try:
                                 while not task.done():

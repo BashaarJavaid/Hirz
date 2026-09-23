@@ -8,6 +8,8 @@ All notable changes are documented here. The format follows
 
 ### Changed
 
+- 2026-09-23: Complete the approved twelve-tool household scope with durable retries, simulated trust, per-device profiles, deterministic objectives and a confirmation-gated host; clarify approval argument combinations and verify all 31 live selection cases within the approved $2 ceiling. Later UI/app/trust integrations retain their assigned roadmap items ([ADR-015](./docs/adr/ADR-015-household-tools.md), [evidence](./docs/verification-log.md#item-25-completion-within-approved-scope--2026-09-23)).
+
 - 2026-09-23: Add simulated local OAuth consent, SDK PKCE linking, resource-bound JWTs, scope enforcement and current household/member resolution while preserving anonymous onboarding; verify SDK/browser flows and add OAuth smoke to CI ([ADR-014](./docs/adr/ADR-014-local-oauth.md), [item 24 evidence](./docs/verification-log.md#item-24--2026-09-23)).
 
 - 2026-09-22: Remove solver-known refresh triggers, preserve freshness across verified dispatches, explain plan-authority denials, and recover expired openings while retaining consent ([C2 verification](./docs/verification-log.md#phase-3-review-batch-c2--2026-09-22)).

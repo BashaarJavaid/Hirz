@@ -1,10 +1,10 @@
 energy.optimize_cost: {impact: 2, reversibility: reversible, band: LOW, freshness_seconds: 300}
-energy.hvac_adjust: {impact: 2, reversibility: reversible, band: LOW, freshness_seconds: 300}
-energy.ev_charge: {impact: 2, reversibility: reversible, band: LOW, freshness_seconds: 300}
-energy.battery_dispatch: {impact: 2, reversibility: reversible, band: LOW, freshness_seconds: 300}
+energy.hvac_adjust: {impact: 2, reversibility: reversible, band: LOW, freshness_seconds: 300, consumer_actions: [set_temperature]}
+energy.ev_charge: {impact: 2, reversibility: reversible, band: LOW, freshness_seconds: 300, consumer_actions: [charge_car, stop_charging]}
+energy.battery_dispatch: {impact: 2, reversibility: reversible, band: LOW, freshness_seconds: 300, consumer_actions: [hold_battery]}
 energy.appliance_start: {impact: 2, reversibility: delayed, band: MEDIUM, freshness_seconds: 300}
-environment.lights: {impact: 1, reversibility: reversible, band: LOW, freshness_seconds: 300}
-environment.comfort_profile: {impact: 2, reversibility: reversible, band: LOW, freshness_seconds: 300}
+environment.lights: {impact: 1, reversibility: reversible, band: LOW, freshness_seconds: 300, consumer_actions: [turn_on_light, turn_off_light]}
+environment.comfort_profile: {impact: 2, reversibility: reversible, band: LOW, freshness_seconds: 300, consumer_actions: [apply_profile]}
 environment.shades: {impact: 2, reversibility: reversible, band: LOW, freshness_seconds: 300}
 health.routine_reminders: {impact: 1, reversibility: reversible, band: LOW, freshness_seconds: 300}
 health.comfort_preferences: {impact: 1, reversibility: reversible, band: LOW, freshness_seconds: 300}
@@ -12,14 +12,14 @@ health.medical_decisions: {impact: 5, reversibility: irreversible, band: CRITICA
 communication.notify_member: {impact: 1, reversibility: reversible, band: LOW, freshness_seconds: 300}
 communication.contact_trusted_contact: {impact: 1, reversibility: reversible, band: LOW, freshness_seconds: 300}
 communication.contact_emergency_services: {impact: 5, reversibility: irreversible, band: HIGH, freshness_seconds: 300}
-security.door_unlock: {impact: 5, reversibility: irreversible (while open), band: HIGH, freshness_seconds: 60}
+security.door_unlock: {impact: 5, reversibility: irreversible (while open), band: HIGH, freshness_seconds: 60, consumer_actions: [request_door_unlock]}
 security.camera_disable: {impact: 4, reversibility: reversible with exposure window, band: HIGH, freshness_seconds: 60}
 security.access_code_share: {impact: 5, reversibility: irreversible, band: CRITICAL, freshness_seconds: 60}
 security.arm_disarm: {impact: 4, reversibility: reversible with exposure window, band: HIGH, freshness_seconds: 60}
 finance.transfer_money: {impact: 5, reversibility: irreversible, band: CRITICAL, freshness_seconds: 300}
 finance.change_payee: {impact: 5, reversibility: irreversible, band: CRITICAL, freshness_seconds: 300}
 finance.verify_request: {impact: 1, reversibility: reversible, band: LOW, freshness_seconds: 300}
-governance.pause_automation: {impact: 1, reversibility: reversible, band: LOW, freshness_seconds: 300}
+governance.pause_automation: {impact: 1, reversibility: reversible, band: LOW, freshness_seconds: 300, consumer_actions: [pause_automation]}
 governance.resume_automation: {impact: 1, reversibility: reversible, band: LOW, freshness_seconds: 300}
 governance.record_constraint: {impact: 1, reversibility: reversible, band: LOW, freshness_seconds: 300}
 governance.withdraw_constraint: {impact: 1, reversibility: reversible, band: LOW, freshness_seconds: 300}
@@ -35,3 +35,7 @@ governance.memory:
   reversibility: explicit consent and versioned preference history
   band: LOW
   freshness_seconds: 300
+governance.record_tool_request: {impact: 1, reversibility: reversible, band: LOW, freshness_seconds: 300}
+governance.propose_rule: {impact: 1, reversibility: reversible, band: LOW, freshness_seconds: 300}
+governance.request_plan: {impact: 1, reversibility: reversible, band: LOW, freshness_seconds: 300}
+governance.record_verification: {impact: 1, reversibility: reversible, band: LOW, freshness_seconds: 300}

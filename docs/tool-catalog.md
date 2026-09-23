@@ -1,14 +1,69 @@
 # MCP Tool Catalog
 
-**Implemented in item 23:** only `what_can_you_do`, with no input parameters.
-Its generated output schema wraps the existing `Speakable` in `speakable` and
-`data.available_tools` containing only its own name. The headline describes Hirz;
-the detail explicitly says household tools are not connected. There are no
-household reads, authentication, UI resources or side effects. The exact output
-and client checks are recorded in the [item 23 evidence](./verification-log.md#item-23--2026-09-23).
-[Local transport contract](./adr/ADR-013-mcp-transport.md).
+**Item 25 approved local contract (implemented).** The authenticated factory exposes all twelve
+names below. The generic unauthenticated app still exposes only onboarding.
+The implemented contract is in `hirz/mcp/contracts.py`; [ADR-015](./adr/ADR-015-household-tools.md)
+records the approved choices and trust vocabulary. Voice and native structured
+rendering are supported; cards, elicitation and the full simulator remain pending.
 
-The remainder describes the target surface for later roadmap items.
+| Tool | Scope | Implemented inputs and behavior |
+|---|---|---|
+| what_can_you_do | anonymous | No inputs; generic capability speech; linked read access adds the available tool list. |
+| get_household_context | read | scope, optional member; redacted observations, provenance and availability. |
+| get_household_plan | plan | horizon defaults to tonight; optional objective (cheapest, most_comfortable, greenest); request_id when enqueueing or choosing an objective; existing canonical Plan or durable preparation status. |
+| revise_household_plan | plan | text, applies_to, kind, operation, change and applicable scalar values; atomic constraint recording and refresh invalidation. |
+| explain_plan | read | Optional plan_id and focus (summary, conflicts, action/goal reference); stored facts and bounded narration. |
+| approve_action | act | approved, exact plan_id/version or action_id/approval_id, request_id; stale consent refused; security remains unresolved. |
+| execute_household_action | act | action plus applicable profile, room, temperature_f, percent, minutes, beneficiary, claimed_requester; request_id; queued execution. |
+| assess_request_risk | verify | text, claimed_party, party, optional presented_number, request_id; deterministic advice, no contact initiation. |
+| verify_trusted_identity | verify | operation start/status; case_id/contact, text for a new request and request_id for start; private simulated app checks only. |
+| propose_household_rule | plan | text, request_id; records the sentence with CONSTITUTION_PROPOSED, without drafting, delivery or activation. |
+| evaluate_permission | read | Shared action fields, optional at and required request_id; current policy preview with DRY_RUN, no authority. |
+| get_action_audit | read | window or action_id, limit default 20/max 100 and cursor; newest-first consumer summaries. |
+
+The action enum is generated from consumer_actions metadata in risk/classes.yaml:
+charge_car, stop_charging, set_temperature, turn_on_light, turn_off_light,
+request_door_unlock, hold_battery, pause_automation, apply_profile. Money requests route to advice;
+resume remains app-only. Missing applicable values require clarification, unique
+household targets are mandatory, and immediate commands promise one setting change.
+
+Revision changes are car_target, car_limit, charge_after, car_ready_by,
+appliance_after, appliance_ready_by, temperature, temperature_range and release_hold.
+Values use percent, temperature_f, lower_f, upper_f, at, window_start and window_end.
+Replacement/removal requires constraint_id, except release of a unique active hold.
+Optional claimed_author is provenance. All revisions expire with the current plan,
+or after 24 hours without a plan; explicit windows reuse local-time/DST validation.
+There is no permanent learning. Tonight/overnight/tomorrow_morning end at the next
+local 08:00; next_24h ends 24 hours after creation. Existing horizons stay fixed.
+
+Inputs reject unknown fields, irrelevant parameters and invalid combinations.
+Text is bounded to 2,000 characters, names/references to 200, request keys to 128.
+Every result has typed speakable/data. Speech has at most 20 headline words, two
+headline sentences, three details, five options and fewer than 75 total words.
+Clarifications are typed results; validation errors set MCP isError and a machine
+code. OAuth retains HTTP 401/403/503. Request receipts survive restart and bind the
+household, principal, tool and arguments. No tool input can raise authority.
+
+Trust and phone normalization rules are recorded once in [ADR-015](./adr/ADR-015-household-tools.md#trust-contract-approved-during-implementation).
+No supplied number means no number-related speech. All executable checks are
+labeled simulated, expire after two minutes, and require both a verified twin app
+channel and policy permission. General context/audit never exposes private case
+contents or stored channel hashes. The consumer must ask again for a delayed result.
+
+Profiles use explicit household-configured thermostat/light settings: each device
+receives its own Pipeline decision, missing configurations are unavailable, and
+later automation may change the settings. Objective tilts preserve hard constraints
+and follow the approved priority order in [ADR-015](./adr/ADR-015-household-tools.md#completion-scope-amendment--2026-09-23-author-approved).
+Greenest means reduced grid electricity, without an emissions claim. Changing an
+objective invalidates prior consent and requires approval of the resulting plan.
+
+**The remaining sections describe the full target surface.** Cards, permanent
+preference tools, real phone delivery, drafting/activation, additional trust
+methods and organization verification are not implemented here. Elicitation is
+assigned to item 29; cards to 27; drafting/activation and approval notifications to 28; real contact
+checks and further trust methods to 31; organization verification to 33. The full
+simulator remains item 29. These assignments do not change the target contracts
+below ([scope amendment](./adr/ADR-015-household-tools.md#completion-scope-amendment--2026-09-23-author-approved)).
 
 The tool surface Alexa+ (and the simulator) sees. Five groups, twelve tools. The surface is deliberately small: an orchestrator picks reliably among a dozen distinct verbs and unreliably among two dozen near-duplicates, and Alexa's own guidance is tools whose outputs feed each other. The tool-selection test in `ROADMAP.md` item 25 is the arbiter of this surface: if a tool misfires there, the surface changes. Every tool follows the same contract:
 
@@ -35,7 +90,7 @@ Naming follows the 2025-11-25 guidance: lowercase, underscores, verb first. Amaz
 
 | Tool | Scope | Purpose |
 |---|---|---|
-| `get_household_plan` | plan | The current plan for a horizon (`tonight`, `overnight`, `tomorrow_morning`, `next_24h`) with goals honored, actions, numbers, alternatives, and approval state. Optional `objective` tilt (`cheapest`, `greenest`, `most_comfortable`) requests a re-plan with that weighting. The summary leads with dollars saved and always includes the "do nothing" and "do everything now" comparisons, so no separate forecast tool exists. Fresh plan if one exists; otherwise the last plan marked `refreshing` plus an enqueued re-plan. Options: `Approve`, `Change something`, `Skip tonight`. Card: inline summary, fullscreen timeline. |
+| `get_household_plan` | plan | The current plan for a horizon (`tonight`, `overnight`, `tomorrow_morning`, `next_24h`) with goals honored, actions, numbers, alternatives, and approval state. Optional `objective` tilt (`cheapest`, `greenest`, `most_comfortable`) requests a re-plan with that weighting. The summary leads with dollars saved and always includes the timer, immediate ("do everything now") and greedy comparisons, so no separate forecast tool exists. Fresh plan if one exists; otherwise the last plan marked `refreshing` plus an enqueued re-plan. Options: `Approve`, `Change something`, `Skip tonight`. Card: inline summary, fullscreen timeline. |
 | `revise_household_plan` | plan | Records a spoken preference or constraint (`text`, `applies_to` member/asset/zone, optional `window`, `kind` ∈ `preference`, `constraint`, `one_time`) with the linked account and surface as its provenance (Alexa does not say who spoke; a name in the sentence is kept as `claimed_author`, shown as claimed), runs Coordinator normalization, and, if the plan is affected, marks it `refreshing` and enqueues the re-plan. No solver runs in the call, so the tool does not return a revised plan or a savings delta. Its `speakable` states the constraint, which is certain ("Got it, the car stops at 50. I'm updating the plan."); the card re-fetches when the new version lands, about a second later, and shows what moved and the new figure; by voice the member hears it on the next `get_household_plan`. "Don't charge past 50" and "Don't run the dishwasher until I'm done in the kitchen at eleven" both land here. |
 | `explain_plan` | read | Why the plan is what it is: facts, considered alternatives, rejected ones with reasons, the rules that shaped it, and, with `focus: conflicts`, the conflicts between goals, member constraints, and the constitution with suggested resolutions and the members involved. Optional `focus` may also name an action or a goal. |
 
