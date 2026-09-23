@@ -410,7 +410,18 @@ async def overnight_checks(
             dict(r)
             for r in (
                 await p.connection.execute(
-                    sa.select(db.actions).where(p.scope(db.actions))
+                    sa.select(
+                        db.actions,
+                        db.audit_log.c.payload.label("lifecycle_evidence"),
+                    )
+                    .outerjoin(
+                        db.audit_log,
+                        sa.and_(
+                            db.audit_log.c.household_id == db.actions.c.household_id,
+                            db.audit_log.c.seq == db.actions.c.lifecycle_seq,
+                        ),
+                    )
+                    .where(p.scope(db.actions))
                 )
             ).mappings()
         ]
@@ -498,6 +509,14 @@ async def overnight_checks(
         and abs(battery.soc * battery.capacity_kwh - (terminal[0] or 0)) <= 1e-6,
         "superseded_work_cancelled": all(
             r["execution_status"] == "cancelled"
+            or (
+                r["execution_status"] == "skipped"
+                and (r.get("lifecycle_evidence") or {}).get("action_id")
+                == r["action_id"]
+                and (r.get("lifecycle_evidence") or {}).get("status") == "skipped"
+                and (r.get("lifecycle_evidence") or {}).get("reason")
+                == "expired before consent"
+            )
             for r in rows
             if r["proposal"].get("plan_id")
             in {q["plan_id"] for q in plans if q["document"]["status"] == "superseded"}
@@ -783,15 +802,6 @@ async def run_execution(
                             .scalars()
                             .all()
                         )
-                        plans = (
-                            (
-                                await connection.execute(
-                                    sa.select(db.plans).where(p.scope(db.plans))
-                                )
-                            )
-                            .mappings()
-                            .all()
-                        )
                         retries = (
                             (
                                 await connection.execute(
@@ -816,21 +826,13 @@ async def run_execution(
                             .scalars()
                             .all()
                         )
-                    deadlines = [
-                        r["accepted_at"] + timedelta(minutes=5)
-                        for r in plans
-                        if r["accepted_at"]
-                        and r["document"]["status"]
-                        in {"proposed", "approved", "active", "awaiting_approval"}
-                    ]
                     # A five-minute poll covers observation freshness;
-                    # exact action, freshness, retry and approval deadlines take precedence.
+                    # exact action, retry and approval deadlines take precedence.
                     candidates = [
                         *fixed,
                         *due,
                         *retries,
                         *expiry,
-                        *deadlines,
                         *(
                             [world.clock() + timedelta(microseconds=1)]
                             if world.clock() > at

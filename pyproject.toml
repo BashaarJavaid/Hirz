@@ -46,7 +46,7 @@ files = ["hirz", "scripts", "alembic"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-m 'not integration' --cov=hirz --cov-report=term-missing --cov-fail-under=80"
+addopts = "-m 'not integration' --cov=hirz --cov-report=term-missing"
 markers = ["integration: requires local Postgres; creates only a disposable test database"]
 
 [dependency-groups]

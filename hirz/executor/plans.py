@@ -8,7 +8,7 @@ from uuid import UUID, uuid4
 import sqlalchemy as sa
 
 from hirz import db
-from hirz.executor.contracts import validate
+from hirz.executor.contracts import expired, validate
 from hirz.executor.runtime import RuntimeInputs
 from hirz.executor.storage import notice, scheduled, transition
 from hirz.explainer.core import context, prepared
@@ -360,10 +360,10 @@ async def stop_unstarted(
     *,
     preserve_approval_for: str | None = None,
 ) -> None:
-    ids = (
+    rows = (
         (
             await p.connection.execute(
-                sa.select(db.actions.c.action_id)
+                sa.select(db.actions.c.action_id, db.actions.c.execution_status)
                 .join(
                     db.plan_actions,
                     sa.and_(
@@ -378,11 +378,13 @@ async def stop_unstarted(
                 )
             )
         )
-        .scalars()
+        .mappings()
         .all()
     )
-    for action_id in ids:
-        await transition(p, action_id, status, event, plan_id=plan_id)
+    for current in rows:
+        action_id = current["action_id"]
+        if current["execution_status"] != "skipped":
+            await transition(p, action_id, status, event, plan_id=plan_id)
         if action_id == preserve_approval_for:
             continue
         approvals = (
@@ -751,6 +753,7 @@ async def commit_mutation(
     from hirz.executor.budget import allocate
 
     await allocate(p, stored, action.params["budget_action"])
+    missed = False
     for action_id in plan.actions:
         raw = await p.connection.scalar(
             sa.select(db.actions.c.proposal).where(
@@ -768,6 +771,16 @@ async def commit_mutation(
                 principal=identity(scheduler),
             )
         )
+        if expired(a, p.clock()):
+            await transition(
+                p,
+                action_id,
+                "skipped",
+                EventType.EXECUTION_CANCELLED,
+                reason="expired before consent",
+            )
+            missed = True
+            continue
         # Consent schedules work; it grants no device permission and clears no device ASK.
         queued = decision.model_copy(
             update={
@@ -777,6 +790,18 @@ async def commit_mutation(
             }
         )
         await scheduled(p, a, queued, None)
+    if missed:
+        from hirz.executor.refresh import queue
+
+        # Record consent first. The idle job was reset to non-explicit on
+        # publication, so the replacement inherits this approver below.
+        await queue(
+            p,
+            await get(p, plan.plan_id),
+            "consent arrived after scheduled changes",
+            explicit=False,
+            decision=decision.audit_id,
+        )
 
 
 class PlanService:

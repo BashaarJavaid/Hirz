@@ -87,16 +87,25 @@ class GraphRepository:
         if self._at is not None:
             raise GraphError("Nested graph writes are not supported.")
         async with self.connection.begin():
-            # ponytail: global graph lock and whole-view refresh; replace with per-home
-            # maintained projections if measured write contention warrants it.
+            # Two-key locks do not overlap the workers' one-key session locks.
             await self.connection.execute(
-                sa.text("SELECT pg_advisory_xact_lock(684729601)")
+                sa.text("SELECT pg_advisory_xact_lock(:namespace, :household_key)"),
+                {
+                    "namespace": 1,
+                    "household_key": int.from_bytes(
+                        self.household_id.bytes[:4], "big", signed=True
+                    ),
+                },
             )
             self._at = utc(clock())
             self._changed = False
             try:
                 yield
                 if self._changed:
+                    # ponytail: whole-view refresh measured 5.4 ms warm / 14.2 ms
+                    # first call with one home; grows with household count. Item 38c
+                    # must re-measure many throwaway homes and use per-home
+                    # projections if the item 26 latency budget is exceeded.
                     await self.connection.execute(
                         sa.text("REFRESH MATERIALIZED VIEW household_context")
                     )

@@ -349,3 +349,58 @@ interval to their original absolute ending. The scripted host refreshes immediat
 after the executor's monotonic microsecond ticks instead of introducing a one-second
 gap. Rejected backdating the clock, rounding endings past the approved horizon,
 relaxing terminal energy, and hiding execution latency in a changed EV/battery goal.
+
+### Change-based freshness — 2026-09-22 (author-approved)
+
+A plan is fresh while its complete runtime inputs are present, its refresh job is
+idle, and its fingerprint is unchanged since acceptance. Plan age is not a trigger;
+`accepted_at` remains stored. An unchanged approved plan keeps executing for its
+whole horizon without a re-solve. Reads label a plan refreshing only when its job
+is queued, running or blocked.
+
+The worker still polls observations and feeds every tick. The 300-second
+observation staleness bound in `replanning.outstanding()` is unchanged: five minutes
+is the maximum tolerated observation age, never a plan age. The scripted host
+keeps its five-minute observation poll and removes only the acceptance-age wake-up.
+Fingerprint changes still hold unstarted work and queue refresh; missing complete
+runtime inputs still block execution. Existing device rules, approval binding and
+bounded endings remain in force.
+
+Rejected alternatives:
+
+- Timer re-planning: item 22 run19 produced 152 plans, 30,637 signed audit rows and
+  92 guest-room HVAC asks, repeatedly asking while someone slept
+  ([retained evidence](../verification-log.md#full-evening-completion--2026-09-22)).
+- Transferring a pending approval to a replacement action: unnecessary once
+  replacements happen only on real change; a real change should ask again.
+- Suppressing the household's sleep rule: freshness must not weaken the family's
+  decision about when HVAC changes require approval.
+
+2026-09-22, Batch C2 (author-approved): tariff period names and the clock-dependent
+constraint/calendar boundary digest are excluded from fingerprints. Feed content
+hashes and constraint/calendar rows still detect new, changed or withdrawn inputs.
+Rejected re-planning on a crossing the solver already scheduled around.
+
+2026-09-22, Batch C2 (author-approved): scheduled controls are never treated as
+applied controls. A control enters prediction only at its own verified lifecycle
+dispatch instant, for its asset; existing physics advances temperature and SoC
+from applied controls. Expected bounded endings, appliance cycle completion and
+either adjacent EV power state within 0.0001 SoC of the governing charge limit do
+not widen drift thresholds. Rejected a grace period after consent, which would
+hide real dispatch failures. A replacement whose opening has expired before
+publication is requeued with a stated reason and no member notice.
+
+2026-09-22, Batch C2 (author-approved): a missed opening is a state divergence and
+therefore a change-based trigger. Late consent stands: expired openings are
+audited as skipped with `expired before consent`, without a member notice, and
+remaining actions are scheduled. The non-explicit refresh queued for `consent
+arrived after scheduled changes` inherits that approver. Expiry after consent
+retains its worker-lag notice. Rejected requiring a second consent, which makes
+a member answer twice for one request. Verification and the approved terminal-skip
+assertion amendment are recorded in the
+[C2 evidence](../verification-log.md#phase-3-review-batch-c2--2026-09-22).
+
+2026-09-22, Batch C2 continuation (author-approved): a plan's own verified
+dispatches never change its freshness; observations at the dispatch instant
+predate the write, and detection and execution-authority checks use the same
+owned-control compensation.

@@ -297,3 +297,16 @@ document console status output as opt-in. The scenario CI job now reads the
 existing exclusive-create `--output` report, which is written independently of
 native solver output. Feature request: route all native diagnostics through the
 configured logging flag or stderr so stdout remains usable by structured CLIs.
+
+
+Phase 3 Batch C2 follow-up to entry 6 (2026-09-22, **Minor**): `uv run pytest`
+repeated the existing agent-sandbox cache restriction:
+
+```text
+error: Failed to initialize cache at `/Users/bashaarjavaid/.cache/uv`
+  cause: failed to open file `/Users/bashaarjavaid/.cache/uv/sdists-v9/.git`: Operation not permitted (os error 1)
+```
+
+Authorized sandbox escalation allowed the existing cache and disposable local
+PostgreSQL verification. This is the previously recorded environment limitation,
+not a new upstream defect. Reference: [uv cache configuration](https://docs.astral.sh/uv/concepts/cache/).

@@ -658,5 +658,64 @@ def test_overnight_checks_do_not_promote_missing_execution_to_success():
         "battery_terminal_preserved",
     ):
         assert statuses[name] == "failed"
+
+    action = {
+        "action_id": "missed",
+        "proposal": {"plan_id": "old", "class": "energy.hvac_adjust"},
+        "execution_status": "skipped",
+        "execution_attempt_seq": None,
+    }
+    plan = {"plan_id": "old", "document": {"status": "superseded"}, "runtime": None}
+    for status, evidence, expected in (
+        ("cancelled", None, "passed"),
+        ("held", None, "failed"),
+        ("skipped", None, "failed"),
+        (
+            "skipped",
+            {
+                "action_id": "missed",
+                "status": "skipped",
+                "reason": "expired before consent",
+            },
+            "passed",
+        ),
+        (
+            "skipped",
+            {
+                "action_id": "other",
+                "status": "skipped",
+                "reason": "expired before consent",
+            },
+            "failed",
+        ),
+        (
+            "skipped",
+            {
+                "action_id": "missed",
+                "status": "skipped",
+                "reason": "The execution window expired.",
+            },
+            "failed",
+        ),
+    ):
+        p.connection.execute.side_effect = [
+            SimpleNamespace(
+                mappings=lambda: [
+                    action
+                    | {"execution_status": status, "lifecycle_evidence": evidence}
+                ]
+            ),
+            SimpleNamespace(mappings=lambda: [plan]),
+            SimpleNamespace(mappings=lambda: []),
+        ]
+        checks = asyncio.run(overnight_checks(host, []))
+        assert (
+            next(
+                c["status"]
+                for c in checks
+                if c["expectation"] == "superseded_work_cancelled"
+            )
+            == expected
+        )
     assert statuses["comfort_at_replay_boundaries"] == "passed"
     assert statuses["dad_attribution"] == "passed"

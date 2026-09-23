@@ -10,6 +10,7 @@ from hirz import db
 from hirz.adapters.devices.ha import HomeAssistant, fahrenheit
 from hirz.adapters.registry import Registry
 from hirz.executor import observations
+from hirz.executor.contracts import expired
 from hirz.executor.plans import PlanService, get, governance
 from hirz.executor.refresh import RefreshService, fingerprint, job
 from hirz.executor.replanning import bind_result, outstanding
@@ -486,6 +487,20 @@ class RefreshWorker:
                     return
                 if p.clock() >= previous.horizon.end:
                     raise ValueError("The approved horizon has ended.")
+                if any(expired(a, p.clock()) for a in result.actions):
+                    reason = "Replacement opening expired before publication; recomputing from current inputs."
+                    await self.transition(
+                        stored,
+                        generation,
+                        principal,
+                        state="queued",
+                        running_generation=None,
+                        requested_generation=generation + 1,
+                        reasons=list(dict.fromkeys([*current["reasons"], reason])),
+                        next_retry=None,
+                        blocking_reason=None,
+                    )
+                    return
                 from hirz.executor.budget import transfer
 
                 reservation = await transfer(p, latest, replacement, actions)

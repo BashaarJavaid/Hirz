@@ -8,6 +8,13 @@ All notable changes are documented here. The format follows
 
 ### Changed
 
+- 2026-09-22: Remove solver-known refresh triggers, preserve freshness across verified dispatches, explain plan-authority denials, and recover expired openings while retaining consent ([C2 verification](./docs/verification-log.md#phase-3-review-batch-c2--2026-09-22)).
+- 2026-09-22: Make plan freshness change-based while preserving observation polling and staleness limits ([ADR amendment](./docs/adr/ADR-005-deterministic-planner.md#change-based-freshness--2026-09-22-author-approved), [partial Batch C verification](./docs/verification-log.md#phase-3-review-batch-c--2026-09-22)).
+
+- 2026-09-22: Aggregate budget usage in SQL and scope graph advisory locks per household; retain in-transaction view refresh and accept exact totals without an index ([batch B measurements and verification](./docs/verification-log.md#phase-3-review-batch-b--2026-09-22)).
+
+- 2026-09-22: Gate Python coverage over service-free and integration tests combined; move four threat rows to their earned local scopes and document Pipeline ownership and existing tool paths ([batch A evidence](./docs/verification-log.md#phase-3-review-batch-a--2026-09-22)).
+
 - 2026-09-22: Execute the evening through existing services with separate plan/device approvals, exact bounded endings, private signed evidence and verified overnight outcomes; add the approved early guest-room and overnight dishwasher requests ([item 22 evidence](./docs/verification-log.md#item-22--2026-09-22), [ADR-005](./docs/adr/ADR-005-deterministic-planner.md), [ADR-006](./docs/adr/ADR-006-twin-first-adapters.md)).
 
 - 2026-09-22: Add validated Plan/Decision narration, fixed offline-tested Bedrock Converse enrichment and audited restart-safe reuse with truthful status templates; retain live Bedrock verification for item 38 ([ADR-012](./docs/adr/ADR-012-explainer.md), [item 21 evidence](./docs/verification-log.md#item-21--2026-09-22)).
@@ -25,6 +32,8 @@ All notable changes are documented here. The format follows
 - 2026-09-21: Record [terminal HA dispatch attempts and fresh-action retries](./docs/adr/ADR-006-twin-first-adapters.md#terminal-ha-dispatch-attempts--2026-09-21-author-approved) and the Phase 2 review's [Phase 3 carry-overs and ordered-plug follow-up](./ROADMAP.md).
 
 ### Fixed
+
+- 2026-09-22: Require adult lineage for app-only automation resume in Python and compiled Cedar/Dogwood; preserve linked-member pause ([batch A evidence](./docs/verification-log.md#phase-3-review-batch-a--2026-09-22)).
 
 - 2026-09-21: Update the installed-wheel CI assertion to the 25 catalog classes introduced by item 18; reproduce the failure and verify the corrected check outside the checkout ([evidence](./docs/verification-log.md#installed-wheel-ci-count-correction--2026-09-21)).
 

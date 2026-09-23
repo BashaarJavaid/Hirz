@@ -10,6 +10,7 @@ from uuid import uuid4
 
 import pytest
 from cryptography.hazmat.primitives.asymmetric import ec
+from sqlalchemy.dialects import postgresql
 
 from hirz.constitution.boundary import BoundaryResult
 from hirz.constitution.schema import Constitution, load
@@ -157,6 +158,47 @@ async def pipeline(
     return p
 
 
+def test_plan_authority_denial_explains_the_rejected_authority():
+    async def run():
+        p = await pipeline()
+        p.plan_authority = AsyncMock(side_effect=ValueError("private internal detail"))
+        ev = await p.assess(
+            action("energy.hvac_adjust", plan_id="plan_test"),
+            PRINCIPAL,
+            None,
+            (),
+            AT,
+        )
+        assert ev.decision.decision == "deny"
+        assert ev.decision.explain.rejected == (
+            "Plan execution lacks current approver authority",
+        )
+        assert ev.decision.risk is None
+        p.boundary.authorize.assert_not_awaited()
+
+    asyncio.run(run())
+
+
+def test_usage_nets_reservation_and_negative_adjustment_on_same_date():
+    async def run():
+        p = await pipeline()
+        p.connection.scalar.side_effect = [Decimal("0.30"), Decimal("-0.10")]
+        used = await Pipeline.usage(p, "energy.optimize_cost", "2026-10-13")
+        assert isinstance(used, Decimal) and used == Decimal("0.20")
+        assert p.connection.scalar.await_count == 2
+        for call in p.connection.scalar.await_args_list:
+            query = call.args[0].compile(dialect=postgresql.dialect())
+            assert {HOME, "energy.optimize_cost", "2026-10-13"} <= set(
+                query.params.values()
+            )
+            assert "sum(CAST(" in str(query) and " AS NUMERIC)" in str(query)
+        grant, adjustment = p.connection.scalar.await_args_list
+        assert "JOIN actions" in str(grant.args[0])
+        assert "RESERVATION_ADJUSTED" in adjustment.args[0].compile().params.values()
+
+    asyncio.run(run())
+
+
 def test_connection_failure_logs_household_without_params(caplog):
     async def run():
         p = await pipeline()
@@ -280,6 +322,27 @@ def test_precedence(name, edit, cost, extras, expected):
             p.snapshot.assert_not_called()
         if expected == "ASK_UNRESOLVED_CONDITION":
             assert ev.diagnostics == ("context.price_band",)
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize(
+    "role", ["owner", "adult", "caregiver", "teen", "child", "guest", "unknown"]
+)
+@pytest.mark.parametrize("surface", ["app", "alexa", "scheduler"])
+def test_resume_requires_adult_lineage_in_app(role, surface):
+    async def run():
+        principal = PRINCIPAL.model_copy(update={"surface": surface})
+        p = await pipeline(principal=principal, role=role)
+        result = await p.assess(
+            action("governance.resume_automation"), principal, None, (), AT
+        )
+        expected = (
+            "EXECUTE"
+            if role in {"owner", "adult", "caregiver"} and surface == "app"
+            else "DENY_CONSTITUTION"
+        )
+        assert result.decision.event_type == expected
 
     asyncio.run(run())
 

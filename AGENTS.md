@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Project-specific context and instructions for Hirz (this file mirrors `CLAUDE.md` for Codex and other coding agents), merged with a set of general behavioral guidelines (sections 1–5 below, adapted from [andrej-karpathy-skills/CLAUDE.md](https://github.com/multica-ai/andrej-karpathy-skills/blob/main/CLAUDE.md) and from the author's PortunusMCP conventions) aimed at reducing common LLM coding mistakes: unstated assumptions, speculative complexity, unrelated edits, vague success criteria, and unverified claims of completion.
+Project-specific context and instructions for Hirz, merged with a set of general behavioral guidelines (sections 1–5 below, adapted from [andrej-karpathy-skills/CLAUDE.md](https://github.com/multica-ai/andrej-karpathy-skills/blob/main/CLAUDE.md) and from the author's PortunusMCP conventions) aimed at reducing common LLM coding mistakes: unstated assumptions, speculative complexity, unrelated edits, vague success criteria, and unverified claims of completion.
 
 **Tradeoff:** these guidelines bias toward caution over speed. For trivial tasks, use judgment. When in doubt, ask.
 
@@ -111,7 +111,7 @@ The verified toolchain and scaffold setup are in `README.md`; use Node 24.
 - `uv run python scripts/build_dogwood.py` — build the pinned native CLI (Rust/Cargo required); `export HIRZ_DOGWOOD="$PWD/.tools/dogwood"` enables local checks.
 - `uv run hirz constitution validate|compile constitutions/quinn-home.yaml [--gateway-resource hirz-local]` — database-free JSON output, native policy validation; reports `not analyzed: local mode`.
 - `uv run hirz constitution preview OLD NEW` — deterministic situation differences; no activation. `analyze`/`activate` remain later work.
-- `uv run pytest` — service-free tests (80% coverage gate); `uv run pytest -m integration --no-cov` — live PostgreSQL tests in uniquely named disposable databases; `uv run pytest tests/latency` — budget; `uv run pytest tests/cedar_conformance` — YAML/native Dogwood agreement; AWS comparison remains item 37.
+- `uv run pytest` — service-free tests with coverage; `uv run pytest -m integration --cov=hirz --cov-append` — live PostgreSQL tests in uniquely named disposable databases, appending coverage; `uv run --locked coverage report --fail-under=80` — 80 percent over service-free and integration tests combined (run those three commands in order); `uv run pytest -m integration --no-cov` — standalone integration checks without coverage; `uv run pytest tests/latency` — budget; `uv run pytest tests/cedar_conformance` — YAML/native Dogwood agreement; AWS comparison remains item 37.
 - `uv run ruff check . && uv run ruff format --check . && uv run mypy hirz/ scripts/ alembic/`.
 - The add-on conformance checker (separate open-source repository, name to be chosen) run against the local MCP server.
 - `pnpm -r lint && pnpm -r typecheck && pnpm -r test`; `pnpm --filter web dev` (companion pages + simulator route), `pnpm --filter mcp-app build`.

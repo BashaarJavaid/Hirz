@@ -239,7 +239,7 @@ Intervals include their start, exclude their end, and carry across midnight.
 Affected `auto` actions escalate to `ask` in the internal pipeline. Preview only
 compares this configuration; it does not apply runtime gates.
 
-A household can also **pause** Hirz (`ARCHITECTURE.md` §5.14): while paused, every `auto` resolves as `ask`. Pause is a mode on the household, not a constitution version; it only tightens, so a voice may set it, and only the app clears it.
+A household can also **pause** Hirz (`ARCHITECTURE.md` §5.14): while paused, every `auto` resolves as `ask`. Pause is a mode on the household, not a constitution version; it only tightens, so a voice may set it, and only an adult-lineage member in the app clears it.
 
 ### 2.5 Identity on a shared device
 
@@ -485,8 +485,10 @@ known-false ordinary conditions can. No grammar expansion was required.
 
 The catalog additionally reserves `governance.pause_automation` and
 `governance.resume_automation`, both LOW, with fixed linked-member permissions and
-app-only resume. Household rules cannot redefine them. Their native boundary rules
-apply to every linked role and cannot be overridden by temporal approvals.
+resume by an adult-lineage member in the app. Household rules cannot redefine
+them. Their native boundary rules permit pause for every linked role and resume
+only for owner, adult and caregiver in the app; temporal approvals cannot override
+these restrictions.
 The provider/sub identity and explicit claimed role must both be permitted.
 
 Native approval history accepts ordered events sharing one second. The Python

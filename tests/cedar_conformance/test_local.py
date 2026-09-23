@@ -385,11 +385,16 @@ def test_same_second_order_and_reserved_governance():
     ):
         for role in ROLES:
             a, _, _ = events(name=name, role=role)
-            assert allowed(COMPILED, a) is (role != "unknown")
-            voice = replace(a, inputs=dict(a.inputs, f_requester_surface="alexa"))
-            assert allowed(COMPILED, voice) is (
-                role != "unknown" and name != "governance.resume_automation"
+            assert allowed(COMPILED, a) is (
+                role in {"owner", "adult", "caregiver"}
+                if name == "governance.resume_automation"
+                else role != "unknown"
             )
+            for surface in ("alexa", "scheduler"):
+                other = replace(a, inputs=dict(a.inputs, f_requester_surface=surface))
+                assert allowed(COMPILED, other) is (
+                    role != "unknown" and name != "governance.resume_automation"
+                )
 
 
 @pytest.mark.parametrize("learning", ["manual", "never"])

@@ -14,7 +14,7 @@ from hirz.adapters.devices.ha import HomeAssistant, fahrenheit
 from hirz.adapters.registry import Registry
 from hirz.audit import Verification
 from hirz.executor import observations, twin
-from hirz.executor.contracts import inverse, validate
+from hirz.executor.contracts import expired, inverse, validate
 from hirz.executor.plans import get, hold
 from hirz.executor.storage import notice, repeated, row, transition
 from hirz.pipeline.audit import PipelineError
@@ -176,14 +176,7 @@ class Executor:
         is_ending = bool(lifecycle.get("ending_of"))
         if stored["execution_attempt_seq"] is not None:
             await self.failure(action, stored, "dispatch_uncertain")
-        elif not is_ending and (
-            action.expected_effect is None
-            or p.clock() >= action.expected_effect.by
-            or action.revert
-            and action.scheduled_for is not None
-            and p.clock()
-            >= action.scheduled_for + timedelta(seconds=action.revert.after_s)
-        ):
+        elif not is_ending and expired(action, p.clock()):
             async with p.repo.write(p.clock):
                 await transition(
                     p,

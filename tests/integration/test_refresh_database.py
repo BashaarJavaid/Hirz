@@ -20,8 +20,15 @@ from scripts.smoke_executor import PRINCIPAL
 pytestmark = pytest.mark.integration
 
 
-async def prepared(c):
+async def prepared(
+    c, *, offset=timedelta(0), opening_window=None, with_appliance=False
+):
     p, w, registry, executor = await environment(c)
+    if offset:
+        from hirz.executor.observations import ingest
+
+        w.clock.jump(w.clock() + offset)
+        await ingest(p, registry, PRINCIPAL)
     async with c.begin():
         requester = await p.requester(PRINCIPAL)
     start = w.clock()
@@ -31,6 +38,11 @@ async def prepared(c):
         Slot(start=a, end=b, price=0.1, outdoor_f=70, solar_kw=0)
         for a, b in zip(edges, edges[1:])
     )
+    appliance = (
+        w.read()[1].appliances[w.entity("dishwasher", "devices")]
+        if with_appliance
+        else None
+    )
     inputs = PlannerInput(
         household_id=p.household_id,
         requester=requester,
@@ -39,13 +51,16 @@ async def prepared(c):
         ev_target=0,
         ev_deadline=edges[-1],
         battery=None,
-        appliance=None,
+        appliance=appliance,
         appliance_release=start,
-        appliance_deadline=edges[-1],
+        appliance_deadline=start + timedelta(minutes=appliance.cycle_minutes)
+        if appliance
+        else edges[-1],
         base_load_kw=0.4,
         zones=(
             Zone(
                 entity="hvac.living_room",
+                asset_id=w.entity("hvac.living_room", "devices"),
                 physical=physical,
                 lower=(66,) * len(slots),
                 upper=(76,) * len(slots),
@@ -57,6 +72,17 @@ async def prepared(c):
     )
     result = plan(inputs)
     assert result.plan and result.schedule
+    if opening_window is not None:
+        from test_executor_database import changed
+
+        first = result.actions[0]
+        first = changed(
+            first,
+            expected_effect=first.expected_effect.model_copy(
+                update={"by": start + opening_window}
+            ),
+        )
+        result = result.model_copy(update={"actions": (first, *result.actions[1:])})
     runtime = RuntimeInputs.from_schedule(inputs, result.schedule)
     service = PlanService(p)
     recorded = await service.record(
@@ -64,6 +90,47 @@ async def prepared(c):
     )
     assert recorded.decision == "execute", recorded
     return p, w, registry, executor, service, result, runtime
+
+
+def test_own_dispatch_keeps_two_due_devices_fresh_in_one_sweep(scratch_database):
+    import sqlalchemy as sa
+
+    from hirz import db
+
+    async def run():
+        async with connect(scratch_database) as c:
+            p, w, r, e, service, result, runtime = await prepared(
+                c, with_appliance=True
+            )
+            try:
+                due = [a for a in result.actions if a.scheduled_for == w.clock()]
+                assert len(due) == 2
+                assert len({a.target.entity for a in due}) == 2
+                assert (
+                    await service.approve(result.plan.plan_id, PRINCIPAL)
+                ).decision == "execute"
+                e.refresh_polls = True
+                outcomes = await e.sweep()
+                assert {d.action_id for d in outcomes} == {a.action_id for a in due}
+                assert all(d.status == "verified" for d in outcomes)
+                async with c.begin():
+                    events = (await c.execute(sa.select(db.audit_log))).mappings().all()
+                    assert not any(
+                        x["event_type"] in {"DENY_CONSTITUTION", "EXECUTION_HELD"}
+                        or (
+                            x["event_type"] == "PLAN_REFRESH"
+                            and x["payload"].get("transition", {}).get("state")
+                            == "queued"
+                        )
+                        for x in events
+                    )
+                    assert (await job(p, await get(p, result.plan.plan_id)))[
+                        "state"
+                    ] == "idle"
+            finally:
+                await r.close()
+
+    asyncio.run(run())
 
 
 def test_refresh_generation_coalescing_and_explicit_consent(scratch_database):
@@ -105,7 +172,96 @@ def test_refresh_generation_coalescing_and_explicit_consent(scratch_database):
     asyncio.run(run())
 
 
-def test_five_minute_refresh_inherits_consent(scratch_database):
+def test_unchanged_old_plan_stays_approved_and_executes_without_refresh(
+    scratch_database,
+):
+    import sqlalchemy as sa
+    from test_executor_database import changed, proposal, runtime_for
+
+    from hirz import db
+    from hirz.executor.observations import ingest
+    from hirz.executor.refresh import fresh
+
+    async def run():
+        async with connect(scratch_database) as c:
+            p, w, r, e = await environment(c)
+            try:
+                service = PlanService(p)
+                original, (template,) = proposal(w)
+                actions = tuple(
+                    changed(
+                        template,
+                        action_id=f"{template.action_id}_{minutes}",
+                        params={"on": on},
+                        scheduled_for=w.clock() + timedelta(minutes=minutes),
+                        expected_effect=template.expected_effect.model_copy(
+                            update={
+                                "value": on,
+                                "by": w.clock()
+                                + timedelta(minutes=minutes, seconds=30),
+                            }
+                        ),
+                    )
+                    for minutes, on in ((6, True), (10, False))
+                )
+                proposed = original.model_copy(
+                    update={
+                        "actions": tuple(a.action_id for a in actions),
+                        "horizon": original.horizon.model_copy(
+                            update={"end": w.clock() + timedelta(minutes=15)}
+                        ),
+                    }
+                )
+                assert (
+                    await service.record(
+                        proposed, actions, PRINCIPAL, runtime=runtime_for(proposed)
+                    )
+                ).decision == "execute"
+                assert (
+                    await service.approve(proposed.plan_id, PRINCIPAL)
+                ).decision == "execute"
+                async with c.begin():
+                    before = await c.scalar(sa.select(sa.func.max(db.audit_log.c.seq)))
+                    accepted_at = (await get(p, proposed.plan_id))["accepted_at"]
+                w.clock.jump(w.clock() + timedelta(minutes=6))
+                await ingest(p, r, PRINCIPAL)
+                async with c.begin():
+                    stored = await get(p, proposed.plan_id)
+                    assert stored["accepted_at"] == accepted_at
+                    assert await fresh(p, stored)
+                    current = await job(p, stored)
+                    assert current["state"] == "idle"
+                    assert current["plan_id"] == proposed.plan_id
+                read = await service.read_current(proposed.plan_id, PRINCIPAL)
+                assert read.status == "approved" and read.plan_id == proposed.plan_id
+                # Match the worker's separate observation polling; no solver is needed.
+                e.refresh_polls = True
+                outcomes = await e.sweep()
+                assert len(outcomes) == 1 and outcomes[0].status == "verified"
+                assert outcomes[0].action_id == actions[0].action_id
+                async with c.begin():
+                    assert not await c.scalar(
+                        sa.select(sa.func.count())
+                        .select_from(db.audit_log)
+                        .where(
+                            db.audit_log.c.seq > before,
+                            db.audit_log.c.event_type.in_(
+                                ["PLAN_REFRESH", "PLAN_REVISED"]
+                            ),
+                        )
+                    )
+            finally:
+                await r.close()
+
+    asyncio.run(run())
+
+
+def test_fingerprint_change_holds_work_and_refresh_inherits_consent(scratch_database):
+    import sqlalchemy as sa
+
+    from hirz import db
+    from hirz.executor.observations import ingest
+
     async def run():
         async with connect(scratch_database) as c:
             p, w, r, e, service, result, runtime = await prepared(c)
@@ -113,7 +269,36 @@ def test_five_minute_refresh_inherits_consent(scratch_database):
                 assert (
                     await service.approve(result.plan.plan_id, PRINCIPAL)
                 ).decision == "execute"
-                w.clock.jump(w.clock() + timedelta(minutes=5))
+                w.clock.jump(w.clock() + timedelta(seconds=1))
+                member = next(
+                    i for i, m in w.members.items() if m.display_name == "Malik"
+                )
+                w.member_event(member, "sleep", w.entity("hvac.living_room", "devices"))
+                await ingest(p, r, PRINCIPAL)
+                async with c.begin():
+                    current = await job(p, await get(p, result.plan.plan_id))
+                    assert current["state"] == "queued"
+                    assert current["reasons"] == [
+                        "Household inputs, policy, control state or prediction changed."
+                    ]
+                    statuses = (
+                        (
+                            await c.execute(
+                                sa.select(db.actions.c.execution_status).where(
+                                    db.actions.c.proposal["plan_id"].astext
+                                    == result.plan.plan_id,
+                                    db.actions.c.lifecycle.is_not(None),
+                                )
+                            )
+                        )
+                        .scalars()
+                        .all()
+                    )
+                    assert statuses and set(statuses) == {"held"}
+                assert not await e.sweep()
+                assert (
+                    await service.read_current(result.plan.plan_id, PRINCIPAL)
+                ).status == "refreshing"
                 await RefreshWorker(p, r, world=w).batch()
                 async with c.begin():
                     current = await job(p, await get(p, result.plan.plan_id))
@@ -121,10 +306,7 @@ def test_five_minute_refresh_inherits_consent(scratch_database):
                     replacement = await get(p, current["plan_id"])
                     assert replacement["document"]["status"] == "approved", replacement
                     assert replacement["approver"]["sub"] == "malik"
-                outcomes = await e.sweep()
-                async with c.begin():
-                    debug_job = await job(p, replacement)
-                assert outcomes[0].status == "verified", (outcomes, debug_job)
+                    assert replacement["document"]["supersedes"] == result.plan.plan_id
             finally:
                 await r.close()
 
@@ -674,6 +856,213 @@ def test_all_eight_triggers_queue_durable_coalesced_work(scratch_database):
                     current = await job(p, stored)
                     assert current["state"] == "queued" and current["explicit"]
                     assert stored["document"]["status"] == "refreshing"
+            finally:
+                await r.close()
+
+    asyncio.run(run())
+
+
+def test_late_consent_skips_missed_opening_and_refreshes_with_one_consent(
+    scratch_database,
+):
+    import sqlalchemy as sa
+
+    from hirz import db
+    from hirz.executor.observations import ingest
+    from hirz.executor.refresh import applied_controls
+    from hirz.executor.storage import row
+
+    async def run():
+        async with connect(scratch_database) as c:
+            p, w, r, e, service, result, runtime = await prepared(
+                c, offset=timedelta(hours=6), opening_window=timedelta(minutes=1)
+            )
+            try:
+                first = result.actions[0]
+                w.clock.jump(w.clock() + timedelta(minutes=1))
+                await ingest(p, r, PRINCIPAL)
+                async with c.begin():
+                    assert not await applied_controls(
+                        p, await get(p, result.plan.plan_id)
+                    )
+                assert (
+                    await service.approve(result.plan.plan_id, PRINCIPAL)
+                ).decision == "execute"
+                async with c.begin():
+                    original = await get(p, result.plan.plan_id)
+                    current = await job(p, original)
+                    assert current["state"] == "queued" and not current["explicit"]
+                    assert current["reasons"] == [
+                        "consent arrived after scheduled changes"
+                    ]
+                    assert (await row(p, first.action_id))[
+                        "execution_status"
+                    ] == "skipped"
+                    assert not await applied_controls(p, original)
+                await RefreshWorker(p, r, world=w).batch()
+                async with c.begin():
+                    current = await job(p, original)
+                    assert current["state"] == "idle", current
+                    replacement = await get(p, current["plan_id"])
+                    assert replacement["approver"] == original["approver"]
+                    assert replacement["document"]["status"] == "approved"
+                    evidence = (
+                        (await c.execute(sa.select(db.audit_log))).mappings().all()
+                    )
+                    skipped = [
+                        a for a in evidence if a["event_type"] == "EXECUTION_CANCELLED"
+                    ]
+                    assert len(skipped) == 1
+                    assert skipped[0]["payload"]["reason"] == "expired before consent"
+                    assert not any(
+                        a["event_type"] == "NOTICE_PENDING" for a in evidence
+                    )
+                    revisions = [
+                        a
+                        for a in evidence
+                        if a["event_type"] == "PLAN_REVISED"
+                        and "mutation" in a["payload"]
+                    ]
+                    assert (
+                        len(revisions) == 1
+                        and revisions[0]["payload"]["mutation"]["autonomous"]
+                    )
+                results = await e.sweep()
+                assert results and any(d.status == "verified" for d in results), results
+                async with c.begin():
+                    controls = await applied_controls(p, replacement)
+                    assert controls
+                    for at, a in controls:
+                        stored = await row(p, a.action_id)
+                        verified_at = await c.scalar(
+                            sa.select(db.audit_log.c.created_at).where(
+                                db.audit_log.c.seq == stored["lifecycle_seq"]
+                            )
+                        )
+                        assert at == verified_at
+                    assert (
+                        await c.scalar(
+                            sa.select(sa.func.count()).select_from(
+                                db.pending_notifications
+                            )
+                        )
+                        == 0
+                    )
+            finally:
+                await r.close()
+
+    asyncio.run(run())
+
+
+def test_expired_replacement_requeues_before_publication_without_notice(
+    scratch_database, monkeypatch
+):
+    from unittest.mock import AsyncMock
+
+    import sqlalchemy as sa
+
+    from hirz import db
+
+    async def run():
+        async with connect(scratch_database) as c:
+            p, w, r, e, service, result, runtime = await prepared(c)
+            try:
+                await service.approve(result.plan.plan_id, PRINCIPAL)
+                await service.request_refresh(
+                    result.plan.plan_id, PRINCIPAL, explicit=False
+                )
+                worker = RefreshWorker(p, r, world=w)
+                from test_executor_database import changed
+
+                import hirz.executor.refresh_worker as module
+
+                bind = module.bind_result
+
+                def short_opening(*args, **kwargs):
+                    result = bind(*args, **kwargs)
+                    first = result.actions[0]
+                    first = changed(
+                        first,
+                        expected_effect=first.expected_effect.model_copy(
+                            update={"by": w.clock() + timedelta(minutes=1)}
+                        ),
+                    )
+                    return result.model_copy(
+                        update={"actions": (first, *result.actions[1:])}
+                    )
+
+                monkeypatch.setattr(module, "bind_result", short_opening)
+                narrate = worker.explainer.narrate
+
+                async def delayed(proposed, context):
+                    answer = await narrate(proposed, context)
+                    w.clock.jump(w.clock() + timedelta(minutes=2))
+                    return answer
+
+                monkeypatch.setattr(worker.explainer, "narrate", delayed)
+                monkeypatch.setattr(worker, "poll", AsyncMock())
+                await worker.batch()
+                async with c.begin():
+                    current = await job(p, await get(p, result.plan.plan_id))
+                    assert current["state"] == "queued", current
+                    assert current["plan_id"] == result.plan.plan_id
+                    assert (
+                        "Replacement opening expired before publication; recomputing from current inputs."
+                        in current["reasons"]
+                    )
+                    assert (
+                        await c.scalar(sa.select(sa.func.count()).select_from(db.plans))
+                        == 1
+                    )
+                    assert (
+                        await c.scalar(
+                            sa.select(sa.func.count()).select_from(
+                                db.pending_notifications
+                            )
+                        )
+                        == 0
+                    )
+            finally:
+                await r.close()
+
+    asyncio.run(run())
+
+
+def test_verified_appliance_start_and_completion_do_not_refresh(scratch_database):
+    from hirz.executor.observations import ingest
+
+    async def run():
+        async with connect(scratch_database) as c:
+            p, w, r, e, service, revised, runtime = await prepared(
+                c, with_appliance=True
+            )
+            try:
+                appliance = runtime.workload.appliance
+                assert (
+                    await service.approve(revised.plan.plan_id, PRINCIPAL)
+                ).decision == "execute"
+                e.refresh_polls = True
+                executed = await e.sweep()
+                assert any(d.status == "verified" for d in executed), executed
+                await ingest(p, r, PRINCIPAL)
+                async with c.begin():
+                    stored = await get(p, revised.plan.plan_id)
+                    before = await job(p, stored)
+                    assert before["state"] == "idle", before
+                assert w.read()[1].appliances[w.entity("dishwasher", "devices")].running
+                w.clock.jump(w.clock() + timedelta(minutes=appliance.cycle_minutes))
+                await ingest(p, r, PRINCIPAL)
+                assert (
+                    not w.read()[1]
+                    .appliances[w.entity("dishwasher", "devices")]
+                    .running
+                )
+                async with c.begin():
+                    after = await job(p, stored)
+                    assert after["state"] == "idle", after
+                    assert (
+                        after["requested_generation"] == before["requested_generation"]
+                    )
             finally:
                 await r.close()
 

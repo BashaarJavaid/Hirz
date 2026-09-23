@@ -206,46 +206,40 @@ class Pipeline:
         )
 
     async def usage(self, name: str, local_date: str) -> Decimal:
-        rows = (
-            await self.connection.execute(
-                sa.select(db.audit_log.c.payload)
-                .join(
-                    db.actions,
-                    sa.and_(
-                        db.actions.c.household_id == db.audit_log.c.household_id,
-                        db.actions.c.grant_seq == db.audit_log.c.seq,
-                    ),
-                )
-                .where(self.scope(db.audit_log))
-            )
-        ).scalars()
-        used = sum(
-            (
-                Decimal(b["reserved"])
-                for p in rows
-                if (b := p.get("budget"))
-                and b["class"] == name
-                and b["local_date"] == local_date
-            ),
-            Decimal(0),
-        )
-
-        adjustments = (
-            await self.connection.execute(
-                sa.select(db.audit_log.c.payload).where(
-                    self.scope(db.audit_log),
-                    db.audit_log.c.event_type == EventType.RESERVATION_ADJUSTED,
+        budget = db.audit_log.c.payload["budget"]
+        used = await self.connection.scalar(
+            sa.select(
+                sa.func.coalesce(
+                    sa.func.sum(budget["reserved"].astext.cast(sa.Numeric)), 0
                 )
             )
-        ).scalars()
-        return used + sum(
-            (
-                Decimal(a["delta"])
-                for a in adjustments
-                if a["class"] == name and a["local_date"] == local_date
-            ),
-            Decimal(0),
+            .join(
+                db.actions,
+                sa.and_(
+                    db.actions.c.household_id == db.audit_log.c.household_id,
+                    db.actions.c.grant_seq == db.audit_log.c.seq,
+                ),
+            )
+            .where(
+                self.scope(db.audit_log),
+                budget["class"].astext == name,
+                budget["local_date"].astext == local_date,
+            )
         )
+        payload = db.audit_log.c.payload
+        adjustments = await self.connection.scalar(
+            sa.select(
+                sa.func.coalesce(
+                    sa.func.sum(payload["delta"].astext.cast(sa.Numeric)), 0
+                )
+            ).where(
+                self.scope(db.audit_log),
+                db.audit_log.c.event_type == EventType.RESERVATION_ADJUSTED,
+                payload["class"].astext == name,
+                payload["local_date"].astext == local_date,
+            )
+        )
+        return cast(Decimal, used) + cast(Decimal, adjustments)
 
     async def assess(
         self,
@@ -317,10 +311,22 @@ class Pipeline:
         try:
             if action.action_class in guarded:
                 await prepare_mutation(self, action, principal)
-            if action.plan_id:
-                await self.plan_authority(action, principal)
         except ValueError:
             return ev
+        if action.plan_id:
+            try:
+                await self.plan_authority(action, principal)
+            except ValueError:
+                ev.decision = ev.decision.model_copy(
+                    update={
+                        "explain": Explanation(
+                            rejected=(
+                                "Plan execution lacks current approver authority",
+                            )
+                        )
+                    }
+                )
+                return ev
         snapshot = None
         if preview is not None:
             try:

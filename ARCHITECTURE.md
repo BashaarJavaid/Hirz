@@ -145,6 +145,12 @@ stored seed policies remain **unvalidated**, with their existing hashes. There i
 no activation, public authentication, MCP mutation surface or AWS path here; item 15 adds
 the narrow local HA claim/outcome methods specified in §5.11.
 
+A Pipeline owns exactly one connection. Its private attributes `_refresh_command`,
+`_observation_batch`, `_observation_world` and `_memory_turn` carry request-scoped
+data between prepare and commit hooks. A Pipeline must therefore have one caller
+at a time and is never shared across concurrent tool calls; the MCP server
+(item 23) constructs one per request.
+
 - `evaluate(action, principal, cost=..., evidence=...)` reads current state and
   returns a Decision without writing actions, approvals, grants or audit rows.
 - `propose(...)` freezes the canonical proposal, trusted requester identity and
@@ -226,8 +232,11 @@ consumer device-action enum.
 
 Mutations own the transaction: graph lock first, then proposal/approval and audit
 pointer locks. Approval consumption, grant reference, reservation, graph history/view,
-and signed append commit together. The existing global graph lock is the documented
-serialization ceiling. Database/signing/audit failures return a safe fail-closed
+and signed append commit together. The graph transaction lock uses the two-key
+advisory namespace `1` and the signed first 32 bits of the household UUID, separate
+from the workers' one-key session locks; a 32-bit collision only adds serialization.
+Whole-view refresh remains in the transaction and serializes refreshes across
+households. Database/signing/audit failures return a safe fail-closed
 error and discard the connection; they never invent an audit reference. A network
 failure after the database actually commits can leave the caller uncertain; a retry
 still cannot grant twice. The smoke procedure is in
@@ -560,7 +569,7 @@ Solved with `scipy.optimize.milp` (HiGHS). Typical instance: ~800 variables, sol
 
 **Re-plan triggers.** New price data, weather update, calendar change, presence change, member constraint added by voice, asset state deviating from prediction by more than a threshold, constitution change, and a member's explicit "change" request. Re-planning produces a new plan version that `supersedes` the previous one; already-executed actions are kept; all unstarted predecessor approvals expire; replacement actions receive fresh IDs and device evaluation.
 
-**Latency posture.** The planner never runs inside an MCP tool call. `get_household_plan` returns the current plan if it is fresh (< 5 min and no trigger since), otherwise returns the last plan with `status: "refreshing"` and a `speakable` that labels it as a historical reference while an update is pending, and enqueues a re-plan. A tiny greedy heuristic (`planner/heuristic.py`: charge cheapest slots first, respect deadlines) produces a plan in under 50 ms for cold starts and is labeled as such. A revision by voice follows the same rule: `revise_household_plan` records the constraint, marks the plan `refreshing`, enqueues the re-plan, and speaks the constraint, which is certain ("Got it, the car stops at 50. I'm updating the plan."), never a savings figure that has not been computed. The card re-fetches when a new version lands; a voice-only member hears the new plan the next time they ask. `approve_action` refuses a refreshing or blocked plan without promising a completion time, so nobody approves a cached plan as though it held the change they just asked for.
+**Latency posture.** The planner never runs inside an MCP tool call. `get_household_plan` returns the current plan if it is fresh (complete runtime inputs, an idle refresh job and no fingerprint change since acceptance); age alone does not invalidate it. Reads return the last plan with `status: "refreshing"` only when its job is queued, running or blocked, with a `speakable` that labels it as a historical reference while an update is pending. A tiny greedy heuristic (`planner/heuristic.py`: charge cheapest slots first, respect deadlines) produces a plan in under 50 ms for cold starts and is labeled as such. A revision by voice follows the same rule: `revise_household_plan` records the constraint, marks the plan `refreshing`, enqueues the re-plan, and speaks the constraint, which is certain ("Got it, the car stops at 50. I'm updating the plan."), never a savings figure that has not been computed. The card re-fetches when a new version lands; a voice-only member hears the new plan the next time they ask. `approve_action` refuses a refreshing or blocked plan without promising a completion time, so nobody approves a cached plan as though it held the change they just asked for.
 
 **Implemented refresh contract (item 19a).** Internal `PlanService` accepts validated
 `RuntimeInputs` on record/revise and exposes `request_refresh`, `update_inputs`,
@@ -571,17 +580,36 @@ Input mutation, invalidation and the opening hold commit together. Legacy propos
 remain readable but require complete replacement inputs before further openings.
 
 The local worker polls configured twin facts/feeds and HA thermostats before new
-openings. It detects the eight triggers above, constraint/calendar boundaries,
-manual holds, recovery and five-minute freshness. Prediction thresholds are strict
+openings. It detects changed inputs, policy, presence, unexpected device state,
+manual holds and recovery; known tariff periods and constraint/calendar crossings
+are already scheduled by the solver, while changed feed content and window rows
+still trigger refresh. Freshness is change-based, independent of plan age
+([amendment](./docs/adr/ADR-005-deterministic-planner.md#change-based-freshness--2026-09-22-author-approved)).
+Observations and feeds are still polled every tick, and `replanning.outstanding()`
+retains its 300-second maximum observation age. Prediction thresholds are strict
 per-asset defaults of >1°F, >0.02 SoC and >0.25 kW; discrete control/availability
-changes are immediate. First control samples establish a baseline. Verified durable
-dispatch evidence explains Hirz's changes; unmatched thermostat changes create a
+changes are immediate when unexplained. Prediction advances existing physics from
+the snapshot using only controls verified in each action's own lifecycle, from
+that instant for its asset; scheduled or held controls leave applied controls in
+force. A sample at the dispatch instant predates the write. Detection and
+execution-authority checks share the same owned-control compensation, so the
+plan's own verified dispatches preserve freshness. Appliance starts own `on=true`
+and their expected cycle completion. At an
+EV action's charge ceiling within 0.0001 SoC observation precision, either adjacent
+power state is expected without widening drift thresholds. First control samples
+establish a baseline. Verified durable dispatch evidence explains Hirz's changes;
+unmatched thermostat changes create a
 two-hour `manual:device` hold with physical actor unknown. Upstream timestamps and
 catalog freshness remain authoritative.
 
 A separate connection and household session lock own refresh. Polling and a solver
 thread do not overlap; short transactions snapshot inputs and recheck generation,
 current lineage, policy, inputs and linked authority before atomic publication.
+An expired replacement opening requeues computation before publication, without a
+member notice. Consent received after an opening expires stands: the opening is
+audited as skipped (`expired before consent`), remaining work is scheduled, and a
+non-explicit refresh inherits consent (`consent arrived after scheduled changes`).
+An opening expiring after consent retains the existing worker-lag notice.
 Endings continue through the executor connection. Restart reclaims abandoned running
 jobs after lock loss. Transient failures retry after 5/30/60/300 seconds (300 cap),
 ending at the approved horizon; conflicts wait for relevant input change or an
@@ -1101,7 +1129,7 @@ FastAPI companion API (served by the `worker` role, separate router, session aut
 
 **Hosted demo.** During the judging window the worker serves the web app publicly. A "Start demo" button seeds a fresh throwaway household from the demo seed with a temporary login and a 24-hour lifetime, so judges cannot trample each other. Two safety rules: a demo household can bind only `twin` adapters (the registry refuses anything else for it, so nobody on the internet reaches Hirz Link or the real plug, and a test asserts it), and the emulator's Bedrock calls are rate-limited per visitor under the budget alarm with the scripted host as fallback.
 
-**Pause.** Any member can pause Hirz, by voice ("Alexa, pause Hirz", the `pause_automation` action) or with the switch on Tonight. While paused, every `auto` rule is treated as `ask` (pipeline stage 4), so Hirz does nothing on its own; endings already owed (a relock) still run. Pausing only makes Hirz more cautious, so a voice may do it; resuming is done in the app. It is a mode, not a rule change, and is audited as `AUTONOMY_PAUSED` and `AUTONOMY_RESUMED`.
+**Pause.** Any member can pause Hirz, by voice ("Alexa, pause Hirz", the `pause_automation` action) or with the switch on Tonight. While paused, every `auto` rule is treated as `ask` (pipeline stage 4), so Hirz does nothing on its own; endings already owed (a relock) still run. Pausing only makes Hirz more cautious, so a voice may do it; resuming requires an adult-lineage member in the app. It is a mode, not a rule change, and is audited as `AUTONOMY_PAUSED` and `AUTONOMY_RESUMED`.
 
 Accessibility is a requirement: the app is keyboard-complete with screen-reader labels, and every action can be started by voice through Alexa. Two things deliberately cannot be finished by voice, a security approval and a rule activation (§7); both finish in the app, so those two screens are held to the same accessibility bar as the rest.
 
@@ -1352,7 +1380,7 @@ Things that never run inside a tool call: the MILP planner, Bedrock calls, the G
 - **Design.** Playwright snapshots of the five cards at 768×480 in light and dark; an inline card has at most three rows and one primary action.
 - **UX conformance.** For every tool: `speakable` present, options ≤ 5, no internal IDs or JSON fragments in consumer strings, response length under a 30-second speech estimate; the simulator in voice-only mode completes the demo evening without any screen-only step.
 - **Latency.** Warm p95 per tool over the scenario corpus under the §8 budget; Runtime cold-start time measured and reported separately. A fast acknowledgment is not a responsive product, so three whole-interaction times are also measured and reported: request to accurate acknowledgment, request to verified device outcome, and request to an understandable failure.
-- **Coverage gate.** `--cov-fail-under=80` for Python; `vitest` for TypeScript units; Playwright for the companion app and simulator flows.
+- **Coverage gate.** 80 percent over service-free and integration tests combined for Python (`coverage report --fail-under=80`); `vitest` for TypeScript units; Playwright for the companion app and simulator flows.
 
 ---
 
@@ -1365,12 +1393,16 @@ locked toolchain. Jobs are independent; superseded runs of the same event/ref
 are cancelled. Dependency/Docker caches and artifact uploads are disabled.
 
 Active checks are Ruff, strict mypy over `hirz/`, `scripts/`, and `alembic/`,
-service-free pytest with the 80% gate, both workspaces' lint/types/Vitest, Python
+pytest with 80 percent over service-free and integration tests combined, both
+workspaces' lint/types/Vitest, Python
 sdist/wheel and fresh-wheel smoke checks, and Docker build/non-root verification.
 `python-test` reuses the existing initializer and Compose stack on a disposable
 runner: PostgreSQL and HA demo onboarding, Hirz readiness, explicit migrations,
 schema-drift check, doctor, authenticated service checks, and live PostgreSQL
-tests. Cleanup removes only that run's resources and generated `.env`.
+tests. On that same runner, service-free tests collect coverage first, integration
+tests append with `--cov=hirz --cov-append`, then `uv run --locked coverage report
+--fail-under=80` enforces the combined gate. Cleanup removes only that run's resources
+and generated `.env`.
 
 The scenario job now runs both item 16 offline observation assertion commands
 with native Dogwood and lists the deferred full-demo expectations. The Cedar

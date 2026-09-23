@@ -1,6 +1,7 @@
 """Durable refresh requests and generation-checked lifecycle in Pipeline transactions."""
 
 from datetime import datetime, timedelta
+from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 import sqlalchemy as sa
@@ -192,6 +193,21 @@ async def owned_control(
         if since is not None and row["created_at"] < since:
             continue
         params = row["proposal"]["params"]
+        if row["proposal"]["class"] == "energy.appliance_start":
+            params = {"on": True}
+            if controls.get("on") is False and row["proposal"].get("plan_id"):
+                from hirz.executor.plans import get
+
+                owner = await get(p, row["proposal"]["plan_id"])
+                if owner["runtime"]:
+                    runtime = RuntimeInputs.model_validate(owner["runtime"])
+                    appliance = (
+                        runtime.prediction_workload or runtime.workload
+                    ).appliance
+                    if appliance and observation.observed_at >= row[
+                        "created_at"
+                    ] + timedelta(minutes=appliance.cycle_minutes):
+                        params = {"on": False}
         from hirz.graph.models import ObservationState
 
         if params and params.keys() <= ObservationState.model_fields.keys():
@@ -208,6 +224,43 @@ async def owned_control(
                 return False
             return True
     return False
+
+
+async def applied_controls(
+    p: "Pipeline", stored: dict[str, Any]
+) -> tuple[tuple[datetime, Action], ...]:
+    verified = db.audit_log.alias("verified")
+    rows = (
+        await p.connection.execute(
+            sa.select(db.actions.c.proposal, verified.c.created_at)
+            .join(
+                verified,
+                sa.and_(
+                    verified.c.household_id == db.actions.c.household_id,
+                    verified.c.seq == db.actions.c.lifecycle_seq,
+                ),
+            )
+            .join(
+                db.plans,
+                sa.and_(
+                    db.plans.c.household_id == db.actions.c.household_id,
+                    db.plans.c.plan_id == db.actions.c.proposal["plan_id"].astext,
+                ),
+            )
+            .where(
+                p.scope(db.actions),
+                db.plans.c.lineage_id == (stored["lineage_id"] or stored["plan_id"]),
+                db.actions.c.execution_status == "verified",
+                verified.c.event_type == EventType.VERIFIED,
+                verified.c.payload["action_id"].astext == db.actions.c.action_id,
+                verified.c.payload["execution_attempt_seq"].as_integer()
+                == db.actions.c.execution_attempt_seq,
+                verified.c.created_at <= p.clock(),
+            )
+            .order_by(verified.c.created_at, verified.c.seq)
+        )
+    ).mappings()
+    return tuple((r["created_at"], Action.model_validate(r["proposal"])) for r in rows)
 
 
 async def fingerprint(p: "Pipeline", stored: dict[str, Any]) -> dict[str, Any]:
@@ -236,6 +289,16 @@ async def fingerprint(p: "Pipeline", stored: dict[str, Any]) -> dict[str, Any]:
     runtime = (
         RuntimeInputs.model_validate(stored["runtime"]) if stored["runtime"] else None
     )
+    bound = {(b["adapter"], b["entity_id"]) for b in data["asset_bindings"]}
+    applied = (
+        tuple(
+            (at, a)
+            for at, a in await applied_controls(p, stored)
+            if (a.target.adapter, a.target.entity) in bound
+        )
+        if runtime
+        else ()
+    )
     bindings = {str(b["asset_id"]): b["entity_id"] for b in data["asset_bindings"]}
     samples = {}
     for o in data["observations"]:
@@ -243,7 +306,9 @@ async def fingerprint(p: "Pipeline", stored: dict[str, Any]) -> dict[str, Any]:
         state = o["state"]
         entity = bindings.get(str(o.get("asset_id")), "")
         expected = (
-            predicted(runtime, datetime.fromisoformat(o["observed_at"]))
+            predicted(
+                runtime, datetime.fromisoformat(o["observed_at"]), applied=applied
+            )
             if runtime
             else {}
         )
@@ -262,7 +327,6 @@ async def fingerprint(p: "Pipeline", stored: dict[str, Any]) -> dict[str, Any]:
                 "zone_id",
                 "available",
                 "plugged_in",
-                "price_band",
                 "charging",
                 "dispatch_kw",
                 "on",
@@ -273,35 +337,60 @@ async def fingerprint(p: "Pipeline", stored: dict[str, Any]) -> dict[str, Any]:
         physical = {
             k: v for k, v in physical.items() if k in {"temp_f", "soc", "power_kw"}
         }
+        if runtime and entity == "ev" and state.get("soc") is not None:
+            governing = next(
+                (
+                    a
+                    for at, a in reversed(applied)
+                    if at <= datetime.fromisoformat(o["observed_at"])
+                    and a.target.entity == entity
+                    and a.action_class == "energy.ev_charge"
+                ),
+                None,
+            )
+            ev = (runtime.prediction_workload or runtime.workload).ev
+            if (
+                governing
+                and governing.params.get("charging") is True
+                and ev
+                and "charge_limit" in governing.params
+                and abs(
+                    Decimal(str(state["soc"]))
+                    - Decimal(str(governing.params["charge_limit"]))
+                )
+                <= Decimal("0.0001")
+                and state.get("power_kw") in {0, round(ev.charger_kw, 4)}
+            ):
+                physical.pop("power_kw", None)
         if deviates(state, physical, thresholds):
             samples[key]["deviation"] = {
                 k: v for k, v in state.items() if v is not None
             }
-    boundaries = []
-    for r in data.get("constraints", []):
-        encoded = r["provenance"]["encoded"]
-        boundaries.append(
-            (
-                r["id"],
-                datetime.fromisoformat(encoded["starts_at"]) <= p.clock(),
-                datetime.fromisoformat(encoded["ends_at"]) <= p.clock(),
-            )
-        )
-    for r in data.get("schedule_events", []):
-        boundaries.append(
-            (
-                r["id"],
-                datetime.fromisoformat(r["starts_at"]) <= p.clock(),
-                datetime.fromisoformat(r["ends_at"]) <= p.clock(),
-            )
-        )
     return {
         "graph": digest(structural),
         "policy": digest(p.bundle.policy().model_dump(mode="json")),
-        "boundaries": digest(boundaries),
         "samples": samples,
         "inputs": digest(stored["runtime"]),
     }
+
+
+async def compensate_owned_controls(
+    p: "Pipeline", previous: dict[str, Any], current: dict[str, Any]
+) -> None:
+    from hirz.graph.models import Observation
+    from hirz.planner.coordinator import clean
+
+    snapshot = await p.snapshot(p.clock())
+    for raw in snapshot.data["observations"]:
+        obs = Observation.model_validate(clean(raw))
+        key = str(obs.asset_id)
+        previous_sample = previous.get("samples", {}).get(key, {})
+        if obs.asset_id and await owned_control(
+            p, obs, previous_mode=previous_sample.get("mode")
+        ):
+            for field in ("charging", "dispatch_kw", "on", "mode", "target_f"):
+                if field in current["samples"].get(key, {}):
+                    previous_sample[field] = current["samples"][key][field]
 
 
 async def detect(
@@ -314,20 +403,7 @@ async def detect(
     reason = None
     if old and old["fingerprint"]:
         original_fingerprint = digest(old["fingerprint"])
-        from hirz.graph.models import Observation
-        from hirz.planner.coordinator import clean
-
-        snapshot = await p.snapshot(p.clock())
-        for raw in snapshot.data["observations"]:
-            obs = Observation.model_validate(clean(raw))
-            key = str(obs.asset_id)
-            previous_sample = old["fingerprint"].get("samples", {}).get(key, {})
-            if obs.asset_id and await owned_control(
-                p, obs, previous_mode=previous_sample.get("mode")
-            ):
-                for field in ("charging", "dispatch_kw", "on", "mode", "target_f"):
-                    if field in current["samples"].get(key, {}):
-                        previous_sample[field] = current["samples"][key][field]
+        await compensate_owned_controls(p, old["fingerprint"], current)
         if old["fingerprint"] == current and original_fingerprint != digest(current):
             await save(p, stored, {"fingerprint": current}, decision=decision)
     if stored["runtime"] is None:
@@ -335,11 +411,6 @@ async def detect(
             reason = "Complete runtime inputs are required from an eligible member."
     elif old and old["fingerprint"] and current != old["fingerprint"]:
         reason = "Household inputs, policy, control state or prediction changed."
-    elif stored["accepted_at"] is None or p.clock() - stored[
-        "accepted_at"
-    ] >= timedelta(minutes=5):
-        if not old or old["state"] == "idle":
-            reason = "The accepted plan is five minutes old."
     if reason:
         await queue(p, stored, reason, fingerprint=current, decision=decision)
         if stored["runtime"] is None:
@@ -367,13 +438,13 @@ async def invalidate_all(
 
 async def fresh(p: "Pipeline", stored: dict[str, Any]) -> bool:
     old = await job(p, stored)
-    return bool(
-        stored["runtime"]
-        and stored["accepted_at"] is not None
-        and timedelta(0) <= p.clock() - stored["accepted_at"] < timedelta(minutes=5)
-        and (not old or old["state"] == "idle")
-        and (not old or old["fingerprint"] == await fingerprint(p, stored))
-    )
+    if not stored["runtime"] or (old and old["state"] != "idle"):
+        return False
+    if not old:
+        return True
+    current = await fingerprint(p, stored)
+    await compensate_owned_controls(p, old["fingerprint"], current)
+    return bool(old["fingerprint"] == current)
 
 
 async def prepare(p: "Pipeline", action: Action, principal: Principal) -> None:

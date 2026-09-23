@@ -234,6 +234,8 @@ class Constitution(Model):
         )
 
     def role_mode(self, action_class: str, role: Role) -> Mode:
+        if action_class == "governance.resume_automation":
+            return "auto" if "adult" in self.lineage(role) else "never"
         if action_class.startswith("governance."):
             return "never" if role == "unknown" else "auto"
         rule = self.rule(action_class, role)

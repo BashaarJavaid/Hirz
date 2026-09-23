@@ -434,9 +434,13 @@ def test_adapter_feed_changes_ignore_duplicate_and_timestamp_only_reads():
     asyncio.run(run())
 
 
-def test_durable_fingerprints_detect_presence_policy_inputs_and_expiry(monkeypatch):
+def test_fingerprints_ignore_tariff_and_window_crossings_but_detect_changes(
+    monkeypatch,
+):
     import hirz.executor.refresh as module
     from tests.unit.test_coordinator import POLICY, add, requirement
+
+    monkeypatch.setattr(module, "applied_controls", AsyncMock(return_value=()))
 
     async def run():
         world, reg, snap, r = await world_inputs()
@@ -461,7 +465,12 @@ def test_durable_fingerprints_detect_presence_policy_inputs_and_expiry(monkeypat
             assert second["samples"] != first["samples"]
             snap = changed(snap, as_of=hold.spec.ends_at)
             expired = await module.fingerprint(p, stored)
-            assert expired["boundaries"] != second["boundaries"]
+            assert expired == second
+            energy = next(
+                o for o in snap.data["observations"] if o["state"].get("price_band")
+            )
+            energy["state"]["price_band"] = "another known tariff period"
+            assert await module.fingerprint(p, stored) == expired
             p.bundle.policy = lambda: changed(POLICY, version=POLICY.version + 1)
             # Policy content and runtime thresholds are separate durable inputs.
             assert (await module.fingerprint(p, stored))["policy"] != expired["policy"]
@@ -508,7 +517,7 @@ def test_job_queue_coalesces_and_holds_in_one_mutation(monkeypatch):
     asyncio.run(run())
 
 
-def test_stale_detection_blocks_legacy_and_authority_without_churning(monkeypatch):
+def test_change_detection_blocks_legacy_and_authority_without_age_churn(monkeypatch):
     import hirz.executor.refresh as module
 
     async def run():
@@ -524,10 +533,15 @@ def test_stale_detection_blocks_legacy_and_authority_without_churning(monkeypatc
         module.queue.assert_not_awaited()
         stored["runtime"] = {"present": True}
         assert await module.fresh(p, stored)
-        stored["accepted_at"] = AT - timedelta(minutes=5)
-        assert not await module.fresh(p, stored)
-        await module.detect(p, stored)
-        assert "five minutes" in module.queue.call_args.args[2]
+        for age in (timedelta(minutes=5), timedelta(hours=12)):
+            stored["accepted_at"] = AT - age
+            assert await module.fresh(p, stored)
+            await module.detect(p, stored)
+            module.queue.assert_not_awaited()
+            module.save.assert_not_awaited()
+        for state in ("queued", "running", "blocked"):
+            current["state"] = state
+            assert not await module.fresh(p, stored)
         stored["runtime"] = None
         current["state"] = "blocked"
         module.queue.reset_mock()
@@ -537,6 +551,8 @@ def test_stale_detection_blocks_legacy_and_authority_without_churning(monkeypatc
         await module.detect(p, stored)
         assert "Complete runtime" in module.queue.call_args.args[2]
         stored["runtime"] = {"present": True}
+        current["state"] = "idle"
+        assert not await module.fresh(p, stored)
         await module.detect(p, stored)
         assert "changed" in module.queue.call_args.args[2]
         current = None
@@ -767,6 +783,7 @@ def test_recorded_ha_changes_need_matching_dispatch_and_unchanged_mode(tmp_path)
                 {
                     "created_at": observed.observed_at,
                     "proposal": {
+                        "class": "energy.hvac_adjust",
                         "target": {"adapter": "ha", "entity": "climate.demo"},
                         "params": {"target_f": 72},
                     },
@@ -842,3 +859,166 @@ def test_partial_ev_prediction_keeps_the_full_slot_charge_ceiling():
     assert not deviates(
         {"soc": actual.soc, "power_kw": actual.power_kw}, expected, Thresholds()
     )
+
+
+def test_prediction_uses_applied_controls_and_keeps_them_until_verified_change():
+    from hirz.pipeline.models import Target
+    from hirz.twin.physics import EV
+
+    r, result = runtime()
+    p = changed(
+        r.workload,
+        ev=EV(soc=0.34, plugged_in=True, charging=False, charge_limit=0.8),
+        battery=Battery(soc=0.5, dispatch_kw=0),
+        appliance=Appliance(cycle_minutes=10, cycle_kwh=1, noise_dba=40, running=False),
+    )
+    r = r.model_copy(update={"workload": p})
+    template = result.actions[0]
+
+    def command(entity, kind, params):
+        return template.model_copy(
+            update={
+                "target": Target(adapter="twin", entity=entity),
+                "action_class": kind,
+                "params": params,
+                # Scheduled time never supplies the applied time.
+                "scheduled_for": AT,
+            }
+        )
+
+    start = AT + timedelta(minutes=5)
+    opening = (
+        (
+            start,
+            command("ev", "energy.ev_charge", {"charging": True, "charge_limit": 0.5}),
+        ),
+        (start, command("home_battery", "energy.battery_dispatch", {"dispatch_kw": 2})),
+        (start, command("dishwasher", "energy.appliance_start", {})),
+        (
+            start,
+            command(
+                "hvac.living_room",
+                "energy.hvac_adjust",
+                {"mode": "heat", "target_f": 72},
+            ),
+        ),
+    )
+    before = predicted(r, start - timedelta(microseconds=1), applied=opening)
+    assert (
+        predicted(r, AT - timedelta(microseconds=1), applied=((AT, opening[0][1]),))[
+            "ev"
+        ]["power_kw"]
+        == 0
+    )
+    assert before["ev"]["soc"] == 0.34 and before["ev"]["power_kw"] == 0
+    assert before["home_battery"]["soc"] == 0.5
+    assert before["hvac.living_room"]["mode"] == "off"
+    assert not before["dishwasher"]["on"]
+    simultaneous = predicted(r, start, applied=opening)
+    assert simultaneous["ev"]["power_kw"] == 0
+    assert not simultaneous["ev"]["charging"]
+    later = predicted(r, start + timedelta(microseconds=1), applied=opening)
+    assert later["ev"]["power_kw"] == p.ev.charger_kw
+    assert later["ev"]["charging"]
+    at = start + timedelta(minutes=5)
+    actual = predicted(r, at, applied=opening)
+    assert actual["ev"]["soc"] == pytest.approx(
+        p.ev.model_copy(update=opening[0][1].params).advance(300).soc
+    )
+    assert actual["home_battery"]["soc"] == pytest.approx(
+        p.battery.model_copy(update={"dispatch_kw": 2}).advance(300).soc
+    )
+    assert actual["hvac.living_room"]["temp_f"] > before["hvac.living_room"]["temp_f"]
+    assert actual["dishwasher"]["on"]
+    ending = (
+        at,
+        command("home_battery", "energy.battery_dispatch", {"dispatch_kw": 0}),
+    )
+    stopped = predicted(r, at + timedelta(minutes=20), applied=(*opening, ending))
+    assert stopped["home_battery"]["soc"] == actual["home_battery"]["soc"]
+    assert not stopped["dishwasher"]["on"] and stopped["dishwasher"]["power_kw"] == 0
+    assert (
+        predicted(r, at + timedelta(minutes=20), applied=opening)["home_battery"]["soc"]
+        < stopped["home_battery"]["soc"]
+    )
+
+
+def test_ev_limit_adjacent_power_is_expected_without_hiding_soc_drift(monkeypatch):
+    import hirz.executor.refresh as module
+    from hirz.pipeline.models import Target
+    from tests.unit.test_coordinator import POLICY
+
+    async def run():
+        world, reg, snap, r = await world_inputs()
+        try:
+            p = SimpleNamespace(
+                clock=lambda: snap.as_of,
+                snapshot=AsyncMock(side_effect=lambda _: snap),
+                bundle=SimpleNamespace(policy=lambda: POLICY),
+            )
+            _, result = runtime()
+            action = result.actions[0].model_copy(
+                update={
+                    "target": Target(adapter="twin", entity="ev"),
+                    "action_class": "energy.ev_charge",
+                    "params": {"charging": True, "charge_limit": 0.5},
+                }
+            )
+            monkeypatch.setattr(
+                module,
+                "applied_controls",
+                AsyncMock(return_value=((snap.as_of, action),)),
+            )
+            monkeypatch.setattr(
+                module,
+                "predicted",
+                lambda *args, **kwargs: {"ev": {"soc": 0.5, "power_kw": 0}},
+            )
+            o = next(o for o in snap.data["observations"] if o["domain"] == "ev")
+            key = str(o["asset_id"])
+            stored = {"runtime": r.model_dump(mode="json")}
+            for power in (0, 7.4):
+                o["state"].update(soc=0.4999, power_kw=power)
+                assert (
+                    "deviation"
+                    not in (await module.fingerprint(p, stored))["samples"][key]
+                )
+            o["state"].update(soc=0.4998, power_kw=7.4)
+            assert "deviation" in (await module.fingerprint(p, stored))["samples"][key]
+            o["state"].update(soc=0.47, power_kw=0)
+            assert "deviation" in (await module.fingerprint(p, stored))["samples"][key]
+        finally:
+            await reg.close()
+
+    asyncio.run(run())
+
+
+def test_skipped_opening_keeps_status_but_pending_approval_still_expires(monkeypatch):
+    import hirz.executor.plans as module
+    from hirz.pipeline.models import EventType
+
+    async def run():
+        approval = {"approval_id": "vote", "action_id": "missed"}
+        rows = [[{"action_id": "missed", "execution_status": "skipped"}], [approval]]
+        results = [
+            SimpleNamespace(
+                mappings=lambda value=value: SimpleNamespace(all=lambda: value)
+            )
+            for value in rows
+        ]
+        p = SimpleNamespace(
+            connection=SimpleNamespace(execute=AsyncMock(side_effect=results)),
+            scope=lambda _: True,
+            clock=lambda: AT,
+            household_id=HOME,
+            status=AsyncMock(),
+            audit=SimpleNamespace(append=AsyncMock()),
+        )
+        transition = AsyncMock()
+        monkeypatch.setattr(module, "transition", transition)
+        await module.stop_unstarted(p, "plan", EventType.PLAN_REVISED, "cancelled")
+        transition.assert_not_awaited()
+        p.status.assert_awaited_once_with(approval, "expired")
+        assert p.audit.append.call_args.args[3] == EventType.EXPIRED
+
+    asyncio.run(run())

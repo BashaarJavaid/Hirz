@@ -1,7 +1,7 @@
 """The deliberately small local device command surface."""
 
 import math
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any
 
 from hirz.pipeline.hashing import action_hash, ingest
@@ -14,6 +14,16 @@ SUPPORTED = {
     "energy.battery_dispatch": ("energy", "dispatch_kw"),
     "energy.appliance_start": ("devices", "on"),
 }
+
+
+def expired(action: Action, at: datetime) -> bool:
+    return bool(
+        action.expected_effect is None
+        or at >= action.expected_effect.by
+        or action.revert
+        and action.scheduled_for is not None
+        and at >= action.scheduled_for + timedelta(seconds=action.revert.after_s)
+    )
 
 
 def number(value: Any, low: float, high: float) -> bool:

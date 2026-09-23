@@ -7,7 +7,7 @@ from typing import Any, Self
 from pydantic import AwareDatetime, Field, model_validator
 
 from hirz.graph.models import Model, ScheduleEvent
-from hirz.pipeline.models import Plan
+from hirz.pipeline.models import Action, Plan
 from hirz.planner.models import PlannerInput, Schedule
 from hirz.planner.replay import replay
 from hirz.twin.physics import changed
@@ -196,11 +196,71 @@ def slice_input(p: PlannerInput, start: datetime, end: datetime) -> PlannerInput
     )
 
 
-def predicted(runtime: RuntimeInputs, at: datetime) -> dict[str, dict[str, Any]]:
+def predicted(
+    runtime: RuntimeInputs,
+    at: datetime,
+    *,
+    applied: tuple[tuple[datetime, Action], ...] | None = None,
+) -> dict[str, dict[str, Any]]:
     p = runtime.prediction_workload or runtime.workload
     ev, battery, appliance = p.ev, p.battery, p.appliance
     zones = tuple(z.physical for z in p.zones)
-    if at > p.slots[0].start:
+    if applied is not None:
+        # The snapshot carries the previous applied controls. Only verified
+        # dispatches change them; scheduled openings and endings do not.
+        end = max(p.slots[0].start, min(at, p.slots[-1].end))
+        changes: dict[datetime, list[Action]] = {}
+        for dispatched, action in applied:
+            # A same-instant observation predates the write and its verification.
+            if p.slots[0].start <= dispatched <= end and dispatched < at:
+                changes.setdefault(dispatched, []).append(action)
+        edges = sorted(
+            {p.slots[0].start, end, *changes} | {s.end for s in p.slots if s.end < end}
+        )
+        previous = edges[0]
+        for edge in edges:
+            if edge > previous:
+                slot_index = next(
+                    i for i, s in enumerate(p.slots) if s.start <= previous < s.end
+                )
+                slot = p.slots[slot_index]
+                seconds = (edge - previous).total_seconds()
+                ev = ev.advance(seconds) if ev else None
+                battery = battery.advance(seconds) if battery else None
+                appliance = appliance.advance(seconds) if appliance else None
+                zones = tuple(
+                    z.advance(
+                        seconds,
+                        slot.outdoor_f,
+                        occupants=spec.occupants[slot_index],
+                        irradiance_kw_m2=slot.irradiance,
+                    )
+                    for z, spec in zip(zones, p.zones, strict=True)
+                )
+            for action in changes.get(edge, []):
+                entity, params = action.target.entity, action.params
+                if entity == "ev" and ev and action.action_class == "energy.ev_charge":
+                    ev = changed(ev, **params)
+                elif (
+                    entity == "home_battery"
+                    and battery
+                    and action.action_class == "energy.battery_dispatch"
+                ):
+                    battery = changed(battery, **params)
+                elif (
+                    entity == "dishwasher"
+                    and appliance
+                    and action.action_class == "energy.appliance_start"
+                ):
+                    if not appliance.running:
+                        appliance = appliance.start_cycle()
+                elif action.action_class == "energy.hvac_adjust":
+                    zones = tuple(
+                        changed(z, **params) if spec.entity == entity else z
+                        for z, spec in zip(zones, p.zones, strict=True)
+                    )
+            previous = edge
+    elif at > p.slots[0].start:
         at = min(at, p.slots[-1].end)
         part = slice_input(p, p.slots[0].start, at)
         # EV energy sets the slot's charge ceiling, not a fractional power level.
