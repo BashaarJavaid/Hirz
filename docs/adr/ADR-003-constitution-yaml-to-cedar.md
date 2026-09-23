@@ -142,3 +142,64 @@ or outcome-specific exit codes; optional audit writers; new dependencies or
 migrations. Existing invalid stored policies fail without repository-file fallback.
 Local verification uses disposable fixtures, including unactivated v8; no new
 remote CI run is required. [Evidence and local prerequisite limitation](../verification-log.md#item-11--2026-09-18).
+
+## Constraint intake permissions amendment — 2026-09-21
+
+`governance.record_constraint` and `governance.withdraw_constraint` are reserved
+LOW-risk internal operations. The existing compiler emits linked-member permits
+and unknown-member forbids; they cannot be redefined by a household and never
+change pause state. Pipeline additionally enforces record ownership: members may
+withdraw their own requests, owners may withdraw others', and any linked member
+may release or renew a manual hold. A lower claimed role cannot acquire the
+owner-only withdrawal privilege. Neither operation enters the future consumer
+device-action enum. No condition grammar, approval quorum or temporal-policy
+mechanism changes; the catalog now contains 25 classes.
+
+## Execution and consent permissions amendment — 2026-09-21
+
+Item 19 adds reserved `governance.record_plan`, `approve_plan`, `revise_plan`,
+`cancel_plan`, and `record_observations`. The catalog and deterministic preview now
+contain 30 classes; Pipeline enforces plan ownership, eligible consenting roles and
+trusted Registry-only ingestion in addition to the compiler's linked-member rules.
+No consumer tool exposes a free-form observation mutation.
+
+`Pipeline.enqueue` performs stages 1–6 and stores eligible work without invoking
+Dogwood or an adapter. The worker obtains a fresh stage-7 grant before claiming a
+single dispatch. Plan consent grants no device permission, quorum exception or TTL
+extension. An exact bounded inverse is part of the opening hash, checked under the
+opening policy and retained under that operation's grant. Ordinary rollback is a
+fresh request evaluated under current policy. Rejected transferring an approval to
+a retry, allowing a new target in an ending, and treating plan consent as an
+exception to household device rules. Enforcement remains `dogwood-local`.
+
+## Durable refresh amendment — 2026-09-21
+
+Add reserved internal `governance.refresh_plan` (31 catalog classes) for trusted
+refresh input changes, requests and transitions. Background operations use the
+approver's linked account, or the requester before consent, with scheduler surface;
+current account/role/policy authority is checked again at publication and dispatch.
+No synthetic system member or consumer free-form mutation tool is introduced.
+
+Plan consent is inherited only for automatic replacements; a coalesced explicit
+member change wins and requires fresh consent. All unstarted predecessor approvals
+expire. New actions receive fresh IDs, current device authorization, quorum and TTL.
+Reservation transfers use the append-only rules in constitution §2.4, inside the
+same transaction as publication and consent. Rejected plan consent as device
+permission, retry reset through new plan IDs, and releasing uncertain expenditure.
+
+
+## Memory consent permissions amendment — 2026-09-21
+
+Use one reserved `governance.memory` class with four validated operations rather
+than four new classes or a parallel authorization path. The existing compiler
+carries operation/surface/learning conditions into native Dogwood, without a grammar
+extension or precedence change. Pipeline enforces subject membership and expected
+version inside the grant transaction. Only the subject's app principal can review,
+regardless of owner/adult status. Learning `never` blocks creation and acceptance,
+while recording context and rejecting pending proposals remain available.
+
+Rejected voice consent because an Echo is shared, owner-on-behalf consent because
+a preference belongs to its subject, passkey gating because this is not a security
+approval, and reusing action-approval quorum as memory consent. This verifies only
+the local backend under trusted internal principals; public companion authentication
+remains unverified. [Contract](../constitution.md#item-20-internal-memory-permissions--2026-09-21).

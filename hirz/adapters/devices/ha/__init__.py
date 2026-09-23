@@ -291,6 +291,9 @@ class HomeAssistant:
                 state = ObservationState(
                     available=True,
                     temp_f=fahrenheit(attrs["current_temperature"], unit),
+                    mode=data["state"]
+                    if data["state"] in {"heat", "cool", "off"}
+                    else None,
                     target_f=fahrenheit(attrs["temperature"], unit)
                     if attrs.get("temperature") is not None
                     else None,
@@ -414,7 +417,6 @@ class HomeAssistant:
                 or action.target.adapter != "ha"
                 or action.action_class != expected_class
                 or set(action.params) != {attr}
-                or action.scheduled_for is not None
                 or action.target.entity.split(".")[0]
                 not in ({"climate"} if kind == "climate" else {"light", "switch"})
                 or action.target.zone is not None
@@ -500,15 +502,29 @@ class HomeAssistant:
         domain = action.target.entity.split(".")[0]
         # REST services actuate devices; /api/states writes would only fabricate state.
         # https://developers.home-assistant.io/docs/api/rest/#post-apiservicesdomainservice
-        await self.request(
-            "POST",
-            f"/api/services/{domain}/{service}",
-            {"entity_id": action.target.entity, **params},
-        )
+        async with asyncio.timeout(10):
+            await self.request(
+                "POST",
+                f"/api/services/{domain}/{service}",
+                {"entity_id": action.target.entity, **params},
+            )
         await self.pipeline.execution_outcome(action, attempt, EventType.EXECUTED)
         matched = False
         try:
-            async with asyncio.timeout(10):
+            verification_seconds = 10.0
+            if action.expected_effect is not None and not action.action_id.endswith(
+                ":ending"
+            ):
+                verification_seconds = min(
+                    10.0,
+                    max(
+                        0.0,
+                        (
+                            action.expected_effect.by - self.pipeline.clock()
+                        ).total_seconds(),
+                    ),
+                )
+            async with asyncio.timeout(verification_seconds):
                 while True:
                     # Direct HA read, never registry fallback or rounded policy facts.
                     data = await self.raw_state(action.target.entity)

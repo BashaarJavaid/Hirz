@@ -1,0 +1,220 @@
+"""Timer, immediate, and cheapest-slot schedules, without a solver."""
+
+import math
+from datetime import timedelta
+from typing import Literal
+
+from hirz.adapters.energy.real.tariff import CHICAGO
+from hirz.planner.feedback import battery_envelope, comfort_envelope
+from hirz.planner.models import Control, PlannerInput, Schedule
+from hirz.planner.replay import effective
+from hirz.twin.physics import changed
+
+
+def appliance_windows(p: PlannerInput) -> dict[int, tuple[float, ...]]:
+    if p.appliance is None or p.appliance.running:
+        return {}
+    _, _, release = effective(p)
+    result = {}
+    for i, slot in enumerate(p.slots):
+        end = slot.start + timedelta(minutes=p.appliance.cycle_minutes)
+        if slot.start < release or end > p.appliance_deadline or end > p.slots[-1].end:
+            continue
+        result[i] = tuple(
+            max(0, (min(s.end, end) - max(s.start, slot.start)).total_seconds())
+            / 3600
+            * p.appliance.cycle_kwh
+            / (p.appliance.cycle_minutes / 60)
+            for s in p.slots
+        )
+    return result
+
+
+def running_load(p: PlannerInput) -> tuple[float, ...]:
+    appliance = p.appliance
+    result = []
+    for slot in p.slots:
+        after = (
+            appliance.advance(slot.hours * 3600)
+            if appliance and appliance.running
+            else appliance
+        )
+        result.append(
+            after.energy_kwh - appliance.energy_kwh if after and appliance else 0.0
+        )
+        appliance = after
+    return tuple(result)
+
+
+def baseline(
+    p: PlannerInput, method: Literal["timer", "immediate", "greedy"] = "greedy"
+) -> Schedule:
+    if method not in {"timer", "immediate", "greedy"}:
+        raise ValueError("Unknown baseline")
+    target, ev_start, _ = effective(p)
+    ev = [0.0] * len(p.slots)
+    need = (
+        0 if p.ev is None else (target - p.ev.soc) * p.ev.capacity_kwh / p.ev.efficiency
+    )
+    if p.fixed_ev_kwh:
+        ev = [v or 0.0 for v in p.fixed_ev_kwh]
+        need -= sum(ev)
+    # The timer has already started when a remaining-work replan crosses midnight.
+    # Anchor to the known delivery deadline, never reset it to tonight at refresh.
+    timer_start = p.ev_deadline.astimezone(CHICAGO).replace(
+        hour=21, minute=0, second=0, microsecond=0
+    )
+    if timer_start > p.ev_deadline:
+        timer_start -= timedelta(days=1)
+    eligible = [
+        i
+        for i, s in enumerate(p.slots)
+        if p.ev is not None
+        and (not p.fixed_ev_kwh or p.fixed_ev_kwh[i] is None)
+        and s.start >= ev_start
+        and s.end <= p.ev_deadline
+        and (method != "timer" or s.start >= timer_start)
+    ]
+    if method == "greedy":
+        eligible.sort(key=lambda i: (p.slots[i].price, i))
+    for i in eligible:
+        assert p.ev is not None
+        ev[i] = min(max(0, need), p.ev.charger_kw * p.slots[i].hours)
+        for c in p.constraints:
+            if c.kind == "ev_ceiling" and c.value is not None:
+                covered = [
+                    j
+                    for j, slot in enumerate(p.slots)
+                    if (c.starts_at is None or slot.start >= c.starts_at)
+                    and (c.ends_at is None or slot.start < c.ends_at)
+                ]
+                if covered and i <= covered[-1]:
+                    capacity = (
+                        (c.value - p.ev.soc) * p.ev.capacity_kwh / p.ev.efficiency
+                    )
+                    ev[i] = min(
+                        ev[i], max(0, capacity - sum(ev[: covered[-1] + 1]) + ev[i])
+                    )
+        need -= ev[i]
+    windows = appliance_windows(p)
+    start = (
+        min(
+            windows,
+            key=lambda i: (
+                sum(e * s.price for e, s in zip(windows[i], p.slots, strict=True)),
+                i,
+            ),
+        )
+        if windows and method == "greedy"
+        else min(windows, default=-1)
+    )
+    zones = [z.physical for z in p.zones]
+    battery = p.battery
+    controls = []
+    net_load = []
+    running = running_load(p)
+    envelopes = [comfort_envelope(z, p.slots) for z in p.zones]
+    for i, slot in enumerate(p.slots):
+        targets: list[float] = []
+        modes: list[Literal["heat", "cool", "off"]] = []
+        load = (
+            p.base_load_kw * slot.hours
+            + running[i]
+            + ev[i]
+            + (windows[start][i] if start >= 0 else 0)
+        )
+        for j, spec in enumerate(p.zones):
+            zone = zones[j]
+            target_f = spec.targets[i]
+            lower, upper = envelopes[j]
+            target_f = min(
+                upper[i + 1], spec.upper[i], max(lower[i + 1], spec.lower[i], target_f)
+            )
+            passive = changed(zone, mode="off").advance(
+                slot.hours * 3600,
+                slot.outdoor_f,
+                occupants=spec.occupants[i],
+                irradiance_kw_m2=slot.irradiance,
+            )
+            mode: Literal["heat", "cool", "off"] = (
+                "heat" if passive.temp_f < target_f else "cool"
+            )
+            if spec.control_mode is not None:
+                mode = spec.control_mode
+            if spec.held_targets and spec.held_targets[i] is not None:
+                target_f = float(spec.held_targets[i] or 0)
+                mode = spec.held_modes[i] or "off"
+            after = changed(zone, target_f=target_f, mode=mode).advance(
+                slot.hours * 3600,
+                slot.outdoor_f,
+                occupants=spec.occupants[i],
+                irradiance_kw_m2=slot.irradiance,
+            )
+            load += after.electricity_kwh - zone.electricity_kwh
+            zones[j] = after
+            targets.append(target_f)
+            modes.append(mode)
+        net_load.append(load / slot.hours - slot.solar_kw)
+        controls.append(
+            Control(
+                ev_kwh=ev[i],
+                battery_kw=0,
+                targets=tuple(targets),
+                modes=tuple(modes),
+                appliance_start=i == start,
+            )
+        )
+    if battery is not None:
+        eta = math.sqrt(battery.efficiency)
+        opening = (
+            p.battery_terminal_kwh
+            if p.battery_terminal_kwh is not None
+            else battery.soc * battery.capacity_kwh
+        )
+        # Equal terminal energy: only store surplus that can serve forecast load
+        # before the boundary. This uses the same forecast as every strategy.
+        ceiling = [opening] * (len(p.slots) + 1)
+        for i in range(len(p.slots) - 1, -1, -1):
+            s = p.slots[i]
+            hour = s.start.astimezone(CHICAGO).hour
+            dischargeable = (
+                min(max(0, net_load[i]), battery.power_kw) * s.hours / eta
+                if 6 <= hour < 21
+                else 0
+            )
+            ceiling[i] = min(battery.capacity_kwh, ceiling[i + 1] + dischargeable)
+        if p.causal_controls:
+            _, reachable = battery_envelope(p)
+            ceiling = [min(a, b) for a, b in zip(ceiling, reachable, strict=True)]
+        for i, slot in enumerate(p.slots):
+            energy = battery.soc * battery.capacity_kwh
+            local = slot.start.astimezone(CHICAGO)
+            before_21 = slot.start < timer_start
+            # A remaining-work comparison must restore the accepted terminal
+            # energy even when the necessary charging continues past 06:00.
+            restore = (
+                local.hour >= 21 or local.hour < 6 or not before_21 and energy < opening
+            )
+            net = net_load[i]
+            if net < 0:
+                dispatch = -min(
+                    -net,
+                    battery.power_kw,
+                    max(0, ceiling[i + 1] - energy) / eta / slot.hours,
+                )
+            elif restore:
+                dispatch = -min(
+                    battery.power_kw, max(0, opening - energy) / eta / slot.hours
+                )
+            else:
+                floor = (
+                    battery.reserve_soc * battery.capacity_kwh if before_21 else opening
+                )
+                dispatch = min(
+                    net, battery.power_kw, max(0, energy - floor) * eta / slot.hours
+                )
+            if p.fixed_battery_kw and p.fixed_battery_kw[i] is not None:
+                dispatch = float(p.fixed_battery_kw[i] or 0)
+            battery = changed(battery, dispatch_kw=dispatch).advance(slot.hours * 3600)
+            controls[i] = changed(controls[i], battery_kw=dispatch)
+    return Schedule(controls=tuple(controls), method=method)

@@ -47,3 +47,17 @@ communication.contact_trusted_contact: {params: {}}
 communication.contact_emergency_services: {params: {}}
 governance.pause_automation: {params: {}}
 governance.resume_automation: {params: {}}
+governance.record_constraint: {params: {}}
+governance.withdraw_constraint: {params: {}}
+governance.record_plan: {params: {}}
+governance.approve_plan: {params: {}}
+governance.revise_plan: {params: {}}
+governance.cancel_plan: {params: {}}
+governance.record_observations: {params: {}}
+governance.refresh_plan: {params: {}}
+governance.memory:
+  params: {operation: propose}
+  cases:
+    - {label: Accept memory, params: {operation: accept}}
+    - {label: Reject memory, params: {operation: reject}}
+    - {label: Record session context, params: {operation: append_turn}}

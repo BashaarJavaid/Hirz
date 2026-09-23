@@ -19,6 +19,7 @@ from hirz.constitution.compiler import Compiled, boundary_input, compile_policy
 from hirz.constitution.conditions import PolicyFacts
 from hirz.constitution.evaluator import RuleOutcome, resolve
 from hirz.constitution.schema import Constitution
+from hirz.explainer.core import decision_context, prepared
 from hirz.graph.context import ContextSnapshot, validate_snapshot
 from hirz.graph.models import Household, now, utc
 from hirz.graph.repository import GraphRepository, snapshot_sql
@@ -148,6 +149,10 @@ class Pipeline:
         )
         self.household_id = bundle.household_id
         self.repo = GraphRepository(connection, self.household_id)
+        self._observation_batch: tuple[Any, ...] | None = None
+        self._observation_world: Any = None
+        self._refresh_command: dict[str, Any] | None = None
+        self._memory_turn: Any = None
 
     def scope(self, table: sa.Table) -> sa.ColumnElement[bool]:
         return table.c.household_id == self.household_id
@@ -201,29 +206,40 @@ class Pipeline:
         )
 
     async def usage(self, name: str, local_date: str) -> Decimal:
-        rows = (
-            await self.connection.execute(
-                sa.select(db.audit_log.c.payload)
-                .join(
-                    db.actions,
-                    sa.and_(
-                        db.actions.c.household_id == db.audit_log.c.household_id,
-                        db.actions.c.grant_seq == db.audit_log.c.seq,
-                    ),
+        budget = db.audit_log.c.payload["budget"]
+        used = await self.connection.scalar(
+            sa.select(
+                sa.func.coalesce(
+                    sa.func.sum(budget["reserved"].astext.cast(sa.Numeric)), 0
                 )
-                .where(self.scope(db.audit_log))
             )
-        ).scalars()
-        return sum(
-            (
-                Decimal(b["reserved"])
-                for p in rows
-                if (b := p.get("budget"))
-                and b["class"] == name
-                and b["local_date"] == local_date
-            ),
-            Decimal(0),
+            .join(
+                db.actions,
+                sa.and_(
+                    db.actions.c.household_id == db.audit_log.c.household_id,
+                    db.actions.c.grant_seq == db.audit_log.c.seq,
+                ),
+            )
+            .where(
+                self.scope(db.audit_log),
+                budget["class"].astext == name,
+                budget["local_date"].astext == local_date,
+            )
         )
+        payload = db.audit_log.c.payload
+        adjustments = await self.connection.scalar(
+            sa.select(
+                sa.func.coalesce(
+                    sa.func.sum(payload["delta"].astext.cast(sa.Numeric)), 0
+                )
+            ).where(
+                self.scope(db.audit_log),
+                db.audit_log.c.event_type == EventType.RESERVATION_ADJUSTED,
+                payload["class"].astext == name,
+                payload["local_date"].astext == local_date,
+            )
+        )
+        return cast(Decimal, used) + cast(Decimal, adjustments)
 
     async def assess(
         self,
@@ -266,6 +282,51 @@ class Pipeline:
             None,
             {},
         )
+        if action.action_class in {
+            "governance.record_constraint",
+            "governance.withdraw_constraint",
+        }:
+            from hirz.planner.coordinator import prepare
+
+            try:
+                await prepare(self, action, at, principal)
+            except ValueError:
+                ev.decision = ev.decision.model_copy(
+                    update={
+                        "explain": Explanation(
+                            rejected=("Invalid or unauthorized constraint mutation",)
+                        )
+                    }
+                )
+                return ev
+        if action.action_class == "governance.memory":
+            from hirz.memory.service import prepare as prepare_memory
+
+            try:
+                await prepare_memory(self, action, principal)
+            except ValueError:
+                return ev
+        from hirz.executor.plans import guarded, prepare_mutation
+
+        try:
+            if action.action_class in guarded:
+                await prepare_mutation(self, action, principal)
+        except ValueError:
+            return ev
+        if action.plan_id:
+            try:
+                await self.plan_authority(action, principal)
+            except ValueError:
+                ev.decision = ev.decision.model_copy(
+                    update={
+                        "explain": Explanation(
+                            rejected=(
+                                "Plan execution lacks current approver authority",
+                            )
+                        )
+                    }
+                )
+                return ev
         snapshot = None
         if preview is not None:
             try:
@@ -285,7 +346,17 @@ class Pipeline:
         ).date()
         used = await self.usage(action.action_class, local_date.isoformat())
         try:
-            facts = extract(snapshot, policy, action, evidence, used, bound_press)
+            from hirz.executor.plans import budget_scope
+
+            facts = extract(
+                snapshot,
+                policy,
+                action,
+                evidence,
+                used,
+                bound_press,
+                required_assets=await budget_scope(self, action),
+            )
         except NewerDoorbellPress:
             ev.decision = ev.decision.model_copy(
                 update={"explain": Explanation(rejected=("a newer doorbell press",))}
@@ -423,6 +494,49 @@ class Pipeline:
             return result(ev, EventType.ASK_CONSTITUTION)
         return result(ev, EventType.EXECUTE)
 
+    async def assess_operation(
+        self,
+        action: Action,
+        principal: Principal,
+        cost: Decimal | None,
+        evidence: tuple[SupplementalEvidence, ...],
+        at: datetime,
+        *,
+        preview: PreviewEvidence | None = None,
+        bound_press: dict[str, Any] | None = None,
+    ) -> Evaluation:
+        ev = await self.assess(
+            action,
+            principal,
+            cost,
+            evidence,
+            at,
+            preview=preview,
+            bound_press=bound_press,
+        )
+        if action.revert and ev.decision.decision in {"execute", "ask"}:
+            from hirz.executor.contracts import ending
+
+            end = ending(action).model_copy(update={"plan_id": None})
+            other = await self.assess(
+                end, principal, Decimal(0), evidence, at, preview=preview
+            )
+            ev.gates["ending"] = other.gates
+            if other.decision.decision in {"deny", "verify"} or (
+                other.decision.decision == "ask" and ev.decision.decision == "execute"
+            ):
+                ev = result(ev, other.decision.event_type)
+            if (
+                other.decision.risk
+                and ev.decision.risk
+                and list(RiskBand).index(other.decision.risk.band)
+                > list(RiskBand).index(ev.decision.risk.band)
+            ):
+                ev.decision = ev.decision.model_copy(
+                    update={"risk": other.decision.risk}
+                )
+        return ev
+
     async def boundary_check(
         self,
         ev: Evaluation,
@@ -529,7 +643,7 @@ class Pipeline:
         try:
             # Read-only transaction also serializes against graph writers; no stale view.
             async with self.repo.write(self.clock):
-                ev = await self.assess(
+                ev = await self.assess_operation(
                     action,
                     principal,
                     cost,
@@ -539,7 +653,7 @@ class Pipeline:
                 )
                 if ev.decision.decision == "execute":
                     ev = await self.boundary_check(ev, utc(self.clock()))
-                return ev.decision
+                return prepared(ev.decision, await decision_context(self, ev.action))
         except Exception as exc:
             await self.connection.invalidate()
             await self.connection.rollback()
@@ -553,6 +667,7 @@ class Pipeline:
             ) from None
 
     async def record(self, ev: Evaluation, at: datetime) -> Decision:
+        ev.decision = prepared(ev.decision, await decision_context(self, ev.action))
         for path in ev.diagnostics:
             await self.audit.append(
                 self.connection,
@@ -757,6 +872,33 @@ class Pipeline:
             action, principal, cost, evidence, redeem=True, approval_id=approval_id
         )
 
+    async def enqueue(
+        self,
+        action: Action,
+        principal: Principal,
+        *,
+        cost: Decimal | None = None,
+        approval_id: str | None = None,
+    ) -> Decision:
+        """Internal act handler: stages 1–6, no adapter or boundary calls."""
+        from hirz.executor.contracts import validate
+
+        validate(action)
+        return await self.mutate(
+            action,
+            principal,
+            cost,
+            (),
+            redeem=True,
+            approval_id=approval_id,
+            enqueue=True,
+        )
+
+    async def plan_authority(self, action: Action, principal: Principal) -> None:
+        from hirz.executor.plans import execution_authority
+
+        await execution_authority(self, action, principal)
+
     async def eligible_votes(
         self, approval: dict[str, Any], ev: Evaluation
     ) -> tuple[bool, Principal | None]:
@@ -829,6 +971,7 @@ class Pipeline:
         *,
         redeem: bool,
         approval_id: str | None = None,
+        enqueue: bool = False,
     ) -> Decision:
         action, principal = (
             ingest(action),
@@ -839,40 +982,14 @@ class Pipeline:
             raise PipelineError("Pipeline requires an idle connection")
         try:
             async with self.repo.write(self.clock):
-                at = utc(self.clock())
-                matched, granted, stored = await self.proposal(action, principal, cost)
-                approval = (
-                    await self.approval(approval_id) if redeem and approval_id else None
-                )
-                bound_press = (
-                    approval["binding"].get("doorbell")
-                    if approval and approval["action_id"] == action.action_id
-                    else None
-                )
-                ev = await self.assess(
-                    stored if matched else action,
+                return await self.mutate_locked(
+                    action,
                     principal,
                     cost,
                     evidence,
-                    at,
-                    bound_press=bound_press,
-                )
-                if not matched:
-                    ev = result(ev, EventType.DENY_APPROVAL_MISMATCH)
-                elif granted is not None:
-                    ev = result(ev, EventType.DENY_APPROVAL_USED)
-                elif redeem:
-                    ev = await self.authorize(
-                        ev, action, principal, cost, at, approval_id, approval
-                    )
-                else:
-                    if ev.decision.decision == "execute":
-                        ev = await self.boundary_check(ev, at)
-                    ev = await self.ask(ev, action, principal, cost, at)
-                return (
-                    await self.record(ev, at)
-                    if ev.decision.audit_id is None
-                    else ev.decision
+                    redeem=redeem,
+                    approval_id=approval_id,
+                    enqueue=enqueue,
                 )
         except Exception as exc:
             # A failed COMMIT hook/connection can leave a physical transaction open
@@ -890,6 +1007,84 @@ class Pipeline:
                 "Pipeline transaction failed; no authorization returned"
             ) from None
 
+    async def mutate_locked(
+        self,
+        action: Action,
+        principal: Principal,
+        cost: Decimal | None = None,
+        evidence: tuple[SupplementalEvidence, ...] = (),
+        *,
+        redeem: bool = True,
+        approval_id: str | None = None,
+        enqueue: bool = False,
+    ) -> Decision:
+        """Internal composition within an owned, serialized Pipeline transaction."""
+        if self.repo._at is None:
+            raise PipelineError("An owned Pipeline transaction is required")
+        action = ingest(action)
+        principal = Principal.model_validate(principal.model_dump())
+        estimate(cost)
+        at = utc(self.clock())
+        if action.action_class == "governance.memory":
+            from hirz.memory.service import Command
+
+            # Reject malformed private-memory envelopes before storing any payload.
+            Command.model_validate(action.params)
+        matched, granted, stored = await self.proposal(action, principal, cost)
+        if enqueue and matched:
+            from hirz.executor.storage import repeated, row
+
+            previous = await row(self, action.action_id)
+            if previous["lifecycle"]:
+                return await repeated(self, previous)
+        approval = await self.approval(approval_id) if redeem and approval_id else None
+        bound_press = (
+            approval["binding"].get("doorbell")
+            if approval and approval["action_id"] == action.action_id
+            else None
+        )
+        ev = await self.assess_operation(
+            stored if matched else action,
+            principal,
+            cost,
+            evidence,
+            at,
+            bound_press=bound_press,
+        )
+        if not matched:
+            ev = result(ev, EventType.DENY_APPROVAL_MISMATCH)
+        elif granted is not None:
+            if action.action_class in {
+                "governance.memory",
+                "governance.record_constraint",
+                "governance.withdraw_constraint",
+            }:
+                payload = await self.connection.scalar(
+                    sa.select(db.audit_log.c.payload).where(
+                        self.scope(db.audit_log), db.audit_log.c.seq == granted
+                    )
+                )
+                return Decision.model_validate(payload)
+            ev = result(ev, EventType.DENY_APPROVAL_USED)
+        elif redeem:
+            ev = await self.authorize(
+                ev,
+                action,
+                principal,
+                cost,
+                at,
+                approval_id,
+                approval,
+                enqueue=enqueue,
+            )
+        else:
+            if ev.decision.decision == "execute":
+                ev = await self.boundary_check(ev, at)
+            ev = await self.ask(ev, action, principal, cost, at)
+        return (
+            await self.record(ev, at) if ev.decision.audit_id is None else ev.decision
+        )
+
     async def authorize(
         self,
         ev: Evaluation,
@@ -899,6 +1094,8 @@ class Pipeline:
         at: datetime,
         approval_id: str | None,
         approval: dict[str, Any] | None,
+        *,
+        enqueue: bool = False,
     ) -> Evaluation:
         voter = None
         if ev.decision.decision == "deny" and not (
@@ -932,6 +1129,28 @@ class Pipeline:
                 return result(ev, EventType.DENY_APPROVAL_UNAUTHORIZED)
         elif ev.decision.decision == "ask":
             return await self.ask(ev, action, principal, cost, at)
+        if enqueue:
+            from hirz.executor.storage import scheduled
+
+            ev = result(ev, EventType.EXECUTE)
+            ev.decision = await scheduled(self, ev.action, ev.decision, approval_id)
+            return ev
+        if action.revert:
+            from hirz.executor.contracts import ending
+
+            end = ending(action).model_copy(update={"plan_id": None})
+            ending_evaluation = await self.assess(end, principal, Decimal(0), (), at)
+            if ending_evaluation.decision.decision in {"deny", "verify"}:
+                return result(ev, EventType.DENY_CONSTITUTION)
+            if ending_evaluation.decision.decision == "ask" and not approval:
+                return await self.ask(
+                    result(ev, EventType.ASK_CONSTITUTION), action, principal, cost, at
+                )
+            ending_evaluation = await self.boundary_check(
+                ending_evaluation, at, approval, voter
+            )
+            if ending_evaluation.decision.decision != "execute":
+                return result(ev, EventType.DENY_BOUNDARY)
         ev = await self.boundary_check(ev, at, approval, voter)
         if ev.decision.decision != "execute":
             return ev
@@ -953,7 +1172,45 @@ class Pipeline:
         )
         if approval:
             await self.status(approval, "redeemed")
-        if action.action_class.startswith("governance."):
+        from hirz.executor.plans import commit_mutation, guarded
+
+        if action.action_class in guarded:
+            await commit_mutation(self, ev.action, ev.decision, principal)
+        if action.action_class == "governance.memory":
+            from hirz.memory.service import commit as commit_memory
+
+            await commit_memory(self, ev.action, ev.decision, principal)
+        stored_execution = await self.connection.scalar(
+            sa.select(db.actions.c.lifecycle).where(
+                self.scope(db.actions), db.actions.c.action_id == action.action_id
+            )
+        )
+        if stored_execution:
+            await self.connection.execute(
+                db.actions.update()
+                .where(
+                    self.scope(db.actions), db.actions.c.action_id == action.action_id
+                )
+                .values(
+                    lifecycle=stored_execution
+                    | {"decision": ev.decision.model_dump(mode="json", by_alias=True)}
+                )
+            )
+        if stored_execution and action.revert:
+            from hirz.executor.storage import authorize_ending
+
+            await authorize_ending(self, action, ev.decision)
+        if action.action_class in {
+            "governance.record_constraint",
+            "governance.withdraw_constraint",
+        }:
+            from hirz.planner.coordinator import commit_constraint
+
+            await commit_constraint(self, ev.action, ev.decision, at, principal)
+        if action.action_class in {
+            "governance.pause_automation",
+            "governance.resume_automation",
+        }:
             paused = action.action_class.endswith("pause_automation")
             current_home = await self.repo.get("households", {})
             assert current_home is not None
@@ -983,10 +1240,15 @@ class Pipeline:
             action = ingest(action)
             decision = Decision.model_validate(decision.model_dump())
             if (
-                action.scheduled_for is not None
-                or action.target.adapter != "ha"
+                action.target.adapter not in {"ha", "twin"}
                 or action.action_class
-                not in {"environment.lights", "energy.hvac_adjust"}
+                not in {
+                    "environment.lights",
+                    "energy.hvac_adjust",
+                    "energy.ev_charge",
+                    "energy.battery_dispatch",
+                    "energy.appliance_start",
+                }
                 or decision.decision != "execute"
                 or decision.event_type != EventType.EXECUTE
                 or decision.action_id != action.action_id
@@ -1032,7 +1294,12 @@ class Pipeline:
                 Verification(self.household_id, self.audit.key.public_key()).feed(
                     dict(grant)
                 )
-                if (
+                lifecycle = row["lifecycle"] or {}
+                if lifecycle.get("ending_of"):
+                    from hirz.executor.storage import validate_ending
+
+                    await validate_ending(self, action, dict(grant))
+                elif (
                     grant["event_type"] != EventType.EXECUTE
                     or not timedelta(0)
                     <= at - grant["created_at"]
@@ -1041,6 +1308,41 @@ class Pipeline:
                     != digest(decision.model_dump(mode="json", by_alias=True))
                 ):
                     raise ValueError
+                if (
+                    (action.scheduled_for is not None and not lifecycle)
+                    or lifecycle
+                    and (
+                        row["execution_status"] != "scheduled"
+                        or at < row["due_at"]
+                        or not lifecycle.get("ending_of")
+                        and (
+                            action.expected_effect is None
+                            or at >= action.expected_effect.by
+                            or action.revert is not None
+                            and action.scheduled_for is not None
+                            and at
+                            >= action.scheduled_for
+                            + timedelta(seconds=action.revert.after_s)
+                        )
+                    )
+                ):
+                    raise ValueError
+                if lifecycle and not lifecycle.get("ending_of"):
+                    caller = Principal.model_validate(row["principal"])
+                    requester = await self.requester(caller)
+                    if requester.member_id != lifecycle["member_id"]:
+                        raise ValueError("Initiating account is no longer linked")
+                    if action.plan_id:
+                        await self.plan_authority(action, caller)
+                    expiry = await self.connection.scalar(
+                        sa.select(db.approvals.c.expires_at).where(
+                            self.scope(db.approvals),
+                            db.approvals.c.action_id == action.action_id,
+                            db.approvals.c.status == "redeemed",
+                        )
+                    )
+                    if expiry is not None and at >= expiry:
+                        raise ValueError("Approval expired before dispatch")
                 # Bindings remain authoritative even if changed since adapter startup.
                 binding = (
                     (
@@ -1048,7 +1350,7 @@ class Pipeline:
                             sa.select(db.asset_bindings).where(
                                 self.scope(db.asset_bindings),
                                 db.asset_bindings.c.attributes["adapter"].astext
-                                == "ha",
+                                == action.target.adapter,
                                 db.asset_bindings.c.attributes["entity_id"].astext
                                 == action.target.entity,
                             )
@@ -1079,7 +1381,14 @@ class Pipeline:
                         self.scope(db.actions),
                         db.actions.c.action_id == action.action_id,
                     )
-                    .values(execution_attempt_seq=seq)
+                    .values(
+                        execution_attempt_seq=seq,
+                        **(
+                            {"execution_status": "executing", "lifecycle_seq": seq}
+                            if lifecycle
+                            else {}
+                        ),
+                    )
                 )
             return seq
         except Exception:
@@ -1109,13 +1418,32 @@ class Pipeline:
                     EventType.VERIFY_FAILED,
                 }:
                     raise ValueError
-                await self.audit.append(
-                    self.connection,
-                    self.household_id,
-                    utc(self.clock()),
-                    event,
-                    {"action_id": action.action_id, "execution_attempt_seq": attempt},
-                )
+                from hirz.executor.storage import row, transition
+
+                stored = await row(self, action.action_id)
+                if stored["lifecycle"]:
+                    await transition(
+                        self,
+                        action.action_id,
+                        {
+                            EventType.EXECUTED: "dispatched",
+                            EventType.VERIFIED: "verified",
+                            EventType.VERIFY_FAILED: "failed",
+                        }[event],
+                        event,
+                        execution_attempt_seq=attempt,
+                    )
+                else:
+                    await self.audit.append(
+                        self.connection,
+                        self.household_id,
+                        utc(self.clock()),
+                        event,
+                        {
+                            "action_id": action.action_id,
+                            "execution_attempt_seq": attempt,
+                        },
+                    )
         except Exception:
             await self.connection.invalidate()
             await self.connection.rollback()

@@ -1,0 +1,19 @@
+{"profile": "comed_time_of_day", "configuration": "solar_battery_ev", "wear": 0.01, "coverage": 0.0, "stopped": ["milp", "timer", "greedy", "immediate"]}
+{"profile": "comed_time_of_day", "configuration": "ev_only", "wear": 0.01, "coverage": 0.005479452054794521, "stopped": ["milp", "timer", "immediate", "greedy"]}
+{"profile": "comed_time_of_day", "configuration": "solar_battery", "wear": 0.01, "coverage": 0.0, "stopped": ["milp", "timer", "immediate", "greedy"]}
+{"profile": "comed_hourly", "configuration": "solar_battery_ev", "wear": 0.01, "coverage": 0.0, "stopped": ["milp", "timer", "greedy", "immediate"]}
+{"profile": "comed_hourly", "configuration": "ev_only", "wear": 0.01, "coverage": 0.005479452054794521, "stopped": ["milp", "timer", "immediate", "greedy"]}
+{"profile": "comed_hourly", "configuration": "solar_battery", "wear": 0.01, "coverage": 0.0, "stopped": ["milp", "timer", "immediate", "greedy"]}
+{"profile": "comed_time_of_day", "configuration": "solar_battery_ev", "wear": 0, "coverage": 0.0, "stopped": ["milp", "timer", "greedy", "immediate"]}
+{"profile": "comed_time_of_day", "configuration": "ev_only", "wear": 0, "coverage": 0.005479452054794521, "stopped": ["milp", "timer", "immediate", "greedy"]}
+{"profile": "comed_time_of_day", "configuration": "solar_battery", "wear": 0, "coverage": 0.0, "stopped": ["milp", "timer", "immediate", "greedy"]}
+{"profile": "comed_hourly", "configuration": "solar_battery_ev", "wear": 0, "coverage": 0.0, "stopped": ["milp", "timer", "greedy", "immediate"]}
+{"profile": "comed_hourly", "configuration": "ev_only", "wear": 0, "coverage": 0.005479452054794521, "stopped": ["milp", "timer", "immediate", "greedy"]}
+{"profile": "comed_hourly", "configuration": "solar_battery", "wear": 0, "coverage": 0.0, "stopped": ["milp", "timer", "immediate", "greedy"]}
+{"profile": "comed_time_of_day", "configuration": "solar_battery_ev", "wear": 0.02, "coverage": 0.0, "stopped": ["milp", "timer", "greedy", "immediate"]}
+{"profile": "comed_time_of_day", "configuration": "ev_only", "wear": 0.02, "coverage": 0.005479452054794521, "stopped": ["milp", "timer", "immediate", "greedy"]}
+{"profile": "comed_time_of_day", "configuration": "solar_battery", "wear": 0.02, "coverage": 0.0, "stopped": ["milp", "timer", "immediate", "greedy"]}
+{"profile": "comed_hourly", "configuration": "solar_battery_ev", "wear": 0.02, "coverage": 0.0, "stopped": ["milp", "timer", "greedy", "immediate"]}
+{"profile": "comed_hourly", "configuration": "ev_only", "wear": 0.02, "coverage": 0.005479452054794521, "stopped": ["milp", "timer", "immediate", "greedy"]}
+{"profile": "comed_hourly", "configuration": "solar_battery", "wear": 0.02, "coverage": 0.0, "stopped": ["milp", "timer", "immediate", "greedy"]}
+{"offline_reproduction_matches": true}

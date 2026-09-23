@@ -411,7 +411,8 @@ check-in model per contact is supported; a no-answer event occurs at its deadlin
 These are private, time-indexed model inputs, never communication or verification
 case mutations. The parents' future courier notification remains deferred.
 
-Voice events require `member`, `text` and a nonempty `script` of known tool names.
+Observation-stage voice events require `member`, `text` and a nonempty `script` of known tool names.
+Structured internal execution calls are defined in the item 22 contract below.
 The member names a linked demo account, never an identified speaker. Scripts
 produce deferred tool entries without tool arguments, consumer speech or results.
 The supported vocabulary's remaining events require `deferred` and may carry an
@@ -453,16 +454,17 @@ Reports are not audit exports; there is no invented audit range or signature.
 
 ```
 hirz scenario run scenarios/demo-evening.yaml --speed 60            # paced terminal trace
-hirz scenario run scenarios/demo-evening.yaml --headless --assert   # item 16 observations; future checks deferred
+hirz scenario run scenarios/demo-evening.yaml --headless --assert   # internal service execution and overnight assertions
 hirz scenario step scenarios/demo-evening.yaml --to "18:40"         # pause before the unexpected visitor for recording
 ```
 
 Item 16 exports an in-memory run report with `--output NEW_FILE`, refusing overwrite.
-Persistent `scenario_runs` and genuine audit ranges remain later integration work.
+Item 22 execution additionally retains a signed audit export and private artifacts;
+no `scenario_runs` table is introduced.
 See [development](./development.md#scenario-runner-item-16) for exit codes, step
 boundaries, validator setup and verification commands.
 
-**Numbers are derived, never typed.** The demo household is on ComEd's Time-of-Day rate, whose all-in Mid-Day Peak price is several times its Overnight price, so the flexible load in the demo (about 12 kWh of EV charging, one home-battery cycle, a dishwasher, HVAC pre-conditioning) is worth dollars a night rather than cents. The assertion range in `plan_summary` is provisional until `ROADMAP.md` item 17 replaces it: the backtest script pulls a year of ComEd hourly history through the feed's date-range parameters, runs the planner on the demo loads for every day on both rate profiles, and writes the observed spread, the annualized saving per profile, the worst spike night avoided, and the hours charged at negative prices. The script and its data are kept in `scripts/` so every figure is reproducible. A reproducible number can still be a weak comparison, so the saving is measured against a timer schedule a careful household already uses, with "do everything now" and the cheapest-slots heuristic beside it, all held to the same comfort, the same energy into the car, and a battery that ends no emptier than it began. On Hourly Pricing the backtest plans from what was knowable at the time and is billed at realized prices; state carries between days; it reports a distribution, including the days on which Hirz adds little, for a home with solar, battery, and car, a home with a car only, and a home with no car; and the Time-of-Day replay before 2026-07-23 is labeled a counterfactual simulation (`ARCHITECTURE.md` §5.4). The scorecard leads with dollars (tonight, then annualized from the backtest); `peak_kwh_avoided` comes second. The `tariff.spike` event remains a twin-only test of the planner under a price spike and is never used to inflate a demo number.
+**Numbers are derived, never typed.** The evening's initial forecast assertions come from its retained signed plan record; revisions have separate remaining-horizon forecasts. Annual figures come from the historical backtest and its retained inputs in `scripts/`, never from adding revisions or annualizing the scenario. A reproducible number can still be a weak comparison, so the saving is measured against a timer schedule a careful household already uses, with "do everything now" and the cheapest-slots heuristic beside it, all held to the same comfort, the same energy into the car, and a battery that ends no emptier than it began. On Hourly Pricing the backtest plans from what was knowable at the time and is billed at realized prices; state carries between days; it reports a distribution, including the days on which Hirz adds little, for a home with solar, battery, and car, a home with a car only, and a home with no car; and the Time-of-Day replay before 2026-07-23 is labeled a counterfactual simulation (`ARCHITECTURE.md` §5.4). The scorecard leads with dollars (tonight, then annualized from the backtest); `peak_kwh_avoided` comes second. The `tariff.spike` event remains a twin-only test of the planner under a price spike and is never used to inflate a demo number.
 
 ---
 
@@ -475,3 +477,103 @@ Every observation carries `source`, one of three values. `real`: a live feed or 
 Cards show two visual states so a judge or a household can read them at a glance (`docs/design.md`): **live** (`real`) and **simulated** (`twin` and `real API, demo devices`, the more conservative reading). The full three-way source stays on every observation in the data, in the companion app's detail view, in the audit trail, and in the MCP `get_household_context` output (`data.sources`). The demo video shows the badges; honesty here is a scoring asset, not a liability.
 
 **Public demo households are simulated only.** A household created by the hosted demo's "Start demo" button (`ARCHITECTURE.md` §5.14) can bind only `twin` adapters; the registry refuses any real binding for it, and a test asserts that.
+
+### Item 17 read-only planning snapshots (2026-09-21)
+
+`planning` is an optional array of `{at, member, ev_target, expected_savings,
+expected_peak}`. Each snapshot uses the current simulated physical state, the
+linked member account, explicit supplied weather, and a horizon ending at the
+next Chicago 17:30. The two demo snapshots are 17:33 (80%) and 17:35 (50%), due
+08:00. The 22:40 kitchen request is absent from both inputs. These are hypothetical
+proposals; the observation world's EV remains uncharged and tool execution,
+approvals, audit rows and device actions remain deferred. The report has a
+separate `planning` section with canonical proposals, actions, solver status,
+comparison validity and assertions. Wall-clock timings are omitted here to keep
+scenario reports deterministic; the planner smoke records them.
+
+`energy: real` is allowed only for the rate input; physical assets still use twin
+bindings and supplied weather remains simulated. The Time-of-Day scenario checks
+production tariff validity and labels prices `real (published ComEd rate)`.
+`demo-evening-hourly.yaml` uses the 2025-10-13–14 counterpart and a pinned-2026-tariff
+counterfactual with the lagged persistence supply forecast. Its explicit
+`schedule_date_shift_days: -365` remaps seed schedule events. Both start the living
+room at 70°F, and planning weather extends to the next 17:30 from the same retained
+48-hour fixture. Successful planning/observation reports use
+`item17_planning_and_observations_passed`; the parents scenario retains its item 16
+observation status. This status does not assert that the year-long study passed.
+
+The snapshot's expected savings and peak values are derived from retained
+`../scripts/backtest-data/demo-evening*.json` reports. They replace the provisional
+planning-only assertions. The Time-of-Day execution assertions now use the item 22 signed scenario run; historical figures remain unchanged.
+
+Historical replay keeps the same once-daily proposals but applies the shared
+causal simulation controls specified in the [ADR-005 amendment](./adr/ADR-005-deterministic-planner.md#causal-historical-replay-amendment--2026-09-21).
+These controls are internal hypothetical transitions, not scenario events or
+executed Actions. Scenario forecast comparisons retain strict schedule replay;
+the baseline thermostat now prepares far enough ahead for its declared occupied
+target using the existing physical power limit. Supplied scenario weather,
+linked-account provenance, observations and execution deferrals remain intact.
+
+
+### Item 18 manual-event boundary
+
+Twin HVAC observations now include `mode: heat | cool | off` together with
+`target_f`. `scripts/smoke_coordinator.py` submits explicit current twin thermostat
+events through a linked account and Pipeline, recording both the observation and
+its two-hour `manual:device` hold atomically. The account is a submitter, not an
+identified physical actor. The planner retains target and mode, meters the held
+thermal behavior in every comparison, and emits no thermostat Action during the
+hold. Automatic HA/Link detection and `device.manual_change` scenario DSL wiring
+remain later work; item 18 does not make that future scenario event executable.
+
+### Item 22 executable contract
+
+`execution:` opts into an isolated PostgreSQL run using existing internal services.
+The main evening's committed YAML is the executable input. Hourly and parents keep
+their earlier scoped contracts. See the [approved decisions](./adr/ADR-006-twin-first-adapters.md#executable-scenarios--2026-09-22-author-approved).
+
+`execution` supplies a linked `member`, optional `plan_at`, `ev_target`,
+`ev_needed_by`, explicit seed-asset `rooms` (`bedroom` or `other`) and `responses`.
+Each response names a start/end, linked member, surface, action class, asset and
+Boolean answer. Each matching pending approval receives one visible simulated
+turn; unmatched or unresolved work cannot pass the overnight gate. Standalone
+lamp requests may remain pending for a declared `environment.lights` response.
+An affirmative response records a Pipeline vote and re-enqueues the unchanged
+request with its original linked requester and approval id; the worker still
+re-evaluates it before acting. The HA smoke declares this response explicitly
+so quiet hours can require consent without aborting the test.
+
+A structured script call uses `{tool, arguments, save_as}`. Supported internal
+calls are plan/context reads, constraint intake (`text`, optional `replaces`),
+plan consent (`plan`, `approved`), and a lamp request (`asset`, `on`, optional
+`duration_s`). Arguments are flat and validated per call. `$name` resolves a
+previous saved identifier within this run; `current` selects the current plan.
+`initial_target` identifies the explicit initial EV target. Bare tool names remain
+individually deferred. The host does not implement the public tool catalog.
+
+`bindings` maps seed asset slugs to `{adapter: twin | ha, entity: ...}`. HA requires
+`--ha-config`, current time and normal wall-clock pacing. The primary adapter
+verifies its own writes; fallback observations never verify an HA outcome.
+
+`assert.audit_sequence_includes` consumes distinct ordered signed rows, with
+optional `EVENT:class` selectors resolved through canonical Actions. `never`
+uses the same selectors (including domain wildcards). `plan_summary` maps initial
+forecast fields to `{min, max}`; it never accumulates savings across revisions.
+`ev_soc_at` maps scenario times to `{min, max}` and uses the existing numeric
+tolerance. Reports distinguish passed, failed, deferred, unchecked and not-reached.
+Only the complete evening execution and overnight outcomes earn the item 22 gate.
+
+Physics advances before service work. Required endings precede timeline entries;
+file order is preserved at equal timestamps. Current observations precede
+planning/refresh and openings; declared responses precede checks. Writes retain
+monotonic microsecond ordering; refresh runs immediately after each tick, and
+fractional bounded durations preserve exact ending times. Pacing changes wall
+waiting only. Step mode exits before target-time timeline entries. At 07:00 the
+run reports the overnight outcome without creating tomorrow's plan.
+
+`--artifacts-dir NEW_DIR` defaults to `secrets/scenario-runs/<scenario>-<unique>/`.
+The directory is private (`0700`); report, audit and PEM files are exclusive-created
+(`0600`). `--output` retains its existing exclusive-create behavior. A successful
+run verifies the full chain and exported file against the signing key's public
+fingerprint before deleting the disposable database. Failure retains its database
+and available evidence. No development migration is performed.

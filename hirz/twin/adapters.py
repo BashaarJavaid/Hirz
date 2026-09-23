@@ -50,6 +50,8 @@ class TwinAdapter:
         if ident in state.evs:
             ev = state.evs[ident]
             values = ObservationState(
+                charging=ev.charging,
+                charge_limit=ev.charge_limit,
                 soc=ev.soc,
                 plugged_in=ev.plugged_in,
                 power_kw=ev.power_kw,
@@ -63,11 +65,13 @@ class TwinAdapter:
                 if b.dispatch_kw >= 0
                 else (-power if b.soc < 1 else 0)
             )
-            values = ObservationState(soc=b.soc, power_kw=power, available=True)
+            values = ObservationState(
+                soc=b.soc, power_kw=power, dispatch_kw=b.dispatch_kw, available=True
+            )
         elif ident in state.zones:
             z = state.zones[ident]
             values = ObservationState(
-                temp_f=z.temp_f, target_f=z.target_f, available=True
+                temp_f=z.temp_f, target_f=z.target_f, mode=z.mode, available=True
             )
         elif ident in state.appliances:
             a = state.appliances[ident]

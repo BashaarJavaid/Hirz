@@ -147,3 +147,80 @@ contiguity under concurrent requests, not 100 simultaneous database writers or a
 throughput target. Signature/link checks earn only a Partial tampering claim:
 tail-and-pointer rollback, complete erasure and a compromised worker re-signing
 history remain undetectable without independently held evidence.
+
+## Constraint history amendment — 2026-09-21
+
+Migration `0006_coordinator_constraints` adds household-scoped `constraints` and
+`constraints_history` using the existing graph versioning and materialized-view
+pattern. Each record contains its canonical `PlanConstraint`, an explicitly typed
+half-open validity window, submitting member, replacement identity and signed
+Decision/record/withdrawal sequence references. Expiration is derived from time;
+expired and withdrawn evidence remains readable through the `constraints` context
+scope. Migration downgrade refuses current rows, archived rows, or constraint audit
+events. Development upgrades remain explicit and manual.
+
+Intake runs through the existing Pipeline transaction and native boundary. Grant,
+recording, replacement/withdrawal, observation version (for a manual event), signed
+append and context refresh commit together. Identical `action_id` delivery returns
+the original Decision; mismatched content or principal cannot reuse it. A failed
+signed append rolls back the entire mutation. No second transaction manager,
+cleanup process, unaudited write endpoint or plan persistence is introduced.
+
+## Durable local execution amendment — 2026-09-21
+
+Item 19 extends `actions` with due time, lifecycle state and signed evidence
+references. `0007_execution_lifecycle` adds canonical Plan JSON, household-scoped
+plan/action links, member-addressed pending notices and twin checkpoints. Every
+transition uses the existing graph transaction and audit writer. Migration is
+explicit; downgrade refuses lifecycle evidence, including orphaned audit events.
+
+A session advisory lock serializes each household sweep across processes, while
+transactions close before HA network calls. A committed claim is never cleared,
+including after a crash. Twin state and its configuration/position hash commit
+with signed effect/checkpoint evidence; restart validates that evidence and resumes
+from the committed simulated instant, excluding downtime. Rejected an in-memory
+queue, a second job service, database locks held during device calls, and resending
+an uncertain Action ID. Local recovery requires the worker and database to return;
+this does not implement Hirz Link's offline ending guarantee.
+
+## Durable refresh amendment — 2026-09-21
+
+`0008_plan_refresh` extends plans with explicit runtime/prediction inputs, requester,
+acceptance time and reservation lineage. A household/lineage primary key coalesces
+`queued`, `running`, `blocked`, `idle` and `cancelled` jobs with requested/running
+generations, reasons, attempts, retry time, fingerprints and signed audit references.
+Downgrade refuses retained refresh evidence. Pipeline-guarded lifecycle operations
+and the existing graph transaction make triggering mutations and opening holds
+atomic; there is no job-history table because the signed audit already records it.
+
+A separate session advisory lock permits one solver per household; transactions
+close during polling/computation. A second connection services authorized endings.
+Generation and input checks precede publication. Lost ownership permits restart
+recovery; cancellation waits for the solver thread before releasing ownership.
+Twin restore resumes the latest signed simulated instant, including lifecycle rows
+newer than the physical checkpoint, then advances physics from that checkpoint.
+Rejected process-local jobs, a second queue service, transactions held through
+network/solver calls, and backdating restart writes to an older checkpoint.
+
+
+## Consent-gated memory amendment — 2026-09-21
+
+Item 20 makes Postgres the durable short-term fallback with `session_turns` and
+immutable `memory_proposals` under household/member/audit foreign keys. The graph's
+existing preference rows and history remain the only planner source. Use one
+small async provider protocol with an in-process, recorded-only implementation;
+commit to Postgres before the advisory mirror. Exact household/member/surface/
+session scopes preserve the actor/session separation described by
+[AgentCore Memory organization](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/memory-organization.html).
+AWS namespace mapping and SDK calls remain item 38.
+
+The existing serialized Pipeline transaction owns recording, proposal transitions,
+preference replacement and automatic refresh holds. A proposal captures the single
+preference identity/version or absence, and acceptance checks it again. Session
+text is private; actions/audits carry identifiers and hashes. There is no second
+transaction manager, outbox, semantic index, duplicate preference-history table,
+cleanup job or automatic extraction. Provider unavailability cannot erase durable
+session reads or introduce unscoped hints. Rejected provider-first writes, raw
+transcripts in the ledger, mutable proposals, fallback to an older follow-up
+reference and unchecked last-writer-wins preference replacement. Exact limits and
+read contracts live in [architecture §5.9](../../ARCHITECTURE.md#59-memory).

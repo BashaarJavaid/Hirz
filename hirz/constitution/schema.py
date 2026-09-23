@@ -194,9 +194,33 @@ class Constitution(Model):
         )
 
     def rule(self, action_class: str, role: Role) -> Rule:
+        if action_class == "governance.memory":
+            operations = (
+                ("append_turn", "reject")
+                if self.learning.accept_memory_proposals == "never"
+                else ("append_turn", "propose", "accept", "reject")
+            )
+            allowed = " or ".join(
+                f'action.params.operation == "{op}"' for op in operations
+            )
+            return Rule(
+                mode="auto",
+                conditions=(
+                    f"({allowed})",
+                    '((action.params.operation != "accept" and action.params.operation != "reject") or requester.surface == "app")',
+                ),
+            )
         if action_class in {
             "governance.pause_automation",
             "governance.resume_automation",
+            "governance.record_constraint",
+            "governance.withdraw_constraint",
+            "governance.refresh_plan",
+            "governance.record_plan",
+            "governance.approve_plan",
+            "governance.revise_plan",
+            "governance.cancel_plan",
+            "governance.record_observations",
         }:
             return Rule(
                 mode="auto",
@@ -210,6 +234,8 @@ class Constitution(Model):
         )
 
     def role_mode(self, action_class: str, role: Role) -> Mode:
+        if action_class == "governance.resume_automation":
+            return "auto" if "adult" in self.lineage(role) else "never"
         if action_class.startswith("governance."):
             return "never" if role == "unknown" else "auto"
         rule = self.rule(action_class, role)

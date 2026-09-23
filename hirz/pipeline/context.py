@@ -63,6 +63,8 @@ def extract(
     evidence: tuple[SupplementalEvidence, ...],
     used: Decimal,
     bound_press: dict[str, Any] | None = None,
+    *,
+    required_assets: set[str] | None = None,
 ) -> Facts:
     if snapshot.stale or snapshot.scope != "all":
         raise ContextError("A complete fresh snapshot is required")
@@ -103,7 +105,9 @@ def extract(
         ):
             raise ContextError("Invalid household target")
         if aggregate:
-            required.update(assets)
+            if required_assets is not None and not required_assets <= assets.keys():
+                raise ContextError("Invalid required planning assets")
+            required.update(assets if required_assets is None else required_assets)
     elif name in {
         "communication.notify_member",
         "health.routine_reminders",

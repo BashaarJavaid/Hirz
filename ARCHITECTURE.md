@@ -145,6 +145,12 @@ stored seed policies remain **unvalidated**, with their existing hashes. There i
 no activation, public authentication, MCP mutation surface or AWS path here; item 15 adds
 the narrow local HA claim/outcome methods specified in §5.11.
 
+A Pipeline owns exactly one connection. Its private attributes `_refresh_command`,
+`_observation_batch`, `_observation_world` and `_memory_turn` carry request-scoped
+data between prepare and commit hooks. A Pipeline must therefore have one caller
+at a time and is never shared across concurrent tool calls; the MCP server
+(item 23) constructs one per request.
+
 - `evaluate(action, principal, cost=..., evidence=...)` reads current state and
   returns a Decision without writing actions, approvals, grants or audit rows.
 - `propose(...)` freezes the canonical proposal, trusted requester identity and
@@ -217,12 +223,20 @@ Reserved LOW-risk `governance.pause_automation` and `governance.resume_automatio
 ignore household overrides and pause itself. Any linked member can pause; only an app
 surface can resume. A transition versions household `autonomy_paused` (default false)
 and refreshes the context view with its Decision and AUTONOMY event in one transaction.
-Repeated requests audit the Decision without another transition event.
+Repeated pause/resume requests audit the Decision without another transition event.
+Item 18 also reserves LOW-risk `governance.record_constraint` and
+`governance.withdraw_constraint`. These mutate only constraint/observation history,
+never pause state; ownership checks, idempotency and the atomic evidence contract
+are specified in §5.5. They are internal operations, excluded from the future
+consumer device-action enum.
 
 Mutations own the transaction: graph lock first, then proposal/approval and audit
 pointer locks. Approval consumption, grant reference, reservation, graph history/view,
-and signed append commit together. The existing global graph lock is the documented
-serialization ceiling. Database/signing/audit failures return a safe fail-closed
+and signed append commit together. The graph transaction lock uses the two-key
+advisory namespace `1` and the signed first 32 bits of the household UUID, separate
+from the workers' one-key session locks; a 32-bit collision only adds serialization.
+Whole-view refresh remains in the transaction and serializes refreshes across
+households. Database/signing/audit failures return a safe fail-closed
 error and discard the connection; they never invent an audit reference. A network
 failure after the database actually commits can leave the caller uncertain; a retry
 still cannot grant twice. The smoke procedure is in
@@ -283,7 +297,7 @@ Every surface, the audit log, the explainer, and the tests use these shapes. No 
   "reason": "pre-condition living room for Mom's arrival at 19:00",
   "plan_id": "plan_01J8...",
   "scheduled_for": "2026-10-13T17:35:00-05:00",
-  "expected_effect": {"entity": "climate.living_room", "attr": "temperature", "value": 72, "by": "2026-10-13T18:45:00-05:00"},
+  "expected_effect": {"entity": "climate.living_room", "attr": "target_f", "value": 72, "by": "2026-10-13T18:45:00-05:00"},
   "content_hash": "sha256:..."
 }
 ```
@@ -291,7 +305,13 @@ Every surface, the audit log, the explainer, and the tests use these shapes. No 
 `target.zone` is an optional household-scoped zone identifier used by constitution predicates; absence/null is unknown when a zone guard needs it. The canonical Python shape is `hirz/pipeline/models.py`; item 9 supplies `Action`, `Decision`, and their evidence models.
 
 `content_hash` is `sha256:` plus SHA-256 of RFC 8785 canonical JSON containing
-exactly class, target, params and scheduled_for. Optional zone/time normalize to
+class, target, params and scheduled_for, plus `revert` only when present. The
+nonrecursive revert is `{after_s, inverse: {class, target, params}}`; `after_s`
+accepts positive finite seconds at microsecond resolution (existing integers retain
+their representation and hashes), so scheduled endings and retries do not truncate
+fractional intervals; supported
+endings keep the opening class and target. Existing unbounded hashes and omitted
+optional fields retain their previous serialization. Optional zone/time normalize to
 null; timestamps normalize to UTC, fixed microseconds and `Z`. Invalid/non-finite
 or noncanonicalizable values are refused. Requester and Decimal cost are separately
 immutable; exact money is serialized as strings.
@@ -317,10 +337,18 @@ immutable; exact money is serialized as strings.
 `decision` ∈ `execute | ask | deny | verify`. `event_type` is one canonical enum: `EXECUTE`, `ASK_CONSTITUTION`, `ASK_RISK`, `ASK_BUDGET`, `ASK_UNRESOLVED_CONDITION`, `ASK_REQUESTER_CONFIRMATION`, `DENY_CONSTITUTION`, `DENY_RISK`, `DENY_BUDGET`, `DENY_BOUNDARY`, `DENY_APPROVAL_MISMATCH`, `DENY_APPROVAL_EXPIRED`, `DENY_APPROVAL_USED`, `DENY_APPROVAL_UNAUTHORIZED`, `VERIFY`, `APPROVED`, `REJECTED`, `EXPIRED`, `EXECUTION_ATTEMPTED`, `EXECUTED`, `VERIFIED`, `VERIFY_FAILED`, `ROLLED_BACK`, `PLAN_CREATED`, `PLAN_REVISED`, `CONSTITUTION_PROPOSED`, `CONSTITUTION_ACTIVATED`, `POLICY_ERROR`, `ADAPTER_ERROR`, `LINK_REJECTED`, `OUT_OF_BAND_CHANGE`, `AUTONOMY_PAUSED`, `AUTONOMY_RESUMED`, `AUDIT_ANCHORED`, `MEMORY_PROPOSED`, `MEMORY_ACCEPTED`. `boundary.engine` ∈ `agentcore-policy | dogwood-local`.
 
 `risk` is null for pre-scoring denials; `audit_id` is null for read-only evaluation.
-Optional `budget` records local date, class, used/proposed/cap/reserved exact amounts.
+Optional `status` and `speakable` report queued/execution outcomes and are omitted
+when absent, preserving old signed evidence. Optional `budget` records local date, class, used/proposed/cap/reserved exact amounts.
 Boundary evidence includes a context hash and the result for each evaluated role.
 
 ### 4.3 Plan
+
+Canonical models now live beside `Action` and `Decision` in `hirz/pipeline/models.py`.
+Item 17 adds `household_id`, `explain`, `method`, `optimality_gap`, and
+`comparison_validity`. Unavailable savings and peak deltas are null. `Plan.actions`
+contains IDs; the read-only planner result carries the matching canonical Actions,
+provenance, diagnostics and blocking constraints. A proposal is not an approval.
+
 
 ```json
 {
@@ -342,7 +370,7 @@ Boundary evidence includes a context hash and the result for each evaluated role
 }
 ```
 
-`status` ∈ `proposed | refreshing | approved | active | superseded | completed | abandoned`. A plan is `refreshing` while a re-plan is queued or running; it can be read and cannot be approved (§5.4). A constraint's `source` is the linked account it arrived on, with the surface; `claimed_author` holds a name someone merely claimed ("Dad says...") and is shown as claimed, never as provenance (§7). The figures above are illustrative shapes, not claims; every number Hirz surfaces comes from a scenario run. `summary` leads with `estimated_savings_usd`, computed against the timer-schedule baseline (§5.4) on the household's rate plan, all-in (supply plus delivery), with the same comfort, the same energy delivered to the car, and the same final battery state; `peak_kwh_avoided` comes second. The annualized figure on the scorecard comes from the backtest (§5.4), never from multiplying one night.
+`status` ∈ `proposed | refreshing | awaiting_approval | approved | active | superseded | completed | abandoned`. A plan is `refreshing` while a re-plan is queued or running; it can be read and cannot be approved (§5.4). A constraint's `source` is the linked account it arrived on, with the surface; `claimed_author` holds a name someone merely claimed ("Dad says...") and is shown as claimed, never as provenance (§7). The figures above are illustrative shapes, not claims; every number Hirz surfaces comes from a scenario run. `summary` leads with `estimated_savings_usd`, computed against the timer-schedule baseline (§5.4) on the household's rate plan, all-in (supply plus delivery), with the same comfort, the same energy delivered to the car, and the same final battery state; `peak_kwh_avoided` comes second. The annualized figure on the scorecard comes from the backtest (§5.4), never from multiplying one night.
 
 ### 4.4 AuditEvent
 
@@ -402,7 +430,7 @@ The typed model everything reasons over. Stored in Postgres as tables plus JSONB
 
 **Read model.** `ContextService.get_household_context(household_id, scope="all", as_of=None, member_id=None, allow_stale=False)` returns a `ContextSnapshot` (`hirz/graph/context.py`). Current reads query the materialized `household_context` view; historical reads reconstruct from current/history tables in one round trip. Graph writers serialize before mutation and refresh the whole view once in the same transaction; refresh failure rolls back graph/history changes. This is the small-graph implementation, not a measured latency claim (§8).
 
-Item 6 exposes `people`, `member` (UUID required), `energy`, `environment`, and `all`; `constraints`, `plan`, and `security` summaries wait for their subsystems. Snapshots carry household scope, `as_of`, last successful `read_at`, stale status/age, policy status, and typed-validated entity data. Missing facts remain unknown. Account links and private channel/safe-word hashes are excluded by the SQL projection; channel summaries expose only method availability and verification source/time. Scoped private repository reads remain available for later identity/Protect work. Observation sources retain all three labels from `docs/twin-and-scenarios.md` §5; observation age is calculated at the requested instant, and observation time is distinct from recorded time. Future and older-than-current samples are refused.
+Item 6 exposes `people`, `member` (UUID required), `energy`, `environment`, and `all`; item 18 adds `constraints`. `plan` and `security` summaries wait for their subsystems. Snapshots carry household scope, `as_of`, last successful `read_at`, stale status/age, policy status, and typed-validated entity data. Missing facts remain unknown. Account links and private channel/safe-word hashes are excluded by the SQL projection; channel summaries expose only method availability and verification source/time. Scoped private repository reads remain available for later identity/Protect work. Observation sources retain all three labels from `docs/twin-and-scenarios.md` §5; observation age is calculated at the requested instant, and observation time is distinct from recorded time. Future and older-than-current samples are refused.
 
 The last successful current snapshot is cached per household in one service instance. `allow_stale=True` is for read-only callers only: availability failures may return that snapshot with recomputed age and stale status. No cache, historical reads, invalid inputs, missing entities, and malformed database data fail; no disk/shared cache exists. Default callers fail closed. Scalar/state freshness thresholds remain the risk engine's responsibility.
 
@@ -517,11 +545,11 @@ prevents successful initialization. A crashed risk calculation is not "low risk"
 
 Deterministic rolling-horizon scheduler ([ADR-005](./docs/adr/ADR-005-deterministic-planner.md)). No LLM anywhere in the optimization; the LLM only narrates the result (§5.8).
 
-**Formulation.** Horizon 24 h in 15-minute slots (`T = 96`). Decision variables per slot:
+**Formulation.** Horizon ends at the next local 17:30 in 15-minute slots (normally `T = 96`, 92/100 across DST), retaining partial boundary slots. Decision variables per slot:
 
 - `p_ev[t]` EV charge power ∈ [0, P_charger] (continuous; on/off binary `x_ev[t]` if the charger is not modulating)
 - `p_bat_c[t]`, `p_bat_d[t]` home battery charge/discharge ∈ [0, P_bat] with exclusivity binary
-- `h[t]` HVAC on/off per zone (binary), zone temperature `T_z[t]` from a discrete RC thermal model `T_z[t+1] = T_z[t] + Δ/C · (Q_hvac·h[t] − (T_z[t] − T_out[t])/R)`
+- `q_heat[t]`, `q_cool[t]` bounded HVAC thermal energy with a heat/cool exclusivity binary, zone temperature `T_z[t]` from a discrete RC thermal model `T_z[t+1] = T_z[t] + Δ/C · ((q_heat[t] − q_cool[t])/Δ − (T_z[t] − T_out[t])/R)`
 - `s_a[t]` appliance start binaries with fixed cycle profiles (`dishwasher`: 105 min, 1.2 kWh)
 - `g[t]` grid import ≥ 0, `e[t]` export ≥ 0 (if allowed), `peak` ≥ `g[t]` ∀t
 
@@ -531,15 +559,77 @@ Constraints: energy balance per slot; SoC dynamics with round-trip efficiency; `
 
 Solved with `scipy.optimize.milp` (HiGHS). Typical instance: ~800 variables, solves in well under a second on a laptop; a 5-second solver time limit returns the incumbent with `optimality_gap` recorded in the plan.
 
+**Item 17 implementation boundary.** `hirz/planner/` uses SciPy 1.18.0, five seconds and 0.001 relative gap; electricity plus $0.01/internal-throughput-kWh wear, with zero peak/soft-comfort penalties. Exports are solar-only, zero-valued, and exclusive with imports. Schedules replay through the existing pure EV/battery/thermal/appliance transitions; EV targets above 80% are rejected. Every accepted comparison uses absolute 0.000001 kWh and 0.0001°F tolerances. The approved workload, forecast cutoff, baseline terminal-reserve rule, tariff counterfactual and stopped-run behavior are specified in [ADR-005](./docs/adr/ADR-005-deterministic-planner.md#read-only-planner-and-historical-experiment--2026-09-21). Historical replay adds shared causal thermostat and battery protection, with requested/applied controls retained and strict replay validation afterwards; the once-daily economic schedule remains fixed. Thermal preparation uses declared occupied targets and existing power, while battery correction preserves exact terminal energy without export or a state reset ([amendment](./docs/adr/ADR-005-deterministic-planner.md#causal-historical-replay-amendment--2026-09-21)). Physical completion is reported separately from billing coverage. No endpoint, persistence, coordinator intake or execution is added.
+
 **Inputs.** One all-in price per slot (supply plus delivery) from the household's rate plan: ComEd's published Time-of-Day table, the ComEd Hourly Pricing feed (day-ahead hourly + 5-minute real-time for the current hour) with delivery added, or the twin tariff (`docs/twin-and-scenarios.md` §2.6), weather forecast (Open-Meteo hourly temperature and cloud cover → solar estimate), asset parameters from the graph, occupancy forecast from `Schedule` and presence, member constraints, comfort preferences per expected occupant (Mom's 72 °F applies to the living room while she is expected).
 
-**Outputs.** A `Plan` (§4.3) with one `Action` per scheduled change, `summary` numbers computed from the solution (savings and peak kWh avoided against three baselines simulated on the same twin and rate plan: `timer`, what a careful household already does, with the car on a timer at the start of the cheapest fixed period, the battery on default self-consumption, and appliances on delay start; `immediate`, do everything now; and `greedy`, the cheapest-slots heuristic below. The headline figure is the saving against `timer`. Every baseline is held to the same comfort bands, the same energy delivered to the car by its deadline, and a final home-battery state of charge no lower than the initial one, so a saving can never come from delivering less or leaving the battery empty), `alternatives` (the baselines and up to two constrained variants, each with cost delta and the binding constraint), and `explain.facts` for the Explainer.
+**Outputs.** A `Plan` (§4.3) with one `Action` per scheduled change, `summary` numbers computed from the solution (savings and peak kWh avoided against three baselines simulated on the same twin and rate plan: `timer`, what a careful household already does, with the car on a timer at the start of the cheapest fixed period, the battery on default self-consumption, and appliances on delay start; `immediate`, do everything now; and `greedy`, the cheapest-slots heuristic below. The headline figure is the saving against `timer`. Every baseline is held to the same comfort bands, the same energy delivered to the car by its deadline, and a final home-battery state of charge equal to the initial one, so a saving can never come from delivering less or leaving the battery empty), `alternatives` (the three baselines only, each with cost delta and the binding constraint), and `explain.facts` for the Explainer.
 
-**Backtest.** `scripts/` holds a backtest that pulls a year of ComEd hourly history through the feed's date-range parameters, runs the planner on the demo loads for every day on both ComEd rate profiles, and writes the nightly spread, the annualized saving per profile, the worst spike night avoided, and the hours charged at negative prices. The scenario assertion range, the scorecard's annualized figure, and the README table all come from its output. The backtest has no hindsight: on Hourly Pricing each day's plan is made only from what was knowable at decision time (the day-ahead prices if the feed serves their history, which item 17 checks first; otherwise a stated persistence forecast from the same hours of previous days) and is then billed at the realized hourly prices, which is how ComEd bills. Battery and car state carry from one day to the next, round-trip efficiency and the battery-wear term are included, and the output is a distribution (median, 10th and 90th percentile, and the share of days on which Hirz adds almost nothing), for three households: solar, battery, and car; car only; and no car. A year-long replay on Time-of-Day, whose full rate began on 2026-07-23, is labeled a counterfactual simulation. On Time-of-Day the windows are fixed and a timer could shift one load; the optimizer earns its place through coupling (the car's deadline, the battery, a guest's comfort band, a member's kitchen constraint) and, on Hourly, through prices that move every five minutes and sometimes go negative.
+**Backtest.** `scripts/` holds a backtest that pulls a year of ComEd hourly history through the feed's date-range parameters, runs the planner on the demo loads for every day on both ComEd rate profiles, and writes the nightly spread, the annualized saving per profile, the worst spike night avoided, and the hours charged at negative prices. The scenario assertion range, the scorecard's annualized figure, and the README table all come from its output. The backtest has no hindsight: on Hourly Pricing each day's plan is made only from what was knowable at decision time (a lagged persistence forecast from matching Chicago hours within the preceding seven days, ended at least 24 hours before the decision; day-ahead responses are archived as evidence only) and is then billed at the realized hourly prices, which is how ComEd bills. Battery and car state carry from one day to the next, round-trip efficiency and the battery-wear term are included, and the output is a distribution (median, 10th and 90th percentile, and the share of days on which Hirz adds almost nothing), for three households: solar, battery, and car; car only; and no car. A year-long replay on Time-of-Day, whose full rate began on 2026-07-23, is labeled a counterfactual simulation. On Time-of-Day the windows are fixed and a timer could shift one load; the optimizer earns its place through coupling (the car's deadline, the battery, a guest's comfort band, a member's kitchen constraint) and, on Hourly, through prices that move every five minutes and sometimes go negative.
 
-**Re-plan triggers.** New price data, weather update, calendar change, presence change, member constraint added by voice, asset state deviating from prediction by more than a threshold, constitution change, and a member's explicit "change" request. Re-planning produces a new plan version that `supersedes` the previous one; already-executed actions are kept; pending approvals for actions whose `content_hash` changed are expired with `PLAN_REVISED`.
+**Re-plan triggers.** New price data, weather update, calendar change, presence change, member constraint added by voice, asset state deviating from prediction by more than a threshold, constitution change, and a member's explicit "change" request. Re-planning produces a new plan version that `supersedes` the previous one; already-executed actions are kept; all unstarted predecessor approvals expire; replacement actions receive fresh IDs and device evaluation.
 
-**Latency posture.** The planner never runs inside an MCP tool call. `get_household_plan` returns the current plan if it is fresh (< 5 min and no trigger since), otherwise returns the last plan with `status: "refreshing"` and a `speakable` that says a fresh plan is seconds away, and enqueues a re-plan. A tiny greedy heuristic (`planner/heuristic.py`: charge cheapest slots first, respect deadlines) produces a plan in under 50 ms for cold starts and is labeled as such. A revision by voice follows the same rule: `revise_household_plan` records the constraint, marks the plan `refreshing`, enqueues the re-plan, and speaks the constraint, which is certain ("Got it, the car stops at 50. I'm updating the plan."), never a savings figure that has not been computed. The card re-fetches when the new version lands (about a second later); a voice-only member hears the new plan the next time they ask. `approve_action` refuses a `refreshing` plan ("Still updating, one moment"), so nobody approves a cached plan as though it held the change they just asked for.
+**Latency posture.** The planner never runs inside an MCP tool call. `get_household_plan` returns the current plan if it is fresh (complete runtime inputs, an idle refresh job and no fingerprint change since acceptance); age alone does not invalidate it. Reads return the last plan with `status: "refreshing"` only when its job is queued, running or blocked, with a `speakable` that labels it as a historical reference while an update is pending. A tiny greedy heuristic (`planner/heuristic.py`: charge cheapest slots first, respect deadlines) produces a plan in under 50 ms for cold starts and is labeled as such. A revision by voice follows the same rule: `revise_household_plan` records the constraint, marks the plan `refreshing`, enqueues the re-plan, and speaks the constraint, which is certain ("Got it, the car stops at 50. I'm updating the plan."), never a savings figure that has not been computed. The card re-fetches when a new version lands; a voice-only member hears the new plan the next time they ask. `approve_action` refuses a refreshing or blocked plan without promising a completion time, so nobody approves a cached plan as though it held the change they just asked for.
+
+**Implemented refresh contract (item 19a).** Internal `PlanService` accepts validated
+`RuntimeInputs` on record/revise and exposes `request_refresh`, `update_inputs`,
+and `read_current`. Canonical Plan/Action/Decision shapes remain unchanged. Migration
+`0008_plan_refresh` stores input/prediction evidence, reservation lineage and one
+coalescing job per household/lineage. The signed audit is its transition history.
+Input mutation, invalidation and the opening hold commit together. Legacy proposals
+remain readable but require complete replacement inputs before further openings.
+
+The local worker polls configured twin facts/feeds and HA thermostats before new
+openings. It detects changed inputs, policy, presence, unexpected device state,
+manual holds and recovery; known tariff periods and constraint/calendar crossings
+are already scheduled by the solver, while changed feed content and window rows
+still trigger refresh. Freshness is change-based, independent of plan age
+([amendment](./docs/adr/ADR-005-deterministic-planner.md#change-based-freshness--2026-09-22-author-approved)).
+Observations and feeds are still polled every tick, and `replanning.outstanding()`
+retains its 300-second maximum observation age. Prediction thresholds are strict
+per-asset defaults of >1°F, >0.02 SoC and >0.25 kW; discrete control/availability
+changes are immediate when unexplained. Prediction advances existing physics from
+the snapshot using only controls verified in each action's own lifecycle, from
+that instant for its asset; scheduled or held controls leave applied controls in
+force. A sample at the dispatch instant predates the write. Detection and
+execution-authority checks share the same owned-control compensation, so the
+plan's own verified dispatches preserve freshness. Appliance starts own `on=true`
+and their expected cycle completion. At an
+EV action's charge ceiling within 0.0001 SoC observation precision, either adjacent
+power state is expected without widening drift thresholds. First control samples
+establish a baseline. Verified durable dispatch evidence explains Hirz's changes;
+unmatched thermostat changes create a
+two-hour `manual:device` hold with physical actor unknown. Upstream timestamps and
+catalog freshness remain authoritative.
+
+A separate connection and household session lock own refresh. Polling and a solver
+thread do not overlap; short transactions snapshot inputs and recheck generation,
+current lineage, policy, inputs and linked authority before atomic publication.
+An expired replacement opening requeues computation before publication, without a
+member notice. Consent received after an opening expires stands: the opening is
+audited as skipped (`expired before consent`), remaining work is scheduled, and a
+non-explicit refresh inherits consent (`consent arrived after scheduled changes`).
+An opening expiring after consent retains the existing worker-lag notice.
+Endings continue through the executor connection. Restart reclaims abandoned running
+jobs after lock loss. Transient failures retry after 5/30/60/300 seconds (300 cap),
+ending at the approved horizon; conflicts wait for relevant input change or an
+explicit request. Twins use committed simulation time; HA-only runs use UTC wall
+time; timeouts use elapsed time. `--once` handles the ready batch and due endings,
+then one execution sweep, without waiting for future retries.
+
+Automatic replacements inherit the original approver; explicit requests take
+precedence and require fresh consent. Unapproved plans remain unapproved. Current
+device rules, quorum and TTL still apply, and exhausted operations require an
+explicit member retry. Original horizon/terminal obligations, delivered EV energy,
+completed/running appliance work and immutable bounded endings constrain the
+remaining workload. HA uses observed heat/cool mode, setpoint-only writes and
+advertised limits/increments. Required missing facts hold the plan without twin
+substitution. Every baseline shares the remaining state and commitments; savings
+are remaining-horizon estimates, never accumulated across revisions. A blocked
+read returns a labeled historical Plan with invalid comparisons and null savings
+and peak claims; pending notices are deduplicated by reason and claim no delivery.
+See [ADR-005](./docs/adr/ADR-005-deterministic-planner.md#durable-refresh-amendment--2026-09-21)
+and [budget accounting](./docs/constitution.md#24-budgets-and-bounds).
 
 ### 5.5 Coordinator
 
@@ -548,8 +638,71 @@ Turns member requests and household facts into constraints and detects conflicts
 - **Constraint intake.** Voice ("don't run the dishwasher until I'm done in the kitchen at eleven") arrives as `revise_household_plan` with a scope, a kind, and a time window. The Coordinator normalizes it to an encoded constraint and attaches its provenance: the linked account it arrived on and the surface, plus `claimed_author` when the sentence names someone else. Alexa does not say who spoke (§7), so "Dad" in the plan means Dad's linked account; the same sentence spoken on Malik's account is shown as "Malik's Echo (said to be from Dad)".
 - **Manual changes are constraints.** When a comfort device changes without a command from Hirz (someone turned the thermostat by hand, §5.17), the Coordinator records a `manual_hold` constraint on that device for a default of two hours, with source `manual:device`, and the planner works around it instead of overwriting it. The hold appears in the plan like any other constraint and can be lifted by voice.
 - **Conflict detection.** Pairwise checks between constraints and goals: infeasible windows (EV deadline unreachable at charger power), contradictory preferences (two expected occupants with disjoint comfort bands in one zone), and constitution collisions (a request that would need an action the constitution marks `never`). Conflicts are returned as data with a suggested resolution and the members involved, never silently dropped. If the solver still reports the problem infeasible, no heuristic can satisfy hard constraints that contradict each other, so the worker keeps the last feasible plan, finds the blocking constraint by re-solving without each member constraint in turn, newest first, and asks for that specific relaxation ("The car can't reach 80 by 6 if it may not charge before 2. Which one gives?").
-- **Quorum and precedence.** The constitution's `escalation.quorum` says who can approve which classes (`any_adult`, `owner`, `all_adults`). For comfort conflicts, precedence is: safety bounds → the member physically present → the member expected soonest → household default. The rule is written down so the Explainer can cite it.
+- **Quorum and precedence.** The constitution's per-class `Rule.quorum` says who can approve which classes (`any_adult`, `owner`, `all_adults`). For comfort conflicts, precedence is: safety bounds → the member physically present → the member expected soonest → household default. The rule is written down so the Explainer can cite it.
 - **Multi-member truth.** The Coordinator never merges two members' constraints into one; each keeps its owner, so "Dad: the kitchen is busy until 11" is attributable, to an account, in the audit trail and the plan explanation.
+
+**Item 18 implementation.** `hirz/planner/coordinator.py` exposes `Coordinator.intake`
+and authenticated `Coordinator.plan`; the pure `coordinate` function receives a
+current complete household snapshot and explicit planner workload. Only constraints
+and manual observations persist. Plans, refresh jobs, execution, automatic HA
+change detection, MCP, UI and full scenario wiring remain later work. Local policy
+bundles remain validated but unactivated; this does not implement policy activation.
+
+Intake accepts English digits/number words through ninety-nine, Fahrenheit, explicit
+AM/PM or 24-hour local times, and explicit ISO dates with a valid household UTC
+offset for DST clarification. It resolves exact household names first, with car/EV
+and kitchen/dishwasher aliases. Examples: `car target to fifty`, `don't charge car
+past 50`, `don't charge car before 21:00`, `car deadline at 8 am`, `kitchen in use
+until 23:00`, `dishwasher deadline at 7 am`, `prefer living room at 72 F`, and
+`keep living room between 68 and 74 F`. Temperature requests may append `until
+TIME`; a target may append `by TIME`. Unqualified requests expire at the supplied
+current horizon's end (at most 25 hours). There is no recurring grammar. Ambiguous
+names, unsupported clauses, dates, missing AM/PM and DST gaps/folds create no
+mutation. The demo explicitly clarifies “eleven” to 23:00.
+
+An optional `Name says …` is `claimed_author` only. The canonical `PlanConstraint`
+now also carries `member_id` for the authenticated submitter, including a hold whose
+source must remain `manual:device`. Each durable record references the household,
+asset, member, request Action, grant Decision and signed recording/withdrawal rows.
+`change …` requires a unique active request of the same kind and device owned by
+that member; an explicit constraint UUID can identify a replacement or withdrawal.
+Members may withdraw their own requests, owners may withdraw any request, and any
+linked member may release a hold. A reduced claimed role never grants owner powers.
+Replacement withdraws and records in one transaction. Conflicting requests stay
+stored. Retry of identical `action_id`/content/principal returns the original signed
+Decision without another mutation; other reuse is refused. The `constraints`
+context scope retains expired and withdrawn records and supports historical reads.
+
+Coordination reports structured requirements, affected members and a specific
+proposed relaxation. Ceilings do not lower EV targets. Incompatible targets/bands,
+unreachable EV deadlines, impossible appliance windows and known constitution
+restrictions produce conflicts; residual MILP infeasibility uses newest-first
+removal probes with a rebuilt workload. No proposed relaxation is applied. The
+previous feasible Plan may be returned only as a labeled reference, with no new
+Actions, authority or saving claim. Per-class quorum/channels/TTL/eligible roles are
+reported from the existing evaluator; Pipeline owns all voting.
+
+Hard requirements survive comfort precedence. Soft requests rank fresh **zone**
+presence, then earliest explicit arrival into that zone within the request window,
+with the household target filling windows without a selected request. Household-only,
+stale, absent or unknown presence gives no request priority. Equal-ranked differing targets
+conflict; compatible requests retain separate provenance. Selected targets minimize
+sum of slot hours × absolute predicted ending-temperature deviation, with equal
+zone weights. Cost/wear refinement follows under the same five-second solver budget.
+Diagnostics and Plan explanation disclose unfinished optimization/refinement.
+
+A manual event must be a current explicit twin thermostat observation, with target
+and mode. The linked account is its submitter; the physical actor is unknown. The
+hold runs on `[observed_at, observed_at + 2 hours)`, renewal restarts it, and explicit
+release ends it. Constraint boundaries split slots while retaining quarter-hour
+forecast values. MILP, baselines and replay share the effective windows and held
+thermal behavior, including its energy. No thermostat adjustment is emitted inside
+a hold, including an unsafe hold: safety/hard-band disagreement produces a conflict.
+Expired or released holds impose no subsequent planning restriction.
+
+Persistence and authorization decisions: [ADR-002](./docs/adr/ADR-002-postgres-over-dynamodb.md#constraint-history-amendment--2026-09-21),
+[ADR-003](./docs/adr/ADR-003-constitution-yaml-to-cedar.md#constraint-intake-permissions-amendment--2026-09-21),
+and [ADR-005](./docs/adr/ADR-005-deterministic-planner.md#coordinator-amendment--2026-09-21).
 
 ### 5.6 Executor and Scheduler
 
@@ -565,6 +718,46 @@ A scheduled action carries `requested_by` of its plan approver with `surface: sc
 - **Immediate actions are asynchronous.** A tool that acts ("charge the car now", approving a plan, applying a profile) runs stages 1–6 inside the call and, on `execute`, writes the action as `scheduled` for now; the worker's sweep picks it up within seconds, runs stage 7 through the Gateway, executes, and verifies. The tool returns the Decision with `status: executing` and a `speakable` that says so without promising an outcome the boundary has not yet allowed ("I'm starting the charge. I'll tell you on your phone if it doesn't go through."); the outcome (`EXECUTED`, `VERIFIED`, or `VERIFY_FAILED`) appears in the audit ledger, in the plan card, in `get_action_audit`, and as a push notification. No tool call ever waits on the Gateway, an adapter, or a third-party network.
 - **Deadlines.** An executing action has a class-specific deadline (device call 10 s, EV command 30 s). Timeout → `ADAPTER_ERROR`, state re-read, plan revision if needed.
 
+**Implemented local contract (item 19).** `Pipeline.enqueue(Action, Principal)` is
+the internal act handler; consumer enums and MCP remain Phase 4. It returns
+`status: executing` and “Your request is queued.” after stages 1–6 without calling
+a boundary, adapter, solver or model. Queued requests require an explicit
+`expected_effect.by`; immediate unbounded work may omit `scheduled_for`. The
+worker reloads the selected local policy, identity, observations, approval and
+budget before stage 7 and the durable dispatch claim. Command-state verification
+checks setpoint/control state, never future temperature or delivered EV energy.
+
+`PlanService.record/approve/revise/cancel` commits governance decisions and canonical
+plans. Plan consent and the separate electricity-plus-wear budget grant do not
+replace device rules, quorum or approval TTL. Explicit revisions need fresh consent;
+autonomous replacements retain the prior approver. A held plan becomes `refreshing`
+and queues durable refresh under item 19a;
+notifications here are pending member-addressed records, without delivery claims.
+
+`Executor.sweep/rollback` uses a household session lock and closes transactions
+during HA calls. Exact bounded endings are persisted before dispatch and survive
+pause, cancellation, revision and policy changes. They run before due openings,
+under their original operation grant, with distinct durable claims and read-back.
+Late starts shorten intervals; expired openings are skipped, overdue endings retained.
+Reversible failures may retry once through a fresh Action; uncertain originals are
+never resent. Ordinary rollback uses a captured inverse through current policy.
+
+`0007_execution_lifecycle` adds action scheduling/recovery fields, `plans`,
+`plan_actions`, `pending_notifications` and `twin_checkpoints`. All keys and audit
+references are household scoped. Twin physical/control state and committed simulated
+time have signed checkpoint evidence; configuration mismatch is refused. Local
+recovery depends on the worker and database returning. AWS/Link and physical safety
+claims remain pending. Procedures: [local execution](./docs/development.md#item-19-durable-local-execution).
+
+Item 22 adds `awaiting_approval`: a pending planned-device ASK pauses unstarted
+work while preserving its approval and authorized endings. Internal
+`PlanService.respond_to_action` votes through Pipeline, then checks the original
+plan/action, accepted inputs, policy, linked identities, quorum, TTL and execution
+window before audited rescheduling. It preserves the scheduler approver and does
+not extend freshness, issue a grant or substitute plan consent for device approval.
+The worker still evaluates the boundary at dispatch. See the
+[approval amendment](./docs/adr/ADR-005-deterministic-planner.md#planned-device-approval-resumption--2026-09-22-author-approved).
+
 ### 5.7 Protect
 
 The trust layer. Two halves: gating physical actions (through the pipeline like everything else, with `guest_present`, `unknown_requester` factors and the constitution's security domain) and **request verification**, which is the household-graph capability that answers "is this really Dad?" from verified records instead of from the caller.
@@ -579,7 +772,32 @@ The trust layer. Two halves: gating physical actions (through the pipeline like 
 
 ### 5.8 Explainer
 
-Turns structured facts into narration *data*, never speech. Input: a `Plan` or `Decision` with `explain.facts`, `considered`, `rejected`, the constitution rule, and the risk factors. Output: `speakable` (headline ≤ 2 sentences, details ≤ 3 bullets, options ≤ 5) and a screen summary. Bedrock Claude Haiku 4.5 by default; Sonnet 5 for constitution drafting. Constraints enforced in code, not by prompt: outputs are schema-validated; numbers in the output must appear in the input facts (a regex-and-set check rejects invented figures); no internal IDs. Explanations are generated when the plan or decision is created and cached by content hash, so no tool call waits on a model. `HIRZ_LLM=off` uses templates that produce grammatically plain but correct narration.
+`hirz/explainer/` narrates canonical Plans and Decisions without changing their
+execution fields. `core.py` selects and formats trusted facts, supplies validated
+templates, checks complete approved numeric forms, and validates persisted reuse.
+`bedrock.py` implements the same async interface with lazy Converse calls in a
+thread. Code owns headlines, options and source labels; the provider supplies only
+explanatory details and screen text. Raw utterances, private memory and contact
+channels are excluded. A valid figure can still be used in the wrong context;
+validation does not establish narrative truth.
+
+The optional canonical `narration` field stores `input_hash`, `version`, `provider`,
+`model_id`, `screen_summary` and `fallback_reason`; legacy objects omit it. Existing
+audited writes store narration without migrations. The pure planner and immediate
+Decision paths use templates. Coordinator and RefreshWorker allow explicit async
+enrichment outside transactions; refresh freshness checks run afterwards.
+Publication validates prepared narration or supplies templates. Reads reuse valid
+stored output, including fallback, and supply current templates for changed status
+or facts without writing narration or calling Bedrock. Historical signed payloads
+remain untouched. Planning estimates are labeled simulated; real execution labels
+require matching real observation provenance, otherwise display remains simulated.
+
+`HIRZ_LLM=off` is the default; `bedrock` uses the fixed approved Haiku US inference
+profile. Invalid configuration raises an error. Local SDK stubs exercise the native
+JSON-schema contract; live Bedrock remains item 38. Full validation limits, provider
+settings, privacy selection and rejected alternatives are in
+[ADR-012](./docs/adr/ADR-012-explainer.md); run procedures are in
+[development](./docs/development.md#item-21-explainer).
 
 ### 5.9 Memory
 
@@ -588,6 +806,72 @@ Two stores with a clear split:
 - **Postgres is the graph of record.** Anything Hirz acts on (roles, trusted channels, asset policies, constitution) lives here, typed and versioned. It is never written by a model.
 - **AgentCore Memory is the conversational and preference memory.** Short-term: per-session turns so multi-turn planning ("make it 50 instead") resolves against the right plan. Long-term with the user-preference and semantic strategies, namespaced per household and per member: "Mom prefers the living room warmer", "Malik doesn't drive on Wednesdays". Locally, an in-process store with the same interface.
 - **Remember is consent-gated.** Extracted preferences arrive as `MEMORY_PROPOSED` audit rows and companion-app cards ("Hirz noticed you usually skip the car on Wednesdays. Remember that?"). Only accepted proposals are written to the graph (`source: learned_accepted`). The planner uses graph preferences only. A proposal that has not been accepted is never planner input; an explanation may say that a proposal is waiting in the app.
+
+**Item 20 local contract.** `hirz.memory.service.MemoryService` accepts trusted
+internal `Principal` objects. Public authentication and companion consent screens
+remain later work. `record_turn`, `propose` and `review` return the canonical
+`Decision` with a typed `Turn` or `Proposal`; a refusal has no returned record.
+`turns`, `proposals`, `hints` and `resolve` are scoped reads, with no audit mutation.
+There is no public memory CLI, extraction model, semantic search or AWS dependency.
+
+Postgres `session_turns` keys conversations by household, linked member, surface
+and opaque session ID (1–256 characters), orders turns by a session-local sequence,
+and stores user/assistant text (1–8,000 characters). Each turn may explicitly name
+one Plan, Action and VerificationCase. Reads use an exclusive sequence cursor,
+default 50 and maximum 100 records; proposal pagination uses its recording audit
+sequence. There is no automatic expiration or cleanup. Transcript text stays in
+private session storage; the governance Action carries a content hash, and its
+signed Decision is the turn's audit reference. It never enters graph context,
+planner inputs, action parameters or exported audit payloads.
+
+The async provider contract appends/lists turns and lists recorded hints for the
+exact `Session` scope. Postgres commits first. Provider failures leave durable
+session reads available and hints absent; returned hints are scope-checked again.
+The in-process provider extracts nothing, and a fresh provider can start empty.
+The separation follows AgentCore's actor/session/namespace organization, not its
+unimplemented cloud API ([ADR-002](./docs/adr/ADR-002-postgres-over-dynamodb.md#consent-gated-memory-amendment--2026-09-21)).
+
+Follow-ups resolve the latest explicit reference of the requested kind in exactly
+that conversation. The object must still belong to this household and be current:
+terminal/held actions, ended or refreshing/superseded plans, missing objects and
+unavailable VerificationCases require clarification. A later unusable reference
+never falls back to an older one. These identifiers carry no execution or approval
+authority. Verification-case resolution stays unavailable until Protect exists.
+
+Proposals accept only a typed member-scoped `temperature_target_f` and confidence.
+They bind immutable source-turn evidence to that turn's linked member and to the
+single current graph preference identity/version, or its absence. Another member's
+name in a transcript has no effect. The subject alone may accept/reject through an
+app principal, including non-owner roles; there is no added passkey requirement.
+Proposal states are `pending`, `accepted`, `rejected`, with no editing or expiry.
+Acceptance writes `source: learned_accepted` through the existing versioned graph
+repository. Duplicate rows or stale expected versions are refused; a stale proposal
+needs a new proposal. Terminal transitions serialize with the existing graph lock.
+Identical mutation-ID/content/principal retries return the original Decision;
+changed retries cannot mutate anything again. Session recording, proposal events,
+acceptance history and refresh holds commit with signed audit evidence or roll back
+together. Learning-disabled and native-policy rules are in
+[the constitution contract](./docs/constitution.md#item-20-internal-memory-permissions--2026-09-21).
+
+Only declared and accepted graph preferences enter the Coordinator. A member's
+explicit temperature request/band for the same room/window takes precedence over
+that member's graph preference. Room evidence comes from available fresh zone
+presence, ending at its 300-second deadline, or an arrival's
+`[expected_at, ends_at)` window. Fresh presence elsewhere suppresses the arrival;
+conflicting current rooms or overlapping arrival rooms require clarification.
+Absent room evidence supplies no preference. Evidence and request boundaries split
+slots; physically-present/soonest-expected selection, conflict reporting, hard
+comfort bands, manual holds and existing bounded controls remain in force.
+Derived `PreferenceWindow` inputs contain real preference identity/version and
+member provenance, without fabricating durable constraints or audit rows.
+
+Acceptance atomically queues automatic refresh and holds obsolete unstarted work.
+Proposing/rejecting/reading never queues it. Refresh fingerprints include graph
+preferences, and each recomputation reconstructs room/time evidence. Coordinated
+zones retain baseline temperatures so an obsolete preference cannot become the
+fallback on refresh. Pending proposals, private turns and advisory hints never
+enter the workload. Automatic replacement preserves the approver and still requires
+fresh device-level Pipeline authorization; memory consent grants no device rights.
 
 ### 5.10 Audit Ledger
 
@@ -845,7 +1129,7 @@ FastAPI companion API (served by the `worker` role, separate router, session aut
 
 **Hosted demo.** During the judging window the worker serves the web app publicly. A "Start demo" button seeds a fresh throwaway household from the demo seed with a temporary login and a 24-hour lifetime, so judges cannot trample each other. Two safety rules: a demo household can bind only `twin` adapters (the registry refuses anything else for it, so nobody on the internet reaches Hirz Link or the real plug, and a test asserts it), and the emulator's Bedrock calls are rate-limited per visitor under the budget alarm with the scripted host as fallback.
 
-**Pause.** Any member can pause Hirz, by voice ("Alexa, pause Hirz", the `pause_automation` action) or with the switch on Tonight. While paused, every `auto` rule is treated as `ask` (pipeline stage 4), so Hirz does nothing on its own; endings already owed (a relock) still run. Pausing only makes Hirz more cautious, so a voice may do it; resuming is done in the app. It is a mode, not a rule change, and is audited as `AUTONOMY_PAUSED` and `AUTONOMY_RESUMED`.
+**Pause.** Any member can pause Hirz, by voice ("Alexa, pause Hirz", the `pause_automation` action) or with the switch on Tonight. While paused, every `auto` rule is treated as `ask` (pipeline stage 4), so Hirz does nothing on its own; endings already owed (a relock) still run. Pausing only makes Hirz more cautious, so a voice may do it; resuming requires an adult-lineage member in the app. It is a mode, not a rule change, and is audited as `AUTONOMY_PAUSED` and `AUTONOMY_RESUMED`.
 
 Accessibility is a requirement: the app is keyboard-complete with screen-reader labels, and every action can be started by voice through Alexa. Two things deliberately cannot be finished by voice, a security approval and a rule activation (§7); both finish in the app, so those two screens are held to the same accessibility bar as the rest.
 
@@ -925,11 +1209,12 @@ specified in §6.2.
 | `schedules`, `schedule_events`, `routines`, `preferences` | Graph: time and preferences |
 | `observations` | Latest state per entity with source and freshness; history in `observation_history` (daily partitioning deferred by the item 6 ADR-002 amendment) |
 | `constitution_versions` (yaml, compiled_cedar, hash, analysis_report, activated_at), `constitution_proposals` (sentence, proposed_by, surface, drafted_patch, status) | Constitution history and rules proposed by voice |
-| `plans`, `plan_actions`, `plan_constraints`, `plan_alternatives` | Plans |
+| `constraints`, `constraints_history` | Item 18 member requirements, explicit validity windows, withdrawal/replacement and signed Decision/audit references |
+| `plans`, `plan_actions`, `plan_constraints`, `plan_alternatives` | Plans (persistence deferred) |
 | `actions`, `action_transitions` | Executor lifecycle |
 | `approvals`, `approval_votes` (household/action binding, expiry, state and distinct member votes; §6.2) | Ask outcomes |
 | `verification_cases`, `verification_signals` | Protect |
-| `memory_proposals` | Consent-gated learning |
+| `session_turns`, `memory_proposals` | Private session context and consent-gated learning (item 20) |
 | `audit_log` (+ `audit_pointer`), `audit_anchors` (seq, curr_hash, object key, anchored_at) | Hash chain and its external anchors |
 | `link_agents` (household, credential hash, last_seen), `link_commands` (signed envelope, nonce, status) | Hirz Link registration and the signed-command outbox |
 | `scenarios`, `scenario_runs` | Twin |
@@ -1036,8 +1321,8 @@ Things that never run inside a tool call: the MILP planner, Bedrock calls, the G
 | AgentCore Policy / local Dogwood evaluator unreachable or errors | **Fail closed** (`DENY_BOUNDARY`) | Boundary redundancy is the guarantee; treating "couldn't check" as "allowed" would void it |
 | Risk Engine exception | Treated as CRITICAL | A crashed risk calculation is not low risk |
 | Constitution unresolvable condition | Whole condition not satisfied → ASK plus `POLICY_ERROR`; approval cannot authorize until resolved; hard-guard failure → never | Authoring bugs surface as questions, never as silent grants or silent denials |
-| Planner solver timeout | Return incumbent with `optimality_gap` | A worse plan the household can see beats no plan |
-| Planner problem infeasible | Keep the last feasible plan; find the blocking member constraint by re-solving without each in turn; ask for that specific relaxation (§5.5) | A heuristic cannot satisfy hard constraints that contradict each other; the household has to choose |
+| Planner solver timeout | Return incumbent with `optimality_gap` | Only a validated incumbent is usable; greedy is allowed without an incumbent, never for proven infeasibility |
+| Planner problem infeasible | Keep the last feasible plan only as a labeled reference; probe newest-first constraint removal; do not claim new savings or silently relax (§5.5) | A heuristic cannot satisfy hard constraints that contradict each other; the household has to choose |
 | Bedrock unavailable | Template explanations (`HIRZ_LLM=off` path), Protect falls back to keyword signal extraction and says recall is reduced | Narration and signal extraction are enhancements; the decisions do not depend on them |
 | AgentCore Memory unavailable | Short-term memory falls back to Postgres session table; long-term hints absent | Memory is advisory to the planner |
 | Adapter (real) unreachable | That domain reports `unavailable`; plan revises without it; scheduled actions for it are held with a notification | Availability, not security; isolated per domain |
@@ -1095,7 +1380,7 @@ Things that never run inside a tool call: the MILP planner, Bedrock calls, the G
 - **Design.** Playwright snapshots of the five cards at 768×480 in light and dark; an inline card has at most three rows and one primary action.
 - **UX conformance.** For every tool: `speakable` present, options ≤ 5, no internal IDs or JSON fragments in consumer strings, response length under a 30-second speech estimate; the simulator in voice-only mode completes the demo evening without any screen-only step.
 - **Latency.** Warm p95 per tool over the scenario corpus under the §8 budget; Runtime cold-start time measured and reported separately. A fast acknowledgment is not a responsive product, so three whole-interaction times are also measured and reported: request to accurate acknowledgment, request to verified device outcome, and request to an understandable failure.
-- **Coverage gate.** `--cov-fail-under=80` for Python; `vitest` for TypeScript units; Playwright for the companion app and simulator flows.
+- **Coverage gate.** 80 percent over service-free and integration tests combined for Python (`coverage report --fail-under=80`); `vitest` for TypeScript units; Playwright for the companion app and simulator flows.
 
 ---
 
@@ -1108,12 +1393,16 @@ locked toolchain. Jobs are independent; superseded runs of the same event/ref
 are cancelled. Dependency/Docker caches and artifact uploads are disabled.
 
 Active checks are Ruff, strict mypy over `hirz/`, `scripts/`, and `alembic/`,
-service-free pytest with the 80% gate, both workspaces' lint/types/Vitest, Python
+pytest with 80 percent over service-free and integration tests combined, both
+workspaces' lint/types/Vitest, Python
 sdist/wheel and fresh-wheel smoke checks, and Docker build/non-root verification.
 `python-test` reuses the existing initializer and Compose stack on a disposable
 runner: PostgreSQL and HA demo onboarding, Hirz readiness, explicit migrations,
 schema-drift check, doctor, authenticated service checks, and live PostgreSQL
-tests. Cleanup removes only that run's resources and generated `.env`.
+tests. On that same runner, service-free tests collect coverage first, integration
+tests append with `--cov=hirz --cov-append`, then `uv run --locked coverage report
+--fail-under=80` enforces the combined gate. Cleanup removes only that run's resources
+and generated `.env`.
 
 The scenario job now runs both item 16 offline observation assertion commands
 with native Dogwood and lists the deferred full-demo expectations. The Cedar

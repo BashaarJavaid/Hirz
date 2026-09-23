@@ -656,3 +656,315 @@ never connect to PostgreSQL. For a wheel smoke, install the wheel into a tempora
 venv, leave the checkout, and pass an absolute path to a scenario file (its relative
 household/patch references still resolve from that file). Scenario fixtures are
 repository inputs, not bundled runtime assets.
+
+## Item 17 planner and backtest
+
+The planner is a read-only Python API: `hirz.planner.service.plan(PlannerInput)`.
+Its proposed Actions confer no execution authority. Run from the repository root:
+
+```sh
+uv sync --locked
+uv run python scripts/smoke_planner.py
+uv run python scripts/smoke_planner.py --live-weather
+uv run python scripts/backtest.py
+uv run python scripts/backtest.py --verify
+```
+
+The smoke separates SciPy import/cold timing, solve timing, and greedy proposal
+timing. `--live-weather` reads the existing Open-Meteo adapter and is explicitly
+excluded from historical figures. Smoke exits nonzero if a plan or either latency
+gate fails. The study replays retained inputs offline by default. Replications run
+sequentially so other study solves and artifact compression do not compete with
+the five-second solver budget. `--fetch` is the
+explicit public-network operation: archive day-ahead and five-minute responses
+sequentially, including lookback and ending coverage, and fetch archived weather.
+It resumes existing checksummed downloads without refreshing them. A network
+failure leaves completed responses and their manifest intact. `--start` and
+`--end` accept ISO dates; `--output` selects a generated-artifact directory.
+
+`results.json` is the readable metrics/final-state summary; `results.json.gz`
+retains the full daily record, selected forecast timestamps, comparison exclusions,
+requested schedules, applied controls and their segment boundaries. `daily.csv`,
+`readme-table.md` and `workload.json` are derived artifacts. Study exit 1 means a
+strategy failed to complete the requested physical horizon; inspect `stopped` and
+`physical_days`. Missing billing quotes alone exclude savings for that day and
+reduce eligible/total coverage, without resetting state or failing physical
+completion. Aggregate cost, wear, loss and export totals use eligible
+timer-comparison days; the full daily record retains physical energy on days
+with missing bills. `--verify` makes no downloads and compares a fresh replay
+to the full retained record and regenerates the summary, CSV, publication table and workload
+configuration, excluding only solver/run timing measurements (physical cycle
+clocks are compared); exit 0 means reproduction,
+**not** that every requested day had a valid cost comparison. The shared simulated
+feedback contract and its conservative terminal-energy bound are in
+[ADR-005](./adr/ADR-005-deterministic-planner.md#causal-historical-replay-amendment--2026-09-21).
+
+```sh
+uv run hirz scenario run scenarios/demo-evening.yaml --headless --assert
+uv run hirz scenario run scenarios/demo-evening-hourly.yaml --headless --assert
+uv run hirz scenario run scenarios/parents-scam-check.yaml --headless --assert
+```
+
+Planning snapshots are separate from the observation world and do not charge the
+scenario car or change its thermostat. The two planning scenarios supply their
+weather and retain tool, approval, audit and execution deferrals. The Hourly
+counterpart remaps the seed's schedule dates by -365 days and labels its tariff
+counterfactual. See [verification](./verification-log.md#full-offline-reproduction-and-completion--2026-09-21)
+for measured coverage, the raw archive inventory, and subsequent verification runs.
+
+## Item 18 coordinator and audited intake
+
+The interface is `Coordinator(Pipeline(...))` in `hirz/planner/coordinator.py`.
+`intake(principal, action_id=..., text=..., horizon_end=...)` returns a clarification
+without changing constraints for unsupported/ambiguous input, or a canonical
+Pipeline Decision plus the recorded constraint UUID. The principal is the trusted
+linked-account result, never a name supplied in the text. Pass `replaces=UUID` for
+an explicit replacement, or `withdraw=True, replaces=UUID` for withdrawal. A
+`change …` sentence must uniquely match that account's current request of the same
+kind/device. Retry with the same action ID, principal and complete input.
+
+`plan(principal, inputs, previous=None)` resolves membership, reads a current
+snapshot and returns structured conflicts, per-class approval requirements and a
+read-only planner result. Input slot start must equal the explicit Pipeline clock;
+inputs and any previous Plan must belong to that household. A plan remains a
+proposal without execution authority. Grammar and precedence are in
+[architecture §5.5](../ARCHITECTURE.md#55-coordinator).
+
+For an explicit simulated manual event, pass `manual=Observation(...)` with the
+same current clock, HVAC asset, `domain="devices"`, `source="twin"`, target and
+mode. This atomically versions the observation and records its two-hour hold;
+renewal withdraws the earlier hold. `release living room hold` releases a uniquely
+matched current hold. The submitted account is recorded without asserting who
+physically changed a setting. This is not automatic Home Assistant detection.
+
+```sh
+export HIRZ_DOGWOOD="$PWD/.tools/dogwood"
+uv run python scripts/smoke_coordinator.py --audit-output /tmp/hirz-coordinator-audit-NEW.json
+uv run pytest tests/unit/test_coordinator.py --no-cov
+uv run pytest tests/integration/test_coordinator_database.py -m integration --no-cov --tb=short
+```
+
+The smoke needs the existing local PostgreSQL credentials, signing key and native
+Dogwood. It creates and migrates a uniquely named disposable database, explicitly
+clarifies eleven to 23:00, demonstrates all five roadmap checks, verifies the full
+signed chain, writes an exclusive private export and verifies it offline. Success
+drops the disposable database; failures preserve it with its generated name.
+The smoke sends no device commands and does not upgrade the development database.
+
+The migration head is `0006_coordinator_constraints`; the development database stays
+on its existing revision until the operator explicitly runs `uv run alembic upgrade
+head`. `hirz context HOUSEHOLD_UUID --scope constraints` requires the upgraded schema.
+It includes expired/withdrawn history rather than removing evidence. Downgrade is
+refused whenever current records, archived records, or constraint audit events
+exist. Use `--tb=short` for database tests so third-party traceback locals cannot
+print connection parameters. Verification evidence: [item 18](./verification-log.md#item-18--2026-09-21).
+
+## Item 19 durable local execution
+
+Item 19 remains local (`dogwood-local`). The execution migration is
+`0007_execution_lifecycle`; the development database is intentionally still on
+`0005_execution_attempt`. No command below implicitly migrates or initializes it.
+Use the disposable smoke paths for verification before choosing an explicit
+operator-run development migration.
+
+```sh
+export HIRZ_DOGWOOD="$PWD/.tools/dogwood"
+uv run python scripts/smoke_executor.py --audit-output /tmp/hirz-executor-audit-NEW.json
+uv run python scripts/smoke_executor.py --live-demo --audit-output /tmp/hirz-executor-ha-audit-NEW.json
+uv run pytest tests/unit/test_executor.py --no-cov
+uv run pytest tests/integration/test_executor_database.py -m integration --no-cov --tb=short
+```
+
+The default smoke seeds and migrates a uniquely named disposable database, ingests
+Registry observations through Pipeline, submits a light request with zero boundary
+calls, and launches a separate worker process. It checks verified state and exports
+and verifies the signed chain. The live variant uses only the reviewed HA demo
+mapping; it queues thermostat/light writes and restoration through Pipeline, leaves
+ecobee read-only, and retains the signed export. Success drops the smoke database;
+failure prints its retained name. The physical-plug gate remains item 15.
+
+For an already explicitly migrated local database:
+
+```sh
+export HIRZ_TWIN_SCENARIO=scenarios/demo-evening.yaml
+export HIRZ_ADAPTERS=devices:twin,ev:twin,energy:twin,presence:twin
+export HIRZ_SIM_SPEED=1
+uv run hirz worker --household HOUSEHOLD_UUID --once
+# Omit --once to poll once per wall-clock second.
+```
+
+`--database NAME` selects an explicit local database without changing credentials
+or migrating it. Twin configuration comes from `HIRZ_TWIN_SCENARIO`; stored explicit
+bindings still win over domain defaults. The scenario provides configuration and
+initial state, not scenario event execution (item 22). For HA bindings,
+`HIRZ_HA_CONFIG=config/homeassistant/adapter-demo.yaml` supplies reviewed entities
+and provenance; the private `.env` provides `HA_TOKEN`. Real energy defaults also
+require `HIRZ_DELIVERY_CLASS` and `HIRZ_TARIFF_FILE`. Unknown or unavailable adapter
+implementations fail closed. The worker validates the stored selected local policy;
+this is not production policy activation or AWS enforcement.
+
+Internal callers use `Pipeline.enqueue(action, trusted_principal)`,
+`Executor.sweep/rollback` and `PlanService.record/approve/revise/cancel`. Every queued
+Action needs an aware command-state deadline. Bounded work also needs an explicit
+start and exact `revert`; nonzero EV/battery controls always require a stop. An
+immediate unbounded Action may omit its start. Do not modify approved parameters or
+reuse an Action ID for a retry. A failed attempt retains its claim permanently.
+Explicit rollback uses the signed captured inverse and current policy; restoring a
+nonzero EV/battery control also requires an explicit new bounded ending.
+
+Plan approval reserves its derived electricity-plus-wear estimate under a separate
+`energy.optimize_cost` grant. Device rules, votes and TTLs still apply. Unknown
+per-device estimates remain unknown, and a configured device budget can refuse them.
+A refreshing or blocked plan cannot be approved; item 19a supplies durable refresh
+below. Actual billing settlement, notification delivery and full scenario wiring
+(22) are deferred. Pending notices are records to show the addressed member; no push
+or email delivery is claimed.
+
+Restart verifies the twin checkpoint's signed hash and configuration identity, then
+resumes its committed simulated time without adding wall-clock downtime. A new twin
+configuration requires a separate disposable household/database; do not overwrite
+a checkpoint to force compatibility. Due endings precede new openings and survive
+pause, cancellation and policy changes. A stopped local worker/database cannot
+perform endings until it returns; offline home-owned endings remain item 38a.
+
+
+## Item 19a: durable local plan refresh
+
+The migration head is `0008_plan_refresh`. Development remains on
+`0005_execution_attempt`; only disposable verification databases were migrated.
+The migration preserves legacy proposals and audit evidence. A legacy plan needs a
+complete replacement workload from an eligible member before further openings;
+existing authorized endings remain runnable.
+
+```sh
+export HIRZ_DOGWOOD="$PWD/.tools/dogwood"
+uv run python scripts/smoke_refresh.py --audit-output /tmp/hirz-refresh-twin-NEW.json
+uv run python scripts/smoke_refresh.py --live-demo --audit-output /tmp/hirz-refresh-ha-NEW.json
+uv run pytest tests/unit/test_refresh.py --no-cov
+uv run pytest tests/integration/test_refresh_database.py -m integration --no-cov --tb=short
+```
+
+Both smokes create isolated databases and launch separate workers for queued and
+abandoned-running restart cases. They retain signed exports and verify them offline.
+The live variant uses the reviewed HA demo mapping, a declared synthetic thermal
+workload, and restores every changed thermostat/light setting through Pipeline;
+it leaves ecobee read-only. These checks do not calibrate a real home's thermal
+model. A failed run retains its disposable database; use a new audit output path
+for each attempt. No command above migrates development data.
+
+`PlanService.record/revise(..., runtime=RuntimeInputs.from_schedule(inputs, schedule))`
+requires complete supplied physical/forecast inputs for execution. Internal callers
+can request refresh (including plain explicit “change”), update supplied inputs or
+read the canonical current Plan through `request_refresh`, `update_inputs` and
+`read_current`. `explicit=False` is for trusted automatic triggers, not a consumer
+consent shortcut. An explicit eligible member retry names `retry_action_id`; failed
+operations otherwise retain exhaustion across plan versions. Inspect held reads and
+signed job transitions for blocking reasons. Successful reads clear transient read
+failure; conflicts need a relevant change or an explicit request.
+
+The normal worker now polls configured adapters and services refresh with a separate
+connection/solver thread while prioritizing endings. `--once` finishes the batch
+ready at invocation and one execution sweep; it never waits for a future retry.
+`HIRZ_ADAPTERS=devices:ha` and the reviewed HA mapping support HA-only thermal plans;
+missing required domains fail closed. Twin price/weather/calendar changes use the
+existing configured adapters; live price/weather ingestion remains deferred.
+MCP endpoints, companion delivery, AWS and remote CI are not verified here.
+
+
+## Item 20 consent-gated memory
+
+`hirz.memory.service.MemoryService` is an internal backend contract, documented in
+[architecture §5.9](../ARCHITECTURE.md#59-memory). Callers supply a trusted linked
+`Principal`, a unique mutation `action_id`, and typed `TurnInput` or `Candidate`
+objects. `review(..., proposal_id=..., accept=True|False)` requires the subject's
+app principal. Returned refusals carry a canonical Decision and no record. This
+is not a public authentication or companion consent workflow.
+
+Run the disposable twin demonstration with the existing Postgres service, local
+signing key and native Dogwood, using a **new** private output path:
+
+```sh
+export HIRZ_DOGWOOD="$PWD/.tools/dogwood"
+uv run python scripts/smoke_memory.py --audit-output /tmp/hirz-memory-audit.json
+uv run pytest tests/integration/test_memory_database.py -m integration --no-cov --tb=short
+```
+
+The smoke migrates only a uniquely named disposable database to `0009_memory`,
+uses synthetic linked principals, compares pending/rejected/accepted planner
+inputs, queues acceptance-driven refresh, starts a separate `hirz worker --once`
+process, checks inherited consent and held obsolete work, and exports/verifies the
+signed audit chain using an independently supplied key fingerprint. It drops its
+database on success and retains it on failure. There are no live HA writes.
+Retain the reported audit path privately; it contains identifiers and decisions,
+not session transcripts. An empty in-process provider after restart does not lose
+Postgres session context or accepted graph preferences.
+
+Development remains on `0005_execution_attempt`. Upgrading development through
+0006–0009 is a separate explicit operation (`uv run alembic upgrade head`), never
+startup behavior and not performed by these checks. `0009_memory` downgrade
+refuses retained session/proposal rows or memory audit events. No automatic
+retention cleanup, cloud calls, extraction, other preference types, public memory
+CLI or companion UI are included.
+
+
+## Item 21 Explainer
+
+`uv run python scripts/smoke_explainer.py` uses offline planner facts, validates
+templates, rejects a fabricated figure and verifies unchanged canonical planning
+fields and serialization/reuse. It initializes no AWS client or credentials.
+
+With local PostgreSQL running and the existing audit key initialized:
+
+```sh
+export HIRZ_DOGWOOD="$PWD/.tools/dogwood"
+uv run python scripts/smoke_explainer.py --integration --audit-output /tmp/hirz-explainer-audit.json
+```
+
+The output file must be new. The smoke creates and removes a uniquely named
+disposable database, applies migrations there, uses the existing synthetic bootstrap,
+publishes a plan and queued Decision through the Pipeline, reconstructs the service,
+and verifies the signed export independently. The development database is never
+upgraded. Keep the private export outside version control.
+
+Internal callers may pass `TemplateExplainer` or `BedrockExplainer` to `Coordinator`
+and `RefreshWorker`; omitted providers use templates. The local worker reads
+`HIRZ_LLM=off|bedrock` from its process environment, defaulting to `off`. Invalid
+values fail configuration. Bedrock uses the standard AWS credential chain and may
+incur inference charges when explicitly enabled; item 21 checks use SDK stubs only.
+Do not put provider credentials in graph records or narration metadata.
+
+The Explainer's cache is the existing audited Plan/Decision JSON document. Reads do
+not generate model text or write replacement narration. A held read may still run
+the pre-existing audited freshness detection from item 19a. See
+[ADR-012](./adr/ADR-012-explainer.md) for hash inputs, length/figure guards and their
+semantic limits. MCP, UI and live Bedrock remain later work; internal scenario execution is described below.
+
+## Item 22 executable evening
+
+Use the existing local PostgreSQL service, `.env` signing key, and pinned native
+Dogwood. The runner creates and migrates a uniquely named disposable database;
+it does not migrate or seed the development database.
+
+```bash
+export HIRZ_DOGWOOD="$PWD/.tools/dogwood"
+uv run hirz scenario run scenarios/demo-evening.yaml --headless --assert
+uv run hirz scenario run scenarios/demo-evening-hourly.yaml --headless --assert
+uv run hirz scenario run scenarios/parents-scam-check.yaml --headless --assert
+uv run python scripts/smoke_scenario.py --live-demo --artifacts-dir secrets/scenario-runs/ha-new-run
+```
+
+The last command requires the existing HA demo service. It uses current time and
+normal pacing, changes only the explicitly mapped `light.bed_light`, and requires
+Pipeline-authorized restoration. Missing HA or failed restoration fails that gate.
+It does not satisfy the physical-plug gate.
+
+Use `--artifacts-dir NEW_DIR` to select a new private evidence directory. Keep
+`report.json`, `audit.json` and `public-key.pem` together. The report identifies the
+seeded execution policy and the separate simulated preview. Failed databases are
+retained by name for diagnosis; remove them only after reviewing their evidence.
+Step and unchecked reports do not claim completion. No remote CI dispatch or
+public MCP/authentication claim is included.
+
+For machine-readable results, use `--output <new-file>` or the retained
+`report.json`: native solver diagnostics can also appear on stdout
+([recorded friction](./friction-log.md)).

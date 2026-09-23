@@ -141,6 +141,14 @@ async def graph_command(args: argparse.Namespace) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
+    worker_parser = commands.add_parser(
+        "worker", help="Sweep durable local household execution"
+    )
+    worker_parser.add_argument("--household", type=UUID, required=True)
+    worker_parser.add_argument("--once", action="store_true")
+    worker_parser.add_argument(
+        "--database", default="hirz", help="Explicit local database (no migrations)"
+    )
     add_commands(commands)
     add_decide(commands)
     add_scenario(commands)
@@ -166,6 +174,10 @@ def main() -> int:
     preview.add_argument("old", type=Path)
     preview.add_argument("new", type=Path)
     args = parser.parse_args()
+    if args.command == "worker":
+        from hirz.executor.local import worker
+
+        return asyncio.run(worker(args))
     if args.command == "scenario":
         validate_scenario_args(args, parser)
         return asyncio.run(scenario_command(args))

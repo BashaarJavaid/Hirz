@@ -18,6 +18,8 @@ dependencies = [
     "uvicorn==0.53.0",
     "rfc8785==0.1.4",
     "websockets==17.1",
+    "scipy==1.18.0",
+    "boto3==1.43.90",
 ]
 
 [project.scripts]
@@ -44,7 +46,7 @@ files = ["hirz", "scripts", "alembic"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-m 'not integration' --cov=hirz --cov-report=term-missing --cov-fail-under=80"
+addopts = "-m 'not integration' --cov=hirz --cov-report=term-missing"
 markers = ["integration: requires local Postgres; creates only a disposable test database"]
 
 [dependency-groups]

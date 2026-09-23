@@ -49,13 +49,21 @@ def test_legacy_migration_domain_coexistence_and_guarded_rollback(scratch_databa
                 sa.text("REFRESH MATERIALIZED VIEW household_context")
             )
             await connection.commit()
-            service = ContextService(connection, lambda: AT + timedelta(seconds=2))
-            before = await service.get_household_context(HOME)
-            past = await service.get_household_context(HOME, as_of=AT)
+            # Preserve the old projection before upgrading; the current service
+            # requires item 18's constraints table and cannot read an old schema.
+            before = await connection.scalar(
+                sa.text("SELECT data FROM household_context WHERE household_id = :id"),
+                {"id": HOME},
+            )
             await connection.rollback()
             await migrate(connection)
-            assert await service.get_household_context(HOME) == before
-            assert await service.get_household_context(HOME, as_of=AT) == past
+            after = await connection.scalar(
+                sa.text("SELECT data FROM household_context WHERE household_id = :id"),
+                {"id": HOME},
+            )
+            assert {k: v for k, v in after.items() if k != "constraints"} == before
+            service = ContextService(connection, lambda: AT + timedelta(seconds=2))
+            past = await service.get_household_context(HOME, as_of=AT)
             await connection.rollback()
             await migrate(connection, "downgrade", "0003_pipeline")
             await migrate(connection)

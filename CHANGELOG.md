@@ -8,9 +8,44 @@ All notable changes are documented here. The format follows
 
 ### Changed
 
+- 2026-09-22: Remove solver-known refresh triggers, preserve freshness across verified dispatches, explain plan-authority denials, and recover expired openings while retaining consent ([C2 verification](./docs/verification-log.md#phase-3-review-batch-c2--2026-09-22)).
+- 2026-09-22: Make plan freshness change-based while preserving observation polling and staleness limits ([ADR amendment](./docs/adr/ADR-005-deterministic-planner.md#change-based-freshness--2026-09-22-author-approved), [partial Batch C verification](./docs/verification-log.md#phase-3-review-batch-c--2026-09-22)).
+
+- 2026-09-22: Aggregate budget usage in SQL and scope graph advisory locks per household; retain in-transaction view refresh and accept exact totals without an index ([batch B measurements and verification](./docs/verification-log.md#phase-3-review-batch-b--2026-09-22)).
+
+- 2026-09-22: Gate Python coverage over service-free and integration tests combined; move four threat rows to their earned local scopes and document Pipeline ownership and existing tool paths ([batch A evidence](./docs/verification-log.md#phase-3-review-batch-a--2026-09-22)).
+
+- 2026-09-22: Execute the evening through existing services with separate plan/device approvals, exact bounded endings, private signed evidence and verified overnight outcomes; add the approved early guest-room and overnight dishwasher requests ([item 22 evidence](./docs/verification-log.md#item-22--2026-09-22), [ADR-005](./docs/adr/ADR-005-deterministic-planner.md), [ADR-006](./docs/adr/ADR-006-twin-first-adapters.md)).
+
+- 2026-09-22: Add validated Plan/Decision narration, fixed offline-tested Bedrock Converse enrichment and audited restart-safe reuse with truthful status templates; retain live Bedrock verification for item 38 ([ADR-012](./docs/adr/ADR-012-explainer.md), [item 21 evidence](./docs/verification-log.md#item-21--2026-09-22)).
+
+- 2026-09-21: Add private Postgres sessions, consent-gated temperature preferences and acceptance-driven plan refresh with native policy enforcement; verify the local backend while keeping companion authentication and AWS Memory outside scope ([item 20 evidence](./docs/verification-log.md#item-20--2026-09-21), [memory contract](./ARCHITECTURE.md#59-memory)).
+
+- 2026-09-21: Add durable local plan refresh, remaining-work recovery, inherited consent with fresh device checks, append-only reservation transfers and truthful held reads; verify twin/HA restart and restoration without migrating development data ([item 19a evidence](./docs/verification-log.md#item-19a--2026-09-21), [refresh contract](./ARCHITECTURE.md#54-planner)).
+
+- 2026-09-21: Add durable local execution, explicit plan consent/revisions, signed bounded endings and recoverable twin checkpoints; retain automatic refresh as item 19a ([item 19 evidence](./docs/verification-log.md#item-19--2026-09-21), [execution contracts](./docs/development.md#item-19-durable-local-execution)).
+
+- 2026-09-21: Add audited, account-attributed coordinator intake, explicit conflict resolution, comfort precedence and two-hour twin thermostat holds ([ADR-005](./docs/adr/ADR-005-deterministic-planner.md#coordinator-amendment--2026-09-21), [item 18 evidence](./docs/verification-log.md#item-18--2026-09-21)); keep plan persistence and execution deferred.
+
+- 2026-09-21: Add read-only MILP proposals, strict twin-replayed baseline comparisons, archived historical replay and planning snapshots; publish partial coverage rather than unsupported annual claims ([item 17 evidence](./docs/verification-log.md#item-17--partial-2026-09-21), [ADR-005 amendment](./docs/adr/ADR-005-deterministic-planner.md#read-only-planner-and-historical-experiment--2026-09-21)).
+
 - 2026-09-21: Record [terminal HA dispatch attempts and fresh-action retries](./docs/adr/ADR-006-twin-first-adapters.md#terminal-ha-dispatch-attempts--2026-09-21-author-approved) and the Phase 2 review's [Phase 3 carry-overs and ordered-plug follow-up](./ROADMAP.md).
 
 ### Fixed
+
+- 2026-09-22: Let the live HA scenario smoke answer quiet-hour approval requests explicitly before the bounded lamp operation ([verification](./docs/verification-log.md#ha-smoke-explicit-consent-fix--2026-09-22), [ADR amendment](./docs/adr/ADR-006-twin-first-adapters.md#ha-smoke-quiet-hours-consent--2026-09-22)).
+
+- 2026-09-22: Expose HA smoke errors, unsuccessful checks and refused lamp decision factors in CI output ([diagnostic verification](./docs/verification-log.md#ha-smoke-ci-diagnostics--2026-09-22)).
+
+- 2026-09-22: Require adult lineage for app-only automation resume in Python and compiled Cedar/Dogwood; preserve linked-member pause ([batch A evidence](./docs/verification-log.md#phase-3-review-batch-a--2026-09-22)).
+
+- 2026-09-21: Update the installed-wheel CI assertion to the 25 catalog classes introduced by item 18; reproduce the failure and verify the corrected check outside the checkout ([evidence](./docs/verification-log.md#installed-wheel-ci-count-correction--2026-09-21)).
+
+- 2026-09-21: Fix historical planner replay with shared causal simulated thermostat
+  and battery controls; verify the full year and wear sensitivities without
+  relaxing constraints or extending execution authority
+  ([ADR-005 amendment](./docs/adr/ADR-005-deterministic-planner.md#causal-historical-replay-amendment--2026-09-21),
+  [completion evidence](./docs/verification-log.md#full-offline-reproduction-and-completion--2026-09-21)).
 
 - 2026-09-21: Replace the scenarios' constant weather with inline archived Chicago
   weather while retaining deterministic twin replay

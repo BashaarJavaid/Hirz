@@ -91,3 +91,24 @@ The simulator's emulated host is given these rules, which mirror Alexa+'s publis
 - On tool error, say what happened in plain words and offer a next step.
 
 The generic, black-box parts of this contract (Streamable HTTP on 2025-11-25, Protected Resource Metadata, the `401` challenge, schema completeness, naming, declared display modes, warm round trip under 500 ms, spoken length under 30 seconds, no formatting artefacts) are checked by the open-source conformance checker (`ROADMAP.md` item 25a), which Hirz's CI runs against its own server. Hirz's own tests keep only the Hirz-specific rules: `speakable` present, options ≤ 5, headline length, no internal IDs or class names in consumer strings.
+
+
+Item 18's reserved `governance.record_constraint` and
+`governance.withdraw_constraint` are internal coordinator operations. Exclude them
+from the future `execute_household_action` consumer device-action enum. Constraint
+MCP intake remains item 25; the current interface is the internal Python service.
+
+
+`approve_action` has three existing internal paths:
+
+| Case | Internal path |
+|---|---|
+| Plan consent | `PlanService.approve`; refused while the plan is `refreshing` |
+| Planned device ASK | `PlanService.respond_to_action` with `plan_id` plus `approval_id`; votes through `Pipeline.vote`, then performs the audited resume |
+| Standalone approval | `Pipeline.vote`, then `Pipeline.redeem` / `Pipeline.enqueue` |
+
+Item 25 maps the flat tool input onto these three cases and adds no fourth path.
+
+`revise_household_plan`'s text field is provenance: item 25 builds `ConstraintSpec`
+from `applies_to`, `kind` and `window`; the sentence grammar in
+`hirz/planner/coordinator.py` stays for the scenario host and tests only.

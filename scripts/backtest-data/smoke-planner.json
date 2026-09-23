@@ -1,0 +1,4495 @@
+{
+  "milp": {
+    "plan": {
+      "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+      "household_id": "413ef6f6-f221-4d32-aaee-c0b89e1846d7",
+      "version": 1,
+      "supersedes": null,
+      "horizon": {
+        "start": "2026-10-13T22:33:00Z",
+        "end": "2026-10-14T12:00:00Z",
+        "slot_minutes": 15
+      },
+      "goals": [
+        "minimize_cost_and_wear",
+        "comfort",
+        "ev_deadline"
+      ],
+      "constraints": [],
+      "actions": [
+        "act_f2c0f29598bf2bd4ab0b19a063ce630d281cb4cc1dfb6573316aadadb99eeffc",
+        "act_9a89f2ede1b0716ed061cb7f5d931dacf430931213925d80137e6b320c9405a3",
+        "act_3b76d5a6307e055dc641fa5e187b07fb1421903790f474a198ac47071750e5dd",
+        "act_acda79c058f8d5f2d1c53828470a4efa669aca330fedaf28ea2ceabdecd38094",
+        "act_574827bc20e0b6e30fcfbb31581327496d8cc9a1c31daba423f62b7ea641920c",
+        "act_7cd703715912797b78a574299f27701fbb002299448363fca6c4ff69a2619878",
+        "act_a5561c88f7cc2e3c27fc6fc417bbf986b8522716bb0e3cc18889976f48cc03e1",
+        "act_dace13b578b9ef801a72c57fbf705d597543a72e4f44f46247bf7a21f6da2942",
+        "act_59d9af3be2d3b5e0948f15a0b3a4da19f3ed55a1d617da6353a0375eb5e21289",
+        "act_caa23ef53ea079ce600a9c99ce15a1f04d4c020413ec7f69458769c9305f08eb",
+        "act_70787004f508c9c04d24d40c05fb15ad2820697815bbeb9ddbed5ee3f082e94f",
+        "act_48d4b34b8ebd388ebe223a6980375aa0b6f152f2dbf77b32f0560f34e88bc5c6",
+        "act_7a01236febf29b9e2d67efeb2f5cc026ec3d699126ea43c3cc5a288a4b077a66",
+        "act_e7de9b391953db624a0b35e9dd63c921257a6cb47e53705dd8991c03d07becfc",
+        "act_7d5da8afc0cf61f70830e1d8a526c5b867da3fa2912d24abff8e239d93b0729f",
+        "act_5269912bfcfe4f9ca2c10ea78ed2944a4e414a08c95ba7080f09f6021f4b465f",
+        "act_396c919347c218632c7b2ba81de5c432c8bce5ae7f9679a932b387287644067a",
+        "act_6223d88c8f16d88662e3aea6f29d8e5f02e37c2501eb90db7e9f0da3ae99772e",
+        "act_22dee68c6fab4d61c0bd19fe3d9101fac01a0690a0d9efc54c0f0e655e6ba758",
+        "act_80429ec7d58df2172805eead400b3ab5fec84608082f5b1313600e10013b371b",
+        "act_efe70a559574a702643f7d727396846d512aeaf9c7e567eec038924a3ddaacb4",
+        "act_2033e503e728e9d5e68887f749bff454f1f740d7824da294fdc64c9f30343442",
+        "act_e113fdfd5a2d7f100a59749e95affa8be29a8b0251d07a3d0002663e1086c4e6",
+        "act_7c4fb86a633dbcc3a8ce0de9950d6801a3d9bec22cb8afc873ff183df06fa0dc",
+        "act_4a8c7a951dce6cbb5dff8241ba7cdaf716b00a7eb77dceed8dd2164f638de447",
+        "act_7d29df525dd2fca6cfd05c2bec5ded9a6238b45b75eaa1d4e21501b714586617",
+        "act_fd74d01d4ebb61096f8d10f463e1b33c07a09e5e4c6631ffa6671b6f7c3156a9",
+        "act_c90710dcc52623f00fcdfa4543cfb7fb90088cfdaf31509b73096160a499aafa",
+        "act_d0a2c47a68f3cb9d36222fd603fc1c8a9b00b03e0473710538278b299f0ab4a7",
+        "act_48fa95edbabd4c351dfb40d88a6bc476b051e7f265c2eec4476a95ac35558400",
+        "act_9c1683f95b562afa716a3c8182b38ab9e7804cf2dffbd6d0dab697aa59c991a1",
+        "act_1cddbbc7543540684b1db5649d3d224b71adbd7b1c93f25ebb4ddfd6adb433ae",
+        "act_161132a33515408457aa6f3ab7688f7bb7be40329bf0f15e543f89f47d00338e",
+        "act_9059ce666b559071949b89bd0835bd566d32df747a2553bf3d165f30e7379e18",
+        "act_ba587dd8cc393c1cb022d7eb634e8fb3e055a5755dc14b4b016aae6b94421c3b",
+        "act_73f5a0236a44860d387a76225994f6b4e7093921c9f52f1729ee831cbbd1c705",
+        "act_bf1bcb6e88877d8197de9383e8283aed30b7876ca3ce527233357cef4e865669",
+        "act_9a234a4b65fb5c6d82837f4647ee34bb428c5e19ef11cb66657144b14830e78c",
+        "act_9557f469b1239c97a9b4f8e0726288af45090bab8870df7bfd2ce4e11b7fe35e",
+        "act_f950e8623d9febad8d280658f1feed1ff9d23e918c02b61d07f6fd0d22176606",
+        "act_7732bad462a1acca1b62cf7b3df4dba54f5035eafc9cf3ff59be2207c810622e",
+        "act_034430b8ebb645ef93bc5d167b4a01d78c628e7dfaadbfa33f7b0540108d4d70",
+        "act_d6f7273b8fa2309c15bbc4971a1ba97de991c6f224e13b7f63f5be51157c69ae",
+        "act_ab85dcf1c2525657cc22e4bc3af945d91e0f47d6527e68ea2e8cbf600dbd8fdf",
+        "act_82d1d36d355f2b05c22a1dea0cdb18819a786152378fee83a9bc6eb5fd5c893f",
+        "act_7fa12762074336f7a02d6c888f9d998171e499431578296ce3491175417c8a03",
+        "act_57a4c9307121031def2785f6c66492554afa9869b4768fc9b9f753a041b54586",
+        "act_0bde316e20d46fdf7b273204934d71024abed6e76839d20da0c68fb8890f4666",
+        "act_0a9a41edf30a58f9bab2211aee440fd67bfbe8e1e01e0d2d0824ec52b28b8772",
+        "act_d158b3484c582123b07e8d62d3aed9ba900690202eb4db0788272e10406695e1",
+        "act_5336cdc4373c141634244b9be6da6cc71a4d67701d3bd5d8cd4b723b8e761f39",
+        "act_a2f9a280ffa70a53dfd816de9cd413db4bd8fd2c4372e9a4188ca9439fde9ec9",
+        "act_309ea991d51be7bed4eb82422e16bae6788e0e70e244cd25d16cbf0c6cfee7a8",
+        "act_e70df1aa36733d94e6e94802f1ba74e7ada5d7d68ce8e038658e21c0f0941d78",
+        "act_60e9d81722c19c688cbabf4da0b049fc167fec4c3a52c5fd8ff88b16d04e8505",
+        "act_f67a0a2f1dc5390f2972def34935abcc7384d9d5a6636493cea10fbde8b6a73a",
+        "act_85a4af236fb9c056db584469825063f8f0166f8ad44620ede4d9c6c41ee01038",
+        "act_f9dd643f06aa5303e683ee510e902e588e2a43d38eebb76f2ab15bd47e623bad",
+        "act_998d7cb6d6d6c155dfabc4d9d82b28e0d5e5f7feb113675b94b06c513919b041",
+        "act_dc2988256aaeec3c3d5882d4797397b9cfc85293a61c98bf775463f0ba121440",
+        "act_ef703e5dfaced5400bd2fb1648a4143dc38d267322e3a26468532b3a8f14c2e4",
+        "act_46f6cb8822071ca4474db8b4bddf54b33ad29742462199b6eecb81a14074c0fe",
+        "act_24763969dd051db1dccef0d83c7c2375163faddbfe38974f2afe00908f3f5cb5",
+        "act_d046d425d6a2ffb4b968647699c433a1b0a12da7be3f1d352994ad3ad8add2a3",
+        "act_58ddeda82a07062e215f5fe53422e221646dba572e6d9daf71cfde30fc90fbe1",
+        "act_2452e06cf92bbbfd615bdcb2fbd36b1117609cd0e347123d5dafef541b8b4f38",
+        "act_245db346e6416251b6ce64e4d2a9b138e6b026cda8e84b758e75556b2b50f3e6",
+        "act_b2b74d58e3560046201781fdf9ecb9ebba569481c9a3657847732bad336e92c8",
+        "act_5f3f404424967676434432d2f98cad86e739b1505b78b63ab724ccbc91c17b59",
+        "act_8b9f68674686cb6dc1394eccc306a5162c22f7c0ce1a16759268e4827fd6119c",
+        "act_29d60f429e5e67f23c632ec7cbdb4c24dddc26876817b3c5ee49225e653d9b23",
+        "act_8d4c771826a7db8e780113f216a934f23e4dd69836cf8c7b2f868c20bbbff250",
+        "act_ea285619beba7ce57d2a2a29e22d2c97645a17656592c63773e7056f65b96dfa",
+        "act_98e1f129b0867f05f215ef6cfc77c22484f73541ba695770d25b210f43617420",
+        "act_31f727f781104d9e30e3ea6590337aca0bb0dbeda8a1fc537efdaf853a7c7c9c",
+        "act_b7d629834adb341a3363e18912e87d4ee2fca757b540d099bc19372b8a9bce22",
+        "act_883644a5790c2e20bf4ec636a285efdb82d263102fa04ebdf087df9323de1fe3",
+        "act_19b4fccbf843eef671636ec9c3976484cd1b3fe799b102096ffb07e676e16f2f",
+        "act_75b7278fff447a479d9472ba9dd50a552f3b655e1d59a1ec376b5be1c509944e",
+        "act_71fe456081ea2dbc54016feb8332534efdffa476a3c50da37b8edf3bb496fd40",
+        "act_36888191f16a0d20c90ac29b8eb2a6d5f8b6ea4a2f9d1f3b146e78f9495e17f5",
+        "act_801d9b9b032fc10b3adf4846034d69a94dc479376bb5f008e46ba48a192d1972",
+        "act_526e96ce5fc0bc86eebb53b0f0379bb0fc8d408583eb1a50cb28c5ffa98c4462",
+        "act_c35cd4a37dac7fb7e06ee25b9a07195b0ff53edff11673e542361d034a52dadb",
+        "act_9ca5c528a2a1511073dc2dab42dd9830d13c8b507ae5b1015235d4b07e940c7d",
+        "act_e8b3e9ed6e2c830303aff67e69b3b60b999b7d0d587986aa6892afe60814cbcc",
+        "act_a9a4356c413a83ee7217ff681a7a495ef9fa12c8f9e8b40c31657f1f231a8282",
+        "act_deca88af852a00bf357f9f397b516459775492762ee4f941b2fed83ac06bbd97",
+        "act_4c598dd17a33edf341f7f7bb95e0b6589abc791ff27e9303dd6079e75d633146",
+        "act_f69f02ec882b5ad8703aaa174794d68a92c4e3a18bf2afcac28df6b9f9ceaaab",
+        "act_c40ddbbe579407db10c2660755e47390eeeb045e77be6b4780cb2f565dcfdc77",
+        "act_98144b9ab29c56b5c1b1da4f69f5d65e1200fa9eda7f967d73878148e937ae33",
+        "act_41710869c2f746f71bf6663f20b737fa883f69d7d2e51532b91e11d2a417fe84",
+        "act_df875b8b6b925974f5de2e41049f7e3ff55387f81ac0d89dd1045b0e75e352e0",
+        "act_85b80d9d5d20a3719f907bbe86c9cedded341b6b60fe6ce14d2f80f07461031d",
+        "act_7d518ef31fe2aece3aea9f92530837af21056a813f0e1a11818891538056b128",
+        "act_c2031d144ecaf9ef4febedfe0604291953a06b4df3d726e51f800212f2e2bcdb",
+        "act_a8b55840e8b3b3140d1e786f85c3d15469e16a46e8f8620c1310f37579daf1fe",
+        "act_9500cf1e5cb2dd7c163531b70a7b4ac5e34fc7bae119ce58630612c6e774e99f",
+        "act_cf1b318a0d74d238bd647ceaf3907c0b440c19c664ba9c00d9851a98dac24996",
+        "act_1b39bead0d75697a6eaeff95802da8a1e8aeec62b166df6db7a97bac89b603a3",
+        "act_ede51ea546508c71e16ac3f24b5d80c1b2b0c819a31d6d212cfe0201f3a6e789",
+        "act_20fffec5df5e9bf4b971fd4e0c60990ca20994d47391372dd3445e3fbc21a79f",
+        "act_edfb44ec9c62ce4bac4f7cb97b9cc28be02ac445b483ab257e0048efc77861d5",
+        "act_759b0644a8839a2120f5f5bf89484c0d2efe5695c60632f3f4c1c3257e28f1d4"
+      ],
+      "summary": {
+        "estimated_savings_usd": 0.36847966982794383,
+        "peak_kwh_avoided": -1.9012569296705806e-14,
+        "grid_kwh": 48.645188720455565,
+        "solar_kwh": 0.15154277752369996,
+        "exported_kwh": 4.413136522884997e-15,
+        "electricity_usd": 3.2882152678715055,
+        "wear_usd": 0.04254560606570184,
+        "comfort_violations_minutes": 0.0
+      },
+      "alternatives": [
+        {
+          "label": "timer",
+          "cost_delta_usd": 0.36847966982794383,
+          "why_rejected": "Same EV deadline, comfort bands, appliance workload and ending battery energy",
+          "validity": {
+            "valid": true,
+            "reasons": []
+          }
+        },
+        {
+          "label": "immediate",
+          "cost_delta_usd": 2.8721348114435368,
+          "why_rejected": "Same EV deadline, comfort bands, appliance workload and ending battery energy",
+          "validity": {
+            "valid": true,
+            "reasons": []
+          }
+        },
+        {
+          "label": "greedy",
+          "cost_delta_usd": 0.3302410040048243,
+          "why_rejected": "Same EV deadline, comfort bands, appliance workload and ending battery energy",
+          "validity": {
+            "valid": true,
+            "reasons": []
+          }
+        }
+      ],
+      "explain": {
+        "facts": [
+          "Simulated devices; supply plus distribution; zero export credit",
+          "appliance contiguous cycle and deadline",
+          "equal EV delivery by deadline",
+          "hvac.living_room thermal balance",
+          "heating power",
+          "hvac.living_room comfort 5",
+          "cooling power",
+          "hvac.living_room comfort 6",
+          "hvac.living_room opening comfort 6",
+          "hvac.living_room comfort 7",
+          "hvac.living_room opening comfort 7",
+          "hvac.living_room comfort 8",
+          "hvac.living_room opening comfort 8",
+          "hvac.living_room comfort 9",
+          "hvac.living_room opening comfort 9",
+          "hvac.living_room comfort 10",
+          "hvac.living_room opening comfort 10",
+          "hvac.living_room comfort 11",
+          "hvac.living_room opening comfort 11",
+          "hvac.living_room comfort 12",
+          "hvac.living_room opening comfort 12",
+          "hvac.living_room comfort 13",
+          "hvac.living_room opening comfort 13",
+          "hvac.living_room comfort 14",
+          "hvac.living_room opening comfort 14",
+          "hvac.living_room comfort 15",
+          "hvac.living_room opening comfort 15",
+          "hvac.living_room comfort 16",
+          "hvac.living_room opening comfort 16",
+          "hvac.living_room comfort 17",
+          "hvac.living_room opening comfort 17",
+          "hvac.living_room comfort 18",
+          "hvac.living_room opening comfort 18",
+          "hvac.living_room comfort 19",
+          "hvac.living_room opening comfort 19",
+          "hvac.living_room comfort 20",
+          "hvac.living_room opening comfort 20",
+          "hvac.living_room comfort 21",
+          "hvac.living_room opening comfort 21",
+          "hvac.guest_room thermal balance",
+          "hvac.guest_room comfort 21",
+          "hvac.guest_room comfort 22",
+          "hvac.guest_room opening comfort 22",
+          "hvac.guest_room comfort 23",
+          "hvac.guest_room opening comfort 23",
+          "hvac.guest_room comfort 24",
+          "hvac.guest_room opening comfort 24",
+          "hvac.guest_room comfort 25",
+          "hvac.guest_room opening comfort 25",
+          "hvac.guest_room comfort 26",
+          "hvac.guest_room opening comfort 26",
+          "hvac.guest_room comfort 27",
+          "hvac.guest_room opening comfort 27",
+          "hvac.guest_room comfort 28",
+          "hvac.guest_room opening comfort 28",
+          "hvac.guest_room comfort 29",
+          "hvac.guest_room opening comfort 29",
+          "hvac.guest_room comfort 30",
+          "hvac.guest_room opening comfort 30",
+          "hvac.guest_room comfort 31",
+          "hvac.guest_room opening comfort 31",
+          "hvac.guest_room comfort 32",
+          "hvac.guest_room opening comfort 32",
+          "hvac.guest_room comfort 33",
+          "hvac.guest_room opening comfort 33",
+          "hvac.guest_room comfort 34",
+          "hvac.guest_room opening comfort 34",
+          "hvac.guest_room comfort 35",
+          "hvac.guest_room opening comfort 35",
+          "hvac.guest_room comfort 36",
+          "hvac.guest_room opening comfort 36",
+          "hvac.guest_room comfort 37",
+          "hvac.guest_room opening comfort 37",
+          "hvac.guest_room comfort 38",
+          "hvac.guest_room opening comfort 38",
+          "hvac.guest_room comfort 39",
+          "hvac.guest_room opening comfort 39",
+          "hvac.guest_room comfort 40",
+          "hvac.guest_room opening comfort 40",
+          "hvac.guest_room comfort 41",
+          "hvac.guest_room opening comfort 41",
+          "hvac.guest_room comfort 42",
+          "hvac.guest_room opening comfort 42",
+          "hvac.guest_room comfort 43",
+          "hvac.guest_room opening comfort 43",
+          "hvac.guest_room comfort 44",
+          "hvac.guest_room opening comfort 44",
+          "hvac.guest_room comfort 45",
+          "hvac.guest_room opening comfort 45",
+          "hvac.guest_room comfort 46",
+          "hvac.guest_room opening comfort 46",
+          "hvac.guest_room comfort 47",
+          "hvac.guest_room opening comfort 47",
+          "hvac.guest_room opening comfort 48",
+          "hvac.guest_room comfort 53",
+          "battery conservation",
+          "battery charge exclusivity",
+          "grid import exclusivity",
+          "no battery to grid",
+          "household energy balance",
+          "solar export only",
+          "battery discharge exclusivity"
+        ],
+        "considered": [],
+        "rejected": []
+      },
+      "speakable": {
+        "headline": "A simulated energy plan is ready for review.",
+        "details": [],
+        "options": [
+          "Review"
+        ]
+      },
+      "status": "proposed",
+      "method": "milp",
+      "optimality_gap": 3.68815973117686e-05,
+      "comparison_validity": {
+        "valid": true,
+        "reasons": []
+      }
+    },
+    "actions": [
+      {
+        "action_id": "act_f2c0f29598bf2bd4ab0b19a063ce630d281cb4cc1dfb6573316aadadb99eeffc",
+        "action_class": "energy.ev_charge",
+        "target": {
+          "adapter": "twin",
+          "entity": "ev",
+          "zone": null
+        },
+        "params": {
+          "charging": false,
+          "charge_limit": 0.34
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-13T22:33:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:bb6e2c6b84d7e26d64858e77ffc1d81ec0b948b7c0dd4f62021f353383b8aacc"
+      },
+      {
+        "action_id": "act_9a89f2ede1b0716ed061cb7f5d931dacf430931213925d80137e6b320c9405a3",
+        "action_class": "energy.battery_dispatch",
+        "target": {
+          "adapter": "twin",
+          "entity": "home_battery",
+          "zone": null
+        },
+        "params": {
+          "dispatch_kw": 0.11461644962332512
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-13T22:33:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:b849c7b0808a9b083dea073f94b8563cf0e3eb1c58d8d7870382eb51bfc26b07"
+      },
+      {
+        "action_id": "act_3b76d5a6307e055dc641fa5e187b07fb1421903790f474a198ac47071750e5dd",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.living_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 69.97066666666666,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-13T22:33:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:617448ad5164608d0da413c4809e6a2f82771ecd914f37eb796b96407ad60271"
+      },
+      {
+        "action_id": "act_acda79c058f8d5f2d1c53828470a4efa669aca330fedaf28ea2ceabdecd38094",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.guest_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 66.99066666666667,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-13T22:33:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:abd19a137b8e681a1c3f5283f015e1e76c213a09a8c790346325c5cfc653e17b"
+      },
+      {
+        "action_id": "act_574827bc20e0b6e30fcfbb31581327496d8cc9a1c31daba423f62b7ea641920c",
+        "action_class": "energy.battery_dispatch",
+        "target": {
+          "adapter": "twin",
+          "entity": "home_battery",
+          "zone": null
+        },
+        "params": {
+          "dispatch_kw": 0.17366998157335561
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-13T22:45:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:8df8df6f1cc627ab385c5f2aa584f8bf5c11129b0a1278e74ea8f4876570271e"
+      },
+      {
+        "action_id": "act_7cd703715912797b78a574299f27701fbb002299448363fca6c4ff69a2619878",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.living_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 69.93424444444445,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-13T22:45:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:a436677fc8826d8ab29adcc35cf78ae1e8ed199357ae781b3662590eafa1888a"
+      },
+      {
+        "action_id": "act_a5561c88f7cc2e3c27fc6fc417bbf986b8522716bb0e3cc18889976f48cc03e1",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.guest_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 66.97907777777779,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-13T22:45:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:56a5048300fd022d74ecc3817cddb3dd90772a82fa61db2ec0faed8d20c3975c"
+      },
+      {
+        "action_id": "act_dace13b578b9ef801a72c57fbf705d597543a72e4f44f46247bf7a21f6da2942",
+        "action_class": "energy.battery_dispatch",
+        "target": {
+          "adapter": "twin",
+          "entity": "home_battery",
+          "zone": null
+        },
+        "params": {
+          "dispatch_kw": 0.24846574863318455
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-13T23:00:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:bfd83709ccc0725a2bea34c60783d6df6fa62583ba17637706d06ee3878c7a30"
+      },
+      {
+        "action_id": "act_59d9af3be2d3b5e0948f15a0b3a4da19f3ed55a1d617da6353a0375eb5e21289",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.living_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 69.88812574074075,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-13T23:00:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:72fcc6b7da1c9aac1716ecc3ce2d48ad25c5e60252772fbdccac52ea8ccec4d9"
+      },
+      {
+        "action_id": "act_caa23ef53ea079ce600a9c99ce15a1f04d4c020413ec7f69458769c9305f08eb",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.guest_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 66.95758546296298,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-13T23:00:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:763a1c2c3e882c1d40ae736268054d9f2ff280e873a3c1da92a29f6078e75d1f"
+      },
+      {
+        "action_id": "act_70787004f508c9c04d24d40c05fb15ad2820697815bbeb9ddbed5ee3f082e94f",
+        "action_class": "energy.battery_dispatch",
+        "target": {
+          "adapter": "twin",
+          "entity": "home_battery",
+          "zone": null
+        },
+        "params": {
+          "dispatch_kw": 0.4
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-13T23:15:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:dd00df5025542ff57302324949bb7ea8ef43e29091c2333019cabc2dea801b87"
+      },
+      {
+        "action_id": "act_48d4b34b8ebd388ebe223a6980375aa0b6f152f2dbf77b32f0560f34e88bc5c6",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.living_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 69.84239135956791,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-13T23:15:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:3420efedcb3ef8116a944bc416d16095a644a71e83bf1fd829d9aad46c072e4c"
+      },
+      {
+        "action_id": "act_7a01236febf29b9e2d67efeb2f5cc026ec3d699126ea43c3cc5a288a4b077a66",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.guest_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 66.93627225077162,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-13T23:15:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:6f3540642f51a3c4ad46d491e83fd61664a5b03b42c9270ac08b21b48f5cc8f2"
+      },
+      {
+        "action_id": "act_e7de9b391953db624a0b35e9dd63c921257a6cb47e53705dd8991c03d07becfc",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.living_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 69.79703809823818,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-13T23:30:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:1d3bb8a4ca616ba394cadef4f9602dacc3c7a63a628fb43c2eed49c5a2064867"
+      },
+      {
+        "action_id": "act_7d5da8afc0cf61f70830e1d8a526c5b867da3fa2912d24abff8e239d93b0729f",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.guest_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 66.91513664868187,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-13T23:30:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:d8668f295fd5619a94d1c382c4b08c110fb59add48b2fe62726e94fc9e88b6e2"
+      },
+      {
+        "action_id": "act_5269912bfcfe4f9ca2c10ea78ed2944a4e414a08c95ba7080f09f6021f4b465f",
+        "action_class": "energy.battery_dispatch",
+        "target": {
+          "adapter": "twin",
+          "entity": "home_battery",
+          "zone": null
+        },
+        "params": {
+          "dispatch_kw": 2.7398822860883554
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-13T23:45:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:bd03d50169e6fb9f6ac5f945415c53fbd9e8672990ea9a26b45de7de6e79f562"
+      },
+      {
+        "action_id": "act_396c919347c218632c7b2ba81de5c432c8bce5ae7f9679a932b387287644067a",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.living_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 70.99999999999999,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-13T23:45:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:3ab409e6111ddedfd00a5c0aa53727a74f1e08d2c11de6d6de4058ac8325aad6"
+      },
+      {
+        "action_id": "act_6223d88c8f16d88662e3aea6f29d8e5f02e37c2501eb90db7e9f0da3ae99772e",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.guest_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 66.89417717660952,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-13T23:45:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:80435665be069ba71742007748c11d8c8ed9b77c3438a7514051ac7ba9fa1a81"
+      },
+      {
+        "action_id": "act_22dee68c6fab4d61c0bd19fe3d9101fac01a0690a0d9efc54c0f0e655e6ba758",
+        "action_class": "energy.battery_dispatch",
+        "target": {
+          "adapter": "twin",
+          "entity": "home_battery",
+          "zone": null
+        },
+        "params": {
+          "dispatch_kw": 0.4953125000000122
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T00:00:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:ab9d8607b153f607a3d63e685c28cda1677ad28a310a8de318221610ea654674"
+      },
+      {
+        "action_id": "act_80429ec7d58df2172805eead400b3ab5fec84608082f5b1313600e10013b371b",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.living_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 71.0,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T00:00:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:7f57aa0f0ac2e144867562236cc02fbe5211c141211f7ce522628b59234a72c2"
+      },
+      {
+        "action_id": "act_efe70a559574a702643f7d727396846d512aeaf9c7e567eec038924a3ddaacb4",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.guest_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 66.8775590334711,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T00:00:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:73b5d0caf5e4150268398884a56a3d291c7b775d5e04d81da20a9a31f172f0d1"
+      },
+      {
+        "action_id": "act_2033e503e728e9d5e68887f749bff454f1f740d7824da294fdc64c9f30343442",
+        "action_class": "energy.battery_dispatch",
+        "target": {
+          "adapter": "twin",
+          "entity": "home_battery",
+          "zone": null
+        },
+        "params": {
+          "dispatch_kw": 0.4953125000000035
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T00:15:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:7a12ecd869763d3e19ef92e420d45bb32e385dc7073119a7e307ca6cbb1a0dbd"
+      },
+      {
+        "action_id": "act_e113fdfd5a2d7f100a59749e95affa8be29a8b0251d07a3d0002663e1086c4e6",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.guest_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 66.86107937485885,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T00:15:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:283149717899453b3c69150354da0e2cc99e670d688944a0f7a109ce4d902431"
+      },
+      {
+        "action_id": "act_7c4fb86a633dbcc3a8ce0de9950d6801a3d9bec22cb8afc873ff183df06fa0dc",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.guest_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 66.84473704673502,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T00:30:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:6700c6753c3dccdef309e917cb9c4155da559a472fc5e22faef77b41a1362d67"
+      },
+      {
+        "action_id": "act_4a8c7a951dce6cbb5dff8241ba7cdaf716b00a7eb77dceed8dd2164f638de447",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.guest_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 66.8285309046789,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T00:45:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:02c925d691505d8eae22f30902e8c69e2fce2a0d45d8459ba581cce2d053a6b4"
+      },
+      {
+        "action_id": "act_7d29df525dd2fca6cfd05c2bec5ded9a6238b45b75eaa1d4e21501b714586617",
+        "action_class": "energy.battery_dispatch",
+        "target": {
+          "adapter": "twin",
+          "entity": "home_battery",
+          "zone": null
+        },
+        "params": {
+          "dispatch_kw": 0.5093750000000036
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T01:00:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:d79321058f30d14d28a9236edd48f7a373d21c37c454688a1a419bf149acdd79"
+      },
+      {
+        "action_id": "act_fd74d01d4ebb61096f8d10f463e1b33c07a09e5e4c6631ffa6671b6f7c3156a9",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.guest_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 66.80495981380658,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T01:00:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:7f0d5232c7212f68136353ca999df5676e664f0eac2110ac77d50bd6b0474ce9"
+      },
+      {
+        "action_id": "act_c90710dcc52623f00fcdfa4543cfb7fb90088cfdaf31509b73096160a499aafa",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.guest_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 66.78158514869152,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T01:15:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:8fe84f8f42d5e79e5ab172e1a3edc928db721ba75347fc4e36c9b5c46f6e02f6"
+      },
+      {
+        "action_id": "act_d0a2c47a68f3cb9d36222fd603fc1c8a9b00b03e0473710538278b299f0ab4a7",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.guest_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 66.75840527245242,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T01:30:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:d9fb9e72cf37459b2a62520979dad7f3d027ce160e8c0ca7a7d7470b2e01a306"
+      },
+      {
+        "action_id": "act_48fa95edbabd4c351dfb40d88a6bc476b051e7f265c2eec4476a95ac35558400",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.guest_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 66.73541856184865,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T01:45:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:18868130eb8be3930e0e95fece0124ed8d1875be2789b45869f0dab177c074c5"
+      },
+      {
+        "action_id": "act_9c1683f95b562afa716a3c8182b38ab9e7804cf2dffbd6d0dab697aa59c991a1",
+        "action_class": "energy.battery_dispatch",
+        "target": {
+          "adapter": "twin",
+          "entity": "home_battery",
+          "zone": null
+        },
+        "params": {
+          "dispatch_kw": 0.0
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T02:00:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:9ecddd0dc66d55822c52a22ed82e1cee0777d9872f125e9b24c943f990b2c1ae"
+      },
+      {
+        "action_id": "act_1cddbbc7543540684b1db5649d3d224b71adbd7b1c93f25ebb4ddfd6adb433ae",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.guest_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 66.69345674049991,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T02:00:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:e33178cbba19c34461b5eec06fb31db8a3b10686ba6816d517aaf86d6823bb38"
+      },
+      {
+        "action_id": "act_161132a33515408457aa6f3ab7688f7bb7be40329bf0f15e543f89f47d00338e",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.guest_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 66.65184460099574,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T02:15:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:04f3a7bd8b5d3b0ba07ec5e7b66a137eaab32da6d2c18e85c16631377afc1d54"
+      },
+      {
+        "action_id": "act_9059ce666b559071949b89bd0835bd566d32df747a2553bf3d165f30e7379e18",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.guest_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 66.61057922932078,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T02:30:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:abdb2291c6eec852801df7768962041640c5a6e6f124d32473befc7801a944cf"
+      },
+      {
+        "action_id": "act_ba587dd8cc393c1cb022d7eb634e8fb3e055a5755dc14b4b016aae6b94421c3b",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.guest_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 66.5696577357431,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T02:45:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:2580de10c5962a1795c15e9ee04372fe1d62399720fe2d906ca78a5718d89679"
+      },
+      {
+        "action_id": "act_73f5a0236a44860d387a76225994f6b4e7093921c9f52f1729ee831cbbd1c705",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.guest_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 66.52574392127859,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T03:00:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:17060afe6d45f0a8d780bd7163952ceef51d8bfbcf317c232200316bd43ca43d"
+      },
+      {
+        "action_id": "act_bf1bcb6e88877d8197de9383e8283aed30b7876ca3ce527233357cef4e865669",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.guest_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 67.92326106913342,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T03:15:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:513e962f3993ae9ad2f93fe44c51592e5699d87fe567850e0e4ea78ce7718004"
+      },
+      {
+        "action_id": "act_9a234a4b65fb5c6d82837f4647ee34bb428c5e19ef11cb66657144b14830e78c",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.guest_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 69.46806722689075,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T03:30:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:8ec716f48642a9e4e879a6f6b26e2e34813fd595d381c8cdd8b2a945a28361c8"
+      },
+      {
+        "action_id": "act_9557f469b1239c97a9b4f8e0726288af45090bab8870df7bfd2ce4e11b7fe35e",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.guest_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 71.0,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T03:45:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:66ab3c4fccc611382481c0e62175e6c3b0b1a36c297591a53013e81b00bd5b1c"
+      },
+      {
+        "action_id": "act_f950e8623d9febad8d280658f1feed1ff9d23e918c02b61d07f6fd0d22176606",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.living_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 70.925,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T04:00:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:675adbfc89266d2f44e632916cd2e33f51bbd17644cb066043626284261c27b3"
+      },
+      {
+        "action_id": "act_7732bad462a1acca1b62cf7b3df4dba54f5035eafc9cf3ff59be2207c810622e",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.living_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 70.850625,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T04:15:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:450e9889b3cd6cd4b2d9d04ddd6a7bd3ab8908df8293b7bdf63b48f3d377257f"
+      },
+      {
+        "action_id": "act_034430b8ebb645ef93bc5d167b4a01d78c628e7dfaadbfa33f7b0540108d4d70",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.living_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 70.77686979166667,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T04:30:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:251bbb4346e788f57612b88a87ba52171f0034add77b6b646d91f7d3a133c9a2"
+      },
+      {
+        "action_id": "act_d6f7273b8fa2309c15bbc4971a1ba97de991c6f224e13b7f63f5be51157c69ae",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.living_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 70.70372921006945,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T04:45:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:977087bf98d300aeeec3a8e68a2f4bf8ecdf064858ce91bc08c2ab02713275a3"
+      },
+      {
+        "action_id": "act_ab85dcf1c2525657cc22e4bc3af945d91e0f47d6527e68ea2e8cbf600dbd8fdf",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.living_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 70.63369813331887,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T05:00:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:0f5ac8166b37f4c02dd140bcb820479e0d5bd87d9f0184dda0bdb21788a9035a"
+      },
+      {
+        "action_id": "act_82d1d36d355f2b05c22a1dea0cdb18819a786152378fee83a9bc6eb5fd5c893f",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.living_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 70.56425064887455,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T05:15:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:f64d71e5ccac13da5ad0f1888a043b56a3ec5cc16c4c7df3e2ffadcf8f38f54a"
+      },
+      {
+        "action_id": "act_7fa12762074336f7a02d6c888f9d998171e499431578296ce3491175417c8a03",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.living_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 70.49538189346727,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T05:30:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:ddeea84b2e833f67b1b67d0c5dbe8cbecd3f636e87c8cfc2f3768173ed2da4a0"
+      },
+      {
+        "action_id": "act_57a4c9307121031def2785f6c66492554afa9869b4768fc9b9f753a041b54586",
+        "action_class": "energy.ev_charge",
+        "target": {
+          "adapter": "twin",
+          "entity": "ev",
+          "zone": null
+        },
+        "params": {
+          "charging": true,
+          "charge_limit": 0.3461333333333332
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T05:45:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:4d7c1c0f69fe9ab653a8c793586c174b66a77f6119dd7869184119d69342c65d"
+      },
+      {
+        "action_id": "act_0bde316e20d46fdf7b273204934d71024abed6e76839d20da0c68fb8890f4666",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.living_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 70.42708704435505,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T05:45:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:0237056c1537943fcb1940f6b4feaf48a59408106e016d22b65f1f252a81cc65"
+      },
+      {
+        "action_id": "act_0a9a41edf30a58f9bab2211aee440fd67bfbe8e1e01e0d2d0824ec52b28b8772",
+        "action_class": "energy.ev_charge",
+        "target": {
+          "adapter": "twin",
+          "entity": "ev",
+          "zone": null
+        },
+        "params": {
+          "charging": true,
+          "charge_limit": 0.3688266666666665
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T06:00:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:b9f5f1f4f4ed70b7bde0672e0fbef3feb56e1142982f39f3ef2a96fdd378e245"
+      },
+      {
+        "action_id": "act_d158b3484c582123b07e8d62d3aed9ba900690202eb4db0788272e10406695e1",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.living_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 70.35269465231876,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T06:00:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:db5011ec343f099a575a5560446f48dc47cf5b9428810985d50f727124b8ca54"
+      },
+      {
+        "action_id": "act_5336cdc4373c141634244b9be6da6cc71a4d67701d3bd5d8cd4b723b8e761f39",
+        "action_class": "energy.ev_charge",
+        "target": {
+          "adapter": "twin",
+          "entity": "ev",
+          "zone": null
+        },
+        "params": {
+          "charging": true,
+          "charge_limit": 0.39151999999999987
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T06:15:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:c878e0bd7dbf77268960ddd09c148df6375c7183eab025e63f4cbbaefa41d550"
+      },
+      {
+        "action_id": "act_a2f9a280ffa70a53dfd816de9cd413db4bd8fd2c4372e9a4188ca9439fde9ec9",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.living_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 70.27892219688277,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T06:15:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:8ce96a30ce1c2eca05d1e557986586634ed58ee68f7cba3b7bc8158e030d650a"
+      },
+      {
+        "action_id": "act_309ea991d51be7bed4eb82422e16bae6788e0e70e244cd25d16cbf0c6cfee7a8",
+        "action_class": "energy.ev_charge",
+        "target": {
+          "adapter": "twin",
+          "entity": "ev",
+          "zone": null
+        },
+        "params": {
+          "charging": true,
+          "charge_limit": 0.4142133333333332
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T06:30:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:cebe4c38520a5b4c4bcac0c09647d3c06ecbb53ed44d06e660ec58816d5f226d"
+      },
+      {
+        "action_id": "act_e70df1aa36733d94e6e94802f1ba74e7ada5d7d68ce8e038658e21c0f0941d78",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.living_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 70.20576451190875,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T06:30:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:799228e747a90910ca4bdb3e19a2d3d03e4cf9a9ded9954996eb1c7e800fbf6d"
+      },
+      {
+        "action_id": "act_60e9d81722c19c688cbabf4da0b049fc167fec4c3a52c5fd8ff88b16d04e8505",
+        "action_class": "energy.ev_charge",
+        "target": {
+          "adapter": "twin",
+          "entity": "ev",
+          "zone": null
+        },
+        "params": {
+          "charging": true,
+          "charge_limit": 0.43690666666666655
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T06:45:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:a1d2f1b93f686e851c13310b52fb63fef59ff61f56244d562d26a6cf4312185d"
+      },
+      {
+        "action_id": "act_f67a0a2f1dc5390f2972def34935abcc7384d9d5a6636493cea10fbde8b6a73a",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.living_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 70.13321647430952,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T06:45:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:cd65e42b544a96b0d42ef8f27d6582a9aae506fa48dbd9bb6e045c5c91473894"
+      },
+      {
+        "action_id": "act_85a4af236fb9c056db584469825063f8f0166f8ad44620ede4d9c6c41ee01038",
+        "action_class": "energy.appliance_start",
+        "target": {
+          "adapter": "twin",
+          "entity": "dishwasher",
+          "zone": null
+        },
+        "params": {},
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T06:45:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:4d0768f9f9fb358079dcd10111c2e7be7e8c3f29dfe1ecf123c7414ee1aed04a"
+      },
+      {
+        "action_id": "act_f9dd643f06aa5303e683ee510e902e588e2a43d38eebb76f2ab15bd47e623bad",
+        "action_class": "energy.ev_charge",
+        "target": {
+          "adapter": "twin",
+          "entity": "ev",
+          "zone": null
+        },
+        "params": {
+          "charging": true,
+          "charge_limit": 0.4595999999999999
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T07:00:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:64287728fe42af3a228ebc72fe533a3565fa2d4ca3b18c33184cb3f3c178f845"
+      },
+      {
+        "action_id": "act_998d7cb6d6d6c155dfabc4d9d82b28e0d5e5f7feb113675b94b06c513919b041",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.living_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 70.06127300369027,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T07:00:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:9f2be019420e9b77586dec2dc4e81ad9d0ee4f181640bfd3edd7cb0f1bac67a7"
+      },
+      {
+        "action_id": "act_dc2988256aaeec3c3d5882d4797397b9cfc85293a61c98bf775463f0ba121440",
+        "action_class": "energy.ev_charge",
+        "target": {
+          "adapter": "twin",
+          "entity": "ev",
+          "zone": null
+        },
+        "params": {
+          "charging": true,
+          "charge_limit": 0.48229333333333324
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T07:15:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:587227e3610e86fffeccc8847b3039ed0ff4e12e66f5ae3669510e51fd1c68ed"
+      },
+      {
+        "action_id": "act_ef703e5dfaced5400bd2fb1648a4143dc38d267322e3a26468532b3a8f14c2e4",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.living_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 69.98992906199285,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T07:15:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:2103872b83cdaa98962313e39df1a9e60a925931acda03c213372607af7c8d26"
+      },
+      {
+        "action_id": "act_46f6cb8822071ca4474db8b4bddf54b33ad29742462199b6eecb81a14074c0fe",
+        "action_class": "energy.ev_charge",
+        "target": {
+          "adapter": "twin",
+          "entity": "ev",
+          "zone": null
+        },
+        "params": {
+          "charging": true,
+          "charge_limit": 0.5049866666666666
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T07:30:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:3b199c48834f031c38945bc9647d5107c0b7896b8a9893479aa275ddf0089056"
+      },
+      {
+        "action_id": "act_24763969dd051db1dccef0d83c7c2375163faddbfe38974f2afe00908f3f5cb5",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.living_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 69.91917965314292,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T07:30:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:90c956dafcc8327902885c1d4b25996009de5ebcc416b38f0fd9cf220d191d85"
+      },
+      {
+        "action_id": "act_d046d425d6a2ffb4b968647699c433a1b0a12da7be3f1d352994ad3ad8add2a3",
+        "action_class": "energy.ev_charge",
+        "target": {
+          "adapter": "twin",
+          "entity": "ev",
+          "zone": null
+        },
+        "params": {
+          "charging": true,
+          "charge_limit": 0.5276799999999999
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T07:45:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:bf452f27990efa1babecfb7cbfd5a6b2a076f8bb9f3e6143e5295533676dedb1"
+      },
+      {
+        "action_id": "act_58ddeda82a07062e215f5fe53422e221646dba572e6d9daf71cfde30fc90fbe1",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.living_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 69.84901982270006,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T07:45:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:7b951b8f65713905694b97ad5344f44fd8cec72be2b1463bbc02ff32bff92079"
+      },
+      {
+        "action_id": "act_2452e06cf92bbbfd615bdcb2fbd36b1117609cd0e347123d5dafef541b8b4f38",
+        "action_class": "energy.ev_charge",
+        "target": {
+          "adapter": "twin",
+          "entity": "ev",
+          "zone": null
+        },
+        "params": {
+          "charging": true,
+          "charge_limit": 0.5503733333333333
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T08:00:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:20f71694216f26b6da949661a1b93af0ab2397ee8cd3b5a9d8f19e756c907ec1"
+      },
+      {
+        "action_id": "act_245db346e6416251b6ce64e4d2a9b138e6b026cda8e84b758e75556b2b50f3e6",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.living_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 69.77777799084423,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T08:00:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:36b49c8c8e3e193fb54cf7fd939e5b21ad19d0fb3ce40f696ec6489edf83a3df"
+      },
+      {
+        "action_id": "act_b2b74d58e3560046201781fdf9ecb9ebba569481c9a3657847732bad336e92c8",
+        "action_class": "energy.ev_charge",
+        "target": {
+          "adapter": "twin",
+          "entity": "ev",
+          "zone": null
+        },
+        "params": {
+          "charging": true,
+          "charge_limit": 0.5730666666666666
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T08:15:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:31daa03b0afcb7e1d8300e79550e3d3236a36af521185f132db52202b39ddf9d"
+      },
+      {
+        "action_id": "act_5f3f404424967676434432d2f98cad86e739b1505b78b63ab724ccbc91c17b59",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.living_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 69.70712984092053,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T08:15:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:e95dde1ef634a608f4f3266843476519869dc597ff4f1ac58c74856de1829218"
+      },
+      {
+        "action_id": "act_8b9f68674686cb6dc1394eccc306a5162c22f7c0ce1a16759268e4827fd6119c",
+        "action_class": "energy.ev_charge",
+        "target": {
+          "adapter": "twin",
+          "entity": "ev",
+          "zone": null
+        },
+        "params": {
+          "charging": true,
+          "charge_limit": 0.59576
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T08:30:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:4b1beed1be99d0a7512791f1f59d66206c64943d0cd80b633da21df39e78a751"
+      },
+      {
+        "action_id": "act_29d60f429e5e67f23c632ec7cbdb4c24dddc26876817b3c5ee49225e653d9b23",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.living_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 69.63707042557952,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T08:30:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:6bb1e36d08765bd65c5d982b8254004698057150741b22e74a35d05afb8878ad"
+      },
+      {
+        "action_id": "act_8d4c771826a7db8e780113f216a934f23e4dd69836cf8c7b2f868c20bbbff250",
+        "action_class": "energy.ev_charge",
+        "target": {
+          "adapter": "twin",
+          "entity": "ev",
+          "zone": null
+        },
+        "params": {
+          "charging": true,
+          "charge_limit": 0.6184533333333333
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T08:45:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:5918053828f75ebefe5bf986cebd74e1c811f13a2c47dc74207e81f03ae4a7f5"
+      },
+      {
+        "action_id": "act_ea285619beba7ce57d2a2a29e22d2c97645a17656592c63773e7056f65b96dfa",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.living_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 69.56759483869969,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T08:45:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:521129d90e0018b9430651a6639b3301e737d2e20ea37545693c2cf6910ff7f9"
+      },
+      {
+        "action_id": "act_98e1f129b0867f05f215ef6cfc77c22484f73541ba695770d25b210f43617420",
+        "action_class": "energy.ev_charge",
+        "target": {
+          "adapter": "twin",
+          "entity": "ev",
+          "zone": null
+        },
+        "params": {
+          "charging": true,
+          "charge_limit": 0.6411466666666666
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T09:00:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:f3a90ec1308206327ed846eb1465dafc2d8c675bb1f53eccfc287eccf88ee5ac"
+      },
+      {
+        "action_id": "act_31f727f781104d9e30e3ea6590337aca0bb0dbeda8a1fc537efdaf853a7c7c9c",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.living_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 69.49286488171053,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T09:00:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:53e734929db108cf15341c91140ca99e8c9a66b3c54fd6595f73d9c1ef49779d"
+      },
+      {
+        "action_id": "act_b7d629834adb341a3363e18912e87d4ee2fca757b540d099bc19372b8a9bce22",
+        "action_class": "energy.ev_charge",
+        "target": {
+          "adapter": "twin",
+          "entity": "ev",
+          "zone": null
+        },
+        "params": {
+          "charging": true,
+          "charge_limit": 0.66384
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T09:15:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:0a007312f45bec5b20bd9130c99a50b6d005dac7297926b542c8370d1da75ee1"
+      },
+      {
+        "action_id": "act_883644a5790c2e20bf4ec636a285efdb82d263102fa04ebdf087df9323de1fe3",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.living_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 69.41875767436295,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T09:15:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:8a5703a59faf3984a5fee48088e642de9589a182abca38828f2d14f1f0817cfe"
+      },
+      {
+        "action_id": "act_19b4fccbf843eef671636ec9c3976484cd1b3fe799b102096ffb07e676e16f2f",
+        "action_class": "energy.ev_charge",
+        "target": {
+          "adapter": "twin",
+          "entity": "ev",
+          "zone": null
+        },
+        "params": {
+          "charging": true,
+          "charge_limit": 0.6865333333333333
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T09:30:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:c8af6370f0bbbd009d562690d954f4cb390c4d0cf5db55f4dce9cc3caf69962e"
+      },
+      {
+        "action_id": "act_75b7278fff447a479d9472ba9dd50a552f3b655e1d59a1ec376b5be1c509944e",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.living_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 69.3452680270766,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T09:30:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:b54b8de8618463ccfdcf850166ddac7d7388871f8f430a1565b9c213cf4d992b"
+      },
+      {
+        "action_id": "act_71fe456081ea2dbc54016feb8332534efdffa476a3c50da37b8edf3bb496fd40",
+        "action_class": "energy.ev_charge",
+        "target": {
+          "adapter": "twin",
+          "entity": "ev",
+          "zone": null
+        },
+        "params": {
+          "charging": true,
+          "charge_limit": 0.7092266666666667
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T09:45:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:7aa50cee73e36fa5c254875881956aa67b0362671f3339506b30a0979cff1da2"
+      },
+      {
+        "action_id": "act_36888191f16a0d20c90ac29b8eb2a6d5f8b6ea4a2f9d1f3b146e78f9495e17f5",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.living_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 69.27239079351763,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T09:45:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:13d91a59499f36b3b5bce942115d500abcefcaed13d97d186f852a14078f5c87"
+      },
+      {
+        "action_id": "act_801d9b9b032fc10b3adf4846034d69a94dc479376bb5f008e46ba48a192d1972",
+        "action_class": "energy.ev_charge",
+        "target": {
+          "adapter": "twin",
+          "entity": "ev",
+          "zone": null
+        },
+        "params": {
+          "charging": true,
+          "charge_limit": 0.73192
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T10:00:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:6453f44961cfe1a4a6ca392b274a729862f176140281dd46eb6eaee9387a143d"
+      },
+      {
+        "action_id": "act_526e96ce5fc0bc86eebb53b0f0379bb0fc8d408583eb1a50cb28c5ffa98c4462",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.living_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 69.19845420357166,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T10:00:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:95d03a68c1f7ee6577f31c4842333dc569517873202f237badfbaa62decb014d"
+      },
+      {
+        "action_id": "act_c35cd4a37dac7fb7e06ee25b9a07195b0ff53edff11673e542361d034a52dadb",
+        "action_class": "energy.ev_charge",
+        "target": {
+          "adapter": "twin",
+          "entity": "ev",
+          "zone": null
+        },
+        "params": {
+          "charging": true,
+          "charge_limit": 0.7546133333333334
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T10:15:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:94a90da8d91be58a3ecf6e85a682624f3f8a38c232885cf96a88e6720f678c3c"
+      },
+      {
+        "action_id": "act_9ca5c528a2a1511073dc2dab42dd9830d13c8b507ae5b1015235d4b07e940c7d",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.living_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 69.12513375187523,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T10:15:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:c4354c9c4cc4e4585d2cd39cfb529635bb7e220187eaf9cc64dbea1c61c049e9"
+      },
+      {
+        "action_id": "act_e8b3e9ed6e2c830303aff67e69b3b60b999b7d0d587986aa6892afe60814cbcc",
+        "action_class": "energy.ev_charge",
+        "target": {
+          "adapter": "twin",
+          "entity": "ev",
+          "zone": null
+        },
+        "params": {
+          "charging": true,
+          "charge_limit": 0.7773066666666667
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T10:30:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:887f7e038a3215e9b0eae0c58866828d8a550809d131987aea8499fbc6d3dd0b"
+      },
+      {
+        "action_id": "act_a9a4356c413a83ee7217ff681a7a495ef9fa12c8f9e8b40c31657f1f231a8282",
+        "action_class": "energy.battery_dispatch",
+        "target": {
+          "adapter": "twin",
+          "entity": "home_battery",
+          "zone": null
+        },
+        "params": {
+          "dispatch_kw": -3.96940130665955
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T10:30:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:5709c785de25797ddf719b2f4f523fc644930c151a992f9f83d0e8c4ce110261"
+      },
+      {
+        "action_id": "act_deca88af852a00bf357f9f397b516459775492762ee4f941b2fed83ac06bbd97",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.living_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 69.05242430394293,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T10:30:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:b9a0c7032c9683bf59e68f688bb0fa42ee67558de889d0c0ab5c473ae280a5ca"
+      },
+      {
+        "action_id": "act_4c598dd17a33edf341f7f7bb95e0b6589abc791ff27e9303dd6079e75d633146",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.guest_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 71.46665689288764,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T10:30:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:7f26fa9722e69b6220f105795a353dbd6daa7683027739132c39713fb1a8d69a"
+      },
+      {
+        "action_id": "act_f69f02ec882b5ad8703aaa174794d68a92c4e3a18bf2afcac28df6b9f9ceaaab",
+        "action_class": "energy.ev_charge",
+        "target": {
+          "adapter": "twin",
+          "entity": "ev",
+          "zone": null
+        },
+        "params": {
+          "charging": true,
+          "charge_limit": 0.8
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T10:45:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:5878c0af76fe2da3aa478f07ba4d1f1bce7be7f5cb8b0a34c2d1a7104f0a8274"
+      },
+      {
+        "action_id": "act_c40ddbbe579407db10c2660755e47390eeeb045e77be6b4780cb2f565dcfdc77",
+        "action_class": "energy.battery_dispatch",
+        "target": {
+          "adapter": "twin",
+          "entity": "home_battery",
+          "zone": null
+        },
+        "params": {
+          "dispatch_kw": -5.0
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T10:45:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:68a409f12fe74f32ed84bd14382e855487aaa2f030b907593ef08727a0a3659c"
+      },
+      {
+        "action_id": "act_98144b9ab29c56b5c1b1da4f69f5d65e1200fa9eda7f967d73878148e937ae33",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.living_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 68.98032076807674,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T10:45:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:e0ef862749dfbefb3929dd956b87275d8fc8032b1c6fe7ab3505bcd0d08c24bb"
+      },
+      {
+        "action_id": "act_41710869c2f746f71bf6663f20b737fa883f69d7d2e51532b91e11d2a417fe84",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.guest_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 71.37443475211357,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T10:45:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:777de6b11a8fb3f9f2df0f292ec2cc8989627e1d8d6dcc2a195a0b011e36a5e6"
+      },
+      {
+        "action_id": "act_df875b8b6b925974f5de2e41049f7e3ff55387f81ac0d89dd1045b0e75e352e0",
+        "action_class": "energy.ev_charge",
+        "target": {
+          "adapter": "twin",
+          "entity": "ev",
+          "zone": null
+        },
+        "params": {
+          "charging": false,
+          "charge_limit": 0.8
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T11:00:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:ea252a896bddeb6153927919c9eb2508d1104501be77b8f120d75bae7a9cec00"
+      },
+      {
+        "action_id": "act_85b80d9d5d20a3719f907bbe86c9cedded341b6b60fe6ce14d2f80f07461031d",
+        "action_class": "energy.battery_dispatch",
+        "target": {
+          "adapter": "twin",
+          "entity": "home_battery",
+          "zone": null
+        },
+        "params": {
+          "dispatch_kw": 0.0
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T11:00:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:05832eec38a18cc854efb1690827d2387e4290050a0eb8c832bc6b0db69d452f"
+      },
+      {
+        "action_id": "act_7d518ef31fe2aece3aea9f92530837af21056a813f0e1a11818891538056b128",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.living_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 68.9054847616761,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T11:00:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:0c07a119d7925f93bacbcaad11c2f4dfb7964453612204c3620f1a14ebe0df7c"
+      },
+      {
+        "action_id": "act_c2031d144ecaf9ef4febedfe0604291953a06b4df3d726e51f800212f2e2bcdb",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.guest_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 71.27964779584596,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T11:00:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:a2498749d17e7b11240c2a2dbe20554bab84c70f2d90f179f9b500991f161cce"
+      },
+      {
+        "action_id": "act_a8b55840e8b3b3140d1e786f85c3d15469e16a46e8f8620c1310f37579daf1fe",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.living_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 68.83127238866214,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T11:15:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:c34c66c3bc6536762a9fb0294aa4bbcf300d328ef711ffd934e7daf10df8b466"
+      },
+      {
+        "action_id": "act_9500cf1e5cb2dd7c163531b70a7b4ac5e34fc7bae119ce58630612c6e774e99f",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.guest_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 71.18565073088058,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T11:15:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:732120dcf6b72d7baf338a63b40616f74ca4514f513c90d8301c3270ff27135b"
+      },
+      {
+        "action_id": "act_cf1b318a0d74d238bd647ceaf3907c0b440c19c664ba9c00d9851a98dac24996",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.living_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 68.75767845208996,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T11:30:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:e0dfaa1c74becfff5fdbf978f487b7eeaed4f30a8b15c3c13104acc87da4cca2"
+      },
+      {
+        "action_id": "act_1b39bead0d75697a6eaeff95802da8a1e8aeec62b166df6db7a97bac89b603a3",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.guest_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 71.09243697478992,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T11:30:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:aa630a1d7b3fa10ad8f341ab8298e0082d27a5285cd1145bcfbfb8124b1bc928"
+      },
+      {
+        "action_id": "act_ede51ea546508c71e16ac3f24b5d80c1b2b0c819a31d6d212cfe0201f3a6e789",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.living_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 68.68469779832255,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T11:45:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:be3e1974b3fbfec51c3dd704bc005d84c073f984f4732efa171e8a21c0efb148"
+      },
+      {
+        "action_id": "act_20fffec5df5e9bf4b971fd4e0c60990ca20994d47391372dd3445e3fbc21a79f",
+        "action_class": "energy.hvac_adjust",
+        "target": {
+          "adapter": "twin",
+          "entity": "hvac.guest_room",
+          "zone": null
+        },
+        "params": {
+          "target_f": 71.0,
+          "mode": "heat"
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "Read-only simulated energy proposal; requires pipeline authorization",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T11:45:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:7f58574d01d761602d87953abf9ffc811c4f8b48dbd8a72a2844c5e2ae98ad22"
+      },
+      {
+        "action_id": "act_edfb44ec9c62ce4bac4f7cb97b9cc28be02ac445b483ab257e0048efc77861d5",
+        "action_class": "energy.ev_charge",
+        "target": {
+          "adapter": "twin",
+          "entity": "ev",
+          "zone": null
+        },
+        "params": {
+          "charging": false
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "End hypothetical schedule",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T12:00:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:144f44b1a55206c5e58af07836fd4f4c3f475a940b89212ae8e7a0c1dad4ec78"
+      },
+      {
+        "action_id": "act_759b0644a8839a2120f5f5bf89484c0d2efe5695c60632f3f4c1c3257e28f1d4",
+        "action_class": "energy.battery_dispatch",
+        "target": {
+          "adapter": "twin",
+          "entity": "home_battery",
+          "zone": null
+        },
+        "params": {
+          "dispatch_kw": 0.0
+        },
+        "requested_by": {
+          "member_id": "synthetic-household-manager",
+          "role": "owner",
+          "surface": "app",
+          "speaker": null,
+          "claimed_author": null
+        },
+        "reason": "End hypothetical schedule",
+        "plan_id": "plan_8aa28089742d0339c409f181a5c3b04b7d98ee378f660fc708ec23e0e5006b71",
+        "scheduled_for": "2026-10-14T12:00:00Z",
+        "expected_effect": null,
+        "content_hash": "sha256:575e6f856f2eb558236e17b10a8b5335afca86519a000518090f5deafc3ae4b0"
+      }
+    ],
+    "schedule": {
+      "controls": [
+        {
+          "ev_kwh": 0.0,
+          "battery_kw": 0.11461644962332512,
+          "targets": [
+            69.97066666666666,
+            66.99066666666667
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 0.0,
+          "battery_kw": 0.17366998157335561,
+          "targets": [
+            69.93424444444445,
+            66.97907777777779
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 0.0,
+          "battery_kw": 0.24846574863318455,
+          "targets": [
+            69.88812574074075,
+            66.95758546296298
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 0.0,
+          "battery_kw": 0.4,
+          "targets": [
+            69.84239135956791,
+            66.93627225077162
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 0.0,
+          "battery_kw": 0.4,
+          "targets": [
+            69.79703809823818,
+            66.91513664868187
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 0.0,
+          "battery_kw": 2.7398822860883554,
+          "targets": [
+            70.99999999999999,
+            66.89417717660952
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 0.0,
+          "battery_kw": 0.4953125000000122,
+          "targets": [
+            71.0,
+            66.8775590334711
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 0.0,
+          "battery_kw": 0.4953125000000035,
+          "targets": [
+            71.0,
+            66.86107937485885
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 0.0,
+          "battery_kw": 0.4953125000000035,
+          "targets": [
+            71.0,
+            66.84473704673502
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 0.0,
+          "battery_kw": 0.4953125000000035,
+          "targets": [
+            71.0,
+            66.8285309046789
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 0.0,
+          "battery_kw": 0.5093750000000036,
+          "targets": [
+            71.0,
+            66.80495981380658
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 0.0,
+          "battery_kw": 0.5093750000000036,
+          "targets": [
+            71.0,
+            66.78158514869152
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 0.0,
+          "battery_kw": 0.5093750000000036,
+          "targets": [
+            71.0,
+            66.75840527245242
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 0.0,
+          "battery_kw": 0.5093750000000036,
+          "targets": [
+            71.0,
+            66.73541856184865
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 0.0,
+          "battery_kw": 0.0,
+          "targets": [
+            71.0,
+            66.69345674049991
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 0.0,
+          "battery_kw": 0.0,
+          "targets": [
+            71.0,
+            66.65184460099574
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 0.0,
+          "battery_kw": 0.0,
+          "targets": [
+            71.0,
+            66.61057922932078
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 0.0,
+          "battery_kw": 0.0,
+          "targets": [
+            71.0,
+            66.5696577357431
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 0.0,
+          "battery_kw": 0.0,
+          "targets": [
+            71.0,
+            66.52574392127859
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 0.0,
+          "battery_kw": 0.0,
+          "targets": [
+            71.0,
+            67.92326106913342
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 0.0,
+          "battery_kw": 0.0,
+          "targets": [
+            71.0,
+            69.46806722689075
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 0.0,
+          "battery_kw": 0.0,
+          "targets": [
+            71.0,
+            71.0
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 0.0,
+          "battery_kw": 0.0,
+          "targets": [
+            70.925,
+            71.0
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 0.0,
+          "battery_kw": 0.0,
+          "targets": [
+            70.850625,
+            71.0
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 0.0,
+          "battery_kw": 0.0,
+          "targets": [
+            70.77686979166667,
+            71.0
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 0.0,
+          "battery_kw": 0.0,
+          "targets": [
+            70.70372921006945,
+            71.0
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 0.0,
+          "battery_kw": 0.0,
+          "targets": [
+            70.63369813331887,
+            71.0
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 0.0,
+          "battery_kw": 0.0,
+          "targets": [
+            70.56425064887455,
+            71.0
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 0.0,
+          "battery_kw": 0.0,
+          "targets": [
+            70.49538189346727,
+            71.0
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 0.4999999999999858,
+          "battery_kw": 0.0,
+          "targets": [
+            70.42708704435505,
+            71.0
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 1.85,
+          "battery_kw": 0.0,
+          "targets": [
+            70.35269465231876,
+            71.0
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 1.85,
+          "battery_kw": 0.0,
+          "targets": [
+            70.27892219688277,
+            71.0
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 1.85,
+          "battery_kw": 0.0,
+          "targets": [
+            70.20576451190875,
+            71.0
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 1.85,
+          "battery_kw": 0.0,
+          "targets": [
+            70.13321647430952,
+            71.0
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": true
+        },
+        {
+          "ev_kwh": 1.85,
+          "battery_kw": 0.0,
+          "targets": [
+            70.06127300369027,
+            71.0
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 1.85,
+          "battery_kw": 0.0,
+          "targets": [
+            69.98992906199285,
+            71.0
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 1.85,
+          "battery_kw": 0.0,
+          "targets": [
+            69.91917965314292,
+            71.0
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 1.85,
+          "battery_kw": 0.0,
+          "targets": [
+            69.84901982270006,
+            71.0
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 1.85,
+          "battery_kw": 0.0,
+          "targets": [
+            69.77777799084423,
+            71.0
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 1.85,
+          "battery_kw": 0.0,
+          "targets": [
+            69.70712984092053,
+            71.0
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 1.85,
+          "battery_kw": 0.0,
+          "targets": [
+            69.63707042557952,
+            71.0
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 1.85,
+          "battery_kw": 0.0,
+          "targets": [
+            69.56759483869969,
+            71.0
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 1.85,
+          "battery_kw": 0.0,
+          "targets": [
+            69.49286488171053,
+            71.0
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 1.85,
+          "battery_kw": 0.0,
+          "targets": [
+            69.41875767436295,
+            71.0
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 1.85,
+          "battery_kw": 0.0,
+          "targets": [
+            69.3452680270766,
+            71.0
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 1.85,
+          "battery_kw": 0.0,
+          "targets": [
+            69.27239079351763,
+            71.0
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 1.85,
+          "battery_kw": 0.0,
+          "targets": [
+            69.19845420357166,
+            71.0
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 1.85,
+          "battery_kw": 0.0,
+          "targets": [
+            69.12513375187523,
+            71.0
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 1.85,
+          "battery_kw": -3.96940130665955,
+          "targets": [
+            69.05242430394293,
+            71.46665689288764
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 1.85,
+          "battery_kw": -5.0,
+          "targets": [
+            68.98032076807674,
+            71.37443475211357
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 0.0,
+          "battery_kw": 0.0,
+          "targets": [
+            68.9054847616761,
+            71.27964779584596
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 0.0,
+          "battery_kw": 0.0,
+          "targets": [
+            68.83127238866214,
+            71.18565073088058
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 0.0,
+          "battery_kw": 0.0,
+          "targets": [
+            68.75767845208996,
+            71.09243697478992
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        },
+        {
+          "ev_kwh": 0.0,
+          "battery_kw": 0.0,
+          "targets": [
+            68.68469779832255,
+            71.0
+          ],
+          "modes": [
+            "heat",
+            "heat"
+          ],
+          "appliance_start": false
+        }
+      ],
+      "method": "milp"
+    },
+    "replay": {
+      "valid": true,
+      "reasons": [],
+      "electricity_usd": 3.2882152678715055,
+      "wear_usd": 0.04254560606570184,
+      "grid_kwh": [
+        1.339206523454095e-15,
+        3.9968028886505635e-15,
+        6.217248937900877e-15,
+        2.1094237467877974e-15,
+        3.1363800445660672e-15,
+        2.6645352591003757e-15,
+        3.469446951953614e-15,
+        1.1379786002407855e-15,
+        0.0,
+        1.4710455076283324e-15,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.1363281250000015,
+        0.13632812500000005,
+        0.13632812500000005,
+        0.13632812500000138,
+        0.13789062500000412,
+        0.8133898502494449,
+        0.8878906249999999,
+        0.8878906249999999,
+        0.13515625000005285,
+        0.13515625,
+        0.13515625000000422,
+        0.13515625000000334,
+        0.13398437500000018,
+        0.13398437500000018,
+        0.13398437500000396,
+        0.6339843749999892,
+        1.987109375000003,
+        1.9871093750000024,
+        1.9871093750000017,
+        2.1585379464285745,
+        2.1585379464285728,
+        2.1585379464285728,
+        2.1585379464285754,
+        2.1585379464285728,
+        2.159319196428575,
+        2.1593191964285747,
+        1.9878906250000017,
+        1.9878906250000017,
+        1.9906250000000036,
+        1.9906250000000048,
+        1.9906250000000045,
+        1.9906250000000023,
+        1.9914062500000052,
+        1.991406249999998,
+        3.2025019952059712,
+        3.200000000000002,
+        0.10000000000000467,
+        0.10000000000000356,
+        0.10000000000000622,
+        0.1
+      ],
+      "export_kwh": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        8.604228440844963e-16,
+        0.0,
+        6.38378239159465e-16,
+        9.71445146547012e-16,
+        9.71445146547012e-16,
+        9.71445146547012e-16,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "ev_delivered_kwh": 34.500000000000014,
+      "battery_end_kwh": 7.425000000000001,
+      "battery_loss_kwh": 0.2242350326664888,
+      "ev_loss_kwh": 2.999999999999993,
+      "throughput_kwh": 4.254560606570184,
+      "comfort_violations_minutes": 0.0,
+      "appliance_completions": 1,
+      "ev": {
+        "capacity_kwh": 75.0,
+        "charger_kw": 7.4,
+        "efficiency": 0.92,
+        "soc": 0.8,
+        "plugged_in": true,
+        "charging": false,
+        "charge_limit": 0.8,
+        "grid_kwh": 37.50000000000001,
+        "stored_kwh": 34.500000000000014,
+        "loss_kwh": 2.999999999999993,
+        "driven_kwh": 0.0
+      },
+      "battery": {
+        "capacity_kwh": 13.5,
+        "power_kw": 5.0,
+        "efficiency": 0.9,
+        "reserve_soc": 0.1,
+        "soc": 0.55,
+        "dispatch_kw": 0.0,
+        "input_kwh": 2.2423503266648876,
+        "output_kwh": 2.0181152939983984,
+        "loss_kwh": 0.2242350326664888,
+        "throughput_kwh": 4.254560606570184
+      },
+      "zones": [
+        {
+          "thermal_mass_kwh_per_f": 0.46875,
+          "resistance_f_per_kw": 64.0,
+          "hvac_kw": 3.0,
+          "cop": 1.0,
+          "occupant_kw": 0.1,
+          "solar_gain_area_m2": 0.0,
+          "temp_f": 68.68469779832255,
+          "target_f": 68.68469779832255,
+          "mode": "heat",
+          "electricity_kwh": 1.0865330715221528,
+          "heat_kwh": 1.0865330715221528,
+          "passive_kwh": -1.7030809785584458
+        },
+        {
+          "thermal_mass_kwh_per_f": 0.46875,
+          "resistance_f_per_kw": 64.0,
+          "hvac_kw": 3.0,
+          "cop": 1.0,
+          "occupant_kw": 0.1,
+          "solar_gain_area_m2": 0.0,
+          "temp_f": 71.0,
+          "target_f": 71.0,
+          "mode": "heat",
+          "electricity_kwh": 3.4059633937906115,
+          "heat_kwh": 3.4059633937906115,
+          "passive_kwh": -1.530963393790598
+        }
+      ],
+      "appliance": {
+        "cycle_minutes": 105.0,
+        "cycle_kwh": 1.2,
+        "noise_dba": 50.0,
+        "running": false,
+        "elapsed_seconds": 6300.0,
+        "energy_kwh": 1.2,
+        "completions": 1
+      },
+      "applied_controls": [],
+      "control_boundaries": []
+    },
+    "baselines": {
+      "timer": {
+        "valid": true,
+        "reasons": [],
+        "electricity_usd": 3.577740543765151,
+        "wear_usd": 0.12150000000000002,
+        "grid_kwh": [
+          6.938893903907228e-18,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          4.440892098500626e-16,
+          0.0,
+          0.0,
+          3.608224830031759e-16,
+          0.011348786940640926,
+          0.1625,
+          0.1625,
+          0.1625,
+          0.1625,
+          3.2804687500000007,
+          3.2804687500000007,
+          3.2804687500000007,
+          3.2804687500000007,
+          3.2835937500000005,
+          2.1872060118409706,
+          2.0335937500000014,
+          2.033593749999996,
+          2.7390624999999997,
+          2.1050130208333333,
+          2.0203125000000015,
+          2.0203125000000015,
+          2.017968750000002,
+          2.017968750000002,
+          2.017968750000002,
+          2.017968750000002,
+          2.0242187500000015,
+          2.024218749999998,
+          2.0242187500000015,
+          2.0242187500000015,
+          0.6742187499999929,
+          0.17421875,
+          0.17421875,
+          0.17421875,
+          0.17578125000000036,
+          0.17578125000000036,
+          0.17578125000000036,
+          0.17578125000000036,
+          0.18124999999999983,
+          0.18124999999999983,
+          0.18124999999999983,
+          0.18124999999999983,
+          0.18281249999999974,
+          0.18281249999999974,
+          0.18281249999999974,
+          0.18281249999999974,
+          0.1859375,
+          0.1859375,
+          0.1859375,
+          0.1859375
+        ],
+        "export_kwh": [
+          0.0,
+          6.938893903907228e-17,
+          6.938893903907228e-17,
+          1.1102230246251565e-16,
+          1.1102230246251565e-16,
+          0.0,
+          1.1102230246251565e-16,
+          8.326672684688674e-17,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "ev_delivered_kwh": 34.500000000000014,
+        "battery_end_kwh": 7.425000000000001,
+        "battery_loss_kwh": 0.6403612261840972,
+        "ev_loss_kwh": 2.999999999999994,
+        "throughput_kwh": 12.150000000000002,
+        "comfort_violations_minutes": 0.0,
+        "appliance_completions": 1,
+        "ev": {
+          "capacity_kwh": 75.0,
+          "charger_kw": 7.4,
+          "efficiency": 0.92,
+          "soc": 0.8,
+          "plugged_in": true,
+          "charging": false,
+          "charge_limit": 0.8,
+          "grid_kwh": 37.50000000000001,
+          "stored_kwh": 34.500000000000014,
+          "loss_kwh": 2.999999999999994,
+          "driven_kwh": 0.0
+        },
+        "battery": {
+          "capacity_kwh": 13.5,
+          "power_kw": 5.0,
+          "efficiency": 0.9,
+          "reserve_soc": 0.1,
+          "soc": 0.55,
+          "dispatch_kw": 0.0,
+          "input_kwh": 6.403612261840969,
+          "output_kwh": 5.76325103565687,
+          "loss_kwh": 0.6403612261840972,
+          "throughput_kwh": 12.150000000000002
+        },
+        "zones": [
+          {
+            "thermal_mass_kwh_per_f": 0.46875,
+            "resistance_f_per_kw": 64.0,
+            "hvac_kw": 3.0,
+            "cop": 1.0,
+            "occupant_kw": 0.1,
+            "solar_gain_area_m2": 0.0,
+            "temp_f": 70.0,
+            "target_f": 70.0,
+            "mode": "heat",
+            "electricity_kwh": 3.525209974614846,
+            "heat_kwh": 1.7933089329481808,
+            "passive_kwh": -1.7933089329481786
+          },
+          {
+            "thermal_mass_kwh_per_f": 0.46875,
+            "resistance_f_per_kw": 64.0,
+            "hvac_kw": 3.0,
+            "cop": 1.0,
+            "occupant_kw": 0.1,
+            "solar_gain_area_m2": 0.0,
+            "temp_f": 72.0,
+            "target_f": 72.0,
+            "mode": "heat",
+            "electricity_kwh": 4.380633146339698,
+            "heat_kwh": 4.380633146339698,
+            "passive_kwh": -2.036883146339698
+          }
+        ],
+        "appliance": {
+          "cycle_minutes": 105.0,
+          "cycle_kwh": 1.2,
+          "noise_dba": 50.0,
+          "running": false,
+          "elapsed_seconds": 6300.0,
+          "energy_kwh": 1.1999999999999997,
+          "completions": 1
+        },
+        "applied_controls": [],
+        "control_boundaries": []
+      },
+      "immediate": {
+        "valid": true,
+        "reasons": [],
+        "electricity_usd": 6.081395685380744,
+        "wear_usd": 0.12150000000000007,
+        "grid_kwh": [
+          1.2538161470675209,
+          1.5820335668219108,
+          1.6054200085868682,
+          1.2004992177682698,
+          1.370874489553219,
+          2.901116071428567,
+          2.1768973214285725,
+          2.0397544642857106,
+          2.0054687500000017,
+          2.0054687500000017,
+          2.0125000000000015,
+          2.0125000000000015,
+          2.0125000000000015,
+          2.0125000000000015,
+          3.2804687500000016,
+          3.2804687500000016,
+          3.2804687500000016,
+          3.2804687500000016,
+          3.2835937500000014,
+          2.1872060118409706,
+          1.0535937499999903,
+          0.18359375000000014,
+          0.8890625,
+          0.25501302083333177,
+          0.1703125,
+          0.1703125,
+          0.16796875000000036,
+          0.16796875000000036,
+          0.16796875000000036,
+          0.16796875000000036,
+          0.17421875,
+          0.17421875,
+          0.17421875,
+          0.17421875,
+          0.17421875,
+          0.17421875,
+          0.17421875,
+          0.17421875,
+          0.17578125000000036,
+          0.17578125000000036,
+          0.17578125000000036,
+          0.17578125000000036,
+          0.18124999999999983,
+          0.18124999999999983,
+          0.18124999999999983,
+          0.18124999999999983,
+          0.18281249999999974,
+          0.18281249999999974,
+          0.18281249999999974,
+          0.18281249999999974,
+          0.1859375,
+          0.1859375,
+          0.1859375,
+          0.1859375
+        ],
+        "export_kwh": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "ev_delivered_kwh": 34.500000000000014,
+        "battery_end_kwh": 7.425000000000001,
+        "battery_loss_kwh": 0.640361226184097,
+        "ev_loss_kwh": 2.999999999999994,
+        "throughput_kwh": 12.150000000000006,
+        "comfort_violations_minutes": 0.0,
+        "appliance_completions": 1,
+        "ev": {
+          "capacity_kwh": 75.0,
+          "charger_kw": 7.4,
+          "efficiency": 0.92,
+          "soc": 0.8,
+          "plugged_in": true,
+          "charging": false,
+          "charge_limit": 0.8,
+          "grid_kwh": 37.50000000000001,
+          "stored_kwh": 34.500000000000014,
+          "loss_kwh": 2.999999999999994,
+          "driven_kwh": 0.0
+        },
+        "battery": {
+          "capacity_kwh": 13.5,
+          "power_kw": 5.0,
+          "efficiency": 0.9,
+          "reserve_soc": 0.1,
+          "soc": 0.55,
+          "dispatch_kw": 0.0,
+          "input_kwh": 6.403612261840969,
+          "output_kwh": 5.763251035656872,
+          "loss_kwh": 0.640361226184097,
+          "throughput_kwh": 12.150000000000006
+        },
+        "zones": [
+          {
+            "thermal_mass_kwh_per_f": 0.46875,
+            "resistance_f_per_kw": 64.0,
+            "hvac_kw": 3.0,
+            "cop": 1.0,
+            "occupant_kw": 0.1,
+            "solar_gain_area_m2": 0.0,
+            "temp_f": 70.0,
+            "target_f": 70.0,
+            "mode": "heat",
+            "electricity_kwh": 3.525209974614846,
+            "heat_kwh": 1.7933089329481808,
+            "passive_kwh": -1.7933089329481786
+          },
+          {
+            "thermal_mass_kwh_per_f": 0.46875,
+            "resistance_f_per_kw": 64.0,
+            "hvac_kw": 3.0,
+            "cop": 1.0,
+            "occupant_kw": 0.1,
+            "solar_gain_area_m2": 0.0,
+            "temp_f": 72.0,
+            "target_f": 72.0,
+            "mode": "heat",
+            "electricity_kwh": 4.380633146339698,
+            "heat_kwh": 4.380633146339698,
+            "passive_kwh": -2.036883146339698
+          }
+        ],
+        "appliance": {
+          "cycle_minutes": 105.0,
+          "cycle_kwh": 1.2,
+          "noise_dba": 50.0,
+          "running": false,
+          "elapsed_seconds": 6300.0,
+          "energy_kwh": 1.1999999999999997,
+          "completions": 1
+        },
+        "applied_controls": [],
+        "control_boundaries": []
+      },
+      "greedy": {
+        "valid": true,
+        "reasons": [],
+        "electricity_usd": 3.550857642593233,
+        "wear_usd": 0.11014423534879861,
+        "grid_kwh": [
+          0.0,
+          0.0,
+          1.5265566588595902e-16,
+          2.220446049250313e-16,
+          0.0,
+          0.0,
+          1.3877787807814457e-16,
+          3.608224830031759e-16,
+          3.608224830031759e-16,
+          3.608224830031759e-16,
+          3.608224830031759e-16,
+          3.608224830031759e-16,
+          3.608224830031759e-16,
+          3.608224830031759e-16,
+          3.4518973214285724,
+          3.4518973214285724,
+          3.4518973214285724,
+          3.4518973214285715,
+          3.0101332354258066,
+          2.205022321428573,
+          2.205022321428573,
+          2.033593749999996,
+          2.7390624999999997,
+          2.1050130208333333,
+          2.0203125000000015,
+          2.0203125000000015,
+          2.017968750000002,
+          2.017968750000002,
+          2.017968750000002,
+          2.017968750000002,
+          2.0242187500000015,
+          2.024218749999998,
+          2.0242187500000015,
+          2.0242187500000015,
+          0.6742187499999929,
+          0.17421875,
+          0.17421875,
+          0.17421875,
+          0.17578125000000036,
+          0.17578125000000036,
+          0.17578125000000036,
+          0.17578125000000036,
+          0.18124999999999983,
+          0.18124999999999983,
+          0.18124999999999983,
+          0.18124999999999983,
+          0.18281249999999974,
+          0.18281249999999974,
+          0.18281249999999974,
+          0.18281249999999974,
+          0.1859375,
+          0.1859375,
+          0.1859375,
+          0.1859375
+        ],
+        "export_kwh": [
+          1.0408340855860843e-16,
+          6.938893903907228e-17,
+          0.0,
+          0.0,
+          1.6653345369377348e-16,
+          2.220446049250313e-16,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "ev_delivered_kwh": 34.500000000000014,
+        "battery_end_kwh": 7.425000000000001,
+        "battery_loss_kwh": 0.5805110913997238,
+        "ev_loss_kwh": 2.999999999999994,
+        "throughput_kwh": 11.01442353487986,
+        "comfort_violations_minutes": 0.0,
+        "appliance_completions": 1,
+        "ev": {
+          "capacity_kwh": 75.0,
+          "charger_kw": 7.4,
+          "efficiency": 0.92,
+          "soc": 0.8,
+          "plugged_in": true,
+          "charging": false,
+          "charge_limit": 0.8,
+          "grid_kwh": 37.50000000000001,
+          "stored_kwh": 34.500000000000014,
+          "loss_kwh": 2.999999999999994,
+          "driven_kwh": 0.0
+        },
+        "battery": {
+          "capacity_kwh": 13.5,
+          "power_kw": 5.0,
+          "efficiency": 0.9,
+          "reserve_soc": 0.1,
+          "soc": 0.55,
+          "dispatch_kw": 0.0,
+          "input_kwh": 5.805110913997234,
+          "output_kwh": 5.224599822597509,
+          "loss_kwh": 0.5805110913997238,
+          "throughput_kwh": 11.01442353487986
+        },
+        "zones": [
+          {
+            "thermal_mass_kwh_per_f": 0.46875,
+            "resistance_f_per_kw": 64.0,
+            "hvac_kw": 3.0,
+            "cop": 1.0,
+            "occupant_kw": 0.1,
+            "solar_gain_area_m2": 0.0,
+            "temp_f": 70.0,
+            "target_f": 70.0,
+            "mode": "heat",
+            "electricity_kwh": 3.525209974614846,
+            "heat_kwh": 1.7933089329481808,
+            "passive_kwh": -1.7933089329481786
+          },
+          {
+            "thermal_mass_kwh_per_f": 0.46875,
+            "resistance_f_per_kw": 64.0,
+            "hvac_kw": 3.0,
+            "cop": 1.0,
+            "occupant_kw": 0.1,
+            "solar_gain_area_m2": 0.0,
+            "temp_f": 72.0,
+            "target_f": 72.0,
+            "mode": "heat",
+            "electricity_kwh": 4.380633146339698,
+            "heat_kwh": 4.380633146339698,
+            "passive_kwh": -2.036883146339698
+          }
+        ],
+        "appliance": {
+          "cycle_minutes": 105.0,
+          "cycle_kwh": 1.2,
+          "noise_dba": 50.0,
+          "running": false,
+          "elapsed_seconds": 6300.0,
+          "energy_kwh": 1.2,
+          "completions": 1
+        },
+        "applied_controls": [],
+        "control_boundaries": []
+      }
+    },
+    "diagnostics": {
+      "status": "optimal",
+      "elapsed_seconds": 0.02991091599687934,
+      "gap": 3.68815973117686e-05,
+      "message": "Optimization terminated successfully. (HiGHS Status 7: Optimal)",
+      "binding": [
+        "appliance contiguous cycle and deadline",
+        "equal EV delivery by deadline",
+        "hvac.living_room thermal balance",
+        "heating power",
+        "hvac.living_room comfort 5",
+        "cooling power",
+        "hvac.living_room comfort 6",
+        "hvac.living_room opening comfort 6",
+        "hvac.living_room comfort 7",
+        "hvac.living_room opening comfort 7",
+        "hvac.living_room comfort 8",
+        "hvac.living_room opening comfort 8",
+        "hvac.living_room comfort 9",
+        "hvac.living_room opening comfort 9",
+        "hvac.living_room comfort 10",
+        "hvac.living_room opening comfort 10",
+        "hvac.living_room comfort 11",
+        "hvac.living_room opening comfort 11",
+        "hvac.living_room comfort 12",
+        "hvac.living_room opening comfort 12",
+        "hvac.living_room comfort 13",
+        "hvac.living_room opening comfort 13",
+        "hvac.living_room comfort 14",
+        "hvac.living_room opening comfort 14",
+        "hvac.living_room comfort 15",
+        "hvac.living_room opening comfort 15",
+        "hvac.living_room comfort 16",
+        "hvac.living_room opening comfort 16",
+        "hvac.living_room comfort 17",
+        "hvac.living_room opening comfort 17",
+        "hvac.living_room comfort 18",
+        "hvac.living_room opening comfort 18",
+        "hvac.living_room comfort 19",
+        "hvac.living_room opening comfort 19",
+        "hvac.living_room comfort 20",
+        "hvac.living_room opening comfort 20",
+        "hvac.living_room comfort 21",
+        "hvac.living_room opening comfort 21",
+        "hvac.guest_room thermal balance",
+        "hvac.guest_room comfort 21",
+        "hvac.guest_room comfort 22",
+        "hvac.guest_room opening comfort 22",
+        "hvac.guest_room comfort 23",
+        "hvac.guest_room opening comfort 23",
+        "hvac.guest_room comfort 24",
+        "hvac.guest_room opening comfort 24",
+        "hvac.guest_room comfort 25",
+        "hvac.guest_room opening comfort 25",
+        "hvac.guest_room comfort 26",
+        "hvac.guest_room opening comfort 26",
+        "hvac.guest_room comfort 27",
+        "hvac.guest_room opening comfort 27",
+        "hvac.guest_room comfort 28",
+        "hvac.guest_room opening comfort 28",
+        "hvac.guest_room comfort 29",
+        "hvac.guest_room opening comfort 29",
+        "hvac.guest_room comfort 30",
+        "hvac.guest_room opening comfort 30",
+        "hvac.guest_room comfort 31",
+        "hvac.guest_room opening comfort 31",
+        "hvac.guest_room comfort 32",
+        "hvac.guest_room opening comfort 32",
+        "hvac.guest_room comfort 33",
+        "hvac.guest_room opening comfort 33",
+        "hvac.guest_room comfort 34",
+        "hvac.guest_room opening comfort 34",
+        "hvac.guest_room comfort 35",
+        "hvac.guest_room opening comfort 35",
+        "hvac.guest_room comfort 36",
+        "hvac.guest_room opening comfort 36",
+        "hvac.guest_room comfort 37",
+        "hvac.guest_room opening comfort 37",
+        "hvac.guest_room comfort 38",
+        "hvac.guest_room opening comfort 38",
+        "hvac.guest_room comfort 39",
+        "hvac.guest_room opening comfort 39",
+        "hvac.guest_room comfort 40",
+        "hvac.guest_room opening comfort 40",
+        "hvac.guest_room comfort 41",
+        "hvac.guest_room opening comfort 41",
+        "hvac.guest_room comfort 42",
+        "hvac.guest_room opening comfort 42",
+        "hvac.guest_room comfort 43",
+        "hvac.guest_room opening comfort 43",
+        "hvac.guest_room comfort 44",
+        "hvac.guest_room opening comfort 44",
+        "hvac.guest_room comfort 45",
+        "hvac.guest_room opening comfort 45",
+        "hvac.guest_room comfort 46",
+        "hvac.guest_room opening comfort 46",
+        "hvac.guest_room comfort 47",
+        "hvac.guest_room opening comfort 47",
+        "hvac.guest_room opening comfort 48",
+        "hvac.guest_room comfort 53",
+        "battery conservation",
+        "battery charge exclusivity",
+        "grid import exclusivity",
+        "no battery to grid",
+        "household energy balance",
+        "solar export only",
+        "battery discharge exclusivity"
+      ]
+    },
+    "blocking_constraints": [],
+    "unresolved_conflict": false,
+    "previous_feasible_reference": null,
+    "reference_label": null,
+    "input_hash": "6f91582feb423a66132660e25fb4e3431abf416ffa831faa08911a08c3912cc8",
+    "provenance": [
+      "Approved synthetic workload; simulated devices",
+      "Pinned 2026 tariff counterfactual: supply plus distribution"
+    ]
+  },
+  "import_seconds": 0.5799127500504255,
+  "cold_seconds": 0.6646711670327932,
+  "greedy_seconds": 0.0277769579552114,
+  "greedy_valid": true,
+  "live": null
+}

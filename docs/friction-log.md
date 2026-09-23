@@ -141,6 +141,7 @@ PDF URL, while direct curl succeeded. Neither is evidence of a ComEd outage.
 | # | Date | Tool / service | Goal | Steps / reference | Expected | Actual | Severity | Workaround | Feature request |
 |---|---|---|---|---|---|---|---|---|---|
 | 13 | 2026-09-20 | Home Assistant 2026.9.2 demo climate | Verify the planned 72 °F single-target write on ecobee without mode changes | Read `/api/states/climate.ecobee` and `/api/config`; checked the [climate contract](https://developers.home-assistant.io/docs/core/entity/climate/) and [REST API](https://developers.home-assistant.io/docs/api/rest/) | Planning assumed a scalar target on ecobee | HTTP 200: `state: heat_cool`, `target_temp_low: 70`, `target_temp_high: 75`, `supported_features: 442`; no scalar `temperature` or per-state `temperature_unit`. No upstream error occurred; the planning assumption was wrong | Minor | Author approved ecobee read-only and `climate.heatpump` at 72 °F in its existing heat mode; fetch the instance unit system from `/api/config` | Include a single-target/ranged-target example and the instance-unit lookup in REST climate examples |
+| 14 | 2026-09-21 | SciPy 1.18.0 / HiGHS timed MILP | Reproduce the annual planner study exactly | Repeated the archived study with concurrent annual replications, `time_limit=5.0` and `mip_rel_gap=0.001`; see the [milp contract](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.milp.html) | Identical retained schedules apart from measured timing | One solve returned `Time limit reached. (HiGHS Status 13: Time limit reached)` with gap 0.0036811719670481616; its repeat reached optimal status with gap 0.0007238771401596331, changing the schedule and failing exact reproduction. Investigating and repeating the full study took more than 15 minutes. This is documented timeout behavior, not a solver defect | Minor | Remove concurrent study solves and compression during timed solves; load the comparison archive after solving. Preserve the five-second limit, strict comparison and both diagnostic outcomes; record the subsequent verification in the [evidence log](./verification-log.md#independent-reproduction-failure-and-isolation--2026-09-21) | Clarify beside the determinism note that wall-time limits can select different incumbents under different machine loads |
 
 The existing sandbox restriction from entry 6 recurred: `permission denied while
 trying to connect to the docker API at unix:///Users/bashaarjavaid/.docker/run/docker.sock`
@@ -225,3 +226,99 @@ Priority per Devpost: `Critical`, `Important`, `Nice-to-have`.
 | Proactive add-on invocation or a notifications API | A household agent cannot tell the member a scheduled action came due or an approval is waiting | Important |
 | Alexa+ simulator access for hackathon participants | Participants have no simulator access, so each builds an emulated host to test against. Hirz's host harness and an add-on conformance checker are published as a separate open-source project so the next developer does not start from zero | Important |
 | AgentCore Policy natural-language authoring exposed via API for third-party UIs | A household app could draft Cedar through the same path the console uses | Nice-to-have |
+
+Item 17 follow-up to entries 6 and 8 (2026-09-21): the pinned SciPy install and
+packaging command again encountered uv's existing cache sandbox restriction:
+`error: Failed to initialize cache at /Users/bashaarjavaid/.cache/uv`, caused by
+`failed to open file /Users/bashaarjavaid/.cache/uv/sdists-v9/.git: Operation not permitted (os error 1)`.
+Authorized escalation completed both operations. Public archive fetching first
+returned `httpx.ConnectError: [Errno 8] nodename nor servname provided, or not known`
+in the network sandbox; the authorized sequential download then succeeded.
+The initial full test run's local WebSocket fixtures returned
+`PermissionError: [Errno 1] error while attempting to bind on address ('127.0.0.1', 0): [errno 1] operation not permitted`;
+local-socket escalation resolved it. These reuse the existing sandbox workarounds,
+not new upstream defects. References: [uv CLI](https://docs.astral.sh/uv/reference/cli/),
+[HTTPX exceptions](https://www.python-httpx.org/exceptions/), and
+[asyncio servers](https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.loop.create_server).
+No new ComEd, Open-Meteo or SciPy API incompatibility was observed in this task.
+
+
+Item 18 follow-up to the existing sandbox entries (2026-09-21, **Minor**): uv again returned
+`Failed to initialize cache at /Users/bashaarjavaid/.cache/uv` and
+`failed to open file /Users/bashaarjavaid/.cache/uv/sdists-v9/.git: Operation not permitted (os error 1)`.
+Using `UV_CACHE_DIR=/tmp/hirz-uv` reused the installed environment without a new
+install. The initial disposable PostgreSQL checks returned
+`connection to server at "127.0.0.1", port 5432 failed: Operation not permitted`;
+authorized local-socket escalation resolved it. The subsequent tests use
+`--tb=short` to avoid third-party traceback locals containing connection parameters.
+These repeat sandbox workarounds, not new upstream defects. References:
+[uv cache directory](https://docs.astral.sh/uv/reference/cli/#uv--cache-dir) and
+[pytest traceback styles](https://docs.pytest.org/en/stable/how-to/output.html#modifying-python-traceback-printing).
+
+Item 19 follow-up to the existing sandbox entries (2026-09-21, **Minor**): uv again
+reported `Failed to initialize cache at /Users/bashaarjavaid/.cache/uv` and
+`failed to open file /Users/bashaarjavaid/.cache/uv/sdists-v9/.git: Operation not permitted (os error 1)`;
+`UV_CACHE_DIR=/tmp/hirz-uv` allowed reuse of the installed environment. PostgreSQL
+initially returned `connection to server at "127.0.0.1", port 5432 failed: Operation not permitted`;
+authorized localhost access resolved it. Subsequent database tests use `--tb=short`
+to suppress third-party traceback locals. These are the same sandbox workarounds,
+not new upstream API defects. References: [uv cache directory](https://docs.astral.sh/uv/reference/cli/#uv--cache-dir)
+and [pytest traceback styles](https://docs.pytest.org/en/stable/how-to/output.html#modifying-python-traceback-printing).
+
+Item 20 follow-up to the existing sandbox entries (2026-09-21, **Minor**): uv
+reported `Failed to initialize cache at /Users/bashaarjavaid/.cache/uv` and
+`failed to open file /Users/bashaarjavaid/.cache/uv/sdists-v9/.git: Operation not permitted (os error 1)`.
+Using the installed `.venv/bin` tools and `UV_CACHE_DIR=/tmp/hirz-uv` for builds
+avoided a new dependency install. Disposable PostgreSQL tests initially returned
+`connection to server at "127.0.0.1", port 5432 failed: Operation not permitted`;
+the existing WebSocket tests also could not bind localhost. Authorized local
+socket access resolved both. Database reruns used `--tb=short` to suppress
+third-party traceback locals. These repeat sandbox workarounds, not new upstream
+API defects. References: [uv cache directory](https://docs.astral.sh/uv/reference/cli/#uv--cache-dir)
+and [pytest traceback styles](https://docs.pytest.org/en/stable/how-to/output.html#modifying-python-traceback-printing).
+
+
+Item 21 follow-up to entry 6 (2026-09-22, **Minor**): installing the approved
+Boto3 dependency with `uv add 'boto3==1.43.90'` encountered the same sandbox cache
+restriction: `error: Failed to initialize cache at /Users/bashaarjavaid/.cache/uv`
+and `failed to open file /Users/bashaarjavaid/.cache/uv/sdists-v9/.git: Operation not permitted (os error 1)`.
+[uv cache contract](https://docs.astral.sh/uv/concepts/cache/). Authorized escalation
+installed and locked the dependency; repository-local tool binaries handled focused
+checks, and escalated uv handled full-suite loopback/database checks. This is the
+existing sandbox limitation, not an SDK or uv defect; no live Bedrock call was made.
+
+
+Item 22 solver output (2026-09-22, **Minor**): the overnight replay emitted
+`HighsMipSolverData::transformNewIntegerFeasibleSolution tmpSolver.run();`
+on stdout even with SciPy's default `disp=False`. This was diagnostic output,
+not a solver failure, but it made redirected CLI stdout unsuitable as a JSON
+file. [SciPy's MILP options](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.milp.html)
+document console status output as opt-in. The scenario CI job now reads the
+existing exclusive-create `--output` report, which is written independently of
+native solver output. Feature request: route all native diagnostics through the
+configured logging flag or stderr so stdout remains usable by structured CLIs.
+
+
+Phase 3 Batch C2 follow-up to entry 6 (2026-09-22, **Minor**): `uv run pytest`
+repeated the existing agent-sandbox cache restriction:
+
+```text
+error: Failed to initialize cache at `/Users/bashaarjavaid/.cache/uv`
+  cause: failed to open file `/Users/bashaarjavaid/.cache/uv/sdists-v9/.git`: Operation not permitted (os error 1)
+```
+
+Authorized sandbox escalation allowed the existing cache and disposable local
+PostgreSQL verification. This is the previously recorded environment limitation,
+not a new upstream defect. Reference: [uv cache configuration](https://docs.astral.sh/uv/concepts/cache/).
+
+
+HA smoke CI investigation (2026-09-22, **Minor**):
+`gh run view 35825693255 --job 107066790316 --log` refused to read the completed
+scenario job while another job remained active:
+`run 35825693255 is still in progress; logs will be available when it is complete`.
+The [CLI reference](https://cli.github.com/manual/gh_run_view) supports selecting
+an individual job's logs. Workaround: `gh api repos/BashaarJavaid/Hirz/actions/jobs/107066790316/logs`
+returned the completed job's diagnostics through the documented
+[job-log endpoint](https://docs.github.com/en/rest/actions/workflow-jobs#download-job-logs-for-a-workflow-run).
+Feature request: let `gh run view --job --log` retrieve a completed job without
+waiting for the whole run. This was a CLI limitation, not a failed Actions service.

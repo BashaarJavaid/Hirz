@@ -284,3 +284,85 @@ for item 17's backtest and real households. Rejected live forecasts at run time:
 a fixed-date scenario cannot replay identically in CI, the video and judging,
 and the 16-day forecast window excludes the October scenario at November judging.
 No DSL extension or RealEnergy archive fallback is introduced.
+
+## Explicit manual thermostat events — 2026-09-21
+
+Item 18 accepts current, explicit `source: twin` thermostat observations from a
+linked submitter in the internal coordinator and disposable smoke. The observation
+contract now carries `mode: heat | cool | off` alongside `target_f`; mode requires
+a device observation for an HVAC asset. Pipeline versions the observation and its
+`manual:device` constraint atomically. The submitter is not claimed to be the
+person who touched a thermostat. Real HA/Link detection and scenario event wiring
+remain deferred; no raw device-write method or execution bypass was added.
+
+## Durable executor and checkpoint amendment — 2026-09-21
+
+Item 19's local composition root combines `HIRZ_ADAPTERS`, stored explicit bindings,
+HA YAML provenance and an explicitly configured twin scenario. Supported writes are
+twin HVAC, EV controls, battery dispatch, appliance start and lights, plus the
+existing HA lights/switches and single-setpoint climates. HVAC execution accepts
+66–76 °F and tighter policy/device restrictions. Unsupported values are rejected;
+approved values are never clamped. Security, covers and profiles remain deferred.
+
+The executor uses the existing durable claim for every dispatch. HA verification
+reads HA directly, never a Registry fallback. Dispatch success and verified command
+state remain separate audit events. Device dispatch and verification each have a
+ten-second bound; EV dispatch has thirty seconds. A reversible mismatch or uncertain
+attempt can schedule one fresh Action after a direct read confirms the control is
+still unmet. The original attempt stays terminal, and the new request goes through
+all Pipeline checks without inheriting votes. Appliance starts are not retried.
+
+Twin control effects and checkpoints commit together; checkpoints include physical
+state, configuration identity and simulation position with signed hash evidence.
+The simulation clock pauses during a sweep and advances between polls; restored
+simulation excludes wall-clock downtime. Readings before evaluation and after writes
+enter graph history through `governance.record_observations`, attributed to the
+initiator/approver on the scheduler surface. Rejected accepted-command-as-success,
+HA-to-twin write verification, caller-supplied readings, and local recovery claims
+while the database or worker remains offline. Failure notices are durable pending
+records, not delivered push/email messages.
+
+## Executable scenarios — 2026-09-22 (author-approved)
+
+Item 22 composes the existing Coordinator, Pipeline, PlanService, refresh worker,
+Executor and template Explainer inside a disposable PostgreSQL scenario host.
+Structured `{tool, arguments, save_as}` calls are simulation interfaces, not MCP or
+authentication. Bare tool names remain deferred. No solver or model runs inside a
+scripted call. Hourly retains its planning regression; parents retains observations
+and explicit deferred forbidden-action checks. Rejected a second execution engine
+and fabricated service/audit results.
+
+The author extends the disposable-test bootstrap exception to this scenario's
+seed, supplied room metadata, explicit bindings, rate plan and EV needed-by time.
+All later persisted changes and every device write require Pipeline decisions.
+Seeded validated v7 is the execution policy; simulated v8 preview stays separate
+and produces no activation audit event. Security, trust, Link, authenticated
+activation, MCP and UI remain deferred.
+
+Bindings map seed asset slug to `{adapter, entity}`. HA uses its explicit config
+for allowlisting and provenance; scenario-only read fallback stays labeled twin.
+Writes and verification use the primary adapter. The main evening uses twin
+devices, local published ComEd rates and supplied weather, with no live feeds or
+Bedrock. A separate current-time, normal-speed HA demo lamp scenario verifies and
+restores `light.bed_light` through signed Pipeline execution. The physical-plug
+check remains separate.
+
+Private artifacts retain the report, full signed audit and public key. Successful
+database deletion requires both database-chain and exported-file verification
+against the independently obtained signing-key fingerprint. Failed databases and
+available evidence remain. Step/unchecked/deferred checks cannot earn full evening
+success. Rejected treating an observation replay or an unverified export as the
+item 22 execution gate.
+
+
+### HA smoke quiet-hours consent — 2026-09-22
+
+The current-time lamp smoke must obey the seeded household's quiet-hours rule.
+Extend the existing explicitly declared response mechanism to standalone lamp
+requests: retain ASK, record a visible linked-member answer through Pipeline.vote,
+and enqueue the unchanged request with the original requester and bound approval.
+A rejected or absent answer does not schedule the lamp; the worker still checks
+permission before dispatch and owns the preauthorized ending. Planned responses
+continue through PlanService. Rejected removing quiet hours, weakening freshness,
+forcing daytime for a live adapter, or treating a matching final lamp state as
+proof of a toggle. Both ordered VERIFIED rows remain required.

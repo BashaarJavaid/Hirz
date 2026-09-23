@@ -44,6 +44,11 @@ def action_hash(action: Action) -> str:
             "target": action.target.model_dump(),
             "params": action.params,
             "scheduled_for": action.scheduled_for,
+            **(
+                {"revert": action.revert.model_dump(by_alias=True)}
+                if action.revert
+                else {}
+            ),
         }
     )
 

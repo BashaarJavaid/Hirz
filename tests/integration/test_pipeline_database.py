@@ -1,10 +1,11 @@
 """Item 9 grants, signed append, races and rollback on disposable PostgreSQL."""
 
 import asyncio
+from dataclasses import replace
 from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import AsyncMock
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 import sqlalchemy as sa
@@ -59,6 +60,60 @@ async def setup(connection, policy=POLICY, *, native=False, snap=None):
 
 async def count(connection, table):
     return await connection.scalar(sa.select(sa.func.count()).select_from(table))
+
+
+def test_different_household_pipeline_write_locks_overlap(scratch_database):
+    async def run():
+        async with (
+            connect(scratch_database) as first,
+            connect(scratch_database) as second,
+        ):
+            p = await setup(first)
+            q = Pipeline(
+                second,
+                replace(p.bundle, household_id=UUID(int=HOME.int ^ (1 << 127))),
+                p.boundary,
+                p.audit,
+            )
+            async with p.repo.write():
+                async with asyncio.timeout(5):
+                    async with q.repo.write():
+                        assert p.repo._at is not None and q.repo._at is not None
+
+    asyncio.run(run())
+
+
+def test_same_household_pipeline_write_locks_serialize(scratch_database):
+    async def run():
+        async with (
+            connect(scratch_database) as first,
+            connect(scratch_database) as second,
+        ):
+            p = await setup(first)
+            q = Pipeline(second, p.bundle, p.boundary, p.audit)
+            holder = await first.scalar(sa.text("SELECT pg_backend_pid()"))
+            waiter = await second.scalar(sa.text("SELECT pg_backend_pid()"))
+            await first.rollback()
+            await second.rollback()
+            entered = asyncio.Event()
+
+            async def acquire():
+                async with q.repo.write():
+                    entered.set()
+
+            async with asyncio.TaskGroup() as tasks:
+                async with p.repo.write():
+                    tasks.create_task(acquire())
+                    async with asyncio.timeout(5):
+                        while not await first.scalar(
+                            sa.text("SELECT :holder = ANY(pg_blocking_pids(:waiter))"),
+                            {"holder": holder, "waiter": waiter},
+                        ):
+                            await asyncio.sleep(0.01)
+                    assert not entered.is_set()
+                await asyncio.wait_for(entered.wait(), timeout=5)
+
+    asyncio.run(run())
 
 
 def test_native_approval_one_grant_and_signed_envelopes(scratch_database):

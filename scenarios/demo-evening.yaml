@@ -9,18 +9,50 @@ clock:
 adapters:
   devices: twin
   ev: twin
-  energy: twin
+  energy: real
   presence: twin
   wearable: twin
   calendar: twin
   contacts: twin
   doorbell: twin
-rate_plan: twin
+rate_plan: comed_time_of_day
+execution:
+  plan_at: '17:33'
+  member: malik
+  ev_target: 0.8
+  ev_needed_by: '+1d 06:30'
+  rooms:
+    hvac.living_room: other
+    hvac.guest_room: bedroom
+    light.living_room: other
+    dishwasher: other
+    lock.front_door: other
+    doorbell.front_door: other
+    ev: other
+    home_battery: other
+    solar: other
+  responses:
+  - start: '23:05'
+    end: '+1d 07:00'
+    member: malik
+    surface: alexa
+    action_class: energy.hvac_adjust
+    asset: hvac.guest_room
+    approved: true
+  - start: '23:31'
+    end: '+1d 07:00'
+    member: malik
+    surface: alexa
+    action_class: energy.appliance_start
+    asset: dishwasher
+    approved: true
+bindings:
+  light.living_room: {adapter: twin, entity: light.living_room}
 initial:
   base_load_kw: 0.4
   weather:
     start: '2026-10-13T17:30:00-05:00'
-    end: '2026-10-14T08:00:00-05:00'
+    end: '2026-10-14T18:00:00-05:00'
     # Supplied historical weather from Open-Meteo archive reanalysis (observations + models).
     # Docs: https://open-meteo.com/en/docs/historical-weather-api
     # Raw response: fixtures/weather-chicago-2025-10-13.json; provenance: fixtures/manifest.json
@@ -29,8 +61,8 @@ initial:
     # SHA-256: a32b0dfccb3ba5619b24101d72fd14ac77f32b4b2b541706ce2471ef81c9a7c3
     # Chicago local hours shifted from 2025 to the same calendar night in 2026.
     # The 17:00 value is placed at 17:30 to match the scenario start.
-    # Weather coverage ends at 08:00 so the 07:00 sample precedes its exclusive end;
-    # the scenario still ends at 07:00. All 15 source hours are non-null; none omitted.
+    # Planning weather extends to the next 17:30 using the same retained fixture.
+    # Observation replay still ends at 07:00; planning does not mutate that world.
     # Held by the twin and labeled twin (supplied weather); never fetched during replay.
     samples:
     - at: '2026-10-13T17:30:00-05:00'
@@ -78,6 +110,36 @@ initial:
     - at: '2026-10-14T07:00:00-05:00'
       temp_f: 60.6
       cloud_cover_percent: 100
+    - at: '2026-10-14T08:00:00-05:00'
+      temp_f: 61.5
+      cloud_cover_percent: 100
+    - at: '2026-10-14T09:00:00-05:00'
+      temp_f: 63.1
+      cloud_cover_percent: 100
+    - at: '2026-10-14T10:00:00-05:00'
+      temp_f: 64.9
+      cloud_cover_percent: 100
+    - at: '2026-10-14T11:00:00-05:00'
+      temp_f: 65.4
+      cloud_cover_percent: 91
+    - at: '2026-10-14T12:00:00-05:00'
+      temp_f: 66.3
+      cloud_cover_percent: 89
+    - at: '2026-10-14T13:00:00-05:00'
+      temp_f: 66.7
+      cloud_cover_percent: 79
+    - at: '2026-10-14T14:00:00-05:00'
+      temp_f: 66.5
+      cloud_cover_percent: 57
+    - at: '2026-10-14T15:00:00-05:00'
+      temp_f: 65.1
+      cloud_cover_percent: 55
+    - at: '2026-10-14T16:00:00-05:00'
+      temp_f: 63.5
+      cloud_cover_percent: 20
+    - at: '2026-10-14T17:00:00-05:00'
+      temp_f: 61.6
+      cloud_cover_percent: 9
   tariff:
     periods:
     - start_minute: 0
@@ -101,7 +163,7 @@ initial:
       dispatch_kw: 0
   zones:
     hvac.living_room:
-      temp_f: 68
+      temp_f: 70
       target_f: 74
       mode: 'off'
       solar_gain_area_m2: 0
@@ -183,6 +245,7 @@ timeline:
 - at: '17:30'
   event: presence.arrive
   member: malik
+  zone: hvac.living_room
   note: earlier than usual
 - at: '17:31'
   event: voice
@@ -199,19 +262,30 @@ timeline:
   member: malik
   text: What's going on tonight?
   script:
-  - get_household_plan
+  - {tool: get_household_plan, arguments: {}}
 - at: '17:35'
   event: voice
   member: malik
-  text: Don't charge the car past 50. I'm not driving tomorrow.
+  text: Don't charge the car past 50. I'm not driving tomorrow. Keep the guest room at 72 Fahrenheit until seven in the morning. Run the dishwasher after 23:31.
   script:
-  - revise_household_plan
+  - tool: revise_household_plan
+    arguments: {text: 'Change the car target to 50% by 06:30', replaces: '$initial_target'}
+    save_as: revised_target
+  - tool: revise_household_plan
+    arguments: {text: "Don't charge the car past 50"}
+    save_as: ceiling
+  - tool: revise_household_plan
+    arguments: {text: "Prefer the guest room at 72 Fahrenheit until 07:00"}
+    save_as: guest_comfort
+  - tool: revise_household_plan
+    arguments: {text: "Do not run the dishwasher before 23:31"}
+    save_as: overnight_dishwasher
 - at: '17:36'
   event: voice
   member: malik
   text: Do it.
   script:
-  - approve_action
+  - {tool: approve_action, arguments: {plan: current}}
 - at: '18:40'
   event: doorbell.press
   entity: doorbell.front_door
@@ -222,6 +296,14 @@ timeline:
   text: Let them in.
   script:
   - execute_household_action
+- at: '18:55'
+  event: voice
+  member: malik
+  text: Turn on the living room lamp.
+  script:
+  - tool: execute_household_action
+    arguments: {asset: light.living_room, 'on': true}
+    save_as: lamp
 - at: '18:58'
   event: doorbell.motion
   entity: doorbell.front_door
@@ -250,13 +332,16 @@ timeline:
 - at: '19:10'
   event: presence.arrive
   member: mom
+  zone: hvac.living_room
   note: Explicit simulation input, independent of deferred unlock.
 - at: '22:40'
   event: voice
   member: dad
   text: Don't run the dishwasher until I'm done in the kitchen at eleven.
   script:
-  - revise_household_plan
+  - tool: revise_household_plan
+    arguments: {text: "Don't run the dishwasher until 23:00"}
+    save_as: kitchen
 - at: '23:05'
   event: presence.sleep
   member: mom
@@ -266,13 +351,13 @@ timeline:
   member: malik
   text: Optimize energy tonight.
   script:
-  - get_household_plan
+  - {tool: get_household_plan, arguments: {}}
 - at: '23:31'
   event: voice
   member: malik
   text: Yes.
   script:
-  - approve_action
+  - {tool: approve_action, arguments: {plan: current}}
 - at: +1d 06:45
   event: wearable.recovery
   member: malik
@@ -282,8 +367,8 @@ timeline:
   member: malik
   text: Good morning.
   script:
-  - get_household_context
-  - get_household_plan
+  - {tool: get_household_context, arguments: {}}
+  - {tool: get_household_plan, arguments: {}}
 assert:
   checks:
   - at: '17:30'
@@ -355,7 +440,6 @@ assert:
   - at: +1d 07:00
     kind: observation
     equals:
-      soc: 0.34
       power_kw: 0
     domain: ev
     subject: ev
@@ -368,7 +452,7 @@ assert:
   - at: +1d 07:00
     kind: observation
     equals:
-      'on': false
+      'on': true
     domain: devices
     subject: light.living_room
   - at: +1d 07:00
@@ -380,82 +464,28 @@ assert:
   - at: +1d 07:00
     kind: observation
     equals:
-      price_band: synthetic-base
+      price_band: morning
     domain: energy
     subject: household
+  audit_sequence_includes:
+  - PLAN_CREATED
+  - PLAN_REVISED
+  - PLAN_APPROVED
+  - VERIFIED:environment.lights
+  # Initial 17:33 forecast, retained item 22 run12 signed PLAN_CREATED.
+  # Revisions are separate remaining-horizon forecasts; never add their savings.
+  plan_summary:
+    estimated_savings_usd: {min: 0.2797130920136214, max: 0.2797130920136214}
+    peak_kwh_avoided: {min: -4.3421521040837296e-05, max: -4.3421521040837296e-05}
+    grid_kwh: {min: 49.202804672178694, max: 49.202804672178694}
+    comfort_violations_minutes: {min: 0.0, max: 0.0}
+  ev_soc_at:
+    '+1d 06:30': {min: 0.5, max: 0.5}
+  never:
+  - EXECUTE:finance.*
+  - EXECUTE:security.access_code_share
   deferred:
-  - expectation: 'audit_sequence_includes[0]: CONSTITUTION_PROPOSED'
-    reason: Requires actual pipeline/tool/executor integration; simulated model events
-      are not audit rows.
-  - expectation: 'audit_sequence_includes[1]: CONSTITUTION_ACTIVATED'
-    reason: Requires actual pipeline/tool/executor integration; simulated model events
-      are not audit rows.
-  - expectation: 'audit_sequence_includes[2]: PLAN_CREATED'
-    reason: Requires actual pipeline/tool/executor integration; simulated model events
-      are not audit rows.
-  - expectation: 'audit_sequence_includes[3]: PLAN_REVISED'
-    reason: Requires actual pipeline/tool/executor integration; simulated model events
-      are not audit rows.
-  - expectation: 'audit_sequence_includes[4]: APPROVED'
-    reason: Requires actual pipeline/tool/executor integration; simulated model events
-      are not audit rows.
-  - expectation: 'audit_sequence_includes[5]: EXECUTE:energy.battery_dispatch'
-    reason: Requires actual pipeline/tool/executor integration; simulated model events
-      are not audit rows.
-  - expectation: 'audit_sequence_includes[6]: EXECUTE:energy.hvac_adjust'
-    reason: Requires actual pipeline/tool/executor integration; simulated model events
-      are not audit rows.
-  - expectation: 'audit_sequence_includes[7]: DENY_CONSTITUTION:security.door_unlock'
-    reason: Requires actual pipeline/tool/executor integration; simulated model events
-      are not audit rows.
-  - expectation: 'audit_sequence_includes[8]: EXECUTED:environment.lights'
-    reason: Requires actual pipeline/tool/executor integration; simulated model events
-      are not audit rows.
-  - expectation: 'audit_sequence_includes[9]: ASK_CONSTITUTION:security.door_unlock'
-    reason: Requires actual pipeline/tool/executor integration; simulated model events
-      are not audit rows.
-  - expectation: 'audit_sequence_includes[10]: APPROVED'
-    reason: Requires actual pipeline/tool/executor integration; simulated model events
-      are not audit rows.
-  - expectation: 'audit_sequence_includes[11]: EXECUTED:security.door_unlock'
-    reason: Requires actual pipeline/tool/executor integration; simulated model events
-      are not audit rows.
-  - expectation: 'audit_sequence_includes[12]: EXECUTED:security.door_lock'
-    reason: Requires actual pipeline/tool/executor integration; simulated model events
-      are not audit rows.
-  - expectation: 'audit_sequence_includes[13]: LINK_REJECTED'
-    reason: Requires actual pipeline/tool/executor integration; simulated model events
-      are not audit rows.
-  - expectation: 'audit_sequence_includes[14]: PLAN_REVISED'
-    reason: Requires actual pipeline/tool/executor integration; simulated model events
-      are not audit rows.
-  - expectation: 'audit_sequence_includes[15]: ASK_CONSTITUTION:energy.appliance_start'
-    reason: Requires actual pipeline/tool/executor integration; simulated model events
-      are not audit rows.
-  - expectation: 'audit_sequence_includes[16]: APPROVED'
-    reason: Requires actual pipeline/tool/executor integration; simulated model events
-      are not audit rows.
-  - expectation: 'audit_sequence_includes[17]: EXECUTED:energy.ev_charge'
-    reason: Requires actual pipeline/tool/executor integration; simulated model events
-      are not audit rows.
-  - expectation: 'audit_sequence_includes[18]: EXECUTED:energy.appliance_start'
-    reason: Requires actual pipeline/tool/executor integration; simulated model events
-      are not audit rows.
-  - expectation: 'plan_summary.estimated_savings_usd: min 1.00, max 8.00 (provisional)'
-    reason: Planner, backtest, or real execution verification is later work; no vacuous
-      pass.
-  - expectation: 'plan_summary.peak_kwh_avoided: min 5.0'
-    reason: Planner, backtest, or real execution verification is later work; no vacuous
-      pass.
-  - expectation: 'plan_summary.comfort_violations_minutes: max 0'
-    reason: Planner, backtest, or real execution verification is later work; no vacuous
-      pass.
-  - expectation: 'ev_soc_at +1d 06:30: min 0.50'
-    reason: Planner, backtest, or real execution verification is later work; no vacuous
-      pass.
-  - expectation: never EXECUTE:finance.*
-    reason: Planner, backtest, or real execution verification is later work; no vacuous
-      pass.
-  - expectation: never EXECUTE:security.access_code_share
-    reason: Planner, backtest, or real execution verification is later work; no vacuous
-      pass.
+  - expectation: Constitution proposal and authenticated activation audit
+    reason: The v8 patch is a simulated preview; execution retains validated seed v7.
+  - expectation: Security-device execution and Hirz Link
+    reason: Security, trust and Link service flows remain deferred.

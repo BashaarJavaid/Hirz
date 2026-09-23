@@ -3,7 +3,7 @@
 from datetime import date, datetime
 from decimal import Decimal
 from enum import StrEnum
-from typing import Literal
+from typing import Literal, Self
 from uuid import UUID
 
 from pydantic import (
@@ -13,9 +13,13 @@ from pydantic import (
     Field,
     JsonValue,
     StrictBool,
+    StrictFloat,
+    StrictInt,
     field_validator,
+    model_validator,
 )
 
+from hirz.explainer.models import NarrationMetadata
 from hirz.risk import CLASSES, RiskBand
 
 Role = Literal["owner", "adult", "caregiver", "teen", "child", "guest", "unknown"]
@@ -73,7 +77,18 @@ class ExpectedEffect(Model):
     entity: str
     attr: str
     value: JsonValue
-    by: datetime
+    by: AwareDatetime
+
+
+class Inverse(Model):
+    action_class: str = Field(alias="class")
+    target: Target
+    params: dict[str, JsonValue]
+
+
+class Revert(Model):
+    after_s: StrictInt | StrictFloat = Field(ge=0.000001, allow_inf_nan=False)
+    inverse: Inverse
 
 
 class Action(Model):
@@ -87,6 +102,7 @@ class Action(Model):
     scheduled_for: datetime | None = None
     expected_effect: ExpectedEffect | None = None
     content_hash: str
+    revert: Revert | None = Field(default=None, exclude_if=lambda value: value is None)
 
     @field_validator("action_class")
     @classmethod
@@ -104,6 +120,8 @@ class Action(Model):
 
 
 class EventType(StrEnum):
+    PLAN_REFRESH = "PLAN_REFRESH"
+    RESERVATION_ADJUSTED = "RESERVATION_ADJUSTED"
     EXECUTE = "EXECUTE"
     ASK_CONSTITUTION = "ASK_CONSTITUTION"
     ASK_RISK = "ASK_RISK"
@@ -122,11 +140,22 @@ class EventType(StrEnum):
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"
     EXPIRED = "EXPIRED"
+    TWIN_CHECKPOINT = "TWIN_CHECKPOINT"
+    SCHEDULED = "SCHEDULED"
+    EXECUTION_HELD = "EXECUTION_HELD"
+    EXECUTION_CANCELLED = "EXECUTION_CANCELLED"
+    ENDING_AUTHORIZED = "ENDING_AUTHORIZED"
+    OBSERVATIONS_RECORDED = "OBSERVATIONS_RECORDED"
+    PLAN_APPROVED = "PLAN_APPROVED"
+    PLAN_CANCELLED = "PLAN_CANCELLED"
+    NOTICE_PENDING = "NOTICE_PENDING"
     EXECUTION_ATTEMPTED = "EXECUTION_ATTEMPTED"
     EXECUTED = "EXECUTED"
     VERIFIED = "VERIFIED"
     VERIFY_FAILED = "VERIFY_FAILED"
     ROLLED_BACK = "ROLLED_BACK"
+    CONSTRAINT_RECORDED = "CONSTRAINT_RECORDED"
+    CONSTRAINT_WITHDRAWN = "CONSTRAINT_WITHDRAWN"
     PLAN_CREATED = "PLAN_CREATED"
     PLAN_REVISED = "PLAN_REVISED"
     CONSTITUTION_PROPOSED = "CONSTITUTION_PROPOSED"
@@ -140,6 +169,7 @@ class EventType(StrEnum):
     AUDIT_ANCHORED = "AUDIT_ANCHORED"
     MEMORY_PROPOSED = "MEMORY_PROPOSED"
     MEMORY_ACCEPTED = "MEMORY_ACCEPTED"
+    MEMORY_REJECTED = "MEMORY_REJECTED"
 
 
 class Principal(Model):
@@ -208,6 +238,24 @@ class Decision(Model):
     budget: BudgetEvidence | None = None
     explain: Explanation = Explanation()
     audit_id: int | None = None
+    status: (
+        Literal[
+            "executing",
+            "verified",
+            "failed",
+            "held",
+            "cancelled",
+            "skipped",
+            "dispatched",
+        ]
+        | None
+    ) = Field(default=None, exclude_if=lambda value: value is None)
+    narration: NarrationMetadata | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
+    speakable: dict[str, JsonValue] | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
 
 
 class AuditEvent(Model):
@@ -224,3 +272,100 @@ class AuditEvent(Model):
     key_fingerprint: str = Field(pattern=r"^[0-9a-f]{64}$")
     signature: bytes = Field(min_length=1)
     created_at: AwareDatetime
+
+
+class PlanHorizon(Model):
+    start: AwareDatetime
+    end: AwareDatetime
+    slot_minutes: Literal[15] = 15
+
+    @model_validator(mode="after")
+    def ordered(self) -> Self:
+        if self.end.timestamp() <= self.start.timestamp():
+            raise ValueError("Plan horizon must be positive")
+        return self
+
+
+class PlanConstraint(Model):
+    member_id: UUID | None = Field(default=None, exclude_if=lambda value: value is None)
+    source: str
+    surface: Literal["alexa", "app", "scheduler"] | None = None
+    claimed_author: str | None = None
+    recorded_at: AwareDatetime
+    text: str
+    encoded: dict[str, JsonValue]
+
+
+class ComparisonValidity(Model):
+    valid: bool
+    reasons: tuple[str, ...] = ()
+
+
+class PlanAlternative(Model):
+    model_config = ConfigDict(allow_inf_nan=False)
+
+    label: Literal["timer", "immediate", "greedy"]
+    cost_delta_usd: float | None
+    why_rejected: str
+    validity: ComparisonValidity
+
+    @model_validator(mode="after")
+    def honest_delta(self) -> Self:
+        if not self.validity.valid and self.cost_delta_usd is not None:
+            raise ValueError("Invalid comparison cannot claim savings")
+        return self
+
+
+class PlanSummary(Model):
+    model_config = ConfigDict(allow_inf_nan=False)
+
+    estimated_savings_usd: float | None
+    peak_kwh_avoided: float | None
+    grid_kwh: float
+    solar_kwh: float
+    exported_kwh: float
+    electricity_usd: float
+    wear_usd: float
+    comfort_violations_minutes: float
+
+
+class Plan(Model):
+    """A proposal is data, never a Pipeline grant or approval."""
+
+    plan_id: str
+    household_id: UUID
+    version: int = Field(ge=1)
+    supersedes: str | None = None
+    horizon: PlanHorizon
+    goals: tuple[str, ...]
+    constraints: tuple[PlanConstraint, ...]
+    actions: tuple[str, ...]
+    summary: PlanSummary
+    alternatives: tuple[PlanAlternative, ...]
+    explain: Explanation
+    narration: NarrationMetadata | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
+    speakable: dict[str, JsonValue]
+    status: Literal[
+        "proposed",
+        "refreshing",
+        "awaiting_approval",
+        "approved",
+        "active",
+        "superseded",
+        "completed",
+        "abandoned",
+    ] = "proposed"
+    method: Literal["milp", "timeout_incumbent", "greedy"]
+    optimality_gap: float | None = Field(default=None, ge=0)
+    comparison_validity: ComparisonValidity
+
+    @model_validator(mode="after")
+    def honest_summary(self) -> Self:
+        if not self.comparison_validity.valid and (
+            self.summary.estimated_savings_usd is not None
+            or self.summary.peak_kwh_avoided is not None
+        ):
+            raise ValueError("Invalid comparison cannot claim savings or avoided peak")
+        return self

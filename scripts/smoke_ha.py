@@ -3,8 +3,7 @@
 import argparse
 import asyncio
 import json
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager, suppress
+from contextlib import suppress
 from datetime import timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -13,11 +12,7 @@ from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import httpx
-import sqlalchemy as sa
-from sqlalchemy.ext.asyncio import AsyncConnection, create_async_engine
 
-from alembic import command
-from hirz import db
 from hirz.adapters.base import AdapterError
 from hirz.adapters.devices.ha import HAConfig, HomeAssistant, load_config
 from hirz.audit import (
@@ -45,6 +40,7 @@ from hirz.pipeline.audit import AuditWriter
 from hirz.pipeline.hashing import action_hash
 from hirz.pipeline.models import Action, Decision, Principal
 from hirz.pipeline.service import Pipeline, PolicyBundle
+from hirz.twin.disposable import disposable as disposable
 
 ROOT = Path(__file__).resolve().parents[1]
 SEED_PATH = ROOT / "constitutions/quinn-home.yaml"
@@ -232,50 +228,14 @@ async def recorded() -> None:
             await adapter.close()
 
 
-@asynccontextmanager
-async def disposable(values: dict[str, str]) -> AsyncIterator[AsyncConnection]:
-    url = db.database_url(values)
-    name = "hirz_ha_smoke_" + uuid4().hex
-    admin = create_async_engine(
-        url,
-        isolation_level="AUTOCOMMIT",
-        poolclass=sa.pool.NullPool,
-        hide_parameters=True,
-    )
-    engine = create_async_engine(
-        url.set(database=name), poolclass=sa.pool.NullPool, hide_parameters=True
-    )
-    created = False
-    try:
-        async with admin.connect() as c:
-            await c.exec_driver_sql(f'CREATE DATABASE "{name}"')
-            created = True
-        async with engine.connect() as c:
-
-            def migrate(sync: sa.Connection) -> None:
-                cfg = db.migration_config()
-                cfg.attributes["connection"] = sync
-                command.upgrade(cfg, "head")
-
-            await c.run_sync(migrate)
-            await c.commit()
-            yield c
-    except BaseException:
-        # Preserve evidence on every failure, including failed export/restoration.
-        if created:
-            print(f"disposable_database_retained={name}")
-        raise
-    else:
-        await engine.dispose()
-        async with admin.connect() as c:
-            await c.exec_driver_sql(f'DROP DATABASE "{name}"')
-        print("disposable_database=dropped; development_database=unchanged")
-    finally:
-        await engine.dispose()
-        await admin.dispose()
-
-
-async def live(config_path: Path, plug: bool, audit_output: Path) -> None:
+async def live(
+    config_path: Path,
+    plug: bool,
+    audit_output: Path,
+    *,
+    durable: bool = False,
+    refresh: bool = False,
+) -> None:
     if audit_output.exists() or audit_output.is_symlink():
         raise AdapterError("Audit output must be a new file.")
     config = load_config(config_path)
@@ -300,6 +260,8 @@ async def live(config_path: Path, plug: bool, audit_output: Path) -> None:
         changed: list[str] = []
         observations: list[Observation] = []
         task: asyncio.Task[None] | None = None
+        executor_registry = None
+        executor = None
         try:
             for entity in config.entities:
                 row = await adapter.get_state(entity)
@@ -338,6 +300,26 @@ async def live(config_path: Path, plug: bool, audit_output: Path) -> None:
                         )
                 for row in observations:
                     await repo.put("observations", row)
+                if refresh:
+                    for asset in assets:
+                        if asset.kind == "ev":
+                            await repo.put(
+                                "observations",
+                                Observation(
+                                    id=uuid4(),
+                                    household_id=home.id,
+                                    asset_id=asset.id,
+                                    domain="ev",
+                                    source="twin",
+                                    observed_at=bootstrap_at,
+                                    state=ObservationState(
+                                        soc=0.5,
+                                        plugged_in=True,
+                                        available=True,
+                                        charging=False,
+                                    ),
+                                ),
+                            )
                 for member in members:
                     await repo.put(
                         "observations",
@@ -377,8 +359,74 @@ async def live(config_path: Path, plug: bool, audit_output: Path) -> None:
             }
             principal = Principal(provider="demo", sub="malik", surface="app")
 
+            if durable:
+                from hirz.adapters.registry import Registry
+                from hirz.executor.service import Executor
+
+                executor_registry = Registry(
+                    home,
+                    members=members,
+                    assets=assets,
+                    bindings=bindings,
+                    factories={
+                        ("devices", "ha"): lambda h: HomeAssistant(
+                            h,
+                            config=config,
+                            assets=assets,
+                            bindings=bindings,
+                            pipeline=pipeline,
+                            env_path=ROOT / ".env",
+                        )
+                    },
+                    sources={
+                        ("devices", "ha", b.asset_id): config.entities[
+                            b.entity_id
+                        ].source
+                        for b in bindings
+                    },
+                    config="devices:ha",
+                )
+                await executor_registry.start()
+                executor = Executor(pipeline, executor_registry)
+
             async def write(entity: str, value: float | bool) -> None:
                 x = action(entity, asset_by_entity[entity], value)
+                if executor is not None:
+                    from datetime import timedelta
+
+                    from hirz.pipeline.models import ExpectedEffect
+
+                    at = now()
+                    attr = "target_f" if entity.startswith("climate.") else "on"
+                    x = x.model_copy(
+                        update={
+                            "scheduled_for": at,
+                            "expected_effect": ExpectedEffect(
+                                entity=entity,
+                                attr=attr,
+                                value=value,
+                                by=at + timedelta(seconds=60),
+                            ),
+                        }
+                    )
+                    x = x.model_copy(update={"content_hash": action_hash(x)})
+                    d = await pipeline.enqueue(x, principal)
+                    if d.decision == "ask" and d.approval:
+                        await pipeline.vote(
+                            d.approval.approval_id, principal, approved=True
+                        )
+                        d = await pipeline.enqueue(
+                            x, principal, approval_id=d.approval.approval_id
+                        )
+                    if d.status != "executing":
+                        raise AdapterError(
+                            f"Pipeline refused queued smoke action: {d.event_type}."
+                        )
+                    results = await executor.sweep()
+                    if len(results) != 1 or results[0].status != "verified":
+                        raise AdapterError("Durable smoke action was not verified.")
+                    print(f"queued={entity}; worker=verified; engine=dogwood-local")
+                    return
                 d = await pipeline.redeem(x, principal)
                 if d.decision == "ask" and d.approval is not None:
                     await pipeline.vote(
@@ -432,6 +480,14 @@ async def live(config_path: Path, plug: bool, audit_output: Path) -> None:
                     print(
                         f"subscription={entity}; source={row.source}; power_kw={row.state.power_kw}; direct_power_kw={direct.state.power_kw}"
                     )
+                if refresh:
+                    from scripts.smoke_refresh import exercise
+
+                    assert executor_registry is not None
+                    await exercise(pipeline, executor_registry)
+                    print(
+                        "refresh=PASS; source=real API, demo devices; ecobee=read_only"
+                    )
             except Exception as exc:
                 failure = exc
             finally:
@@ -466,6 +522,8 @@ async def live(config_path: Path, plug: bool, audit_output: Path) -> None:
                 task.cancel()
                 with suppress(asyncio.CancelledError, AdapterError):
                     await task
+            if executor_registry is not None:
+                await executor_registry.close()
             await adapter.close()
 
 

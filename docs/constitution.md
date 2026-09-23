@@ -212,6 +212,22 @@ Not in the grammar, on purpose: loops, recursion, user functions, string manipul
 turns `auto` into `ask`; an action crossing it is `DENY_BUDGET`, including after
 approval. Item 7 validates and renders this configuration; item 9 enforces it.
 
+Plan refresh reservations (item 19a) use nonnegative per-interval electricity plus
+wear estimates. Elapsed and irrevocably committed allocations stay on their original
+grant's local date. Uncertain dispatch retains its allocation; negative prices never
+refund committed usage. Whole-house intervals are conservatively retained through
+the latest outstanding ending or running cycle. Replacement estimates deduct only
+the overlapping retained allocation, avoiding a second reservation for commitments.
+Demonstrably replaceable amounts are released by signed `RESERVATION_ADJUSTED`
+entries referencing the original grant/date; grants are never rewritten. New amounts
+require a fresh `energy.optimize_cost` grant on the replacement's local date.
+Release, publication and the new grant are one serialized transaction: a refused
+increase rolls everything back and leaves execution held. Equality/over-cap rules
+above still apply, including concurrent requests and midnight. Actual billing
+settlement remains deferred. A stored plan's validated workload determines required
+budget facts; an EV-floor rule still requires fresh EV evidence even in an HA-only
+thermal workload.
+
 Bounds are hard authorization limits, including after approval: `min_f/max_f`
 compare `action.params.target_f`, `ev_soc_floor` compares the same-named parameter,
 `max_open_minutes` compares `action.params.open_minutes`, and `max_minutes`
@@ -223,7 +239,7 @@ Intervals include their start, exclude their end, and carry across midnight.
 Affected `auto` actions escalate to `ask` in the internal pipeline. Preview only
 compares this configuration; it does not apply runtime gates.
 
-A household can also **pause** Hirz (`ARCHITECTURE.md` §5.14): while paused, every `auto` resolves as `ask`. Pause is a mode on the household, not a constitution version; it only tightens, so a voice may set it, and only the app clears it.
+A household can also **pause** Hirz (`ARCHITECTURE.md` §5.14): while paused, every `auto` resolves as `ask`. Pause is a mode on the household, not a constitution version; it only tightens, so a voice may set it, and only an adult-lineage member in the app clears it.
 
 ### 2.5 Identity on a shared device
 
@@ -469,8 +485,10 @@ known-false ordinary conditions can. No grammar expansion was required.
 
 The catalog additionally reserves `governance.pause_automation` and
 `governance.resume_automation`, both LOW, with fixed linked-member permissions and
-app-only resume. Household rules cannot redefine them. Their native boundary rules
-apply to every linked role and cannot be overridden by temporal approvals.
+resume by an adult-lineage member in the app. Household rules cannot redefine
+them. Their native boundary rules permit pause for every linked role and resume
+only for owner, adult and caregiver in the app; temporal approvals cannot override
+these restrictions.
 The provider/sub identity and explicit claimed role must both be permitted.
 
 Native approval history accepts ordered events sharing one second. The Python
@@ -478,3 +496,40 @@ pipeline still enforces the original ASK deadline, current eligible-member quoru
 channels, single use and policy/fact bindings. Stored seeds are not activated by
 any of these APIs. Per-class count limits, public authentication and AWS comparison
 remain outstanding; see [ADR-003](./adr/ADR-003-constitution-yaml-to-cedar.md#item-9-amendment--2026-09-18).
+
+
+## Item 18 internal constraint operations — 2026-09-21
+
+The catalog additionally reserves LOW-risk `governance.record_constraint` and
+`governance.withdraw_constraint`. Both require a linked member and use the existing
+Python/native policy agreement; neither toggles pause state or accepts household
+rule overrides. Pipeline enforces own-request/owner withdrawal and linked-member
+manual-hold release inside the same signed transaction. These operations are not
+device actions and must not enter `execute_household_action`'s consumer enum.
+Coordinator quorum reporting reuses per-class `Rule.quorum`, channels and TTL;
+there is no `escalation.quorum` field or separate plan voting system.
+
+
+## Item 20 internal memory permissions — 2026-09-21
+
+Reserved LOW-risk `governance.memory` adds `append_turn`, `propose`, `accept` and
+`reject`; catalog/preview coverage is 32 classes. The operation is a validated
+string attribute (`action.params.operation`), using the existing Boolean grammar.
+Households cannot redefine this internal governance rule. Native Dogwood and the
+Python evaluator both reject unknown operations, require app surface for review,
+and disallow proposal creation or acceptance when
+`learning.accept_memory_proposals: never`. Existing preferences and private
+session context remain available; pending proposals can still be rejected.
+
+Pipeline additionally binds source evidence to the resolved linked member and
+requires that same subject to review, independent of role. Owner-on-behalf,
+another member, Alexa and scheduler reviews are refused. A name in a transcript
+is never a subject selector. The app principal is a trusted internal authentication
+result; this item does not implement public authentication or a companion screen.
+No passkey is added for memory consent. Preference identity/version checks,
+transactional persistence and replay semantics are specified in
+[architecture §5.9](../ARCHITECTURE.md#59-memory).
+
+`MEMORY_PROPOSED`, `MEMORY_ACCEPTED` and `MEMORY_REJECTED` accompany the signed
+canonical grant Decision. Acceptance alone triggers automatic plan refresh;
+inherited plan consent still cannot bypass current device rules or approvals.
