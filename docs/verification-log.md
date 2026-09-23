@@ -5821,3 +5821,22 @@ Final closure checks passed: Ruff; strict mypy (**150 source files**);
 and identical AGENTS.md/CLAUDE.md bodies. The original item 25 specification and
 verification clause were preserved; only its completion status and evidence
 sentence changed. No deployment, development migration or item 26 work was run.
+
+### Item 25 CI catalog count fix — 2026-09-23
+
+[CI run 35919909504](https://github.com/BashaarJavaid/Hirz/actions/runs/35919909504)
+failed only the build job's fresh-wheel catalog assertion on commit `17b6f64`.
+The assertion still expected 32 classes/situation groups; item 25 added four
+governance entries to each. The other ten jobs passed (including placeholders).
+Updated the assertion and its success message to 36.
+
+Verification on macOS ARM64, Python 3.12.13: `UV_CACHE_DIR=/private/tmp/hirz-uv-cache
+uv build` built the sdist and wheel. Loaded the exact fresh-wheel step from
+`.github/workflows/ci.yml` with PyYAML and executed it with `bash -e -o pipefail`
+and a temporary `RUNNER_TEMP`, outside the checkout for imports and CLI checks.
+The successful run used a fresh temporary uv cache and installed 51 packages:
+`PASS installed hirz 0.0.0`; `PASS packaged catalogs: 36 classes, 36 situation groups`;
+`hirz --help` printed the command list and exited 0. Temporary environments and
+the fresh cache were removed. Initial sandbox DNS and existing-cache failures
+are recorded in the friction log. No GitHub rerun, push, Docker build, database
+mutation or AWS call was performed for this workflow-only fix.

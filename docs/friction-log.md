@@ -458,3 +458,18 @@ AWS's current automatic first-invocation subscription procedure.
 
 Follow-up: the complete retry passed all 31 selections within the same $2 ledger;
 the interrupted report and reservations remain retained. See the [completion evidence](./verification-log.md#item-25-completion-within-approved-scope--2026-09-23).
+
+## Item 25 CI fix verification: local uv cache — 2026-09-23
+
+- **Tool/task:** [uv pip install](https://docs.astral.sh/uv/reference/cli/#uv-pip-install),
+  install the built wheel into a disposable environment for the CI smoke check.
+  **Expected:** install dependencies and run the packaged catalog assertion.
+  **Actual:** sandbox networking first returned ``Failed to fetch: `https://pypi.org/simple/pydantic/` ``
+  and `failed to lookup address information: nodename nor servname provided, or not known`.
+  After network escalation, the existing temporary cache returned
+  `error: Failed to install: pydantic-2.13.5-py3-none-any.whl (pydantic==2.13.5)` and
+  ``cause: failed to open file `/private/tmp/hirz-uv-cache/archive-v0/5nGQ-lFiHwIYjaeD/pydantic-2.13.5.dist-info/WHEEL`: No such file or directory (os error 2)``.
+  **Severity:** Minor. **Workaround:** rerun with a fresh disposable `UV_CACHE_DIR`;
+  installation and the exact CI smoke step passed. The cause of the missing cache
+  file was not established. **Suggestion:** identify incomplete cache entries and
+  offer a targeted refetch in installation diagnostics.
