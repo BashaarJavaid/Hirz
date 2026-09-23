@@ -1,6 +1,6 @@
 # ADR-016: Independent add-on conformance checker
 
-Date: 2026-09-23. Status: accepted; item 25a remains incomplete until publication and verification.
+Date: 2026-09-23. Status: accepted; item 25a implementation and publication verified ([evidence](../verification-log.md#item-25a--2026-09-23)).
 
 ## Decision
 

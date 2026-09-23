@@ -489,3 +489,24 @@ the interrupted report and reservations remain retained. See the [completion evi
   and make no Amazon certification claim ([ADR-016](./adr/ADR-016-add-on-conformance-checker.md)).
   **Suggestion:** publish a reconciled discovery contract and explain whether the
   restriction concerns the Alexa client or server behavior.
+
+## Item 25a: npm publishing authentication — 2026-09-23
+
+- **Tool/task:** npm CLI; publish the tested `addon-check@0.1.0` tarball after
+  interactive login, following the [publication procedure](https://docs.npmjs.com/cli/v11/commands/npm-publish/).
+  **Steps/expected:** verify `npm whoami`, confirm the name is absent, and run
+  `npm publish ./addon-check-0.1.0.tgz --access public`; expect an interactive
+  publishing authorization or publication.
+  **Actual:** `E403`, with exact message:
+  `403 Forbidden - PUT https://registry.npmjs.org/addon-check - Two-factor authentication or granular access token with bypass 2fa enabled is required to publish packages.`
+  **Severity:** Blocker at this attempt. **Workaround:** ask the author to complete
+  [npm's documented 2FA setup](https://docs.npmjs.com/configuring-two-factor-authentication/)
+  and publish the same tested artifact interactively; no credentials/OTP are copied
+  into chat and no account security setting is changed by the agent.
+  This is npm's documented account requirement, not an upstream defect.
+  **Suggestion:** after web login, show publishing readiness and a direct 2FA setup
+  link before a tarball upload is attempted.
+
+Follow-up: the author completed interactive publishing authentication and published
+the tested artifact; its registry checksum matched and both installed CLI fixture
+checks passed. See the [completion evidence](./verification-log.md#publication-and-completion).

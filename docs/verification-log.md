@@ -5919,3 +5919,77 @@ and fresh installation again pass both fixtures. The final nine-file tarball
 SHA-1 is **`c8beb6918c065ecb0e7fdee5feaa489906c6d53e`**; this supersedes the earlier
 artifact above. Hirz pins this exact source revision. npm login is still missing;
 publication and installation from the registry have not happened.
+
+### Final checker CI and independent audit CLI
+
+The [final checker CI run 35930520002](https://github.com/BashaarJavaid/addon-check/actions/runs/35930520002)
+passed at `c8b65e0977204883d2ec23d5ac0f7a08300d021e`, including clean packed-package
+installation and both fixture outcomes. Both retained Hirz evidence files were
+confirmed mode `0600`. A separate public CLI invocation also verified the export:
+
+```text
+uv run --locked hirz verify-audit --household 536fa8ee-854e-56ca-8c5d-5ba418e710a0 --file /private/tmp/hirz-item25a-audit-3.json --trusted-fingerprint 385589f309b374189ea1b391f4a3ad193f3674cf7fb6e72e1a97caf76e21912b
+status=valid; start_seq=1; end_seq=611; checked_count=611; failure_seq=null
+```
+
+Its usual local-mode anchoring limitations remain; this does not prove omitted
+history or prevent a re-signed rewrite. The author subsequently completed npm's
+interactive login, verified as the expected publisher; `npm view addon-check version`
+still returned E404 before first publication. Login is no longer a blocker.
+Hirz's earlier run 35930388108 was superseded/cancelled when the final checker pin
+was pushed; only the subsequent run can establish the final integration gate.
+
+### Pinned Hirz conformance CI and first registry publication attempt
+
+At Hirz revision `4457253a4220c7e9b1e72b51f5edcfc134070570`, the
+[conformance job](https://github.com/BashaarJavaid/Hirz/actions/runs/35930587239/job/107416104981)
+passed: **117 PASS, 0 FAIL/WARN/SKIP/MANUAL**, complete twelve-tool evidence,
+onboarding/context timed, and **628 signed rows independently valid** on the
+Ubuntu runner. The CI fingerprint was
+`4df7c5f923db66576386f6bb2cc15f8d76beb9bf632806fc5cc7c258ba5662a0`;
+the different row count from the local run is reported as observed, not replaced
+with the local count. The job cleaned up its disposable services; Bedrock stayed off.
+
+The first `npm publish ./addon-check-0.1.0.tgz --access public` attempt was refused
+with E403 after a successful login. Exact text and the required interactive 2FA
+follow-up are in the [friction log](./friction-log.md#item-25a-npm-publishing-authentication--2026-09-23).
+The attempted tarball checksum matched the tested artifact. No registry publication
+is claimed at this point; the author was asked to publish that artifact after 2FA.
+
+### Full Hirz CI result
+
+[Hirz CI run 35930587239](https://github.com/BashaarJavaid/Hirz/actions/runs/35930587239)
+completed successfully at `4457253a4220c7e9b1e72b51f5edcfc134070570`: all eleven
+jobs passed, including the real pinned conformance job, Python lint/types,
+service-free and disposable PostgreSQL coverage gate, native Cedar checks,
+scenarios, TypeScript checks and package/container build. Existing latency and
+release placeholders remain explicit deferrals; this run does not close their
+roadmap owners. At this entry, only npm publication and fresh registry installation
+remain owed for item 25a; the required interactive 2FA step is pending with the author.
+
+### Publication and completion
+
+The author completed npm's interactive publishing authentication and published
+[addon-check@0.1.0](https://www.npmjs.com/package/addon-check/v/0.1.0).
+Read-only registry verification returned version `0.1.0`, repository
+`git+https://github.com/BashaarJavaid/addon-check.git`, and dist SHA-1
+`c8beb6918c065ecb0e7fdee5feaa489906c6d53e`, exactly matching the reviewed and tested
+tarball. Registry integrity:
+`sha512-VCAT/9VeDOeoXG44mUyxKo5o27AwrmR+BObiQLFZbH9jyEOndfga5239Ex5issA3ZMQn11uUR9PSh410LpUohQ==`.
+
+From the clean source checkout, Node 24 ran
+`node test/package.mjs addon-check@0.1.0`. This installed the registry package into
+a new temporary directory and invoked its installed bin (not the checkout build):
+
+```text
+PASS installed package: complete fixture exits 0; addon-check@0.1.0
+PASS installed package: broken fixture exits 1 with speech.estimate; addon-check@0.1.0
+```
+
+**Item 25a complete (2026-09-23).** The independent public source and npm artifact,
+42 checker tests, clean packed/registry installations, pinned Hirz CI, twelve-tool
+117-check evidence, signed offline audit verification, full Python tests/92%
+coverage, lint and strict types are verified above. Only onboarding/context were
+timed; item 26, browser display modes, simulator harness and production/Amazon
+identity validation remain with their existing owners. No Amazon certification
+is claimed. The Bedrock budget ledger and developer database were unchanged.

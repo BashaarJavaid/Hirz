@@ -125,13 +125,12 @@ The verified toolchain and scaffold setup are in `README.md`; use Node 24.
 
 ## Current phase
 
-**Phase 4 item 25 is complete; item 25a is in verification.**
-The independent addon-check source and twelve-tool integration pass locally;
-CI evidence and npm publication/registry verification remain owed. Item 26 owns
-full latency/isolation. Preserve the $2 budget ledger; Bedrock stays off for
-conformance. Development stays on 0005; migrations through 0011 are manual.
-Real phone/security execution remains unverified. Evidence: `docs/verification-log.md`;
-procedure: `docs/development.md`.
+**Phase 4 items 25 and 25a are complete within their approved scopes.**
+addon-check v0.1.0 is public on npm; pinned CI verifies all twelve tools and signed
+audit evidence. Item 26's full latency/isolation gate is next. Preserve the $2
+budget ledger; conformance keeps Bedrock off. Development stays on 0005;
+migrations through 0011 remain manual. Real phone/security execution remains
+unverified. Evidence: `docs/verification-log.md`; procedure: `docs/development.md`.
 
 ---
 
