@@ -61,7 +61,9 @@ class Response(Model):
     end: str
     member: str
     surface: Literal["alexa", "app"]
-    action_class: Literal["energy.hvac_adjust", "energy.appliance_start"]
+    action_class: Literal[
+        "energy.hvac_adjust", "energy.appliance_start", "environment.lights"
+    ]
     asset: str
     approved: StrictBool
 

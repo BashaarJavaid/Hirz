@@ -36,6 +36,7 @@ from hirz.pipeline.audit import AuditWriter
 from hirz.pipeline.hashing import action_hash
 from hirz.pipeline.models import (
     Action,
+    EventType,
     ExpectedEffect,
     Inverse,
     Plan,
@@ -220,7 +221,9 @@ class Host:
                 )
             action = action.model_copy(update={"content_hash": action_hash(action)})
             decision = await self.p.enqueue(action, principal)
-            if decision.status != "executing":
+            if decision.status != "executing" and not (
+                decision.decision == "ask" and decision.approval
+            ):
                 raise ValueError(
                     f"Lamp request was not queued: decision={decision.decision}, "
                     f"risk={decision.risk.band if decision.risk else None}, "
@@ -244,7 +247,11 @@ class Host:
             pending = (
                 (
                     await p.connection.execute(
-                        sa.select(db.approvals, db.actions.c.proposal)
+                        sa.select(
+                            db.approvals,
+                            db.actions.c.proposal,
+                            db.actions.c.principal,
+                        )
                         .join(
                             db.actions,
                             sa.and_(
@@ -275,15 +282,26 @@ class Host:
                     < self.loaded.time(rule.end)
                     and action.action_class == rule.action_class
                     and action.target.entity == entity
-                    and action.plan_id
                 ):
                     self.responded.add(row["approval_id"])
-                    vote = await self.plans.respond_to_action(
-                        action.plan_id,
-                        row["approval_id"],
-                        self.principal(rule.member, rule.surface),
-                        approved=rule.approved,
-                    )
+                    principal = self.principal(rule.member, rule.surface)
+                    if action.plan_id:
+                        vote = await self.plans.respond_to_action(
+                            action.plan_id,
+                            row["approval_id"],
+                            principal,
+                            approved=rule.approved,
+                        )
+                    else:
+                        vote = await p.vote(
+                            row["approval_id"], principal, approved=rule.approved
+                        )
+                        if vote.event_type == EventType.APPROVED:
+                            await p.enqueue(
+                                action,
+                                Principal.model_validate(row["principal"]),
+                                approval_id=row["approval_id"],
+                            )
                     self.turns.append(
                         dict(
                             at=p.clock().isoformat(),

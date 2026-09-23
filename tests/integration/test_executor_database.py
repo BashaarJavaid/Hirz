@@ -61,6 +61,90 @@ def bounded(world, seconds=30):
     )
 
 
+@pytest.mark.parametrize(
+    "at,answer", [("23:10", True), ("23:10", False), ("23:10", None), ("18:10", None)]
+)
+def test_scripted_lamp_quiet_hours_consent_and_ending(scratch_database, at, answer):
+    from hirz.audit import verify_database
+    from hirz.twin.execution import Host
+    from hirz.twin.script import Response, ScriptCall
+
+    async def run():
+        async with connect(scratch_database) as c:
+            p, world, registry, executor = await environment(c)
+            try:
+                loaded = LoadedScenario(SCENARIO)
+                loaded.world = world
+                world.clock.jump(loaded.time(at))
+                await ingest(p, registry, PRINCIPAL)
+                lamp = action(world)
+                execution = loaded.spec.execution.model_copy(
+                    update={
+                        "responses": ()
+                        if answer is None
+                        else (
+                            Response(
+                                start="23:00",
+                                end="23:20",
+                                member="malik",
+                                surface="alexa",
+                                action_class="environment.lights",
+                                asset="light.living_room",
+                                approved=answer,
+                            ),
+                        )
+                    }
+                )
+                loaded.spec = loaded.spec.model_copy(update={"execution": execution})
+                host = Host(loaded, p)
+                result = await host.call(
+                    ScriptCall(
+                        tool="execute_household_action",
+                        arguments={
+                            "asset": "light.living_room",
+                            "on": True,
+                            "duration_s": 2,
+                        },
+                        save_as="lamp",
+                    ),
+                    "malik",
+                )
+                quiet = at == "23:10"
+                assert result["result"]["decision"] == ("ask" if quiet else "execute")
+                if quiet:
+                    assert await executor.sweep() == ()
+                    assert state(world, lamp)["on"] is False
+                assert await host.responses() == (1 if answer is not None else 0)
+                assert await host.responses() == 0
+                runs = await executor.sweep()
+                if quiet and answer is not True:
+                    assert runs == ()
+                else:
+                    assert len(runs) == 1 and runs[0].status == "verified"
+                    world.clock.jump(world.clock() + timedelta(seconds=2))
+                    endings = await executor.sweep(endings_only=True)
+                    assert len(endings) == 1 and endings[0].status == "verified"
+                assert state(world, lamp)["on"] is False
+                summary, rows = await verify_database(
+                    c, p.household_id, p.audit.key.public_key(), collect=True
+                )
+                assert summary["status"] == "valid"
+                verified = [r for r in rows if r.event_type == "VERIFIED"]
+                assert len(verified) == (2 if not quiet or answer is True else 0)
+                if answer is True:
+                    votes = [r for r in rows if r.event_type == "APPROVED"]
+                    assert votes and votes[0].seq < verified[0].seq
+                    assert host.turns[0]["text"] == "Yes."
+                    assert host.turns[0]["surface"] == "alexa"
+                elif answer is False:
+                    assert any(r.event_type == "REJECTED" for r in rows)
+                    assert host.turns[0]["text"] == "No."
+            finally:
+                await registry.close()
+
+    asyncio.run(run())
+
+
 def test_queue_worker_rollback_and_duplicate(scratch_database):
     async def run():
         async with connect(scratch_database) as c:

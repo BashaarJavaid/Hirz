@@ -55,7 +55,21 @@ async def live(folder: Path) -> None:
             household=str(Path("constitutions/quinn-home.yaml").resolve()),
             rate_plan="twin",
             clock=dict(start=at.isoformat(), end=end.isoformat(), speed=1),
-            execution=dict(member="malik", rooms={"light.living_room": "other"}),
+            execution=dict(
+                member="malik",
+                rooms={"light.living_room": "other"},
+                responses=[
+                    dict(
+                        start=opening.strftime("%H:%M"),
+                        end=end.strftime("%H:%M"),
+                        member="malik",
+                        surface="alexa",
+                        action_class="environment.lights",
+                        asset="light.living_room",
+                        approved=True,
+                    )
+                ],
+            ),
             bindings={
                 "light.living_room": {"adapter": "ha", "entity": "light.bed_light"}
             },

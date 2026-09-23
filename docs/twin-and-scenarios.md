@@ -536,7 +536,12 @@ their earlier scoped contracts. See the [approved decisions](./adr/ADR-006-twin-
 `ev_needed_by`, explicit seed-asset `rooms` (`bedroom` or `other`) and `responses`.
 Each response names a start/end, linked member, surface, action class, asset and
 Boolean answer. Each matching pending approval receives one visible simulated
-turn; unmatched or unresolved work cannot pass the overnight gate.
+turn; unmatched or unresolved work cannot pass the overnight gate. Standalone
+lamp requests may remain pending for a declared `environment.lights` response.
+An affirmative response records a Pipeline vote and re-enqueues the unchanged
+request with its original linked requester and approval id; the worker still
+re-evaluates it before acting. The HA smoke declares this response explicitly
+so quiet hours can require consent without aborting the test.
 
 A structured script call uses `{tool, arguments, save_as}`. Supported internal
 calls are plan/context reads, constraint intake (`text`, optional `replaces`),

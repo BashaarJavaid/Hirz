@@ -33,6 +33,8 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- 2026-09-22: Let the live HA scenario smoke answer quiet-hour approval requests explicitly before the bounded lamp operation ([verification](./docs/verification-log.md#ha-smoke-explicit-consent-fix--2026-09-22), [ADR amendment](./docs/adr/ADR-006-twin-first-adapters.md#ha-smoke-quiet-hours-consent--2026-09-22)).
+
 - 2026-09-22: Expose HA smoke errors, unsuccessful checks and refused lamp decision factors in CI output ([diagnostic verification](./docs/verification-log.md#ha-smoke-ci-diagnostics--2026-09-22)).
 
 - 2026-09-22: Require adult lineage for app-only automation resume in Python and compiled Cedar/Dogwood; preserve linked-member pause ([batch A evidence](./docs/verification-log.md#phase-3-review-batch-a--2026-09-22)).

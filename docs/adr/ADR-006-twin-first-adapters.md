@@ -353,3 +353,16 @@ against the independently obtained signing-key fingerprint. Failed databases and
 available evidence remain. Step/unchecked/deferred checks cannot earn full evening
 success. Rejected treating an observation replay or an unverified export as the
 item 22 execution gate.
+
+
+### HA smoke quiet-hours consent — 2026-09-22
+
+The current-time lamp smoke must obey the seeded household's quiet-hours rule.
+Extend the existing explicitly declared response mechanism to standalone lamp
+requests: retain ASK, record a visible linked-member answer through Pipeline.vote,
+and enqueue the unchanged request with the original requester and bound approval.
+A rejected or absent answer does not schedule the lamp; the worker still checks
+permission before dispatch and owns the preauthorized ending. Planned responses
+continue through PlanService. Rejected removing quiet hours, weakening freshness,
+forcing daytime for a live adapter, or treating a matching final lamp state as
+proof of a toggle. Both ordered VERIFIED rows remain required.
