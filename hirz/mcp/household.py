@@ -247,9 +247,7 @@ class HouseholdTools:
                     sa.select(db.plans)
                     .where(
                         p.scope(db.plans),
-                        db.plans.c.document["status"].astext.notin_(
-                            ["superseded", "completed", "abandoned"]
-                        ),
+                        db.ACTIVE_PLAN,
                     )
                     .order_by(db.plans.c.audit_seq.desc())
                     .limit(1)

@@ -128,12 +128,12 @@ The verified toolchain and scaffold setup are in `README.md`; use Node 24.
 
 ## Current phase
 
-**Phase 4 item 26 isolation is complete; item 26b latency is deferred until after
-submission and runs in CI on manual dispatch only. Item 27 is next.** Development
-stays on 0005; migrations through 0012 remain manual. Keep Bedrock off and preserve
-the $2 ledger. Real phone/security execution remains unverified. Scope and evidence:
-[ADR-017](./docs/adr/ADR-017-tool-latency-and-isolation.md#deferral-amendment--2026-09-24)
-and the [checkpoint](./docs/verification-log.md#deferral-checkpoint--2026-09-24).
+**Item 26 isolation is complete; item 26b latency remains deferred until after
+submission. Item 27 is next.** Bounded reads are implemented; the single local
+measurement was interrupted ([evidence](./docs/verification-log.md#item-26b--2026-09-24)).
+Development stays on 0005; migrations through 0013 remain manual. Keep Bedrock off
+and preserve the $2 ledger. Real phone/security execution remains unverified.
+Scope: [ADR-017](./docs/adr/ADR-017-tool-latency-and-isolation.md#bounded-reads-amendment--2026-09-24).
 
 ---
 

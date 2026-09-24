@@ -162,6 +162,24 @@ class GraphRepository:
     async def put(
         self, name: str, model: Model, *, expected_version: datetime | None = None
     ) -> bool:
+        return await self._write(name, model, expected_version=expected_version)
+
+    async def close(
+        self, name: str, model: Model, *, expected_version: datetime
+    ) -> bool:
+        """Archive the final version through the close instant and remove current state."""
+        return await self._write(
+            name, model, expected_version=expected_version, closing=True
+        )
+
+    async def _write(
+        self,
+        name: str,
+        model: Model,
+        *,
+        expected_version: datetime | None,
+        closing: bool = False,
+    ) -> bool:
         if self._at is None:
             raise GraphError("Graph writes require a graph transaction.")
         if name not in MODELS or type(model) is not MODELS[name]:
@@ -183,7 +201,7 @@ class GraphRepository:
             current is not None and current["valid_from"] != expected_version
         ):
             raise GraphError("Row version conflict.")
-        if current is not None and row_model(name, current) == model:
+        if not closing and current is not None and row_model(name, current) == model:
             return False
         if current is not None and self._at <= current["valid_from"]:
             raise GraphError("Changed versions require a later timestamp.")
@@ -239,7 +257,16 @@ class GraphRepository:
             )
         if name == "schedule_events" and values.get("zone_id") is not None:
             await self._require_zone(values["zone_id"])
-        if current is None:
+        if closing:
+            if current is None:
+                raise GraphError("Closing requires a current row.")
+            await self.connection.execute(
+                db.HISTORY_TABLES[name]
+                .insert()
+                .values(**values, valid_from=current["valid_from"], valid_to=self._at)
+            )
+            await self.connection.execute(table.delete().where(self._where(name, key)))
+        elif current is None:
             await self.connection.execute(
                 table.insert().values(**values, valid_from=self._at)
             )

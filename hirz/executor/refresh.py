@@ -174,28 +174,34 @@ async def owned_control(
 
 
 async def _verified_controls(p: "Pipeline", at: datetime) -> list[dict[str, Any]]:
-    rows = (
-        (
-            await p.connection.execute(
-                sa.select(db.actions, db.audit_log.c.created_at)
-                .join(
-                    db.audit_log,
-                    sa.and_(
-                        db.audit_log.c.household_id == db.actions.c.household_id,
-                        db.audit_log.c.seq == db.actions.c.execution_attempt_seq,
-                    ),
-                )
-                .where(
-                    p.scope(db.actions),
-                    db.actions.c.execution_status == "verified",
-                    db.audit_log.c.created_at <= at,
-                )
-            )
+    latest = (
+        sa.select(db.actions, db.audit_log.c.created_at)
+        .join(
+            db.audit_log,
+            sa.and_(
+                db.audit_log.c.household_id == db.actions.c.household_id,
+                db.audit_log.c.seq == db.actions.c.execution_attempt_seq,
+            ),
         )
-        .mappings()
-        .all()
+        .where(
+            db.actions.c.household_id == db.asset_bindings.c.household_id,
+            db.actions.c.execution_status == sa.literal_column("'verified'"),
+            sa.literal_column("actions.proposal['target'] ->> 'adapter'")
+            == db.asset_bindings.c.attributes["adapter"].astext,
+            sa.literal_column("actions.proposal['target'] ->> 'entity'")
+            == db.asset_bindings.c.attributes["entity_id"].astext,
+            db.audit_log.c.created_at <= at,
+        )
+        .order_by(db.actions.c.execution_attempt_seq.desc())
+        .limit(1)
+        .lateral()
     )
-    return [dict(row) for row in rows]
+    rows = await p.connection.execute(
+        sa.select(latest)
+        .select_from(db.asset_bindings.join(latest, sa.true()))
+        .where(p.scope(db.asset_bindings))
+    )
+    return [dict(row) for row in rows.mappings()]
 
 
 async def _matches_control(
@@ -500,7 +506,7 @@ async def invalidate_all(
             await p.connection.execute(
                 sa.select(db.plans).where(
                     p.scope(db.plans),
-                    db.plans.c.document["status"].astext.notin_(TERMINAL),
+                    db.ACTIVE_PLAN,
                 )
             )
         )

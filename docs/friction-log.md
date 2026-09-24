@@ -568,3 +568,23 @@ checks passed. See the [completion evidence](./verification-log.md#publication-a
   participant toolkit access is already recorded in entry 1.
   **Suggestion:** publish the measurement method (percentile, endpoints and
   conditions), consequences, and whether it applies to hackathon submissions.
+
+## Item 26b: interrupted MCP latency measurement — 2026-09-24
+
+- **Tool/task:** MCP Python SDK 1.30.0
+  [Streamable HTTP client](https://github.com/modelcontextprotocol/python-sdk/blob/v1.30.0/src/mcp/client/streamable_http.py),
+  HTTPX 0.28.1 and the authenticated loopback latency measurement.
+  **Steps/expected:** run the unchanged Time-of-Day corpus once, with five warmups
+  and 100 measured calls per case. **Actual:** after 102 complete lifecycle rounds,
+  the next round stopped with `httpcore.ReadError`, propagated as `httpx.ReadError`
+  inside `ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)`;
+  pytest reported `1 failed in 2630.78s (0:43:50)`. The report retained 40 cases
+  with 97 or 98 samples each; the later cases, startup checks and full-run signed
+  exports were not reached. The retained exception does not establish whether
+  the server, socket, SDK or another local component caused the disconnect.
+  **Severity:** Major. **Workaround:** preserve the partial raw report and retained
+  disposable database, report incomplete evidence explicitly, and honor the
+  author's no-rerun instruction; no transport or corpus change was made.
+  **Suggestion:** retain the originating request context when a transport error
+  surfaces through task-group cleanup. Evidence and exact private artifact paths:
+  [item 26b](./verification-log.md#item-26b--2026-09-24).

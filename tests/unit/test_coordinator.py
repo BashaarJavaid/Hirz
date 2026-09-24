@@ -480,3 +480,18 @@ def test_explicit_dst_offset_and_exact_names():
         )[0].kind
         == "appliance_not_before"
     )
+
+
+def test_replan_after_withdrawal_is_unchanged_when_closed_constraint_is_absent():
+    record = changed(
+        requirement("prefer living room at 72 F"),
+        withdrawn_at=AT,
+        withdrawn_seq=3,
+        withdrawal_decision_seq=4,
+    )
+    assert active(record, AT - timedelta(seconds=1), END)
+    assert not active(record, AT, END)
+    retained = coordinate(workload(), add(snapshot(), record), POLICY)
+    closed = coordinate(workload(), snapshot(), POLICY)
+    assert retained.result.schedule == closed.result.schedule
+    assert retained.conflicts == closed.conflicts

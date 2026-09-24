@@ -6676,3 +6676,371 @@ all earlier verification text is unchanged, item 26's original spec and both
 verify clauses are retained verbatim, and the target-state budget table is
 unchanged. The follow-up commit adds only this CI evidence and its roadmap and
 changelog links.
+
+
+## Item 26b — 2026-09-24
+
+**Runtime changes verified; latency remains Deferred.** The only requested local
+latency attempt stopped on an MCP transport `httpx.ReadError` after 102 complete
+lifecycle rounds, during round 103. It did not complete the 100-sample corpus,
+parents cases, startup checks or the runner's final exports/gate calculation.
+The raw report has 40 cases with 97 or 98 samples each; partial p95 exceeds 250 ms
+for seven cases and two pooled tools. These are incomplete observations, not a
+completed gate or a replacement corpus. Exact means for rounds 90–100 cannot be
+reported because the last samples do not exist. No trimming, retry or second
+latency measurement was performed. The Hourly scenario and CI latency workflow
+were not run.
+
+Scope and deliberate semantics are in the
+[bounded reads amendment](./adr/ADR-017-tool-latency-and-isolation.md#bounded-reads-amendment--2026-09-24).
+The active-plan query at this checkout is `hirz/mcp/household.py:current`, rather
+than the executor file named in the request. No latency corpus, sample count,
+threshold, Bedrock invocation, $2 ledger, AWS resource or `AWSCLIV2.pkg` changed.
+
+### Source and regressions
+
+Started on `phase-4` at `fde525e2352168db44963651572fd76564c1c3a9` with only the
+untracked installer present. The measurement used the uncommitted runtime/test
+change before records were written. Its tracked diff SHA-256 was
+`2c67f6996b88033d94db6c5d2ff09610655c0684151ba62a072b4c5de8641988`
+(`/tmp/hirz-bounded-runtime.diff`); the new migration SHA-256 was
+`40679834621e9961a54c1a95a45092ca06aa4291e782d94da0693963090b80e4`, and the new
+bounded-read regression file SHA-256 was
+`68ccc3c205f3034613afcfcaa7f5a9e691eab3cc7e2ed2754aa04a01721ca5d6`.
+The unchanged latency runner SHA-256 is
+`c4a1c58192647df697db4bd3fd381fb4c1255b86b1f60685437cb831f7a79b6b`.
+
+Targeted checks passed `82 passed in 16.96s`; the final focused run, adding
+explicit schema-reflection and offline expiry-export checks, passed
+`7 passed in 13.31s`. Tests exercise superseded-control mismatch, the earlier
+control at an observation cutoff before the newer dispatch, unbound devices and
+both directions of the existing isolation mirror fixture; fresh/cached context,
+as-of intervals, close revision/invalidation, rollback and retained
+`CONSTRAINT_WITHDRAWN` evidence; expiry during both record and withdraw commits;
+and index-only downgrade/upgrade, reflection agreement and active-plan result
+equivalence. The unchanged `active()` rule is tested with a pre-withdrawal window
+and equal re-plan schedules/conflicts after withdrawal. Existing tests expecting
+withdrawn rows in current context now assert their absence.
+
+The author confirmed that `expired_constraint_ids` belongs in the existing
+constraint events linked by `decision_seq`, not in canonical Decision. Tests
+check `[]` on events without expiry and nonempty lists on both expiry paths.
+Both nonempty-list exports were verified with the independent offline verifier
+against a separately trusted public-key fingerprint; signature compatibility was
+run, not assumed. The required smokes below also verify their signed exports.
+
+### Retained-history clone and EXPLAIN
+
+Read-only original: `hirz_ha_smoke_c30887559bcf49e8b80215cf6240e6fa` (0012).
+Created disposable clone `hirz_bounded_1964d5d2c03447fc93b6afe4e25e2e85` with
+`CREATE DATABASE ... TEMPLATE ...`, collected the original query plans on the
+clone, upgraded only the clone to `0013_bounded_reads`, collected the indexed
+plans, compared attribution, and dropped the clone in `finally`. No action or
+constraint cleanup was performed on that clone. The retained original had
+57,535 actions, 422 plans, 160,507 audit rows, 318 current constraints across its
+three households, 26 current observations and 8,203 observation-history rows.
+Original counts, audit heads and migration revision matched before/after and
+again after the latency attempt. Original reads used read-only transactions.
+Development remained `0005_execution_attempt`, with zero actions/audit rows.
+
+Private command/source: `uv run --locked python /tmp/hirz-bounded-evidence.py`;
+output `/tmp/hirz-bounded-explain.log`, machine-readable evidence
+`/tmp/hirz-bounded-explain.json`, SHA-256
+`f72603ee722394ab9a043a159dafceeaedc27fc750869ae22584b21226f628ef`.
+The evidence script's initial metadata probes were corrected for the existing
+`observation_history` name and tables absent on 0005 before any clone was created;
+those failed probes did not write either database.
+
+The reference cutoff was the retained home's last audited instant,
+`2026-10-13T22:34:00.007435+00:00`. Single server-side `EXPLAIN (ANALYZE, BUFFERS)`
+observations follow; cache state differed, so these are neither warm medians nor
+an end-to-end speedup distribution.
+
+| Query | Returned rows | Access / rejected rows | Server execution ms |
+|---|---:|---|---:|
+| Verified controls before | 210 | Sequential actions scan; 57,325 rejected | 34.390 |
+| Verified controls after | 1 | 9 binding probes through `actions_verified_target` | 0.057 |
+| Active plan before | 1 | Sequential plans scan; 421 rejected, then sort | 21.993 |
+| Active plan after | 1 | `plans_active_latest`, limit 1 | 0.020 |
+
+The DESC index supplies descending attempt order without a sort; PostgreSQL labels
+it `Index Scan` because the index itself stores the sequence descending. Full
+server plan rows are retained here:
+
+controls_before (`returned_rows=210`):
+
+```text
+Nested Loop  (cost=0.43..11364.01 rows=217 width=1165) (actual time=0.540..34.340 rows=210 loops=1)
+  Buffers: shared hit=3346 read=6923 written=232
+  ->  Seq Scan on actions  (cost=0.00..10264.69 rows=217 width=1157) (actual time=0.467..21.332 rows=210 loops=1)
+        Filter: ((household_id = '536fa8ee-854e-56ca-8c5d-5ba418e710a0'::uuid) AND (execution_status = 'verified'::text))
+        Rows Removed by Filter: 57325
+        Buffers: shared hit=2830 read=6599 written=15
+  ->  Memoize  (cost=0.43..7.97 rows=1 width=32) (actual time=0.061..0.061 rows=1 loops=210)
+        Cache Key: actions.execution_attempt_seq
+        Cache Mode: logical
+        Hits: 0  Misses: 210  Evictions: 0  Overflows: 0  Memory Usage: 28kB
+        Buffers: shared hit=516 read=324 written=217
+        ->  Index Scan using audit_log_pkey on audit_log  (cost=0.42..7.96 rows=1 width=32) (actual time=0.060..0.060 rows=1 loops=210)
+              Index Cond: ((household_id = '536fa8ee-854e-56ca-8c5d-5ba418e710a0'::uuid) AND (seq = actions.execution_attempt_seq))
+              Filter: (created_at <= '2026-10-13 22:34:00.007435+00'::timestamp with time zone)
+              Buffers: shared hit=516 read=324 written=217
+Planning:
+  Buffers: shared hit=89 read=15 written=5
+Planning Time: 1.121 ms
+Execution Time: 34.390 ms
+```
+
+active_plan_before (`returned_rows=1`):
+
+```text
+Limit  (cost=85.83..85.83 rows=1 width=1046) (actual time=21.965..21.966 rows=1 loops=1)
+  Buffers: shared hit=1570 read=392 written=39
+  ->  Sort  (cost=85.83..86.85 rows=409 width=1046) (actual time=21.964..21.965 rows=1 loops=1)
+        Sort Key: audit_seq DESC
+        Sort Method: quicksort  Memory: 25kB
+        Buffers: shared hit=1570 read=392 written=39
+        ->  Seq Scan on plans  (cost=0.00..83.78 rows=409 width=1046) (actual time=16.191..21.958 rows=1 loops=1)
+              Filter: ((household_id = '536fa8ee-854e-56ca-8c5d-5ba418e710a0'::uuid) AND ((document ->> 'status'::text) <> ALL ('{superseded,completed,abandoned}'::text[])))
+              Rows Removed by Filter: 421
+              Buffers: shared hit=1570 read=392 written=39
+Planning:
+  Buffers: shared hit=70 read=11
+Planning Time: 0.684 ms
+Execution Time: 21.993 ms
+```
+
+controls_after (`returned_rows=1`):
+
+```text
+Nested Loop  (cost=4.87..61.53 rows=3 width=1165) (actual time=0.036..0.041 rows=1 loops=1)
+  Buffers: shared hit=25
+  ->  Bitmap Heap Scan on asset_bindings  (cost=4.17..11.28 rows=3 width=48) (actual time=0.004..0.005 rows=9 loops=1)
+        Recheck Cond: (household_id = '536fa8ee-854e-56ca-8c5d-5ba418e710a0'::uuid)
+        Heap Blocks: exact=1
+        Buffers: shared hit=2
+        ->  Bitmap Index Scan on asset_bindings_household_id_asset_id_key  (cost=0.00..4.17 rows=3 width=0) (actual time=0.002..0.002 rows=9 loops=1)
+              Index Cond: (household_id = '536fa8ee-854e-56ca-8c5d-5ba418e710a0'::uuid)
+              Buffers: shared hit=1
+  ->  Limit  (cost=0.70..16.74 rows=1 width=1165) (actual time=0.004..0.004 rows=0 loops=9)
+        Buffers: shared hit=23
+        ->  Nested Loop  (cost=0.70..16.74 rows=1 width=1165) (actual time=0.004..0.004 rows=0 loops=9)
+              Buffers: shared hit=23
+              ->  Index Scan using actions_verified_target on actions  (cost=0.28..8.30 rows=1 width=1157) (actual time=0.003..0.003 rows=0 loops=9)
+                    Index Cond: ((household_id = asset_bindings.household_id) AND ((proposal['target'::text] ->> 'adapter'::text) = (asset_bindings.attributes ->> 'adapter'::text)) AND ((proposal['target'::text] ->> 'entity'::text) = (asset_bindings.attributes ->> 'entity_id'::text)))
+                    Buffers: shared hit=19
+              ->  Index Scan using audit_log_pkey on audit_log  (cost=0.42..8.44 rows=1 width=32) (actual time=0.005..0.005 rows=1 loops=1)
+                    Index Cond: ((household_id = asset_bindings.household_id) AND (seq = actions.execution_attempt_seq))
+                    Filter: (created_at <= '2026-10-13 22:34:00.007435+00'::timestamp with time zone)
+                    Buffers: shared hit=4
+Planning Time: 0.133 ms
+Execution Time: 0.057 ms
+```
+
+active_plan_after (`returned_rows=1`):
+
+```text
+Limit  (cost=0.13..0.58 rows=1 width=1046) (actual time=0.015..0.015 rows=1 loops=1)
+  Buffers: shared hit=1 read=1
+  ->  Index Scan using plans_active_latest on plans  (cost=0.13..189.18 rows=416 width=1046) (actual time=0.014..0.015 rows=1 loops=1)
+        Index Cond: (household_id = '536fa8ee-854e-56ca-8c5d-5ba418e710a0'::uuid)
+        Buffers: shared hit=1 read=1
+Planning:
+  Buffers: shared hit=21 read=1
+Planning Time: 0.103 ms
+Execution Time: 0.020 ms
+```
+
+Attribution was compared over **all 8,229 current/history observation versions**
+in the clone's three households: 5,697 had a binding and 2,532 were member/unbound
+observations. Applying the existing matcher at each observation's own timestamp
+attributed 626 observations with the old controls and 626 with the new controls:
+**0 differences, 0 superseded-control differences in this retained data**. This is
+not a claim of semantic identity: the synthetic regression proves that an older
+matching control no longer attributes state after a newer mismatching control.
+Any observed difference in the comparison had to be old=true/new=false with an
+older matching superseded sequence. The original remained read-only throughout.
+
+### Required local checks, in order
+
+1. `HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run --locked pytest -q`
+2. `HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run --locked pytest -m integration --cov=hirz --cov-append -q`
+3. `uv run --locked coverage report --fail-under=80`
+4. `uv run --locked ruff check . && uv run --locked mypy hirz/ scripts/ alembic/`
+5. `HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run python scripts/smoke_coordinator.py --audit-output /tmp/hirz-bounded-coordinator-audit.json`
+6. `PATH="/opt/homebrew/opt/node@24/bin:$PATH" HIRZ_LLM=off HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run --locked python scripts/smoke_household_tools.py --audit-output /tmp/hirz-bounded-household-audit.json --conformance-cli ../addon-check/dist/cli.js`
+
+The ordinary shell had Node 23; the conformance invocation explicitly used
+**Node v24.21.0**. The existing uv cache required authorized sandbox access. Ruff's
+first invocation found one import-order error in the extended storage test;
+that import was moved and the complete lint/type command then passed. No runtime
+change followed the complete test suites. Summary lines:
+
+```text
+1419 passed, 145 deselected in 198.43s (0:03:18)
+143 passed, 1421 deselected in 297.81s (0:04:57)
+TOTAL                                     12163    873    93%
+All checks passed!
+Success: no issues found in 153 source files
+```
+
+Coordinator smoke:
+
+```text
+disposable_database=dropped; development_database=unchanged
+clarification=Please specify AM or PM; scripted answer=23:00
+gate_1=PASS; linked=Malik; claimed_author=Dad
+gate_4=PASS; dishwasher_start=2026-10-14 04:45:00+00:00
+gate_2=PASS; target_f=72; mode=heat; source=manual:device; duration=2h
+gate_3=PASS; Explicitly revise or withdraw 'car target to 60' to match the other target.
+gate_5=PASS; Extend the 2026-10-13T22:45:00+00:00 deadline or explicitly lower the 50% target; no requirement was dropped.
+coordinator=PASS; gates=5/5; audit_rows=12; audit_export=/tmp/hirz-bounded-coordinator-audit.json; trusted_fingerprint=385589f309b374189ea1b391f4a3ad193f3674cf7fb6e72e1a97caf76e21912b; offline=valid; device_actions=0
+```
+
+Twelve-tool/independent conformance smoke:
+
+```text
+PASS SDK OAuth linking; twelve typed tools; scoped context
+PASS first plan prepared by separate worker; source=simulated
+PASS objective change survived worker restart; exact old consent refused
+PASS revision/approval race refused; separate worker restarted
+PASS profile device denial/execution verified; retry repeated no effects
+PASS proposal retries, ambiguity, advisory privacy, security and pause
+PASS read-only OAuth token refused act tool with HTTP 403
+PASS durable retry after MCP process restart
+CONFORMANCE {"status": "PASS", "complete": true, "counts": {"PASS": 117, "FAIL": 0, "WARN": 0, "SKIP": 0, "MANUAL": 0}, "timedTools": ["what_can_you_do", "get_household_context"], "missingEvidence": []}
+{"household_tools": "PASS", "signed_rows": 611, "offline": "valid", "trusted_fingerprint": "385589f309b374189ea1b391f4a3ad193f3674cf7fb6e72e1a97caf76e21912b", "audit_export": "/tmp/hirz-bounded-household-audit.json", "development_database": "unchanged"}
+disposable_database=dropped; development_database=unchanged
+```
+
+The conformance checker timed only onboarding/context, as its contract states;
+it does not substitute for the full latency protocol. Both smoke databases were
+dropped. Logs are `/tmp/hirz-bounded-unit.log`, `-integration.log`, `-coverage.log`,
+`-coordinator.log` and `-household.log` under the same `/tmp/hirz-bounded` prefix.
+The coordinator's 12-row and household smoke's 611-row signed exports both passed
+offline verification, including the new signed constraint-event payload field.
+
+### Single latency attempt — incomplete
+
+Ran exactly once:
+
+```sh
+HIRZ_LLM=off HIRZ_DOGWOOD="$PWD/.tools/dogwood" HIRZ_BUDGET_SCENARIO=demo-evening HIRZ_BUDGET_ARTIFACTS=/tmp/hirz-item26b-bounded-01 uv run --locked pytest tests/latency -m latency --no-cov -s -q --tb=short
+```
+
+Environment: macOS 15.7.3 arm64, Python 3.12.13, MCP 1.30.0, SQLAlchemy 2.0.54,
+psycopg 3.3.5, SciPy 1.18.0, HTTPX 0.28.1. The intended five warmups, 100 measured
+samples and nearest-rank p95 threshold of 250 ms were unchanged. The last complete
+progress line was `PROGRESS demo-evening round=102/105`; the next round retained
+98 samples through `stale-approval-cheapest` and 97 for the later home cases.
+The exception chain was `httpcore.ReadError` → `httpx.ReadError`, surfaced through
+`ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)`. Its cause is
+not established by the retained trace. Pytest summary:
+
+```text
+1 failed in 2630.78s (0:43:50)
+```
+
+Private raw report: `/tmp/hirz-item26b-bounded-01/demo-evening/report.json`, SHA-256
+`0927be2efa214aa5fd0f247d045e1357b446c78e095067b431e25e5c56bb3b05`.
+Private log: `/tmp/hirz-item26b-bounded-01.log`, SHA-256
+`d04dfd1cda7455a5f87d2447ce864e88db908dfc18728a3bfb65beef83799466`.
+Failure retained `hirz_ha_smoke_b8847a41f80d44b787a4a01e68b7792b` on 0013.
+The missing samples/cases were not filled, retried, extrapolated or discarded.
+
+The runner never reached `timing_report`, so the tables below were derived from
+**all retained raw samples** using its unchanged `statistics` function. They are
+partial summaries, not the requested completed full-corpus gate. Their actual
+sample counts are shown; zero samples exist for the two unmeasured tools. The
+seven rows in the case table exceed 250 ms on their available samples; no complete
+case or pooled-tool gate result is claimed. Analysis artifacts:
+`/tmp/hirz-bounded-tables.py`, `/tmp/hirz-bounded-partial-statistics.json` and
+`/tmp/hirz-bounded-latency-summary.log`.
+
+Tool — partial samples only
+
+| Tool — partial samples only | n | Minimum ms | Median ms | p95 ms | Maximum ms |
+|---|---:|---:|---:|---:|---:|
+| `what_can_you_do` | 98 | 58.911416 | 62.170208 | 103.230667 | 249.747083 |
+| `get_household_context` | 196 | 64.766083 | 74.839833 | 114.438250 | 251.323917 |
+| `get_household_plan` | 490 | 100.291458 | 177.928333 | 279.279333 | 510.758250 |
+| `revise_household_plan` | 582 | 61.413958 | 127.330500 | 223.666833 | 419.450709 |
+| `explain_plan` | 392 | 78.477250 | 89.776521 | 145.749125 | 279.640333 |
+| `approve_action` | 683 | 82.755625 | 99.727083 | 350.122584 | 779.616792 |
+| `execute_household_action` | 776 | 64.556667 | 104.121459 | 186.658209 | 527.862708 |
+| `propose_household_rule` | 196 | 61.122916 | 102.869479 | 185.930083 | 453.939042 |
+| `evaluate_permission` | 97 | 72.780208 | 83.142959 | 111.883833 | 168.301667 |
+| `get_action_audit` | 388 | 63.971500 | 75.381208 | 117.837750 | 226.675875 |
+
+Unmeasured tools: `assess_request_risk`, `verify_trusted_identity`.
+
+Case above 250 ms — partial samples only
+
+| Case above 250 ms — partial samples only | n | Minimum ms | Median ms | p95 ms | Maximum ms |
+|---|---:|---:|---:|---:|---:|
+| `plan-approval` | 98 | 234.559917 | 301.330834 | 490.222125 | 779.616792 |
+| `objective-most_comfortable` | 98 | 165.257083 | 188.061416 | 294.151708 | 356.570792 |
+| `objective-greenest` | 98 | 171.531750 | 193.109667 | 332.856250 | 510.758250 |
+| `objective-cheapest` | 98 | 165.901292 | 187.911812 | 279.279333 | 336.715334 |
+| `revision-car` | 97 | 161.085291 | 192.227083 | 276.054500 | 419.450709 |
+| `plan-cancel` | 97 | 147.431750 | 169.690166 | 286.575166 | 328.364500 |
+| `action-profile` | 97 | 122.633667 | 140.947750 | 255.656125 | 326.166792 |
+
+Round growth (measured samples; warmups excluded):
+
+| Case | Mean rounds 1–10 ms (n=10) | Mean rounds 90–100 ms | Available late rounds | Available late mean ms |
+|---|---:|---|---|---:|
+| `plan-approval` | 296.141954 | Unavailable | 90–98 (n=9) | 306.695884 |
+| `plan-ready` | 147.599492 | Unavailable | 90–98 (n=9) | 155.744921 |
+| `revision-car` | 186.001054 | Unavailable | 90–97 (n=8) | 204.812432 |
+| `context-all` | 75.576996 | Unavailable | 90–98 (n=9) | 76.144241 |
+
+Outcome — partial samples only
+
+| Outcome — partial samples only | n | Minimum ms | Median ms | p95 ms | Maximum ms |
+|---|---:|---:|---:|---:|---:|
+| `accurate_acknowledgment` | 97 | 92.536375 | 104.771333 | 154.176250 | 242.994125 |
+| `verified_twin_outcome` | 97 | 2375.424167 | 2871.562083 | 3987.035333 | 6556.844083 |
+
+The unavailable rounds 90–100 means are explicitly distinguished from the
+available 90–98 or 90–97 subsets above. Missing-input failure timing, parents
+verification cases, all ten startup measurements and the runner's final signed
+exports were not reached. No AWS cold-start or Alexa voice-response latency is
+claimed. The SDK transport interruption earned a
+[friction entry](./friction-log.md#item-26b-interrupted-mcp-latency-measurement--2026-09-24);
+no upstream defect is inferred from the exception alone.
+
+### Separate read-only verification after interruption
+
+After the failed attempt, a separate read-only inspection of its retained
+database found **54,495 actions, 412 plans, 154,443 audit rows, 2,559 tool receipts,
+0 verification cases, 0 current constraints and 306 constraint-history rows**
+(13 current observations and 8,008 historical observations). This confirms that
+withdrawals moved out of current state during the accumulated run; it is not a
+new timing measurement or a database cleanup.
+
+`uv run --locked python /tmp/hirz-bounded-postfailure.py` verified the complete
+home chain and exported **154,443 rows** to
+`/tmp/hirz-item26b-bounded-01/postfailure-household-0-audit.json`; the independent
+offline verifier returned `valid` against the separately trusted public-key
+fingerprint. All **612 constraint events** carried `expired_constraint_ids`.
+The parents chain/export was correctly `empty` (0 rows), since its runtime cases
+were not reached. The first inspection wrapper incorrectly asserted `valid` for
+that empty chain after the home verification had already succeeded; a subsequent
+read-only metadata/empty-export check recorded the correct `empty` status without
+repeating any latency call. Logs are `/tmp/hirz-bounded-postfailure.log` and
+`/tmp/hirz-bounded-postfailure-counts.log`; machine-readable metadata is
+`/tmp/hirz-bounded-postfailure.json`. The original benchmark's counts, audit heads
+and 0012 revision, and development's empty 0005 state, still matched the initial
+read-only checks. This separate verification does not claim the interrupted
+runner completed its own final export/startup/corpus checks.
+
+### Deliberately not claimed
+
+No complete 100-sample table, exact rounds 90–100 mean, all-twelve-tool p95 result,
+full Time-of-Day gate, Hourly result, CI latency result, AWS performance, real
+phone/security execution, universal attribution identity, or controlled warm
+speedup distribution is claimed. The migration changes indexes only; the retained
+original's historical withdrawn rows were not rewritten. The 250 ms gate and
+corpus remain unchanged, and item 26b remains Deferred. Final checks and ordinary
+CI evidence are appended after execution.

@@ -423,7 +423,7 @@ The typed model everything reasons over. Stored in Postgres as tables plus JSONB
 | `Policy` | pointer to the active constitution version plus per-member overrides |
 | `Observation` | state snapshot with adapter `domain`, `observed_at`, three-way `source` (§5.11), `staleness_seconds`; legacy domain=null is read-only and excluded from decision facts |
 
-**Versioning.** Current rows keep stable identity keys; prior versions live in matching history tables with UTC half-open `valid_from`/`valid_to` intervals. This reconstructs what was recorded at a past instant, not retroactive effective time. Updates require the expected `valid_from`; changed same-instant versions and backdated household writes are refused. No-op writes preserve their version. New facts start when recorded; existing scaffold rows start history at migration time. Deletion and retroactive corrections are deferred. Constitution versions are separate (§5.2).
+**Versioning.** Current rows keep stable identity keys; prior versions live in matching history tables with UTC half-open `valid_from`/`valid_to` intervals. This reconstructs what was recorded at a past instant, not retroactive effective time. Updates require the expected `valid_from`; changed same-instant versions and backdated household writes are refused. No-op writes preserve their version. New facts start when recorded; existing scaffold rows start history at migration time. Constraint closing is described in §5.5; other deletion and retroactive corrections are deferred. Constitution versions are separate (§5.2).
 
 **Read model.** `ContextService.get_household_context(household_id, scope="all", as_of=None, member_id=None, allow_stale=False)` returns a `ContextSnapshot` (`hirz/graph/context.py`). Current reads query the materialized `household_context` view; historical reads reconstruct from current/history tables in one round trip. Graph writers serialize before mutation and refresh the whole view once in the same transaction; refresh failure rolls back graph/history changes. This is the small-graph implementation, not a measured latency claim (§8).
 
@@ -638,6 +638,8 @@ and [budget accounting](./docs/constitution.md#24-budgets-and-bounds).
 ### 5.5 Coordinator
 
 Turns member requests and household facts into constraints and detects conflicts before the solver sees them.
+
+Constraint record/withdraw commits close withdrawn and expired one-time constraints into graph history, preserving the final withdrawal fields and earlier as-of reads while excluding closed rows from current snapshots; the existing signed constraint events list `expired_constraint_ids` (including `[]`) under the triggering `decision_seq`.
 
 - **Constraint intake.** Voice ("don't run the dishwasher until I'm done in the kitchen at eleven") arrives as `revise_household_plan` with a scope, a kind, and a time window. The Coordinator normalizes it to an encoded constraint and attaches its provenance: the linked account it arrived on and the surface, plus `claimed_author` when the sentence names someone else. Alexa does not say who spoke (§7), so "Dad" in the plan means Dad's linked account; the same sentence spoken on Malik's account is shown as "Malik's Echo (said to be from Dad)".
 - **Manual changes are constraints.** When a comfort device changes without a command from Hirz (someone turned the thermostat by hand, §5.17), the Coordinator records a `manual_hold` constraint on that device for a default of two hours, with source `manual:device`, and the planner works around it instead of overwriting it. The hold appears in the plan like any other constraint and can be lifted by voice.
@@ -1369,13 +1371,16 @@ or the full household-tool isolation gate (item 26).
 ## 8. Latency budget
 
 The latency gate is deferred until after the 2026-10-23 submission and runs in CI
-on `workflow_dispatch` only. Plan-lifecycle tools exceed 250 ms as history
-accumulates: the verified-control read scans all actions with no index or lower
-time bound; active-plan lookup scans all plans through a JSON status filter;
-and the snapshot carries every withdrawn constraint. The 500 ms figure comes
+on `workflow_dispatch` only. Verified-control reads now select the latest verified
+control per bound device through an index, active-plan reads use a shared partial
+index predicate, and constraint commits close withdrawn/expired rows into history.
+End-to-end latency remains unresolved: the single bounded-read measurement stopped
+on a transport error with partial samples still above 250 ms; full-corpus timing,
+complete late-round means and remaining profiling stay in item 26b
+([evidence](./docs/verification-log.md#item-26b--2026-09-24)). The 500 ms figure comes
 from the [partner MCP Toolkit quickstart](https://www.developer.amazon.com/docs/alexaplus/add-ons/mcp-toolkit-quickstart.html#performance);
 the [hackathon rules](https://amazonappdev2026.devpost.com/rules) specify no latency
-requirement. The fix is scheduled after submission; see the
+requirement. Remaining latency work is scheduled after submission; see the
 [measured evidence](./docs/verification-log.md#full-gate-results-for-0dc1ccf--2026-09-23)
 and [deferral checkpoint](./docs/verification-log.md#deferral-checkpoint--2026-09-24).
 

@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-09-24: Bound verified-control and active-plan reads with migration 0013, and close withdrawn/expired constraints into audited graph history; retain item 26b as Deferred after an interrupted single latency measurement ([ADR amendment](./docs/adr/ADR-017-tool-latency-and-isolation.md#bounded-reads-amendment--2026-09-24), [evidence](./docs/verification-log.md#item-26b--2026-09-24)).
+
 - 2026-09-24: Close item 26 isolation and defer item 26b latency until after submission, preserving the gate on manual dispatch only ([ADR amendment](./docs/adr/ADR-017-tool-latency-and-isolation.md#deferral-amendment--2026-09-24), [evidence](./docs/verification-log.md#deferral-checkpoint--2026-09-24), [CI](https://github.com/BashaarJavaid/Hirz/actions/runs/36021610833)).
 
 - 2026-09-23: Add authenticated tool latency and concurrent household-isolation gates, signed per-action batching, transaction-scoped JSON snapshot reuse, combined budget/audit reads, budget-query indexes (migration 0012) and a private native helper that reuses compiled policies with fresh replay history; pause item 26 as partial after local/CI latency failures, retaining experiments and remaining work in the [handoff](./docs/verification-log.md#paused-handoff--2026-09-23) ([ADR-017](./docs/adr/ADR-017-tool-latency-and-isolation.md)).

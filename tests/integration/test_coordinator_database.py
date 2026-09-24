@@ -98,14 +98,8 @@ def test_audited_intake_replacement_permissions_and_rollback(scratch_database):
             context = await ContextService(
                 connection, pipeline.clock
             ).get_household_context(HOME, "constraints")
-            assert len(context.data["constraints"]) == 4
-            assert (
-                sum(
-                    r.get("withdrawn_at") is not None
-                    for r in context.data["constraints"]
-                )
-                == 2
-            )
+            assert len(context.data["constraints"]) == 2
+            assert not any(r.get("withdrawn_at") for r in context.data["constraints"])
             before = await connection.scalar(
                 sa.select(sa.func.count()).select_from(db.audit_log)
             )
@@ -150,7 +144,7 @@ def test_audited_intake_replacement_permissions_and_rollback(scratch_database):
                 await connection.scalar(
                     sa.select(sa.func.count()).select_from(db.constraints)
                 )
-                == 4
+                == 2
             )
 
     asyncio.run(run())
@@ -230,9 +224,14 @@ def test_manual_hold_renewal_release_and_history(scratch_database):
             ).get_household_context(
                 HOME, "constraints", as_of=at + timedelta(minutes=1)
             )
-            assert len(history.data["constraints"]) == 1 and not history.data[
-                "constraints"
-            ][0].get("withdrawn_at")
+            assert len(history.data["constraints"]) == 1
+            assert history.data["constraints"][0]["withdrawn_at"]
+            from hirz.graph.models import ConstraintRecord
+            from hirz.planner.coordinator import active, clean
+
+            old = ConstraintRecord.model_validate(clean(history.data["constraints"][0]))
+            assert active(old, at + timedelta(minutes=1), end)
+            assert not active(old, clock[0], end)
             await connection.rollback()
             assert (
                 await coordinator.intake(

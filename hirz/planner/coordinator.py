@@ -497,6 +497,20 @@ async def commit_constraint(
     )
     assert decision.audit_id is not None and action.requested_by.member_id is not None
     intake = Intake.model_validate(action.params)
+    expired = tuple(
+        record
+        for record in records(await pipeline.snapshot(at))
+        if utc(record.spec.ends_at) <= utc(at)
+    )
+    for record in expired:
+        if record.id in {r.id for r in previous}:
+            continue
+        current = await pipeline.repo.get("constraints", {"id": record.id})
+        assert current is not None
+        await pipeline.repo.close(
+            "constraints", record, expected_version=current["valid_from"]
+        )
+    expired_ids = [str(record.id) for record in expired]
     for record in previous:
         seq = await pipeline.audit.append(
             pipeline.connection,
@@ -507,12 +521,13 @@ async def commit_constraint(
                 "constraint_id": str(record.id),
                 "action_id": action.action_id,
                 "decision_seq": decision.audit_id,
+                "expired_constraint_ids": expired_ids,
                 "member_id": action.requested_by.member_id,
             },
         )
         current = await pipeline.repo.get("constraints", {"id": record.id})
         assert current is not None
-        await pipeline.repo.put(
+        await pipeline.repo.close(
             "constraints",
             changed(
                 record,
@@ -544,6 +559,7 @@ async def commit_constraint(
                 "constraint_id": str(constraint_id),
                 "action_id": action.action_id,
                 "decision_seq": decision.audit_id,
+                "expired_constraint_ids": expired_ids,
                 "member_id": action.requested_by.member_id,
                 "provenance": provenance.model_dump(mode="json"),
             },

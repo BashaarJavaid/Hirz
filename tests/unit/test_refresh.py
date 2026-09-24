@@ -808,13 +808,11 @@ def test_recorded_ha_changes_need_matching_dispatch_and_unchanged_mode(tmp_path)
             )
 
             def query(_):
-                if "asset_bindings" in str(_):
+                if "LATERAL" not in str(_):
                     return SimpleNamespace(
                         mappings=lambda: SimpleNamespace(one_or_none=lambda: binding)
                     )
-                return SimpleNamespace(
-                    mappings=lambda: SimpleNamespace(all=lambda: rows)
-                )
+                return SimpleNamespace(mappings=lambda: rows)
 
             p.connection.execute.side_effect = query
             assert await owned_control(

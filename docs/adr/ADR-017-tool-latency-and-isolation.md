@@ -1,6 +1,6 @@
 # ADR-017: Local tool latency and household isolation
 
-Date: 2026-09-23. Status: accepted protocol; verification pending item 26.
+Date: 2026-09-23. Status: accepted protocol; isolation verified; latency deferred as item 26b.
 
 ## Decision
 
@@ -268,3 +268,65 @@ deleting the gate loses a reproducible check; loosening the threshold or corpus
 would hide the outstanding performance work. The fix is scheduled after
 submission, without authorizing the pending indexes/projection or any other
 runtime change in this records-and-CI checkpoint.
+
+
+## Bounded reads amendment — 2026-09-24
+
+The author approved three runtime changes and the index-only migration
+`0013_bounded_reads`. Upgrade and downgrade create/drop only the verified-target
+and active-plan indexes; metadata mirrors them using the fixed nested JSON SQL
+expressions established by 0012. Development stays on 0005; verification upgrades
+only disposable databases. The original retained benchmark database is read-only.
+
+**A — latest verified control per bound device.** Every attribution check still
+reads PostgreSQL. One household-scoped statement selects asset bindings and uses
+a LATERAL join to find the latest verified action for each binding's adapter and
+entity, ordered by execution-attempt sequence descending, with the joined audit
+timestamp at or before the supplied observation cutoff. The partial action index
+supports one ordered probe per binding, and the returned set is bounded by the
+number of bindings. This deliberately changes semantics: an older control that a
+newer verified control on the same device has superseded no longer attributes
+state, even when the older control matches the observation. The matching code's
+`since`, dispatch-time, previous-mode and appliance-cycle checks stay unchanged;
+lineage-scoped `applied_controls` is unchanged. No verified-control decision is
+cached and no lower time bound is introduced.
+
+**B — close inactive constraints through graph history.** The repository's close
+operation validates scope/model/version as put does, archives the final version
+(including withdrawal metadata) with `valid_to` equal to the graph transaction's
+write time, deletes its current row, and changes the graph revision and change
+flag. The existing materialized-view refresh remains in that transaction.
+Withdrawal uses close; as-of reads before closing retain the constraint and reads
+at or after closing do not. Successful constraint record and withdraw commits
+also close that household's one-time constraints whose spec end has passed.
+Every existing `CONSTRAINT_RECORDED` / `CONSTRAINT_WITHDRAWN` payload includes
+`expired_constraint_ids`, including `[]`, linked to the triggering grant by
+`decision_seq`. The field sits under the existing signature; canonical Decision
+and public tool shapes do not change. Any failure rolls back closure and audit
+writes together. No migration backfills or rewrites existing history.
+
+The existing `active()` rule is unchanged: a withdrawn constraint still applies
+to a window starting before its withdrawal. For closed rows that earlier-window
+case is reachable only through an as-of snapshot; a re-plan starting after
+withdrawal is unchanged. The JSON snapshot-cache amendment's rejection of dropping
+withdrawn rows concerned fidelity to its then-current source snapshot, not a
+product promise to return inactive constraints forever. The catalog's current
+constraints scope continues to mean active constraints.
+
+**C — indexed active-plan lookup.** `hirz/db.py` defines one fixed-literal
+terminal-status predicate, shared by the active-plan lookup in
+`hirz/mcp/household.py`, refresh invalidation, observation ingestion, worker reads
+and the metadata partial index over household and descending audit sequence.
+The migration freezes the same predicate. PostgreSQL can therefore prove the
+partial index applies, including for prepared queries. Result-equivalence,
+index roundtrip and metadata-reflection checks preserve all retained rows.
+
+Rejected a fixed time window and a per-observation time window: both forget a
+days-old setpoint and can trigger needless re-plans. Rejected filtering withdrawn
+rows in SQL, which leaves the current table growing; a new expire action class;
+and an unaudited worker sweep. Expiry belongs to the already-authorized constraint
+commit and its signed evidence. The corpus, sample counts, 250 ms threshold and
+manual-only CI latency gate remain unchanged. The single local measurement and
+its incomplete transport-failure evidence are recorded in
+[item 26b](../verification-log.md#item-26b--2026-09-24); this amendment does not
+complete the latency gate.

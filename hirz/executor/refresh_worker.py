@@ -64,9 +64,7 @@ class RefreshWorker:
                     await p.connection.execute(
                         sa.select(db.plans).where(
                             p.scope(db.plans),
-                            db.plans.c.document["status"].astext.notin_(
-                                ["superseded", "abandoned", "completed"]
-                            ),
+                            db.ACTIVE_PLAN,
                         )
                     )
                 )

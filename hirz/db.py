@@ -447,6 +447,14 @@ sa.Index(
     actions.c.grant_seq,
     postgresql_where=actions.c.grant_seq.is_not(None),
 )
+sa.Index(
+    "actions_verified_target",
+    actions.c.household_id,
+    sa.text("(proposal['target'] ->> 'adapter')"),
+    sa.text("(proposal['target'] ->> 'entity')"),
+    actions.c.execution_attempt_seq.desc(),
+    postgresql_where=sa.text("execution_status = 'verified'"),
+)
 approvals = sa.Table(
     "approvals",
     metadata,
@@ -518,6 +526,19 @@ plans = sa.Table(
     sa.ForeignKeyConstraint(
         ["household_id", "audit_seq"], ["audit_log.household_id", "audit_log.seq"]
     ),
+)
+# Fixed literals let PostgreSQL prove the partial index applies to prepared reads.
+ACTIVE_PLAN = sa.literal_column("(document ->> 'status')").not_in(
+    [
+        sa.literal_column(repr(status))
+        for status in ("superseded", "completed", "abandoned")
+    ]
+)
+sa.Index(
+    "plans_active_latest",
+    plans.c.household_id,
+    plans.c.audit_seq.desc(),
+    postgresql_where=ACTIVE_PLAN,
 )
 plan_refresh_jobs = sa.Table(
     "plan_refresh_jobs",

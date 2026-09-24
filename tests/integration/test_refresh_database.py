@@ -482,10 +482,7 @@ def test_manual_hold_first_sample_renewal_release_and_expiry(scratch_database):
                 )
                 assert release.decision.decision == "execute"
                 async with c.begin():
-                    assert all(
-                        x.get("withdrawn_at") is not None
-                        for x in (await p.snapshot(w.clock())).data["constraints"]
-                    )
+                    assert not (await p.snapshot(w.clock())).data["constraints"]
             finally:
                 await r.close()
 

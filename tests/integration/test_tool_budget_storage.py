@@ -19,6 +19,7 @@ from hirz import db
 from hirz.audit import verify_database
 from hirz.executor.plans import PlanService, governance
 from hirz.explainer.core import decision_context, prepared
+from hirz.local import LocalError
 from hirz.pipeline.models import Action, Decision
 from scripts.smoke_executor import PRINCIPAL
 
@@ -147,6 +148,10 @@ def test_batch_scheduling_rolls_back_and_keeps_each_signed_transition(
                 await migrate(c, "downgrade", "0011_planning_objective")
                 assert await usage() == indexed
                 await migrate(c)
+                await c.run_sync(db.require_current)
+                with pytest.raises(LocalError, match="Audit rows exist"):
+                    await c.run_sync(db.require_empty_audit)
+                await c.rollback()
                 assert await usage() == indexed
                 after_migration, _ = await verify_database(
                     c, p.household_id, p.audit.key.public_key()
@@ -297,6 +302,40 @@ def test_refresh_reads_only_active_plans_and_preserves_terminal_evidence(
                         .mappings()
                         .one()
                     )
+
+                async def active_rows():
+                    async with c.begin():
+                        legacy = list(
+                            await c.scalars(
+                                sa.select(db.plans.c.plan_id)
+                                .where(
+                                    p.scope(db.plans),
+                                    db.plans.c.document["status"].astext.not_in(
+                                        ["superseded", "completed", "abandoned"]
+                                    ),
+                                )
+                                .order_by(db.plans.c.audit_seq.desc())
+                            )
+                        )
+                        indexed = list(
+                            await c.scalars(
+                                sa.select(db.plans.c.plan_id)
+                                .where(p.scope(db.plans), db.ACTIVE_PLAN)
+                                .order_by(db.plans.c.audit_seq.desc())
+                            )
+                        )
+                        assert legacy == indexed == [current.plan_id]
+                        return indexed
+
+                expected = await active_rows()
+                await migrate(c, "downgrade", "0012_budget_indexes")
+                assert await active_rows() == expected
+                await migrate(c)
+                await c.run_sync(db.require_current)
+                with pytest.raises(LocalError, match="Audit rows exist"):
+                    await c.run_sync(db.require_empty_audit)
+                await c.rollback()
+                assert await active_rows() == expected
                 fetched = []
 
                 def observe(connection, cursor, statement, parameters, context, many):
