@@ -6,6 +6,8 @@
 !LICENSE
 !scripts/
 !scripts/dogwood.Cargo.lock
+!scripts/dogwood-clone.patch
+!scripts/dogwood-helper.rs
 !hirz/
 !hirz/**
 **/__pycache__/

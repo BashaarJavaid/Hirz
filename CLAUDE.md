@@ -51,6 +51,7 @@ When closing an item: append the evidence entry first, then the one-sentence roa
 ## Conventions
 
 - **Python 3.12, `uv`, FastAPI, official `mcp` SDK, async throughout** for `hirz/`. **TypeScript strict, React, pnpm workspaces** for `apps/`: Tailwind + shadcn/ui for `apps/web`; plain CSS custom properties carrying Amazon's design tokens, and no component library, for the MCP App cards. **CDK in TypeScript** for `infra/`. Ruff and mypy strict for Python; eslint and `tsc --noEmit` for TypeScript. Don't introduce another language or a second web framework.
+- **Approved item 26 native helper (2026-09-23):** the private Rust helper and the two-line Clone patch to the pinned Dogwood library are a narrow language exception. MCP prepares policies at startup and replays each check with fresh native history; the unmodified CLI remains the equivalence reference. No cached authorization decisions or runtime fallback (ADR-017).
 - **No LLM in any decision.** The pipeline, risk engine, constitution evaluator, planner, executor, and protect weighting are code. Models narrate (Explainer), draft (constitution English → YAML patch), and extract structured signals (Protect) behind schema validation. A model's Protect signals are unioned with the keyword extractor's, so it can add a warning and never remove one, and they feed advice only. The rule preview's situation lines are computed by evaluating both constitution versions, never written by a model. If a change routes a decision through a model, it is wrong. See `ARCHITECTURE.md` §5.3, §5.4, §5.7, §5.8.
 - **No ML risk scoring.** The risk table and factors are the deliberate design (ADR-004), not a gap to fill.
 - **The constitution grammar is non-Turing-complete.** No loops, functions, recursion, arithmetic beyond literal comparison. Don't "helpfully" extend it.
@@ -130,7 +131,7 @@ The verified toolchain and scaffold setup are in `README.md`; use Node 24.
 **Phase 4 items 25 and 25a are complete; item 26 is in progress.**
 Local regression and authenticated isolation checks pass. Full latency and CI
 verification remain owed. Preserve the $2 budget ledger; these gates keep Bedrock
-off. Development stays on 0005; migrations through 0011 remain manual. Real
+off. Development stays on 0005; migrations through 0012 remain manual. Real
 phone/security execution remains unverified. Evidence: `docs/verification-log.md`;
 protocol: ADR-017; procedure: `docs/development.md`.
 

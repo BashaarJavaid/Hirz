@@ -208,7 +208,16 @@ async def commit(p: "Pipeline", action: Action, decision: Decision) -> None:
         if result.decision != "execute":
             raise ValueError("Manual hold could not be recorded")
     rows = (
-        (await p.connection.execute(sa.select(db.plans).where(p.scope(db.plans))))
+        (
+            await p.connection.execute(
+                sa.select(db.plans).where(
+                    p.scope(db.plans),
+                    db.plans.c.document["status"].astext.notin_(
+                        ["superseded", "abandoned", "completed"]
+                    ),
+                )
+            )
+        )
         .mappings()
         .all()
     )

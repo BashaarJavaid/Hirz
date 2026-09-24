@@ -12,7 +12,7 @@ from hirz.executor.contracts import expired, validate
 from hirz.executor.runtime import RuntimeInputs
 from hirz.executor.storage import check_overlaps, notice, transition, transition_many
 from hirz.explainer.core import Context, context, decision_context, facts, prepared
-from hirz.pipeline.hashing import action_hash, digest
+from hirz.pipeline.hashing import action_hash, digest, wire
 from hirz.pipeline.models import (
     Action,
     Decision,
@@ -855,14 +855,8 @@ async def commit_mutation(
                 a.model_dump(mode="json", by_alias=True),
                 identity(scheduler),
                 status,
-                (previous["due_at"] or sa.cast(sa.null(), db.actions.c.due_at.type))
-                if stale
-                else a.scheduled_for or at,
-                (
-                    previous["lifecycle"]
-                    if previous["lifecycle"] is not None
-                    else sa.cast(sa.null(), db.actions.c.lifecycle.type)
-                )
+                wire(previous["due_at"] if stale else a.scheduled_for or at),
+                previous["lifecycle"]
                 if stale
                 else {
                     "decision": document,
@@ -883,10 +877,21 @@ async def commit_mutation(
             "lifecycle",
             "lifecycle_seq",
         )
-        values = sa.values(
-            *(sa.column(name, db.actions.c[name].type) for name in columns),
-            name="scheduled_changes",
-        ).data([(*change, seq) for change, seq in zip(changes, sequences, strict=True)])
+        records = [
+            dict(zip(columns, (*change, seq), strict=True))
+            for change, seq in zip(changes, sequences, strict=True)
+        ]
+        # One typed JSON parameter keeps the SQL shape independent of plan size.
+        # PostgreSQL recordset conversion maps JSON null to SQL NULL.
+        values = (
+            sa.func.jsonb_to_recordset(
+                sa.bindparam("scheduled", records, type_=db.actions.c.lifecycle.type)
+            )
+            .table_valued(
+                *(sa.column(name, db.actions.c[name].type) for name in columns)
+            )
+            .render_derived(name="scheduled_changes", with_types=True)
+        )
         await p.connection.execute(
             db.actions.update()
             .where(p.scope(db.actions), db.actions.c.action_id == values.c.action_id)

@@ -1390,7 +1390,12 @@ transaction and invalidated by graph writes. Policy fingerprints are memoized by
 all input values, and identical validated narration is reused only within a
 scheduling batch. Identical refresh fingerprints and linked-member resolutions
 can be reused within the locked graph revision; verified-control reads and
-authorization checks still run. The separate isolation integration
+authorization checks still run. Budget reads use household-scoped grant-reference
+and JSON-expression indexes; refresh scans exclude terminal plans in SQL.
+Local MCP startup prepares policies in a private native Dogwood helper. Each
+replay uses fresh authorization history over cloned compiled artifacts; failed
+helpers deny without fallback. The unmodified CLI supplies equivalence checks.
+The separate isolation integration
 test exercises both household directions, concurrent requests and restart.
 [ADR-017](./docs/adr/ADR-017-tool-latency-and-isolation.md) defines the corpus,
 fixture exception and evidence scope; [development procedures](./docs/development.md#authenticated-tool-budget-and-isolation-item-26)

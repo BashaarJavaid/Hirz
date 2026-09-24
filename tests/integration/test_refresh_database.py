@@ -895,9 +895,15 @@ def test_late_consent_skips_missed_opening_and_refreshes_with_one_consent(
                     assert current["reasons"] == [
                         "consent arrived after scheduled changes"
                     ]
-                    assert (await row(p, first.action_id))[
-                        "execution_status"
-                    ] == "skipped"
+                    skipped_action = await row(p, first.action_id)
+                    assert skipped_action["execution_status"] == "skipped"
+                    assert skipped_action["lifecycle"] is None
+                    assert await c.scalar(
+                        sa.select(db.actions.c.lifecycle.is_(None)).where(
+                            p.scope(db.actions),
+                            db.actions.c.action_id == first.action_id,
+                        )
+                    )  # JSON recordset null must remain SQL NULL.
                     assert not await applied_controls(p, original)
                 await RefreshWorker(p, r, world=w).batch()
                 async with c.begin():

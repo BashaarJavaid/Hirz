@@ -203,3 +203,11 @@ a preference belongs to its subject, passkey gating because this is not a securi
 approval, and reusing action-approval quorum as memory consent. This verifies only
 the local backend under trusted internal principals; public companion authentication
 remains unverified. [Contract](../constitution.md#item-20-internal-memory-permissions--2026-09-21).
+
+## Native compilation reuse amendment — 2026-09-23
+
+The author-approved item 26 helper prepares the same pinned native policies at
+MCP startup and constructs fresh replay history for each check. The unmodified
+CLI remains the reference; no temporal shim or cached decisions are introduced.
+Build patch, lifetime, failure semantics and rejected alternatives:
+[ADR-017](./ADR-017-tool-latency-and-isolation.md#native-helper-amendment--2026-09-23).

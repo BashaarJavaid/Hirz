@@ -99,7 +99,8 @@ policy activation, auth, and signed audit behavior remain later items.
 Install Rust 1.98.1 with Cargo and a native linker (Apple command-line tools on
 macOS; the normal build toolchain on Linux). The build uses the pinned upstream
 revision and checked-in dependency lock, needs network access, and writes only a
-local binary. No Python bindings or daemon are required.
+local reference CLI and its private MCP helper. No Python bindings or network
+daemon are required; standalone constitution commands use the reference CLI.
 
 ```sh
 uv sync --locked
@@ -121,7 +122,7 @@ nonzero. None of these commands requires `.env`, a database, credentials or AWS.
 Local engine checks do not establish AWS conformance or authenticate approvals.
 
 The container's Rust build stage checks out the same source revision and uses
-`scripts/dogwood.Cargo.lock`. Only its native binary reaches the final Python
+`scripts/dogwood.Cargo.lock`. Only the two native binaries reach the final Python
 image; Cargo stays in the builder, and runtime UID remains 10001. Python wheels
 carry the class catalog and situation corpus. CI requires native local checks in
 `cedar-conform`; AWS comparison remains item 37.
@@ -1258,6 +1259,19 @@ for publication state and actual runs.
 Use the existing local PostgreSQL service, `.env` and native Dogwood. The runner
 creates disposable databases and starts loopback OAuth/MCP and separate worker
 processes. Bedrock stays off; development migrations remain manual.
+
+The benchmark's disposable databases explicitly migrate through
+`0012_budget_indexes`. It adds grant-reference and budget-ledger indexes only;
+rollback to 0011 removes those indexes without erasing evidence. Startup never
+migrates, and this task leaves the development database on 0005.
+
+Rebuild with `scripts/build_dogwood.py` before this gate: MCP requires the private
+`dogwood-helper` beside the configured `HIRZ_DOGWOOD` executable (the same path
+with `-helper` appended). Startup prepares its policies; shutdown kills/reaps it.
+A helper failure requires restarting MCP; it never falls back to cached decisions
+or the one-shot CLI. The build retains the unmodified CLI for native equivalence
+checks, then applies the reviewed two-line Clone patch for the helper. Both use
+the existing pinned Rust/Cargo dependency versions.
 
 ```sh
 HIRZ_LLM=off HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run --locked python scripts/smoke_tool_budget.py \

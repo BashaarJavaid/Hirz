@@ -5,13 +5,14 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
+import rfc8785
 import sqlalchemy as sa
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec, utils
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from hirz import db
-from hirz.pipeline.hashing import digest, timestamp, wire
+from hirz.pipeline.hashing import timestamp, wire
 from hirz.pipeline.models import Decision, EventType
 
 
@@ -115,7 +116,11 @@ class AuditWriter:
                 key_fingerprint=self.fingerprint,
                 created_at=timestamp(at),
             )
-            current = digest(envelope)
+            # Payload is already normalized above; avoid a second recursive walk.
+            try:
+                current = hashlib.sha256(rfc8785.dumps(envelope)).hexdigest()
+            except (ValueError, TypeError):
+                raise ValueError("Invalid canonical data") from None
             signature = self.key.sign(
                 bytes.fromhex(current), ec.ECDSA(utils.Prehashed(hashes.SHA256()))
             )

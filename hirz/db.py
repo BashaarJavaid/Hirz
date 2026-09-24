@@ -91,6 +91,19 @@ audit_log = sa.Table(
         for column in ("prev_hash", "curr_hash", "key_fingerprint")
     ),
 )
+sa.Index(
+    "audit_budget_usage",
+    audit_log.c.household_id,
+    sa.text("(payload['budget'] ->> 'class')"),
+    sa.text("(payload['budget'] ->> 'local_date')"),
+)
+sa.Index(
+    "audit_budget_adjustments",
+    audit_log.c.household_id,
+    audit_log.c.event_type,
+    audit_log.c.payload["class"].astext,
+    audit_log.c.payload["local_date"].astext,
+)
 audit_pointer = sa.Table(
     "audit_pointer",
     metadata,
@@ -427,6 +440,12 @@ actions = sa.Table(
     sa.CheckConstraint(
         "cost IS NULL OR cost ~ '^[0-9]+([.][0-9]+)?$'", name="actions_cost_nonnegative"
     ),
+)
+sa.Index(
+    "actions_grant_lookup",
+    actions.c.household_id,
+    actions.c.grant_seq,
+    postgresql_where=actions.c.grant_seq.is_not(None),
 )
 approvals = sa.Table(
     "approvals",

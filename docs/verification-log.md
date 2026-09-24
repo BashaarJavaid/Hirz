@@ -6106,3 +6106,148 @@ a grant-usage query scanning 15,586 actions (13.357 ms execution) and an adjustm
 query scanning the audit table (7.398 ms execution). No records were changed by
 this inspection. Further schema/query optimization was put to the author for
 approval; full latency and final CI verification remain owed.
+
+### Approved budget indexes and terminal-plan filtering — 2026-09-23
+
+The author approved migration `0012_budget_indexes` and moving the existing
+terminal-plan exclusions into refresh SQL; the decision and scope are recorded in
+[ADR-017](./adr/ADR-017-tool-latency-and-isolation.md#budget-index-and-terminal-read-amendment--2026-09-23).
+Development remains on 0005. The retained disposable benchmark database named
+above was explicitly upgraded to 0012 for the following diagnostic; its original
+timing report was not changed.
+
+Exact budget totals for two action classes on two dates matched before and after
+the migration, and independent verification of the complete signed audit chain
+was unchanged. With PostgreSQL forced to use generic prepared plans, eight
+successive budget checks took **4.594, 1.704, 1.450, 1.597, 1.476, 1.341, 1.592 and
+1.467 ms**. `EXPLAIN ANALYZE` reported **0.074 ms** for grant usage using
+`audit_budget_usage` and `actions_grant_lookup`, and **0.034 ms** for adjustments
+using `audit_budget_adjustments`. These are query diagnostics, not tool p95.
+
+`uv run --locked pytest tests/integration/test_tool_budget_storage.py tests/integration/test_database.py -m integration --no-cov --tb=short`
+passed **7 tests in 9.15 seconds**, including migration downgrade/upgrade result
+equivalence, signed evidence preservation, schema metadata agreement, active-only
+refresh reads and unchanged terminal-plan evidence. An initial run failed two
+schema-consistency checks because Alembic compared equivalent nested-JSON index
+expressions differently; matching the metadata expression to PostgreSQL's
+reflection corrected it. The exact friction and workaround are recorded in
+[the friction log](./friction-log.md).
+
+The full service-free command passed **1,403 tests, 135 deselected, in 154.50
+seconds**. Its standalone coverage was 78%; combined integration coverage is
+reported separately below. Strict mypy passed for **152 source files**.
+
+With Node 24, `HIRZ_LLM=off`, native Dogwood and the independent checker,
+`scripts/smoke_household_tools.py --audit-output /tmp/hirz-item26-conformance-node24-02.json --conformance-cli ../addon-check/dist/cli.js`
+returned **117 PASS, 0 FAIL, complete=true** and independently verified **611 signed
+rows**. The disposable database was dropped; development was unchanged. Private
+export SHA-256:
+`e4d6e080d8748c581bee4dddf0729a404f229573b291b18f2fe1382dbb6ec84c`.
+
+Two complete diagnostic SDK lifecycles after these changes passed behavior checks,
+but plan approval still took **471.645334 and 382.838375 ms**. A separate instrumented
+approval took **464.787334 ms** end to end: the server handler accounted for
+390.407291 ms, three native Dogwood authorizations for 139.061334 ms, and 66 SQL
+calls for 120.249 ms (nested spans overlap). The private wall-clock span report is
+`/tmp/hirz-item26-approval-spans.json`, SHA-256
+`7983f5e05566e5d8b48f26e1b51174bfc06c42a38c62fd2e034efdc8c1039d0d`.
+These individual diagnostics do not establish warm p95. The full 250 ms latency
+gate remains unpassed, and item 26 remains incomplete.
+
+The subsequent full integration run passed **133 tests, 1,405 deselected, in
+398.81 seconds**, including the authenticated household-isolation test. Combined
+coverage was **93%** (12,074 statements, 887 misses), and
+`coverage report --fail-under=80 --format=total` exited 0. A read-only check
+confirmed development still at `0005_execution_attempt`; AGENTS/CLAUDE bodies
+matched. This run predates the subsequently approved native-helper implementation.
+
+### Approved native-helper implementation and focused checks — 2026-09-23
+
+The author approved the Rust exception, private helper and pinned library patch
+described in [ADR-017](./adr/ADR-017-tool-latency-and-isolation.md#native-helper-amendment--2026-09-23).
+The local pinned toolchain's former temporary installation had lost its executables;
+initial build attempts failed with `FileNotFoundError: [Errno 2] No such file or
+directory: 'cargo'`. Rust 1.98.1 was installed into new task-specific temporary
+directories, without changing shell configuration. The first installer invocation
+used the wrong basename and was corrected to `rustup-init`.
+
+`scripts/build_dogwood.py` then built the unmodified reference CLI in **3m 22s**
+and the helper in **29.33s**, using the existing Cargo lock. The helper-only patch
+adds two `Clone` derivations to the pinned library; no dependency version changed.
+MCP prepares policies at startup and uses a fresh native Authorizer per replay.
+
+- The existing CLI plus initial helper failure checks passed **85 tests in 4.27
+  seconds**. An added fake-process acknowledgement test initially timed out while
+  Cargo was compiling; its setup timeout was increased, without changing production
+  or benchmark deadlines. The final helper unit file passed **9 tests in 2.70
+  seconds**, including malformed replies, crash, timeout, cancellation, reaping,
+  missing binary, nested lifespan and exact boolean preparation acknowledgement.
+- `uv run --locked pytest tests/cedar_conformance/test_helper.py --no-cov -q --tb=short`
+  passed **4 tests in 93.01 seconds**. It compares native decisions across 36
+  classes, seven roles and both seeded policies, with and without approval;
+  additional probes cover expiry, foreign household/hash/session, lower authority,
+  concurrency, changed policy/schema, malformed traces and fresh history after
+  an allowed request and restart.
+- `uv run --locked pytest tests/integration/test_mcp_isolation.py tests/integration/test_tool_budget_storage.py -m integration --no-cov -q --tb=short`
+  passed **4 tests in 57.67 seconds**, with the helper active in authenticated MCP.
+- Ruff lint and strict mypy passed (152 checked source files).
+
+A diagnostic instrumented during native equivalence work recorded three Dogwood
+calls totaling **24.032 ms**, versus the earlier diagnostic's 139.061334 ms; the
+end-to-end approval was still **470.980375 ms**, with **168.768 ms** across 66 SQL
+calls. These separately observed timings are not a controlled benchmark comparison.
+After those checks finished, two complete SDK lifecycle diagnostics passed their
+behavior assertions and recorded approvals of **301.230125 and 396.744042 ms**.
+All diagnostic databases were dropped. The 250 ms gate remains unchanged and
+unpassed; neither these samples nor the native optimization closes item 26.
+
+The full service-free suite after these changes passed **1,416 tests, 135
+deselected, in 199.41 seconds**. Standalone coverage was 78% (integration append
+is reported separately). Python format checks covered 235 files; the helper also
+passed Rust 1.98.1 `rustfmt --edition 2024 --check`.
+
+The independent Node 24 conformance command, with native helper active,
+`HIRZ_LLM=off` and `--audit-output /tmp/hirz-item26-conformance-helper-01.json`,
+again returned **117 PASS, 0 FAIL, complete=true** and **611 independently verified
+signed rows**. The disposable database was dropped and development was unchanged.
+Private export SHA-256:
+`45febaeed8e8c5162deafb96ea8ebbafaea9e169433b7d042cfcd5950c4d550f`.
+
+Full integration with the helper passed **133 tests, 1,418 deselected, in 308.85
+seconds**. Combined coverage was **93%** (12,137 statements, 889 misses), with the
+80% coverage gate exiting 0. This run precedes the following recordset/hash change.
+
+### Approved recordset and audit-normalization optimization — 2026-09-23
+
+A private Python profile of one approval counted 121 scheduled actions; compiling
+the variable-width `VALUES` update consumed approximately 19 ms under profiling.
+The profile also exposed a second normalization walk over already normalized
+audit envelopes. The author approved the targeted changes in
+[ADR-017](./adr/ADR-017-tool-latency-and-isolation.md#recordset-and-canonicalization-amendment--2026-09-23).
+Profiled end-to-end time was 482.407334 ms; this diagnostic is not a gate sample.
+
+`uv run --locked pytest tests/integration/test_tool_budget_storage.py tests/integration/test_refresh_database.py tests/integration/test_audit_database.py -m integration --no-cov -q --tb=short`
+passed **26 tests in 63.03 seconds**. The scheduling regression compares complete
+stored rows, and late-consent coverage asserts that skipped lifecycle data remains
+SQL NULL. Rollback, concurrent signed appends and independent canonical-hash and
+signature verification also pass. The audit/pipeline unit command passed **101
+tests in 1.87 seconds**. Ruff lint and strict mypy passed (152 source files).
+
+After limiting the recordset's wire conversion to its timestamp field (the other
+fields are already JSON data), the complete-row and late-consent regressions
+passed **2 tests, 16 deselected, in 6.18 seconds**. Ruff lint and strict mypy
+again passed for 152 source files.
+
+Two diagnostic SDK lifecycles before that final cleanup recorded approval times
+of **381.144041 and 391.350875 ms**. A separate instrumented approval recorded
+**266.085167 ms** end to end, with 203.179 ms in the server handler, 87.997 ms
+across 66 SQL calls and 16.254 ms across three native checks. The private report
+is `/tmp/hirz-item26-recordset-approval-spans.json`; these overlapping spans are
+diagnostics, not gate samples.
+
+Two complete diagnostic SDK lifecycles after the timestamp cleanup passed every
+behavior assertion. Approval took **301.612333 and 253.418959 ms**. Light
+acknowledgment took 103.032458 and 95.539375 ms; verified twin outcomes took
+2519.531666 and 2471.929208 ms, including fresh-worker launch. The disposable
+database was dropped and development was unchanged. These two rounds have no
+warmup and establish no p95; the full 250 ms gate remains unpassed.

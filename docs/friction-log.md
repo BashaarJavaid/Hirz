@@ -510,3 +510,41 @@ the interrupted report and reservations remain retained. See the [completion evi
 Follow-up: the author completed interactive publishing authentication and published
 the tested artifact; its registry checksum matched and both installed CLI fixture
 checks passed. See the [completion evidence](./verification-log.md#publication-and-completion).
+
+## Item 26: nested JSON index reflection — 2026-09-23
+
+- **Tool/task:** Alembic 1.20.0 / SQLAlchemy 2.0.54; compare a migrated PostgreSQL
+  schema with application metadata using
+  [Alembic schema comparison](https://alembic.sqlalchemy.org/en/latest/autogenerate.html#what-does-autogenerate-detect-and-what-does-it-not-detect).
+  **Steps/expected:** declare the nested JSON budget index, migrate a disposable
+  database, and run the existing schema-consistency check; expect no difference.
+  **Actual:** metadata rendered `((payload['budget']) ->> 'class')`, while
+  PostgreSQL reflected `(payload['budget'::text] ->> 'class'::text)`.
+  `compare_metadata` proposed `remove_index` and `add_index` for
+  `audit_budget_usage`; Hirz consequently raised the exact error
+  `Schema is inconsistent; restore the database before key setup.`
+  **Severity:** Minor. **Workaround:** declare the fixed nested index expressions
+  as SQL text matching the migration/reflection, retaining the full consistency
+  guard. Migration roundtrip and budget-equivalence checks then passed.
+  Alembic documents that autogeneration needs manual review; this is an observed
+  expression-normalization limitation, not a claim of perfect-detection support.
+  **Suggestion:** normalize redundant JSON-subscript parentheses before comparing
+  index expressions, or explain the differing normalized expressions in diagnostics.
+
+## Item 26: repeated native compilation in local replay — 2026-09-23
+
+- **Tool/task:** pinned Dogwood CLI
+  [`996d756d`, replay implementation](https://github.com/dogwood-policy/dogwood/blob/996d756de1013b7ae209a14f566a80375a59f2f0/dogwood-cli/src/ops.rs),
+  used for the local authenticated tool-latency gate. **Steps/expected:** authorize
+  successive requests under the same validated policy, within the project's
+  250 ms warm tool budget. **Actual:** each CLI replay creates a process and calls
+  `lower_internal` again. There is no persistent/prepared replay CLI option, and
+  `Authorizer::new` consumes a `LoweredPolicySet` that does not implement `Clone`.
+  No CLI error occurs; the observed problem is repeated work, with timing evidence
+  in [item 26 verification](./verification-log.md#approved-budget-indexes-and-terminal-plan-filtering--2026-09-23).
+  **Severity:** Major. **Workaround:** author-approved private helper and pinned
+  artifact-cloning patch, retaining the unmodified CLI as the equivalence reference;
+  implementation and verification are tracked in
+  [ADR-017](./adr/ADR-017-tool-latency-and-isolation.md#native-helper-amendment--2026-09-23).
+  **Suggestion:** expose reusable compiled artifacts with fresh authorizer history,
+  or a prepared replay mode, without requiring consumers to retain temporal state.

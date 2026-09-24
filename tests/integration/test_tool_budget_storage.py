@@ -3,10 +3,11 @@
 import asyncio
 from dataclasses import replace
 from datetime import timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 import sqlalchemy as sa
-from test_database import connect
+from test_database import connect, migrate
 from test_database import scratch_database as scratch_database
 from test_executor_database import bounded, changed, environment, proposal, runtime_for
 from test_pipeline_database import setup
@@ -59,6 +60,18 @@ def test_batch_scheduling_rolls_back_and_keeps_each_signed_transition(
                 before, _ = await verify_database(
                     c, p.household_id, p.audit.key.public_key()
                 )
+                async with c.begin():
+                    originals = {
+                        r["action_id"]: dict(r)
+                        for r in (
+                            await c.execute(
+                                sa.select(db.actions).where(
+                                    p.scope(db.actions),
+                                    db.actions.c.action_id.in_(plan.actions),
+                                )
+                            )
+                        ).mappings()
+                    }
 
                 async def fail_after_batch(*args):
                     sequences = await original(*args)
@@ -80,6 +93,33 @@ def test_batch_scheduling_rolls_back_and_keeps_each_signed_transition(
                     c, p.household_id, p.audit.key.public_key(), collect=True
                 )
                 assert summary["status"] == "valid"
+                date = (
+                    world.clock().astimezone(ZoneInfo(world.household.timezone)).date()
+                )
+
+                async def usage():
+                    async with c.begin():
+                        return tuple(
+                            [
+                                await p.usage(name, day.isoformat())
+                                for name in (
+                                    "energy.optimize_cost",
+                                    "environment.lights",
+                                )
+                                for day in (date, date + timedelta(days=1))
+                            ]
+                        )
+
+                indexed = await usage()
+                assert indexed[0] > 0
+                await migrate(c, "downgrade", "0011_planning_objective")
+                assert await usage() == indexed
+                await migrate(c)
+                assert await usage() == indexed
+                after_migration, _ = await verify_database(
+                    c, p.household_id, p.audit.key.public_key()
+                )
+                assert after_migration == summary
                 scheduled = {
                     r.payload["action_id"]: r
                     for r in rows
@@ -87,6 +127,8 @@ def test_batch_scheduling_rolls_back_and_keeps_each_signed_transition(
                 }
                 assert set(scheduled) == {a.action_id for a in actions}
                 async with c.begin():
+                    scheduler = PRINCIPAL.model_copy(update={"surface": "scheduler"})
+                    member = await p.requester(scheduler)
                     records = (
                         (
                             await c.execute(
@@ -125,6 +167,28 @@ def test_batch_scheduling_rolls_back_and_keeps_each_signed_transition(
                         assert (
                             row["grant_seq"] is None
                         )  # Scheduling is never device authority.
+                        original = originals[row["action_id"]]
+                        expected_action = Action.model_validate(
+                            original["proposal"]
+                        ).model_copy(update={"requested_by": member})
+                        assert dict(row) == original | {
+                            "proposal": expected_action.model_dump(
+                                mode="json", by_alias=True
+                            ),
+                            "principal": original["principal"]
+                            | {"surface": "scheduler"},
+                            "due_at": expected_action.scheduled_for or world.clock(),
+                            "execution_status": "scheduled",
+                            "lifecycle_seq": scheduled[row["action_id"]].seq,
+                            "lifecycle": {
+                                "decision": independent.model_dump(
+                                    mode="json", by_alias=True
+                                ),
+                                "approval_id": None,
+                                "member_id": member.member_id,
+                                "retry": 0,
+                            },
+                        }
                 world.clock.jump(world.clock() + timedelta(microseconds=1))
                 assert (
                     await service.cancel(plan.plan_id, PRINCIPAL)
@@ -162,6 +226,94 @@ def test_batch_scheduling_rolls_back_and_keeps_each_signed_transition(
                     c, p.household_id, p.audit.key.public_key()
                 )
                 assert before == after
+            finally:
+                await registry.close()
+
+    asyncio.run(run())
+
+
+def test_refresh_reads_only_active_plans_and_preserves_terminal_evidence(
+    scratch_database,
+):
+    from uuid import uuid4
+
+    from hirz.executor.refresh_worker import RefreshWorker
+    from hirz.planner.coordinator import Coordinator
+
+    async def run():
+        async with connect(scratch_database) as c:
+            p, world, registry, _ = await environment(c)
+            try:
+                service = PlanService(p)
+                old, actions = proposal(world)
+                await service.record(old, actions, PRINCIPAL, runtime=runtime_for(old))
+                await service.cancel(old.plan_id, PRINCIPAL)
+                current, actions = proposal(world)
+                await service.record(
+                    current, actions, PRINCIPAL, runtime=runtime_for(current)
+                )
+                async with c.begin():
+                    terminal = dict(
+                        (
+                            await c.execute(
+                                sa.select(db.plans).where(
+                                    p.scope(db.plans), db.plans.c.plan_id == old.plan_id
+                                )
+                            )
+                        )
+                        .mappings()
+                        .one()
+                    )
+                fetched = []
+
+                def observe(connection, cursor, statement, parameters, context, many):
+                    if (
+                        statement.startswith("SELECT plans.")
+                        and "FROM plans" in statement
+                    ):
+                        fetched.append(cursor.rowcount)
+
+                sa.event.listen(c.engine.sync_engine, "after_cursor_execute", observe)
+                try:
+                    world.clock.jump(world.clock() + timedelta(seconds=1))
+                    outcome = await Coordinator(p).intake(
+                        PRINCIPAL,
+                        action_id=uuid4().hex,
+                        text="prefer living room at 72 F",
+                        horizon_end=current.horizon.end,
+                    )
+                    assert outcome.decision.decision == "execute"
+                    await RefreshWorker(p, registry, world=world).poll()
+                finally:
+                    sa.event.remove(
+                        c.engine.sync_engine, "after_cursor_execute", observe
+                    )
+                assert fetched and max(fetched) == 1
+                async with c.begin():
+                    assert (
+                        dict(
+                            (
+                                await c.execute(
+                                    sa.select(db.plans).where(
+                                        p.scope(db.plans),
+                                        db.plans.c.plan_id == old.plan_id,
+                                    )
+                                )
+                            )
+                            .mappings()
+                            .one()
+                        )
+                        == terminal
+                    )
+                summary, rows = await verify_database(
+                    c, p.household_id, p.audit.key.public_key(), collect=True
+                )
+                assert summary["status"] == "valid"
+                assert any(
+                    r.event_type == "PLAN_REFRESH"
+                    and r.payload["plan_id"] == current.plan_id
+                    for r in rows
+                )
             finally:
                 await registry.close()
 

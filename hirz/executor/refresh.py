@@ -496,7 +496,14 @@ async def invalidate_all(
     p: "Pipeline", reason: str, *, explicit: bool = False, decision: int | None = None
 ) -> None:
     rows = (
-        (await p.connection.execute(sa.select(db.plans).where(p.scope(db.plans))))
+        (
+            await p.connection.execute(
+                sa.select(db.plans).where(
+                    p.scope(db.plans),
+                    db.plans.c.document["status"].astext.notin_(TERMINAL),
+                )
+            )
+        )
         .mappings()
         .all()
     )

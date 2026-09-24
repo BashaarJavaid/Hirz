@@ -122,6 +122,68 @@ Graph writes and transaction boundaries invalidate both; callers receive indepen
 results. Mutation, input-equivalence and invalidation checks accompany this change.
 No authorization check or signed row is removed, and the latency gate is unchanged.
 
+## Budget-index and terminal-read amendment — 2026-09-23
+
+The author approved explicit migration `0012_budget_indexes`: a partial
+household/grant-sequence action index and household-scoped expression indexes for
+budget reservations and adjustments. Only disposable databases and CI are upgraded
+for verification; development remains on 0005. Upgrade/downgrade changes indexes
+only and must preserve budget totals and every signed row. Fixed JSON paths remain
+SQL literals so prepared generic plans can use the indexes; all caller values
+remain bound parameters.
+
+The author separately approved moving the existing exclusion of superseded,
+completed and abandoned plans into refresh invalidation, observation ingestion
+and worker-poll SQL. Active-plan checks and audit behavior remain unchanged.
+Regression coverage checks fetched row counts and retained terminal evidence.
+
+## Native-helper amendment — 2026-09-23
+
+The author approved a narrowly scoped Rust helper and a pinned native-library
+patch after the remaining Dogwood cost was measured. `scripts/build_dogwood.py`
+builds the unmodified pinned CLI first, then adds `Clone` to `Lowered` and
+`LoweredPolicySet` and builds `dogwood-helper` with the same Cargo lock. No parser,
+policy evaluator, temporal semantics or dependency version changes. The helper
+uses the same [`Authorizer::new` and replay loop](https://github.com/dogwood-policy/dogwood/blob/996d756de1013b7ae209a14f566a80375a59f2f0/dogwood-cli/src/ops.rs)
+as the reference CLI.
+
+One private pipe process belongs to the MCP lifespan. Startup validates and
+prepares each policy; replay refuses an unprepared policy/schema pair, so no
+compilation enters a warm tool call. Exact source strings key the compiled cache.
+Every replay constructs a fresh Authorizer from cloned artifacts, including each
+approval prefix: no approval history or authorization result is cached. The pipe
+is serialized; concurrent calls cannot exchange responses. Failure, malformed
+output, timeout or cancellation kills/reaps the helper and denies authorization;
+there is no automatic CLI fallback. Standalone CLI and worker callers retain the
+existing reference path. Native equivalence, cross-household, concurrency,
+history-reset, mutation and cleanup regressions are required, alongside the
+unchanged full 250 ms gate.
+
+Rejected a Python temporal reimplementation, cached boundary decisions, skipped
+native checks and an always-on network service. A private pipe reuses the existing
+Rust build and dependencies without a new network or AWS resource. Python bindings
+and an upstream contribution remain separate work; this patch adds artifact
+cloning only and does not change the reference CLI used for comparison.
+
+## Recordset and canonicalization amendment — 2026-09-23
+
+The author approved replacing the variable-width scheduling `VALUES` update with
+one typed PostgreSQL `jsonb_to_recordset` parameter. Its derived column types come
+from the existing action table; the update remains household-scoped and atomic.
+Dates use the existing wire normalization, and PostgreSQL converts JSON null to
+SQL NULL, including the retained lifecycle of an expired action
+([PostgreSQL contract](https://www.postgresql.org/docs/16/functions-json.html),
+[SQLAlchemy derived columns](https://docs.sqlalchemy.org/en/20/dialects/postgresql.html#table-valued-functions)).
+Whole-row and late-consent regressions check values, nulls and rollback.
+
+Audit payloads are already normalized before the signed envelope is constructed.
+The writer now applies the same RFC 8785 encoder and SHA-256 directly to that
+envelope, removing only its second normalization walk. The independent verifier
+retains the original digest path and must reproduce every hash and verify every
+signature. No canonical encoding rule, audit payload, signed row or failure
+guarantee changes. Rejected shortening audit evidence or changing the serializer
+to meet the latency gate.
+
 ## Rejected alternatives
 
 - Timing only onboarding/context, only handler functions, or only cached receipts

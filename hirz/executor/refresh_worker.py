@@ -62,15 +62,18 @@ class RefreshWorker:
             rows = (
                 (
                     await p.connection.execute(
-                        sa.select(db.plans).where(p.scope(db.plans))
+                        sa.select(db.plans).where(
+                            p.scope(db.plans),
+                            db.plans.c.document["status"].astext.notin_(
+                                ["superseded", "abandoned", "completed"]
+                            ),
+                        )
                     )
                 )
                 .mappings()
                 .all()
             )
         for row in rows:
-            if row["document"]["status"] in {"superseded", "abandoned", "completed"}:
-                continue
             principal = (
                 Principal.model_validate(row["approver"] or row["requester"])
                 if row["approver"] or row["requester"]

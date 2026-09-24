@@ -44,6 +44,12 @@ class HouseholdRuntime:
 
     @asynccontextmanager
     async def run(self) -> AsyncIterator[None]:
+        async with self.boundary.persistent():
+            async with self._policies():
+                yield
+
+    @asynccontextmanager
+    async def _policies(self) -> AsyncIterator[None]:
         async with self.engine.connect() as connection:
             rows = (
                 (

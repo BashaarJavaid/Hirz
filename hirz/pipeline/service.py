@@ -231,7 +231,9 @@ class Pipeline:
         return members[key].model_copy(deep=True)
 
     async def usage(self, name: str, local_date: str) -> Decimal:
-        budget = db.audit_log.c.payload["budget"]
+        # Fixed JSON paths stay literal so prepared generic plans can use the
+        # expression indexes. Account, action class and date remain parameters.
+        budget = db.audit_log.c.payload[sa.literal("budget", literal_execute=True)]
         used = await self.connection.scalar(
             sa.select(
                 sa.func.coalesce(
@@ -247,8 +249,9 @@ class Pipeline:
             )
             .where(
                 self.scope(db.audit_log),
-                budget["class"].astext == name,
-                budget["local_date"].astext == local_date,
+                budget[sa.literal("class", literal_execute=True)].astext == name,
+                budget[sa.literal("local_date", literal_execute=True)].astext
+                == local_date,
             )
         )
         payload = db.audit_log.c.payload
@@ -260,8 +263,9 @@ class Pipeline:
             ).where(
                 self.scope(db.audit_log),
                 db.audit_log.c.event_type == EventType.RESERVATION_ADJUSTED,
-                payload["class"].astext == name,
-                payload["local_date"].astext == local_date,
+                payload[sa.literal("class", literal_execute=True)].astext == name,
+                payload[sa.literal("local_date", literal_execute=True)].astext
+                == local_date,
             )
         )
         return cast(Decimal, used) + cast(Decimal, adjustments)
