@@ -7044,3 +7044,25 @@ speedup distribution is claimed. The migration changes indexes only; the retaine
 original's historical withdrawn rows were not rewritten. The 250 ms gate and
 corpus remain unchanged, and item 26b remains Deferred. Final checks and ordinary
 CI evidence are appended after execution.
+
+### Commit, final checks and ordinary CI — 2026-09-24
+
+Implementation and records were committed as
+`068097377387e12c7c2f77c2d7503a3fb105ef33` on `phase-4` and pushed without merging.
+[CI run 36033945359](https://github.com/BashaarJavaid/Hirz/actions/runs/36033945359)
+completed successfully for that exact commit: all ten ordinary jobs passed
+(`python-lint`, `python-types`, `python-test`, `scenarios`, `ts-lint-types`,
+`ts-test`, `conformance`, `cedar-conform`, `build`, `release`); `latency` was
+skipped. The release job is the existing placeholder, not a publication.
+The no-Hourly claim above refers to the latency measurement; the authorized
+ordinary CI scenario job retained its existing Hourly planning regression.
+Private CI metadata: `/tmp/hirz-bounded-ci.json`.
+
+The final ordered local checks passed: `git diff --check` produced no output;
+`diff <(tail -n +2 CLAUDE.md) <(tail -n +2 AGENTS.md)` produced no output;
+`uv run --locked ruff format --check .` reported `237 files already formatted`.
+Its first attempt reported `1 file would be reformatted, 236 files already formatted`;
+a whitespace-only correction in the modified refresh test was applied and all
+three final checks were repeated in order. No runtime logic or latency sample
+changed after the measurement. This CI evidence is a separate documentation-only
+follow-up; the incomplete local latency result remains Deferred.
