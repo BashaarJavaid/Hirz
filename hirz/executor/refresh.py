@@ -1,5 +1,6 @@
 """Durable refresh requests and generation-checked lifecycle in Pipeline transactions."""
 
+import json
 from copy import deepcopy
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -303,7 +304,20 @@ async def fingerprint(p: "Pipeline", stored: dict[str, Any]) -> dict[str, Any]:
         else ()
     )
     policy = p.bundle.policy().model_dump(mode="json")
-    inputs = dict(data=data, runtime=stored["runtime"], applied=applied, policy=policy)
+    # JSON preserves boolean/number distinctions that Python equality collapses.
+    inputs = json.dumps(
+        dict(
+            data=data,
+            runtime=stored["runtime"],
+            applied=[
+                (at.isoformat(), a.model_dump(mode="json", by_alias=True))
+                for at, a in applied
+            ],
+            policy=policy,
+        ),
+        sort_keys=True,
+        allow_nan=False,
+    )
     cached = p._refresh_fingerprint
     if (
         p.repo._at is not None
@@ -409,7 +423,7 @@ async def fingerprint(p: "Pipeline", stored: dict[str, Any]) -> dict[str, Any]:
         "inputs": digest(stored["runtime"]),
     }
     if p.repo._at is not None:
-        p._refresh_fingerprint = (p.repo._revision, deepcopy(inputs), deepcopy(result))
+        p._refresh_fingerprint = (p.repo._revision, inputs, deepcopy(result))
     return result
 
 

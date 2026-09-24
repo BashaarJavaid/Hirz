@@ -173,9 +173,7 @@ class Pipeline:
         self._household_command: dict[str, Any] | None = None
         self._snapshot: tuple[int, datetime, ContextSnapshot] | None = None
         self._members: tuple[int, dict[tuple[str, str, str], Requester]] | None = None
-        self._refresh_fingerprint: tuple[int, dict[str, Any], dict[str, Any]] | None = (
-            None
-        )
+        self._refresh_fingerprint: tuple[int, str, dict[str, Any]] | None = None
 
     def scope(self, table: sa.Table) -> sa.ColumnElement[bool]:
         return table.c.household_id == self.household_id

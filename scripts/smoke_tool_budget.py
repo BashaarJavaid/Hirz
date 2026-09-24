@@ -462,7 +462,12 @@ class Environment:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.DEVNULL,
         )
-        stdout, _ = await child.communicate()
+        try:
+            stdout, _ = await child.communicate()
+        finally:
+            if child.returncode is None:
+                child.terminate()
+                await child.wait()
         assert child.returncode == 0, (
             "Separate lifecycle worker failed",
             stdout.decode(),
@@ -960,7 +965,12 @@ async def failure_samples(env: Environment, client: Client) -> list[float]:
             stdout=asyncio.subprocess.DEVNULL,
             stderr=asyncio.subprocess.DEVNULL,
         )
-        assert await child.wait() == 0, "Missing-input worker failed"
+        try:
+            assert await child.wait() == 0, "Missing-input worker failed"
+        finally:
+            if child.returncode is None:
+                child.terminate()
+                await child.wait()
         for _ in range(600):
             failure = await client.call("", "get_household_plan", {})
             if failure.data.code == "PREPARATION_FAILED":

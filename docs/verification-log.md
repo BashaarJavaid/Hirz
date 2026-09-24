@@ -6070,3 +6070,39 @@ offline. Its disposable database was dropped and development was unchanged.
 This run preceded the final transaction-reuse amendment; it establishes tool
 contract compatibility at that point, not final item-26 completion. The full
 latency gate and final CI evidence remain owed.
+
+### Interrupted measurement and type-equivalence correction — 2026-09-23
+
+Commit `eb5d7f8c119c6d9b510eb05a7a97979310488a0c` was pushed to `phase-4` with
+item 26 explicitly incomplete. [CI run 35940685288](https://github.com/BashaarJavaid/Hirz/actions/runs/35940685288)
+passed lint, types, TypeScript tests, build, native Cedar conformance and the
+independent add-on conformance job before cancellation. Python integration,
+scenarios and both latency jobs were cancelled; no full CI pass is claimed.
+
+The local full benchmark began on the working tree subsequently committed as
+`eb5d7f8`; production code remained unchanged during measurement. Review found
+that Python dictionary equality treats boolean `True` and numeric `1` as equal,
+which could make the new refresh-fingerprint cache reuse a result after a type
+change. The run was deliberately interrupted and CI cancelled to correct that
+equivalence bug. JSON input encoding now retains value-type distinctions, and a
+regression changes a verified EV control from boolean to integer and back.
+Interrupted benchmark workers are now terminated and reaped in cleanup.
+
+`HIRZ_BUDGET_ARTIFACTS=/tmp/hirz-item26-latency-02 uv run --locked pytest tests/latency -m latency --no-cov -s --tb=short`
+stopped after 1,038.44 seconds (exit 2), with 29 complete evening rounds and part
+of round 30. Partial raw samples remain in
+`/tmp/hirz-item26-latency-02/demo-evening/report.json`; the disposable database
+`hirz_ha_smoke_52d08167d85f45fcbce9a01c760f53e7` was retained. There were 25
+approval samples (first 493.04 ms, last 521.32 ms, maximum 863.37 ms) and 24
+car-revision samples (maximum 1,565.03 ms). These are incomplete diagnostic
+samples, not a 100-sample p95 result; no samples were trimmed or converted into a
+passing gate.
+
+After correction, the pipeline/refresh/explainer unit command passed **173 tests**
+in 4.34 seconds; storage/refresh integration passed **17 tests** in 46.09 seconds.
+Read-only query inspection of the retained database found 44,246 audit rows;
+one `energy.optimize_cost` budget check took 53.28 ms. `EXPLAIN ANALYZE` showed
+a grant-usage query scanning 15,586 actions (13.357 ms execution) and an adjustment
+query scanning the audit table (7.398 ms execution). No records were changed by
+this inspection. Further schema/query optimization was put to the author for
+approval; full latency and final CI verification remain owed.

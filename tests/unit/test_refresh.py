@@ -1064,6 +1064,12 @@ def test_ev_limit_adjacent_power_is_expected_without_hiding_soc_drift(monkeypatc
             assert (
                 "deviation" not in (await module.fingerprint(p, stored))["samples"][key]
             )
+            action.params["charging"] = 1
+            assert "deviation" in (await module.fingerprint(p, stored))["samples"][key]
+            action.params["charging"] = True
+            assert (
+                "deviation" not in (await module.fingerprint(p, stored))["samples"][key]
+            )
             action.params["charge_limit"] = 0.6
             assert "deviation" in (await module.fingerprint(p, stored))["samples"][key]
         finally:
