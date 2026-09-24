@@ -1,8 +1,10 @@
 """Batching preserves grants, signatures, rollback and fresh graph reads."""
 
 import asyncio
+from collections import Counter
 from dataclasses import replace
 from datetime import timedelta
+from decimal import Decimal
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -99,16 +101,45 @@ def test_batch_scheduling_rolls_back_and_keeps_each_signed_transition(
 
                 async def usage():
                     async with c.begin():
-                        return tuple(
-                            [
-                                await p.usage(name, day.isoformat())
-                                for name in (
-                                    "energy.optimize_cost",
-                                    "environment.lights",
+                        ledger = (
+                            (
+                                await c.execute(
+                                    sa.select(db.audit_log).where(p.scope(db.audit_log))
                                 )
-                                for day in (date, date + timedelta(days=1))
-                            ]
+                            )
+                            .mappings()
+                            .all()
                         )
+                        grants = Counter(
+                            await c.scalars(
+                                sa.select(db.actions.c.grant_seq).where(
+                                    p.scope(db.actions)
+                                )
+                            )
+                        )
+                        totals = []
+                        for name in ("energy.optimize_cost", "environment.lights"):
+                            for day in (date, date + timedelta(days=1)):
+                                expected = Decimal(0)
+                                for row in ledger:
+                                    payload = row["payload"]
+                                    budget = payload.get("budget") or {}
+                                    if (
+                                        budget.get("class"),
+                                        budget.get("local_date"),
+                                    ) == (name, day.isoformat()):
+                                        expected += grants[row["seq"]] * Decimal(
+                                            budget.get("reserved") or "0"
+                                        )
+                                    if row["event_type"] == "RESERVATION_ADJUSTED" and (
+                                        payload.get("class"),
+                                        payload.get("local_date"),
+                                    ) == (name, day.isoformat()):
+                                        expected += Decimal(payload.get("delta") or "0")
+                                actual = await p.usage(name, day.isoformat())
+                                assert actual == expected
+                                totals.append(actual)
+                        return tuple(totals)
 
                 indexed = await usage()
                 assert indexed[0] > 0
@@ -193,6 +224,7 @@ def test_batch_scheduling_rolls_back_and_keeps_each_signed_transition(
                 assert (
                     await service.cancel(plan.plan_id, PRINCIPAL)
                 ).decision == "execute"
+                await usage()  # Fresh totals include the signed negative adjustments.
                 summary, rows = await verify_database(
                     c, p.household_id, p.audit.key.public_key(), collect=True
                 )

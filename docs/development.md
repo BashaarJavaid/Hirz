@@ -1286,7 +1286,7 @@ or benchmark processes. The explicit `latency` marker excludes it from the norma
 suite and coverage; never omit `--no-cov` from a timing run. Set
 `HIRZ_BUDGET_ARTIFACTS` to a new parent directory to retain pytest reports in one
 subdirectory per energy scenario. CI sets `HIRZ_BUDGET_SCENARIO` to select one of
-`demo-evening` or `demo-evening-hourly` in each isolated 60-minute matrix job;
+`demo-evening` or `demo-evening-hourly` in each isolated 75-minute matrix job;
 the default pytest invocation and CLI still cover both.
 
 Private mode-0600 reports and signed audit exports live in a mode-0700 directory.

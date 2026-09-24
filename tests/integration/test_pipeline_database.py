@@ -567,6 +567,74 @@ def test_cross_household_constraints_and_incompatible_audit(scratch_database):
     asyncio.run(run())
 
 
+@pytest.mark.parametrize(
+    "damage",
+    [
+        "pointer_missing",
+        "pointer_hash",
+        "head_missing",
+        "future_head",
+        "empty_seq",
+        "empty_hash",
+    ],
+)
+def test_combined_audit_head_read_refuses_corruption_and_rolls_back(
+    scratch_database, damage
+):
+    async def run():
+        async with connect(scratch_database) as c:
+            p = await setup(c)
+            if not damage.startswith("empty"):
+                await p.propose(action(), PRINCIPAL)
+            async with c.begin():
+                if damage.startswith("empty"):
+                    await c.execute(
+                        db.audit_pointer.insert().values(
+                            household_id=HOME,
+                            seq=1 if damage == "empty_seq" else 0,
+                            curr_hash="f" * 64 if damage == "empty_hash" else "0" * 64,
+                        )
+                    )
+                elif damage == "pointer_missing":
+                    await c.execute(
+                        db.audit_pointer.delete().where(p.scope(db.audit_pointer))
+                    )
+                elif damage == "pointer_hash":
+                    await c.execute(
+                        db.audit_pointer.update()
+                        .where(p.scope(db.audit_pointer))
+                        .values(curr_hash="f" * 64)
+                    )
+                elif damage == "head_missing":
+                    await c.execute(db.audit_log.delete().where(p.scope(db.audit_log)))
+                else:
+                    await c.execute(
+                        db.audit_log.update()
+                        .where(p.scope(db.audit_log))
+                        .values(created_at=NOW + timedelta(seconds=1))
+                    )
+
+            async def records():
+                async with c.begin():
+                    return tuple(
+                        [
+                            list(
+                                (
+                                    await c.execute(sa.select(t).where(p.scope(t)))
+                                ).mappings()
+                            )
+                            for t in (db.actions, db.audit_log, db.audit_pointer)
+                        ]
+                    )
+
+            before = await records()
+            with pytest.raises(PipelineError, match="Invalid audit pointer"):
+                await p.propose(action(), PRINCIPAL)
+            assert await records() == before
+
+    asyncio.run(run())
+
+
 def test_deadline_after_boundary_and_native_false_condition(scratch_database):
     async def run():
         policy = policy_edit(

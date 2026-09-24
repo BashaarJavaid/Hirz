@@ -180,22 +180,22 @@ def test_plan_authority_denial_explains_the_rejected_authority():
     asyncio.run(run())
 
 
-def test_usage_nets_reservation_and_negative_adjustment_on_same_date():
+def test_usage_combines_scoped_decimal_sums():
     async def run():
         p = await pipeline()
-        p.connection.scalar.side_effect = [Decimal("0.30"), Decimal("-0.10")]
+        p.connection.scalar.return_value = Decimal("0.20")
         used = await Pipeline.usage(p, "energy.optimize_cost", "2026-10-13")
         assert isinstance(used, Decimal) and used == Decimal("0.20")
-        assert p.connection.scalar.await_count == 2
+        assert p.connection.scalar.await_count == 1
         for call in p.connection.scalar.await_args_list:
             query = call.args[0].compile(dialect=postgresql.dialect())
             assert {HOME, "energy.optimize_cost", "2026-10-13"} <= set(
                 query.params.values()
             )
             assert "sum(CAST(" in str(query) and " AS NUMERIC)" in str(query)
-        grant, adjustment = p.connection.scalar.await_args_list
-        assert "JOIN actions" in str(grant.args[0])
-        assert "RESERVATION_ADJUSTED" in adjustment.args[0].compile().params.values()
+        query = p.connection.scalar.await_args.args[0]
+        assert "JOIN actions" in str(query)
+        assert "RESERVATION_ADJUSTED" in query.compile().params.values()
 
     asyncio.run(run())
 

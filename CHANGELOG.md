@@ -6,7 +6,7 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
-- 2026-09-23: Add authenticated tool latency and concurrent household-isolation gates, signed per-action batching, scoped read reuse, budget-query indexes (migration 0012) and a private native helper that reuses compiled policies with fresh replay history; full latency/CI verification remains pending ([ADR-017](./docs/adr/ADR-017-tool-latency-and-isolation.md), [evidence](./docs/verification-log.md#item-26--2026-09-23)).
+- 2026-09-23: Add authenticated tool latency and concurrent household-isolation gates, signed per-action batching, scoped read reuse, combined budget/audit reads, budget-query indexes (migration 0012) and a private native helper that reuses compiled policies with fresh replay history; full latency/CI verification remains pending ([ADR-017](./docs/adr/ADR-017-tool-latency-and-isolation.md), [evidence](./docs/verification-log.md#item-26--2026-09-23)).
 
 - 2026-09-23: Publish [addon-check v0.1.0](https://www.npmjs.com/package/addon-check/v/0.1.0) and replace the conformance CI placeholder with full-SHA-pinned twelve-tool checks after restart, retaining Hirz-specific validators and signed audit verification ([ADR-016](./docs/adr/ADR-016-add-on-conformance-checker.md), [evidence](./docs/verification-log.md#item-25a--2026-09-23)).
 

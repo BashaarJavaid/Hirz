@@ -56,44 +56,59 @@ class AuditWriter:
         at = events[0][0]
         # The caller already owns the graph transaction lock, before this row lock.
         pointer = (
-            (
-                await connection.execute(
-                    sa.select(db.audit_pointer)
-                    .where(db.audit_pointer.c.household_id == household_id)
-                    .with_for_update()
-                )
-            )
-            .mappings()
-            .one_or_none()
+            sa.select(db.audit_pointer)
+            .where(db.audit_pointer.c.household_id == household_id)
+            .with_for_update()
+            .cte("locked_pointer")
         )
         head = (
+            sa.select(
+                db.audit_log.c.seq,
+                db.audit_log.c.curr_hash,
+                db.audit_log.c.key_fingerprint,
+                db.audit_log.c.created_at,
+            )
+            .where(db.audit_log.c.household_id == household_id)
+            .order_by(db.audit_log.c.seq.desc())
+            .limit(1)
+            .cte("audit_head")
+        )
+        # The singleton retains missing-pointer/head cases. Lock inside the CTE,
+        # not the nullable outer join; the caller already holds the household lock.
+        state = (
             (
                 await connection.execute(
-                    sa.select(db.audit_log)
-                    .where(db.audit_log.c.household_id == household_id)
-                    .order_by(db.audit_log.c.seq.desc())
-                    .limit(1)
+                    sa.select(
+                        pointer.c.seq.label("pointer_seq"),
+                        pointer.c.curr_hash.label("pointer_hash"),
+                        head,
+                    ).select_from(
+                        sa.select(sa.literal(1))
+                        .subquery()
+                        .outerjoin(pointer, sa.true())
+                        .outerjoin(head, sa.true())
+                    )
                 )
             )
             .mappings()
-            .one_or_none()
+            .one()
         )
-        if pointer is None:
-            if head is not None:
+        if state["pointer_seq"] is None:
+            if state["seq"] is not None:
                 raise PipelineError("Invalid audit pointer")
             await connection.execute(
                 db.audit_pointer.insert().values(household_id=household_id)
             )
             seq, previous = 1, "0" * 64
         else:
-            seq, previous = pointer["seq"] + 1, pointer["curr_hash"]
-            if (head is None and (seq != 1 or previous != "0" * 64)) or (
-                head is not None
+            seq, previous = state["pointer_seq"] + 1, state["pointer_hash"]
+            if (state["seq"] is None and (seq != 1 or previous != "0" * 64)) or (
+                state["seq"] is not None
                 and (
-                    head["seq"] != seq - 1
-                    or head["curr_hash"] != previous
-                    or head["key_fingerprint"] != self.fingerprint
-                    or head["created_at"] > at
+                    state["seq"] != seq - 1
+                    or state["curr_hash"] != previous
+                    or state["key_fingerprint"] != self.fingerprint
+                    or state["created_at"] > at
                 )
             ):
                 raise PipelineError("Invalid audit pointer or incompatible signing key")

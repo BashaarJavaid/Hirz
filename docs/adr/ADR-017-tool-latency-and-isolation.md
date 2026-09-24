@@ -184,6 +184,31 @@ signature. No canonical encoding rule, audit payload, signed row or failure
 guarantee changes. Rejected shortening audit evidence or changing the serializer
 to meet the latency gate.
 
+## Combined-read amendment — 2026-09-23
+
+The author approved combining each budget's reservation and adjustment aggregates
+into one statement, and each audit pointer/head check into one statement. Both
+budget aggregates retain their household, class and date predicates and Decimal
+arithmetic. Audit append still holds the household transaction lock first; a
+`FOR UPDATE` CTE locks the pointer before the append. A singleton left-joins the
+pointer and latest head so either missing-row case remains distinguishable.
+Sequence, hash, signing-key and timestamp checks remain unchanged. Neither result
+is cached: every check reads PostgreSQL afresh.
+
+Signed-ledger totals before and after cancellation, missing/corrupt pointer/head
+states, rollback and concurrent Pipeline appends verify equivalence. Rejected
+caching either ledger state or dropping the pointer lock. This amendment changes
+no schema, dependency, public response, signed row or latency threshold.
+
+## CI completion-time amendment — 2026-09-23
+
+After Time-of-Day CI completed all 105 home lifecycle rounds but reached its
+60-minute limit before the remaining verification finished, the author approved
+75 minutes for each of the same two isolated jobs. Hourly had already completed
+within 60 minutes. Sample counts, signed-audit verification, private evidence
+handling and the 250 ms case/tool gate are unchanged; this extends only the time
+available to finish the measurement. It supersedes the earlier 60-minute limit.
+
 ## Rejected alternatives
 
 - Timing only onboarding/context, only handler functions, or only cached receipts

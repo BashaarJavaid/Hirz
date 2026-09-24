@@ -234,7 +234,7 @@ class Pipeline:
         # Fixed JSON paths stay literal so prepared generic plans can use the
         # expression indexes. Account, action class and date remain parameters.
         budget = db.audit_log.c.payload[sa.literal("budget", literal_execute=True)]
-        used = await self.connection.scalar(
+        used = (
             sa.select(
                 sa.func.coalesce(
                     sa.func.sum(budget["reserved"].astext.cast(sa.Numeric)), 0
@@ -255,20 +255,21 @@ class Pipeline:
             )
         )
         payload = db.audit_log.c.payload
-        adjustments = await self.connection.scalar(
-            sa.select(
-                sa.func.coalesce(
-                    sa.func.sum(payload["delta"].astext.cast(sa.Numeric)), 0
-                )
-            ).where(
-                self.scope(db.audit_log),
-                db.audit_log.c.event_type == EventType.RESERVATION_ADJUSTED,
-                payload[sa.literal("class", literal_execute=True)].astext == name,
-                payload[sa.literal("local_date", literal_execute=True)].astext
-                == local_date,
-            )
+        adjustments = sa.select(
+            sa.func.coalesce(sa.func.sum(payload["delta"].astext.cast(sa.Numeric)), 0)
+        ).where(
+            self.scope(db.audit_log),
+            db.audit_log.c.event_type == EventType.RESERVATION_ADJUSTED,
+            payload[sa.literal("class", literal_execute=True)].astext == name,
+            payload[sa.literal("local_date", literal_execute=True)].astext
+            == local_date,
         )
-        return cast(Decimal, used) + cast(Decimal, adjustments)
+        return cast(
+            Decimal,
+            await self.connection.scalar(
+                sa.select(used.scalar_subquery() + adjustments.scalar_subquery())
+            ),
+        )
 
     async def assess(
         self,

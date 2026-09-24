@@ -6251,3 +6251,127 @@ acknowledgment took 103.032458 and 95.539375 ms; verified twin outcomes took
 2519.531666 and 2471.929208 ms, including fresh-worker launch. The disposable
 database was dropped and development was unchanged. These two rounds have no
 warmup and establish no p95; the full 250 ms gate remains unpassed.
+
+### Full Time-of-Day baseline and CI on e900366 — 2026-09-23
+
+`HIRZ_LLM=off HIRZ_DOGWOOD="$PWD/.tools/dogwood" HIRZ_BUDGET_ARTIFACTS=/tmp/hirz-item26-latency-03 uv run --locked pytest tests/latency -m latency --no-cov -s -q --tb=short`
+ran commit `e9003665df89785091e58c5da14e027c911d6034` with no tracked diff at startup.
+Platform: `macOS-15.7.3-arm64-arm-64bit`; Python `3.12.13 (main, Mar  3 2026, 12:39:30) [Clang 17.0.0 (clang-1700.6.4.2)]`.
+Locked runtime versions: `{"mcp": "1.30.0", "psycopg": "3.3.5", "scipy": "1.18.0", "sqlalchemy": "2.0.54"}`.
+
+The Time-of-Day scenario completed five warmups and **100 measured samples for
+each of 54 cases**, covering all twelve tools. Behavior assertions, all three
+100-sample interaction measurements, ten startup measurements and independent
+signed exports completed. The unchanged 250 ms gate **failed**: 16 individual
+cases and three pooled tools exceeded it. No sample was discarded or retried.
+
+| Tool | Samples | Minimum ms | Median ms | p95 ms | Maximum ms |
+|---|---:|---:|---:|---:|---:|
+| `what_can_you_do` | 100 | 58.142 | 61.085 | 98.104 | 201.471 |
+| `get_household_context` | 200 | 68.149 | 102.137 | 176.242 | 464.572 |
+| `propose_household_rule` | 200 | 59.919 | 115.636 | 195.929 | 383.128 |
+| `get_household_plan` | 700 | 62.635 | 198.459 | 347.608 | 930.297 |
+| `explain_plan` | 400 | 82.034 | 139.546 | 238.795 | 601.626 |
+| `approve_action` | 700 | 86.462 | 130.456 | 497.335 | 1064.405 |
+| `revise_household_plan` | 600 | 59.744 | 147.791 | 339.218 | 630.384 |
+| `execute_household_action` | 800 | 67.745 | 132.621 | 248.606 | 1427.175 |
+| `evaluate_permission` | 100 | 78.031 | 103.650 | 175.978 | 779.102 |
+| `get_action_audit` | 400 | 66.950 | 93.414 | 158.670 | 1197.011 |
+| `assess_request_risk` | 400 | 59.960 | 105.400 | 213.251 | 619.011 |
+| `verify_trusted_identity` | 800 | 59.942 | 81.763 | 238.696 | 1451.989 |
+
+Individual cases over budget (100 samples each):
+
+| Case | Median ms | p95 ms | Maximum ms |
+|---|---:|---:|---:|
+| `plan-first` | 154.511 | 272.566 | 364.215 |
+| `plan-ready` | 238.261 | 406.165 | 655.263 |
+| `explain-summary` | 141.978 | 272.694 | 601.626 |
+| `plan-approval` | 442.594 | 835.567 | 1064.405 |
+| `objective-most_comfortable` | 235.190 | 370.460 | 791.506 |
+| `objective-greenest` | 240.568 | 377.212 | 690.405 |
+| `objective-cheapest` | 230.182 | 365.770 | 930.297 |
+| `revision-car` | 274.583 | 431.613 | 630.384 |
+| `revision-dishwasher` | 228.517 | 341.731 | 516.352 |
+| `revision-guest` | 227.245 | 342.617 | 433.173 |
+| `plan-cancel` | 193.025 | 279.650 | 562.196 |
+| `action-profile` | 176.332 | 261.079 | 1427.175 |
+| `pause` | 196.770 | 350.272 | 647.429 |
+| `verify-not_genuine` | 86.246 | 293.161 | 672.429 |
+| `risk-no_answer` | 136.737 | 297.339 | 619.011 |
+| `verify-start-no_answer` | 164.311 | 485.073 | 1451.989 |
+
+| Interaction | Samples | Median ms | p95 ms | Maximum ms |
+|---|---:|---:|---:|---:|
+| `accurate_acknowledgment` | 100 | 133.999 | 215.321 | 744.600 |
+| `verified_twin_outcome` | 100 | 3035.478 | 4414.314 | 6846.718 |
+| `understandable_preparation_failure` | 100 | 1984.484 | 2285.708 | 3645.110 |
+| Local startup: `process_to_health` | 10 | 1540.091 | 2218.947 | 2218.947 |
+| Local startup: `first_authenticated_context` | 10 | 194.759 | 394.275 | 394.275 |
+
+These interaction/startup rows have no extra gate and make no AWS or Alexa latency
+claim. Row counts were `{"actions": 57158, "audit_log": 159941, "plans": 420, "tool_requests": 3150, "verification_cases": 210}`.
+Independent audit verification passed for **157,736 home rows and 2,205 parents
+rows** (159,941 total). The failed scenario retained disposable database
+`hirz_ha_smoke_f4b79bf0153f4f0e8e0c53092676b335`. Development was not migrated.
+
+Private raw report: `/tmp/hirz-item26-latency-03/demo-evening/report.json`, SHA-256
+`5076ff90a7c404b465b1b4082112bb952a47cedda2aff230b9e90352b19ed7a1`.
+The adjacent household audit exports retain every signed row. These private files
+are not committed or uploaded.
+
+After the author approved the next combined-read change, the superseded local
+Hourly case was interrupted after two warmup rounds and **zero measured samples**.
+An initial PID probe matched no process and sent no signal; the identified pytest
+child was then interrupted with SIGINT. Pytest exited 2, reporting one failed test
+in 3711.26 seconds. Its incomplete report is
+`/tmp/hirz-item26-latency-03/demo-evening-hourly/report.json`, SHA-256
+`8c7a9625fdfea39e0476daaf8795045a2ac399a26f852d3670210e1e4d82a470`;
+it retained `hirz_ha_smoke_22dabd369107479ca0a657724f697906`. It establishes no
+Hourly latency result. Runtime edits began only after the process exited.
+
+[CI run 35946103988](https://github.com/BashaarJavaid/Hirz/actions/runs/35946103988)
+on the same commit passed all ten non-latency jobs: **1,416 service-free tests
+(222.56 s), 133 integration tests (291.39 s), 93% combined coverage** (12,142
+statements, 885 misses), **155 native conformance tests** (140.61 s), and the
+independent checker **117 PASS, 0 FAIL, complete=true**, with **628 independently
+verified signed rows**. Build, release, scenario and TypeScript jobs also passed.
+
+The Hourly CI job completed all samples and failed only `plan-approval` and pooled
+`approve_action`; the assertion was `Warm p95 budget exceeded`. The Time-of-Day
+CI job completed 105 home rounds at 03:02:55 UTC but reached its 60-minute limit
+before the remaining verification finished; cancellation was logged at 03:10:36
+UTC. Private job logs are `/tmp/hirz-item26-ci-hourly-e900366.log` and
+`/tmp/hirz-item26-ci-evening-e900366.log`. The earlier b65ee3e run also timed out
+at 60 minutes (GitHub annotation: `The job has exceeded the maximum execution
+ time of 1h0m0s`), rather than completing a latency gate. **Item 26 remains
+incomplete.**
+
+### Approved combined budget/audit reads — 2026-09-23
+
+The author approved the [combined-read amendment](./adr/ADR-017-tool-latency-and-isolation.md#combined-read-amendment--2026-09-23).
+The existing pipeline/storage selection passed **75 tests in 29.73 seconds**.
+Added signed-ledger equivalence checks (including negative cancellation adjustments)
+and pointer/head corruption checks passed with the existing concurrency/key tests:
+**9 passed, 24 deselected, in 21.03 seconds**. That selection includes 100
+concurrent Pipeline decisions and transaction rollback. Ruff and strict mypy
+passed (152 source files).
+
+A subsequent diagnostic reduced approval SQL calls from 66 to **58**, but recorded
+**349.835083 ms** end to end (269.716 ms server handler; 136.809 ms SQL; nested
+spans overlap). The private span report is
+`/tmp/hirz-item26-combined-approval-spans.json`. This is not a controlled timing
+comparison or p95 result; the full budget remains unpassed.
+
+The final combined-read revision passed **1,416 service-free tests, 141 deselected,
+in 224.68 seconds**, then **139 PostgreSQL integration tests, 1,418 deselected,
+in 285.15 seconds**. Commands were `uv run --locked pytest -q` and
+`HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run --locked pytest -m integration --cov=hirz --cov-append -q`;
+`uv run --locked coverage report --fail-under=80` passed with **93% combined
+coverage** (12,143 statements, 888 misses). Private logs are
+`/tmp/hirz-item26-unit-combined.log` and `/tmp/hirz-item26-integration-combined.log`.
+Ruff and strict mypy passed again (152 source files).
+
+The author explicitly approved raising both existing isolated latency job limits
+from 60 to **75 minutes** after the Time-of-Day timeout. Only the timeout changes;
+all sample counts, signed-audit verification and the 250 ms gate remain intact.
