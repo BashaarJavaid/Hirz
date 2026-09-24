@@ -785,6 +785,76 @@ async def commit_mutation(
     from hirz.executor.budget import allocate
 
     await allocate(p, stored, action.params["budget_action"])
+
+
+async def schedule_approved(p: "Pipeline") -> None:
+    """Finish committed plan consent once, under the worker's household lock."""
+    async with p.repo.write(p.clock):
+        pending = sa.exists(
+            sa.select(db.plan_actions.c.action_id)
+            .join(
+                db.actions,
+                sa.and_(
+                    db.actions.c.household_id == db.plan_actions.c.household_id,
+                    db.actions.c.action_id == db.plan_actions.c.action_id,
+                ),
+            )
+            .where(
+                db.plan_actions.c.household_id == db.plans.c.household_id,
+                db.plan_actions.c.plan_id == db.plans.c.plan_id,
+                db.actions.c.execution_status.is_(None),
+            )
+        )
+        plans = (
+            (
+                await p.connection.execute(
+                    sa.select(db.plans)
+                    .where(
+                        p.scope(db.plans),
+                        db.ACTIVE_PLAN,
+                        db.plans.c.document["status"].astext == "approved",
+                        pending,
+                    )
+                    .order_by(db.plans.c.audit_seq)
+                    .with_for_update()
+                )
+            )
+            .mappings()
+            .all()
+        )
+        for stored in plans:
+            consent = (
+                await p.connection.execute(
+                    sa.select(db.audit_log.c.payload).where(
+                        p.scope(db.audit_log),
+                        db.audit_log.c.seq == stored["audit_seq"],
+                        db.audit_log.c.event_type == EventType.PLAN_APPROVED.value,
+                    )
+                )
+            ).scalar_one()
+            payload = (
+                await p.connection.execute(
+                    sa.select(db.audit_log.c.payload).where(
+                        p.scope(db.audit_log),
+                        db.audit_log.c.seq == consent["decision_seq"],
+                    )
+                )
+            ).scalar_one()
+            decision = Decision.model_validate(payload).model_copy(
+                update={"audit_id": consent["decision_seq"]}
+            )
+            if decision.decision != "execute":
+                raise ValueError("Scheduling requires committed plan consent")
+            await schedule(p, dict(stored), decision)
+
+
+async def schedule(p: "Pipeline", stored: dict[str, Any], decision: Decision) -> None:
+    """The original atomic scheduling commit, using the persisted consent grant."""
+    from hirz.pipeline.service import identity
+
+    plan = Plan.model_validate(stored["document"])
+    scheduler = Principal.model_validate(stored["approver"])
+    member = await p.requester(scheduler)
     proposals = {
         r["action_id"]: dict(r)
         for r in (

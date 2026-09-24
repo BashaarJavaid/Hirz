@@ -448,7 +448,8 @@ def test_plan_consent_revision_budget_cancel_and_attribution(scratch_database):
                 async with c.begin():
                     stored = await row(p, actions[0].action_id)
                     assert stored["principal"]["sub"] == "malik"
-                    assert stored["principal"]["surface"] == "scheduler"
+                    assert stored["principal"]["surface"] == "app"
+                    assert stored["execution_status"] is None
                 revision, revised = proposal(
                     w, supersedes=plan.plan_id, version=2, cost=2
                 )

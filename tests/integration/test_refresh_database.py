@@ -9,7 +9,7 @@ import pytest
 from test_database import connect, scratch_database  # noqa: F401
 from test_executor_database import environment
 
-from hirz.executor.plans import PlanService, get
+from hirz.executor.plans import PlanService, get, schedule_approved
 from hirz.executor.refresh import job
 from hirz.executor.refresh_worker import RefreshWorker
 from hirz.executor.runtime import RuntimeInputs
@@ -269,6 +269,7 @@ def test_fingerprint_change_holds_work_and_refresh_inherits_consent(scratch_data
                 assert (
                     await service.approve(result.plan.plan_id, PRINCIPAL)
                 ).decision == "execute"
+                await schedule_approved(p)
                 w.clock.jump(w.clock() + timedelta(seconds=1))
                 member = next(
                     i for i, m in w.members.items() if m.display_name == "Malik"
@@ -885,6 +886,10 @@ def test_late_consent_skips_missed_opening_and_refreshes_with_one_consent(
                 assert (
                     await service.approve(result.plan.plan_id, PRINCIPAL)
                 ).decision == "execute"
+                async with c.begin():
+                    original = await get(p, result.plan.plan_id)
+                    assert original["document"]["status"] == "approved"
+                await e.sweep()
                 async with c.begin():
                     original = await get(p, result.plan.plan_id)
                     current = await job(p, original)

@@ -78,9 +78,11 @@ def serve(listener: socket.socket, config: dict[str, Any]) -> None:
         engine=engine,
         household=runtime,
     )
-    uvicorn.Server(uvicorn.Config(app, access_log=False, log_level="critical")).run(
-        sockets=[listener]
-    )
+    uvicorn.Server(
+        uvicorn.Config(
+            app, access_log=False, log_level="critical", timeout_keep_alive=120
+        )
+    ).run(sockets=[listener])
 
 
 @asynccontextmanager

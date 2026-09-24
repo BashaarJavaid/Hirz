@@ -17,7 +17,7 @@ from test_pipeline_database import setup
 
 from hirz import db
 from hirz.audit import verify_database
-from hirz.executor.plans import PlanService, governance
+from hirz.executor.plans import PlanService, governance, schedule_approved
 from hirz.explainer.core import decision_context, prepared
 from hirz.local import LocalError
 from hirz.pipeline.models import Action, Decision
@@ -61,6 +61,8 @@ def test_batch_scheduling_rolls_back_and_keeps_each_signed_transition(
                     )
                 ).decision == "execute"
                 original = p.audit.append_many
+                approved = await service.approve(plan.plan_id, PRINCIPAL)
+                assert approved.decision == "execute"
                 before, _ = await verify_database(
                     c, p.household_id, p.audit.key.public_key()
                 )
@@ -86,13 +88,12 @@ def test_batch_scheduling_rolls_back_and_keeps_each_signed_transition(
                 with monkeypatch.context() as patch:
                     patch.setattr(p.audit, "append_many", fail_after_batch)
                     with pytest.raises(RuntimeError, match="Injected batch"):
-                        await service.approve(plan.plan_id, PRINCIPAL)
+                        await schedule_approved(p)
                 rolled_back, _ = await verify_database(
                     c, p.household_id, p.audit.key.public_key()
                 )
                 assert rolled_back == before
-                approved = await service.approve(plan.plan_id, PRINCIPAL)
-                assert approved.decision == "execute"
+                await schedule_approved(p)
                 summary, rows = await verify_database(
                     c, p.household_id, p.audit.key.public_key(), collect=True
                 )
@@ -255,11 +256,14 @@ def test_batch_scheduling_rolls_back_and_keeps_each_signed_transition(
                         plan, actions, PRINCIPAL, runtime=runtime_for(plan)
                     )
                 ).decision == "execute"
+                assert (
+                    await service.approve(plan.plan_id, PRINCIPAL)
+                ).decision == "execute"
                 before, _ = await verify_database(
                     c, p.household_id, p.audit.key.public_key()
                 )
                 with pytest.raises(ValueError, match="Overlapping bounded operations"):
-                    await service.approve(plan.plan_id, PRINCIPAL)
+                    await schedule_approved(p)
                 after, _ = await verify_database(
                     c, p.household_id, p.audit.key.public_key()
                 )

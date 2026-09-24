@@ -330,3 +330,57 @@ manual-only CI latency gate remain unchanged. The single local measurement and
 its incomplete transport-failure evidence are recorded in
 [item 26b](../verification-log.md#item-26b--2026-09-24); this amendment does not
 complete the latency gate.
+
+## Scheduling and harness amendment — 2026-09-24
+
+The author approved a harness-only Uvicorn `timeout_keep_alive=120` so worker
+idle gaps do not cross the server's default five-second keep-alive boundary.
+Production/local runtime entry points are unchanged. The prescribed 200-call
+six-second-idle probe was run before and after the change; neither run reproduced
+the previously observed race. Counts and the retained reproduction are in the
+[item 26b evidence](../verification-log.md#scheduling-and-harness--2026-09-24).
+
+A private same-process, same-database comparison measured authenticated SDK calls,
+raw HTTPX POSTs with the captured identical JSON-RPC body and bearer token, and
+handlers alone. The large difference is on the SDK client path: raw HTTP through
+the same stateless server is much closer to handler time. No SDK, server-session,
+measurement-protocol, corpus, sample-count or 250 ms threshold change is authorized
+by this finding; investigation stops at that layer. Measurements and the private
+probe's post-measurement cleanup error are retained in the evidence entry.
+
+Plan approval now commits the existing electricity-plus-wear budget grant and
+`PLAN_APPROVED` governance decision, allocation and `approved` plan state, without
+materializing scheduling rows. The response says the approved plan is being queued
+and returns the canonical approved plan, whose action references come from its
+stored document. A second fresh approval is refused before the worker runs;
+identical request receipts retain their existing retry semantics.
+
+The worker finishes that recorded consent under the household writer lock using
+the existing scheduling commit. It recovers the original Decision through the
+signed `PLAN_APPROVED` reference, preserves every individually signed `SCHEDULED`
+or `EXECUTION_CANCELLED` event and the overlap, missed-opening and late-consent
+logic, and commits the whole batch atomically. Approved plans with unscheduled
+proposals are durable pending work; no cached rows, new queue or migration is
+needed. A crash before commit leaves the batch pending, and a committed batch is
+not scheduled twice. Cancellation and revision before the tick retain their
+existing signed transitions and prevent the superseded plan from scheduling.
+Inherited consent uses the same deferred path; consent naming an already replaced
+plan remains refused.
+
+Pending consent is scheduled before the worker's refresh batch so missed openings
+queue and process their replacement in that tick; the final executor sweep also
+schedules consent inherited by a replacement published during the batch.
+
+Scheduling failure now leaves the already committed consent and budget allocation
+intact for worker retry or member cancellation/revision; it cannot return a failed
+approval retroactively. Overlap checks still refuse the entire scheduling batch.
+Due bounded endings are processed before scheduling, and every opening still
+requires execution-time Pipeline authorization, current context and boundary
+agreement. This changes when scheduling evidence appears, not device authority or
+the fail-closed guarantees in architecture §9 and the threat model.
+
+Rejected caching scheduled rows (duplicates durable source state), skipping signed
+per-action events (loses individually verifiable lifecycle evidence), and a
+synchronous partial schedule (makes the approval contract depend on batch size and
+splits an atomic scheduling operation). Hourly latency, a second local measurement
+and a manual CI dispatch remain outside this step.

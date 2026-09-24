@@ -588,3 +588,17 @@ checks passed. See the [completion evidence](./verification-log.md#publication-a
   **Suggestion:** retain the originating request context when a transport error
   surfaces through task-group cleanup. Evidence and exact private artifact paths:
   [item 26b](./verification-log.md#item-26b--2026-09-24).
+
+  **2026-09-24 diagnosis and harness follow-up:** the recorded failure occurred
+  while receiving headers for `get_household_plan` after the worker following
+  `stale-approval-cheapest` in round 103: the Uvicorn/httpcore keep-alive close
+  race, with Uvicorn's default five-second timeout inside the worker's two-to-seven
+  second client idle gap. The smoke harness now sets
+  [`timeout_keep_alive=120`](https://www.uvicorn.org/settings/#timeouts); runtime
+  server settings are unchanged. The prescribed pooled authenticated SDK probe
+  completed 200 six-second idle intervals before the change and 200 afterward,
+  with **0 failures before and 0 after**. Thus this probe did not reproduce the
+  race and does not independently prove that diagnosis; no failure was injected
+  and the client's pooling settings were unchanged. Private raw counts and logs
+  are retained under `/tmp/hirz-item26b-third-step/` and recorded in the evidence
+  follow-up.

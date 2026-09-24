@@ -721,7 +721,7 @@ A scheduled action carries `requested_by` of its plan approver with `surface: sc
 - **Rollback.** Reversible classes carry an inverse action computed at decision time (previous thermostat setpoint, previous charge mode). Rollback runs through the pipeline like any action.
 - **Bounded operations carry their own ending.** An unlock for ten minutes is one authorized operation, not an unlock now and a relock the cloud promises to send later. The signed command carries the revert (`revert: {after_s, inverse}`), Hirz Link stores it durably before it actuates and runs it from its own clock even if the internet, Postgres, or the worker is gone (§5.17); a device-native auto-relock is used as well where the lock has one. "Fail closed" does not relock a door, so the ending must not depend on the cloud. A revert that fails is reported as `VERIFY_FAILED` with a notification; Hirz never claims a physical outcome it did not read back.
 - **Scheduler.** In AWS: one EventBridge Scheduler one-time schedule per scheduled action, targeting a Lambda that calls the worker's authenticated `/internal/tick`. Locally: an in-process scheduler driven by the sim clock so a scenario can run at 60× speed. The Executor owns the mapping `action_id → schedule` and cancels schedules when a plan is superseded.
-- **Immediate actions are asynchronous.** A tool that acts ("charge the car now", approving a plan, applying a profile) runs stages 1–6 inside the call and, on `execute`, writes the action as `scheduled` for now; the worker's sweep picks it up within seconds, runs stage 7 through the Gateway, executes, and verifies. The tool returns the Decision with `status: executing` and a `speakable` that says so without promising an outcome the boundary has not yet allowed ("I'm starting the charge. I'll tell you on your phone if it doesn't go through."); the outcome (`EXECUTED`, `VERIFIED`, or `VERIFY_FAILED`) appears in the audit ledger, in the plan card, in `get_action_audit`, and as a push notification. No tool call ever waits on the Gateway, an adapter, or a third-party network.
+- **Immediate actions are asynchronous.** A tool that acts ("charge the car now", applying a profile) runs stages 1–6 inside the call and, on `execute`, writes the action as `scheduled` for now; the worker's sweep picks it up within seconds, runs stage 7 through the Gateway, executes, and verifies. The tool returns the Decision with `status: executing` and a `speakable` that says so without promising an outcome the boundary has not yet allowed ("I'm starting the charge. I'll tell you on your phone if it doesn't go through."); the outcome (`EXECUTED`, `VERIFIED`, or `VERIFY_FAILED`) appears in the audit ledger, in the plan card, in `get_action_audit`, and as a push notification. No tool call ever waits on the Gateway, an adapter, or a third-party network.
 - **Deadlines.** An executing action has a class-specific deadline (device call 10 s, EV command 30 s). Timeout → `ADAPTER_ERROR`, state re-read, plan revision if needed.
 
 **Implemented local contract (item 19).** `Pipeline.enqueue(Action, Principal)` is
@@ -739,6 +739,7 @@ replace device rules, quorum or approval TTL. Explicit revisions need fresh cons
 autonomous replacements retain the prior approver. A held plan becomes `refreshing`
 and queues durable refresh under item 19a;
 notifications here are pending member-addressed records, without delivery claims.
+For plan approval, the call commits consent and its budget allocation and returns “being queued”; after due bounded endings, the worker atomically materializes every signed per-action scheduling event from that durable approved plan, with cancellation/revision, overlap and execution-time checks preserved ([amendment](./docs/adr/ADR-017-tool-latency-and-isolation.md#scheduling-and-harness-amendment--2026-09-24)).
 
 `Executor.sweep/rollback` uses a household session lock and closes transactions
 during HA calls. Exact bounded endings are persisted before dispatch and survive
@@ -1385,6 +1386,8 @@ requirement. Remaining latency work is scheduled after submission; see the
 and [deferral checkpoint](./docs/verification-log.md#deferral-checkpoint--2026-09-24).
 
 Target-state budget per tool call on the AWS path; `tests/latency` is the local proxy:
+
+Plan scheduling runs in the worker after consent, the benchmark harness uses a 120-second keep-alive timeout, and the measured SDK-client floor remains included in the unchanged 250 ms gate ([evidence](./docs/verification-log.md#scheduling-and-harness--2026-09-24)).
 
 | Stage | Budget |
 |---|---|

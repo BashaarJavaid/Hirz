@@ -7066,3 +7066,255 @@ a whitespace-only correction in the modified refresh test was applied and all
 three final checks were repeated in order. No runtime logic or latency sample
 changed after the measurement. This CI evidence is a separate documentation-only
 follow-up; the incomplete local latency result remains Deferred.
+
+### Scheduling and harness — 2026-09-24
+
+Author-authorized third step from `a48d12d` on `phase-4`. Bedrock is off; no
+selection ledger is read or changed, no development migration is applied, and
+`AWSCLIV2.pkg` is untouched. No corpus, sample-count, threshold or manual-dispatch
+policy change is part of this step. Private artifacts are under
+`/tmp/hirz-item26b-third-step/`; the one latency measurement uses the separately
+requested `/tmp/hirz-item26b-scheduling-01/` path.
+
+**A — prescribed transport reproduction, before then after.**
+`transport.py` uses the existing authenticated benchmark `Environment`, its
+pooled SDK client and `get_household_context(scope="people")`, with a six-second
+idle before each of 200 calls, preserving default HTTPX pooling and SDK OAuth
+refresh behavior. It records every interval and any exception; no exception was
+injected and no failure recovery was needed. The original harness was tested
+before editing it; only the smoke harness's Uvicorn configuration then changed
+from the default five-second keep-alive to 120 seconds. Runtime entry points did
+not change.
+
+| Harness setting | Completed idle intervals | Failures | Private output |
+|---|---:|---:|---|
+| Original, default 5 s | 200 | 0 | `before.log`, `before.json` |
+| Fixed, explicit 120 s | 200 | 0 | `after.log`, `after.json` |
+
+Both runs exited 0 and printed `disposable_database=dropped;
+development_database=unchanged`. **This prescribed probe did not reproduce the
+race.** Its zero-before/zero-after result is not independent proof of the
+established Uvicorn/httpcore close-race diagnosis. The existing item 26b friction
+entry now records the precise round-103 request, timeout mismatch and this
+reproduction limitation. The initial sandboxed `uv` attempt stopped before running
+Python with the already-recorded cache restriction (`failed to open file
+/Users/bashaarjavaid/.cache/uv/sdists-v9/.git: Operation not permitted (os error 1)`);
+the authorized run used the existing cache and local services.
+
+**B — per-call floor, evidence only.** `floor.py` ran one in-process MCP server
+and one disposable database, with the same runtime, linked identity, bearer token
+and captured identical JSON-RPC request body for SDK versus raw HTTPX POST. It
+measured 200 calls per row below with `perf_counter_ns`, after five untimed warmups
+per path. Handler-only calls invoke the same `HouseholdRuntime.call` with the
+captured authenticated identity; their timing excludes HTTP/auth/SDK handling.
+Percentiles use the benchmark's nearest-rank function. All values are milliseconds.
+
+| Tool | Path | n | Median | p95 |
+|---|---|---:|---:|---:|
+| `what_can_you_do` | SDK `call_tool` | 200 | 58.211500 | 73.653917 |
+| `what_can_you_do` | Identical raw HTTPX POST | 200 | 3.994917 | 5.408334 |
+| `what_can_you_do` | Handler alone | 200 | 0.011041 | 0.020416 |
+| `get_household_context(scope=people)` | SDK `call_tool` | 200 | 69.750167 | 87.267167 |
+| `get_household_context(scope=people)` | Identical raw HTTPX POST | 200 | 13.242479 | 20.409125 |
+| `get_household_context(scope=people)` | Handler alone | 200 | 6.698521 | 7.996083 |
+
+The SDK-minus-raw median differences are 54.216584 ms and 56.507688 ms. The large
+floor is on the **SDK client path**, not stateless server-session handling: the
+same stateless server handles the raw calls much faster. No deeper SDK change or
+measurement-protocol change was attempted. Supporting in-process handler medians
+were 0.029480/0.023334 ms for SDK/raw onboarding and 9.186000/7.981625 ms for
+SDK/raw people context; linked-member resolution medians were 2.449166/1.116312 ms
+and 2.676375/1.402687 ms respectively.
+
+All 1,200 measured calls completed and their summaries were printed to `floor.log`;
+`floor-summary.json` preserves those printed summaries. **The private script exited
+1 afterward during cleanup**, because it closed the callback listener before
+Uvicorn shut it down: `ValueError: Invalid file descriptor: -1`. This is a probe
+cleanup bug, not a measured call failure. The disposable database
+`hirz_ha_smoke_0faeb29519ef4a1a8a4e58010c970bbb` was retained automatically. Raw
+per-call arrays were not written because the planned final JSON write followed
+cleanup; only the complete calculated summaries survive. No measurement rerun was
+used to replace these numbers, and no third-party friction claim is made for this
+private-script error.
+
+**C — scheduling regressions.** Before changing runtime scheduling,
+`capture_inline.py` captured two complete stored action rows and both a signed
+`SCHEDULED` and `EXECUTION_CANCELLED` transition, including the late-consent refresh
+consequence. `inline-fixture-02.log` reports `inline fixture: 2 complete action
+rows; 2 signed scheduling events; audit=valid`; the signed source export is
+`inline-audit-02.json`. The first capture reached valid audit export but its JSON
+serialization omitted UUID support (`TypeError: Object of type UUID is not JSON
+serializable`); that attempt's database
+`hirz_ha_smoke_79ce352bac2c4a369d70d0c15b4c547f` and `inline-audit.json` remain
+retained. The corrected capture ran before the runtime edit and dropped only its
+own disposable database.
+
+`tests/fixtures/scheduling-inline.json` is that pre-change fixture. The regression
+compares complete stored action rows and full scheduling-event sequence, timestamp,
+type and payload without dropping fields or normalizing hashes; all signatures
+are separately verified through `verify_database`. Further regressions cover a
+second approval before the tick, cancel/revise before the tick, a fresh Pipeline
+and worker database connection scheduling once, and an overdue bounded ending
+finishing even when subsequent scheduling fails. Existing tests retain inherited
+consent, expired openings, overlapping-operation refusal and whole-batch rollback.
+
+- Initial new regressions: `5 passed in 7.96s` (`scheduling-tests-01.log`).
+- Existing affected suites initially reported `4 failed, 52 passed in 118.55s
+  (0:01:58)` (`affected-tests-01.log`): three pre-tick inline-state expectations and
+  the old approval-time batch-failure injection.
+- Updated affected suites, including the ending-priority regression:
+  `62 passed in 120.10s (0:02:00)` (`affected-tests-02.log`).
+
+Full ordered verification and the single latency result are appended below after
+execution; the results above alone do not close item 26b.
+
+#### First ordered verification and scheduling-order correction
+
+The first ordered sequence used `verify.sh` in the private artifact directory,
+with `HIRZ_LLM=off`, native Dogwood and Node 24 on PATH. It stopped at the scenario:
+
+| Command | Actual summary |
+|---|---|
+| `HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run --locked pytest -q` | `1419 passed, 151 deselected in 194.08s (0:03:14)` |
+| `HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run --locked pytest -m integration --cov=hirz --cov-append -q` | `149 passed, 1421 deselected in 300.68s (0:05:00)` |
+| `uv run --locked coverage report --fail-under=80` | `TOTAL 12188 861 93%` |
+| `uv run --locked ruff check .` | `All checks passed!` |
+| `uv run --locked mypy hirz/ scripts/ alembic/` | `Success: no issues found in 153 source files` |
+| `uv run python scripts/smoke_executor.py --audit-output /tmp/hirz-item26b-third-step/executor-audit.json` | `submission=executing; boundary_calls=0; adapter_writes=0; wording=Your request is queued.`; `worker=verified; signed_rows=13; source=twin; engine=dogwood-local` |
+| `uv run python scripts/smoke_refresh.py --audit-output /tmp/hirz-item26b-third-step/refresh-audit.json` | `restart=queued; replacement=published; approver=malik; per_device_evaluation=fresh`; `restart=running; replacement=published; approver=malik; per_device_evaluation=fresh`; `refresh=PASS; source=twin; signed_rows=73; offline=valid` |
+| `uv run hirz scenario run scenarios/demo-evening.yaml --headless --assert --artifacts-dir /tmp/hirz-item26b-third-step/scenario` | Exit 1: `ValueError: Scenario assertions failed`; appliance-completion observation and `appliance_completed` failed, with 3,477 valid signed audit rows. |
+
+Logs are `pytest.log`, `integration.log`, `coverage.log`, `ruff.log`, `mypy.log`,
+`executor.log`, `refresh.log`, and `scenario.log`. Household-tools had not run when
+this sequence stopped. The failed scenario's private report, audit and public key
+are in `scenario/`; its retained database is
+`hirz_ha_smoke_dd09d467f89f44d1bfd325e9faf499ed`.
+
+The scenario exposed late-consent ordering: scheduling at the end of the worker
+tick queued a missed-opening refresh only after that tick's refresh batch, so it
+was not processed until the next five-minute scenario poll. The retained run
+replanned at 23:36 instead of the consent tick at 23:31; its last-slot dishwasher
+start at 05:15:00.000001 left one microsecond of the cycle at the 07:00 cutoff.
+The correction schedules pending committed consent before the refresh batch,
+with due bounded endings first; the final executor sweep still schedules newly
+inherited consent. A targeted regression requires late consent to publish its
+inherited replacement in the same worker tick. The scenario clock, assertions,
+physics, solver configuration and corpus are unchanged. Ordered verification is
+repeated below for the corrected code; no latency measurement has yet been run.
+
+#### Corrected ordered verification
+
+The same-tick ordering and refresh regressions reported `22 passed in 61.44s
+(0:01:01)` (`ordering-tests.log`). The complete ordered sequence then ran again
+from `verify-02.sh`, retaining each log and new artifact in
+`/tmp/hirz-item26b-third-step/verified-02/`; all commands exited 0:
+
+| Command | Actual summary |
+|---|---|
+| `HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run --locked pytest -q` | `1419 passed, 152 deselected in 217.45s (0:03:37)` |
+| `HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run --locked pytest -m integration --cov=hirz --cov-append -q` | `150 passed, 1421 deselected in 338.71s (0:05:38)` |
+| `uv run --locked coverage report --fail-under=80` | `TOTAL 12191 864 93%` |
+| `uv run --locked ruff check .` | `All checks passed!` |
+| `uv run --locked mypy hirz/ scripts/ alembic/` | `Success: no issues found in 153 source files` |
+| `uv run python scripts/smoke_executor.py --audit-output /tmp/hirz-item26b-third-step/verified-02/executor-audit.json` | `submission=executing; boundary_calls=0; adapter_writes=0; wording=Your request is queued.`; `worker=verified; signed_rows=13; source=twin; engine=dogwood-local` |
+| `uv run python scripts/smoke_refresh.py --audit-output /tmp/hirz-item26b-third-step/verified-02/refresh-audit.json` | `restart=queued; replacement=published; approver=malik; per_device_evaluation=fresh`; `restart=running; replacement=published; approver=malik; per_device_evaluation=fresh`; `refresh=PASS; source=twin; signed_rows=73; offline=valid` |
+| `uv run hirz scenario run scenarios/demo-evening.yaml --headless --assert --artifacts-dir /tmp/hirz-item26b-third-step/verified-02/scenario` | `status=item22_execution_passed`; 47/47 checks passed; 3,509 signed rows, audit `valid`. |
+| `PATH="/opt/homebrew/opt/node@24/bin:$PATH" HIRZ_LLM=off HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run --locked python scripts/smoke_household_tools.py --audit-output /tmp/hirz-item26b-third-step/verified-02/household-audit.json --conformance-cli ../addon-check/dist/cli.js` | `household_tools=PASS; signed_rows=611; offline=valid`; conformance `status=PASS`, `complete=true`, `PASS=117`, `FAIL=0`, `WARN=0`, `SKIP=0`, `MANUAL=0`, no missing evidence. |
+
+Node reported `v24.21.0`. The independent conformance timing covers onboarding
+and context only, not the item 26b latency gate. All smoke/scenario databases in
+this successful sequence were dropped by their existing cleanup and reported
+`development_database=unchanged`. No live HA, Bedrock or AWS execution was tested.
+The first failed scenario remains preserved separately; the successful run did
+not overwrite it or relax any assertion.
+
+#### Single local scheduling measurement
+
+Exactly one measurement was run on the corrected, fully verified code:
+
+```sh
+HIRZ_LLM=off HIRZ_DOGWOOD="$PWD/.tools/dogwood" HIRZ_BUDGET_SCENARIO=demo-evening HIRZ_BUDGET_ARTIFACTS=/tmp/hirz-item26b-scheduling-01 uv run --locked pytest tests/latency -m latency --no-cov -s -q --tb=short
+```
+
+Actual summary: `1 failed in 3572.08s (0:59:32)`, exit 1, `Warm p95 budget exceeded`.
+All 105/105 lifecycle rounds completed without transport failure, followed by the
+remaining unchanged corpus and ten startup probes. There are 100 measured samples
+per case after five warmups, 54 cases and 12 pooled tools. **The gate failed: 13
+case gates and three pooled-tool gates exceed 250 ms. Item 26b remains Deferred.**
+No sample was trimmed, no latency measurement was rerun, and neither Hourly nor
+manual CI dispatch was run. The parents trust/missing-input cases that are already
+part of this corpus were retained; this is not a separate parents-scenario gate.
+
+Private output is `/tmp/hirz-item26b-third-step/latency.log`; complete raw samples,
+interaction timings, tables and signed exports are in
+`/tmp/hirz-item26b-scheduling-01/demo-evening/`. The failed-gate database
+`hirz_ha_smoke_472965c7669645dc8f09df603781c45b` remains retained. Tables below use
+all retained samples, with nearest-rank percentiles; milliseconds are rounded to
+three decimals for display only.
+
+| Tool | n | Minimum ms | Median ms | p95 ms | Maximum ms | Gate |
+|---|---:|---:|---:|---:|---:|---|
+| `approve_action` | 700 | 82.882 | 124.944 | 321.730 | 4537.614 | FAIL |
+| `assess_request_risk` | 400 | 61.331 | 111.007 | 191.597 | 1137.793 | PASS |
+| `evaluate_permission` | 100 | 73.515 | 95.329 | 172.783 | 262.431 | PASS |
+| `execute_household_action` | 800 | 64.552 | 121.335 | 235.100 | 742.373 | PASS |
+| `explain_plan` | 400 | 76.829 | 101.445 | 232.410 | 2310.180 | PASS |
+| `get_action_audit` | 400 | 63.821 | 86.954 | 159.977 | 347.255 | PASS |
+| `get_household_context` | 200 | 66.488 | 84.439 | 148.860 | 270.467 | PASS |
+| `get_household_plan` | 700 | 64.294 | 176.624 | 362.039 | 1109.622 | FAIL |
+| `propose_household_rule` | 200 | 60.260 | 108.737 | 203.547 | 275.803 | PASS |
+| `revise_household_plan` | 600 | 60.987 | 135.680 | 283.681 | 834.134 | FAIL |
+| `verify_trusted_identity` | 800 | 62.194 | 83.195 | 178.670 | 486.408 | PASS |
+| `what_can_you_do` | 100 | 58.417 | 72.704 | 131.223 | 159.741 | PASS |
+
+| Failing case | Tool | n | Minimum ms | Median ms | p95 ms | Maximum ms |
+|---|---|---:|---:|---:|---:|---:|
+| `objective-greenest` | `get_household_plan` | 100 | 173.680 | 235.606 | 474.934 | 1109.622 |
+| `objective-cheapest` | `get_household_plan` | 100 | 167.625 | 224.933 | 458.063 | 800.950 |
+| `plan-cancel` | `approve_action` | 100 | 152.836 | 203.586 | 450.609 | 1946.253 |
+| `objective-most_comfortable` | `get_household_plan` | 100 | 171.740 | 237.705 | 430.769 | 966.989 |
+| `plan-approval` | `approve_action` | 100 | 177.627 | 230.152 | 407.228 | 4537.614 |
+| `revision-car` | `revise_household_plan` | 100 | 171.728 | 220.917 | 382.218 | 834.134 |
+| `plan-ready` | `get_household_plan` | 100 | 134.938 | 161.682 | 356.932 | 858.329 |
+| `verify-start-not_genuine` | `verify_trusted_identity` | 100 | 122.396 | 156.504 | 321.951 | 486.408 |
+| `revision-guest` | `revise_household_plan` | 100 | 130.075 | 168.216 | 297.434 | 493.502 |
+| `action-temperature` | `execute_household_action` | 100 | 93.851 | 117.788 | 277.457 | 373.546 |
+| `revision-dishwasher` | `revise_household_plan` | 100 | 127.231 | 162.750 | 262.745 | 577.401 |
+| `risk-not_genuine` | `assess_request_risk` | 100 | 108.990 | 129.237 | 260.027 | 1137.793 |
+| `action-profile` | `execute_household_action` | 100 | 120.882 | 156.688 | 251.908 | 445.660 |
+
+| Case | n | Median ms | p75 ms | p90 ms | p95 ms | Maximum ms |
+|---|---:|---:|---:|---:|---:|---:|
+| `plan-approval` | 100 | 230.152 | 277.090 | 332.947 | 407.228 | 4537.614 |
+| `objective-greenest` | 100 | 235.606 | 277.297 | 383.509 | 474.934 | 1109.622 |
+| `plan-cancel` | 100 | 203.586 | 256.918 | 347.011 | 450.609 | 1946.253 |
+| `revision-car` | 100 | 220.917 | 262.892 | 338.179 | 382.218 | 834.134 |
+| `action-profile` | 100 | 156.688 | 185.708 | 238.795 | 251.908 | 445.660 |
+
+Failing cases: 13/54; failing pooled tools: 3/12.
+
+Both offline signed exports are valid: home 145,255 rows and parents 2,205 rows,
+147,460 total. Final database counts: 57,158 actions, 147,460 audit rows, 420 plans,
+3,150 tool requests and 210 verification cases. Local process-to-health startup
+(n=10) was median 1,535.330 ms, p95/max 2,391.532 ms; first authenticated context
+(n=10) was median 95.573 ms, p95/max 137.646 ms. These are local process startup,
+not AWS cold-start results.
+
+A final read-only `SELECT version_num FROM alembic_version` reported
+`development migration: 0005_execution_attempt`; the initial helper invocation
+omitted `read_env`'s required path and exited with `TypeError` before connecting,
+then the corrected explicit-path read succeeded. No development migration, Bedrock
+call, ledger edit or `AWSCLIV2.pkg` edit was performed. The complete successful
+functional checks do not override the failed latency gate. The six-second probe
+did not reproduce the historical race, and the floor probe's raw arrays were lost
+after its cleanup error; neither limitation is claimed as verified away.
+
+#### Final local checks
+
+`git diff --check` exited 0 with no output. Comparing instruction bodies after
+the first heading reported `Instruction bodies identical; Current phase 53 words`.
+The last check, `uv run --locked ruff format --check .`, reported
+`238 files already formatted` and exited 0. The same ordered checks are repeated
+after appending this record, immediately before the implementation commit.
+Ordinary push-triggered CI will be recorded in a follow-up commit; the manual
+latency jobs are not dispatched.

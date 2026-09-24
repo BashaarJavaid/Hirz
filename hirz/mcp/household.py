@@ -1010,6 +1010,13 @@ class HouseholdTools:
                         self.principal,
                     )
                 )
+                if args.approved and decision.decision == "execute":
+                    return response(
+                        "Your approved plan is being queued.",
+                        status="queued",
+                        decision=decision,
+                        plan=plan.model_copy(update={"status": "approved"}),
+                    )
                 return response(
                     "Your response to that plan was recorded.", decision=decision
                 )
