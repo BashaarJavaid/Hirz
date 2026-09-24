@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-09-24: Close item 26 isolation and defer item 26b latency until after submission, preserving the gate on manual dispatch only ([ADR amendment](./docs/adr/ADR-017-tool-latency-and-isolation.md#deferral-amendment--2026-09-24), [evidence](./docs/verification-log.md#deferral-checkpoint--2026-09-24)).
+
 - 2026-09-23: Add authenticated tool latency and concurrent household-isolation gates, signed per-action batching, transaction-scoped JSON snapshot reuse, combined budget/audit reads, budget-query indexes (migration 0012) and a private native helper that reuses compiled policies with fresh replay history; pause item 26 as partial after local/CI latency failures, retaining experiments and remaining work in the [handoff](./docs/verification-log.md#paused-handoff--2026-09-23) ([ADR-017](./docs/adr/ADR-017-tool-latency-and-isolation.md)).
 
 - 2026-09-23: Publish [addon-check v0.1.0](https://www.npmjs.com/package/addon-check/v/0.1.0) and replace the conformance CI placeholder with full-SHA-pinned twelve-tool checks after restart, retaining Hirz-specific validators and signed audit verification ([ADR-016](./docs/adr/ADR-016-add-on-conformance-checker.md), [evidence](./docs/verification-log.md#item-25a--2026-09-23)).

@@ -1255,6 +1255,15 @@ for publication state and actual runs.
 
 ## Authenticated tool budget and isolation (item 26)
 
+Item 26 isolation is complete; item 26b latency is deferred until after the
+2026-10-23 submission. Pushes and pull requests no longer run the latency job;
+isolation still runs in integration CI. To run latency explicitly, open the
+repository's **Actions** tab, select **CI**, choose **Run workflow**, select the
+branch (for this checkpoint, `phase-4`), and click **Run workflow**. This sends
+`workflow_dispatch` and runs both unchanged latency matrix jobs alongside the
+ordinary CI jobs. See the
+[deferral amendment](./adr/ADR-017-tool-latency-and-isolation.md#deferral-amendment--2026-09-24).
+
 [ADR-017](./adr/ADR-017-tool-latency-and-isolation.md) owns the approved protocol.
 Use the existing local PostgreSQL service, `.env` and native Dogwood. The runner
 creates disposable databases and starts loopback OAuth/MCP and separate worker

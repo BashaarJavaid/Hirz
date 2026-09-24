@@ -239,3 +239,32 @@ objects with callers. Measurements and limits belong in the verification log.
 - Adding a load-test framework or a new production endpoint is unnecessary.
 - Calling local startup an AWS cold start or marking the threat row from code
   inspection alone would overstate the evidence.
+
+
+## Deferral amendment — 2026-09-24
+
+The author defers the latency gate until after the 2026-10-23 submission and
+closes item 26's isolation clause on its existing verified evidence. Latency is
+tracked separately as item 26b and runs in CI only on `workflow_dispatch`.
+Keep the gate, corpus, sample counts and 250 ms threshold unchanged. Completion
+of the latency gate no longer blocks the isolation claim, which is limited to
+the local authenticated MCP surface: independently linked accounts, both
+household directions, concurrent requests and restart. The AWS token path remains
+item 38; the cross-household threat row is Partial, not Yes.
+
+The [hackathon rules](https://amazonappdev2026.devpost.com/rules) specify no
+latency, performance or response-time requirement. Stage One is pass/fail on
+track fit and application of required APIs/SDKs; Stage Two scores Tech
+Implementation, Design, Potential Impact and Quality of the Idea. The
+[partner-only MCP Toolkit quickstart, Performance](https://www.developer.amazon.com/docs/alexaplus/add-ons/mcp-toolkit-quickstart.html#performance)
+says: “Your MCP server must meet a round-trip query response latency of less than
+500 ms.” Participants cannot access the toolkit (friction log entry 1); the rules
+do not reference this sentence. Hirz's 250 ms local gate is its own derived proxy.
+The budget table remains target state; measured failures and the rules check are
+retained in the [evidence entry](../verification-log.md#deferral-checkpoint--2026-09-24).
+
+Rejected alternatives: `continue-on-error` still burns 75 minutes per push;
+deleting the gate loses a reproducible check; loosening the threshold or corpus
+would hide the outstanding performance work. The fix is scheduled after
+submission, without authorizing the pending indexes/projection or any other
+runtime change in this records-and-CI checkpoint.

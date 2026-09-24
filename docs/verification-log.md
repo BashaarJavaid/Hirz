@@ -6617,3 +6617,36 @@ for this documentation checkpoint; their latest results remain recorded above.
 Final `uv run --locked ruff format --check .` passed: **235 files already
 formatted**. The first sandboxed invocation could not open the existing uv cache;
 the authorized cache-access retry succeeded.
+
+
+### Deferral checkpoint — 2026-09-24
+
+Author decision: close item 26's isolation clause using the existing
+[full-gate evidence](#full-gate-results-for-0dc1ccf--2026-09-23), and defer latency
+as item 26b until after the 2026-10-23 submission. Completion of the latency gate
+no longer blocks the local authenticated MCP isolation claim; the AWS token path
+remains item 38. The earlier paused handoff remains historical evidence, with its
+completion dependency superseded by the
+[ADR-017 amendment](./adr/ADR-017-tool-latency-and-isolation.md#deferral-amendment--2026-09-24).
+
+Rules check: opened the [hackathon rules](https://amazonappdev2026.devpost.com/rules)
+and searched for `latency`, `performance`, `response time`, `response-time` and
+`500`; reviewed Stage One and Stage Two. No latency, performance or response-time
+requirement is specified. `performance` occurs in product-feedback examples and
+legal language, not a timing gate. Stage One checks track fit and use of required
+APIs/SDKs; Stage Two scores Tech Implementation, Design, Potential Impact and
+Quality of the Idea. The partner-only
+[MCP Toolkit quickstart, Performance](https://www.developer.amazon.com/docs/alexaplus/add-ons/mcp-toolkit-quickstart.html#performance)
+says: “Your MCP server must meet a round-trip query response latency of less than
+500 ms.” The rules do not reference that requirement; participant toolkit access
+is unavailable as recorded in [friction entry 1](./friction-log.md#entries).
+The 250 ms local gate is Hirz's derived proxy, not a hackathon rule.
+
+The only workflow change adds `if: github.event_name =='workflow_dispatch'` to
+`latency`. The gate, corpus, five warmups, 100 measured samples per case, 250 ms
+threshold and both 75-minute scenario jobs are unchanged; isolation remains in
+ordinary integration CI. Runtime code, tests, migrations and dependencies are
+unchanged. No latency measurement was taken. Bedrock stayed off, the $2 ledger
+was not run or changed, development stays on 0005, and `AWSCLIV2.pkg` was left
+alone. The checkpoint commit hash and observed push-CI result will be appended
+after the run completes.

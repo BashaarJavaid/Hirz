@@ -548,3 +548,23 @@ checks passed. See the [completion evidence](./verification-log.md#publication-a
   [ADR-017](./adr/ADR-017-tool-latency-and-isolation.md#native-helper-amendment--2026-09-23).
   **Suggestion:** expose reusable compiled artifacts with fresh authorizer history,
   or a prepared replay mode, without requiring consumers to retain temporal state.
+
+
+## Item 26: latency measurement method unspecified — 2026-09-24
+
+- **Tool/task:** reconcile the partner-only
+  [MCP Toolkit quickstart, Performance](https://www.developer.amazon.com/docs/alexaplus/add-ons/mcp-toolkit-quickstart.html#performance)
+  with the [hackathon rules](https://amazonappdev2026.devpost.com/rules) for the
+  item 26 checkpoint. **Steps/expected:** read the Performance section and search
+  the rules for latency, performance, response time and 500; expect a defined
+  measurement method and a statement of hackathon applicability.
+  **Actual:** “Your MCP server must meet a round-trip query response latency of
+  less than 500 ms.” The section supplies no percentile, measurement point or
+  consequence, and the hackathon rules do not reference the requirement. No
+  runtime error occurred; this is documentation ambiguity.
+  **Severity:** Minor. **Workaround:** retain Hirz's explicitly defined local
+  proxy and distinguish it from submission requirements in the
+  [deferral amendment](./adr/ADR-017-tool-latency-and-isolation.md#deferral-amendment--2026-09-24);
+  participant toolkit access is already recorded in entry 1.
+  **Suggestion:** publish the measurement method (percentile, endpoints and
+  conditions), consequences, and whether it applies to hackathon submissions.
