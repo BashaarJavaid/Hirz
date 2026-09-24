@@ -7563,3 +7563,34 @@ access, development migration or AWS measurement is performed; development stays
 on 0005, migrations through 0013 remain manual, and `AWSCLIV2.pkg` is untouched.
 Real phone/security execution remains unverified. Ordinary push-CI results for
 this checkpoint will be appended after the ten jobs complete.
+
+
+#### Closure checkpoint CI and checks
+
+Closure commit `4463113e92eeaee88182da70b9372f3862069c6e` was pushed to
+`phase-4` without merging. [Ordinary CI 36072207292](https://github.com/BashaarJavaid/Hirz/actions/runs/36072207292)
+completed successfully: all ten ordinary jobs passed (`python-lint`,
+`python-types`, `python-test`, `scenarios`, `ts-lint-types`, `ts-test`,
+`conformance`, `cedar-conform`, `build`, `release`); `latency` was skipped.
+The release job remains a placeholder. This is records-checkpoint CI, not a new
+latency measurement; the reviewed latency gate of record remains run 36059341623
+with the local authenticated MCP server round-trip scope stated above.
+
+Precommit checks ran in the requested order:
+
+| Check | Output |
+|---|---|
+| `git diff --check` | Empty; exit 0. |
+| `diff <(tail -n +2 CLAUDE.md) <(tail -n +2 AGENTS.md)` | Empty; exit 0. |
+| Current phase word count | `CLAUDE.md Current phase: 57 words`; `AGENTS.md Current phase: 57 words`. |
+| `uv run --locked ruff format --check .` | `238 files already formatted`; exit 0 after authorized access to the existing uv cache. |
+
+The initial sandboxed formatting check returned `Failed to initialize cache at
+/Users/bashaarjavaid/.cache/uv` and `failed to open file
+/Users/bashaarjavaid/.cache/uv/sdists-v9/.git: Operation not permitted (os error 1)`.
+This repeats the existing sandbox restriction in friction-log entry 6; no new
+third-party defect was found. Read-only comparisons also confirmed that all
+prior verification text is preserved, item 26 and `THREAT_MODEL.md` are unchanged,
+and `CLAUDE.md` and `AGENTS.md` are byte-identical. The closure commit changed
+only eight documentation files (128 insertions, 41 deletions); this follow-up
+only appends evidence. The same four final checks are repeated after this entry.
