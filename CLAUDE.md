@@ -130,8 +130,8 @@ The verified toolchain and scaffold setup are in `README.md`; use Node 24.
 
 **Item 26 isolation is complete; item 26b latency remains Deferred pending author
 review. Item 27 is next.** The gate now measures raw authenticated server round
-trips with separate SDK references; CI measurement is pending
-([protocol](./docs/adr/ADR-017-tool-latency-and-isolation.md#server-round-trip-amendment--2026-09-24)).
+trips with separate SDK references; both scenarios passed the single CI run
+([evidence](./docs/verification-log.md#completed-ci-measurements--both-scenarios-pass-author-review-pending)).
 Development stays on 0005; migrations through 0013 remain manual. Keep Bedrock off
 and preserve the $2 ledger. Real phone/security execution remains unverified.
 

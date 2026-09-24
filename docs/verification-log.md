@@ -7411,3 +7411,117 @@ end to end without taking a local latency measurement.
 
 Final precommit checks: `git diff --check` and `cmp CLAUDE.md AGENTS.md` exited 0;
 `uv run --locked ruff format --check .` reported `238 files already formatted`.
+
+#### Ordinary CI and single manual dispatch
+
+Implementation commit `b8c1bc31141ea1f9eda77b660443f9bf3b99cfbb` was pushed to
+`phase-4` without merging. [Ordinary CI 36057334935](https://github.com/BashaarJavaid/Hirz/actions/runs/36057334935)
+passed all ten jobs: `python-lint`, `python-types`, `python-test`, `scenarios`,
+`ts-lint-types`, `ts-test`, `conformance`, `cedar-conform`, `build` and `release`;
+`latency` was skipped. The release job remains a placeholder. CI logs report:
+
+- `1421 passed, 152 deselected in 225.54s (0:03:45)` service-free.
+- `150 passed, 1423 deselected in 313.33s (0:05:13)` integration.
+- `TOTAL 12191 859 93%` combined coverage.
+- `238 files already formatted` and `Success: no issues found in 153 source files`.
+
+Only after those ten jobs completed, `gh workflow run CI --ref phase-4` was
+issued once. [Manual CI 36059341623](https://github.com/BashaarJavaid/Hirz/actions/runs/36059341623)
+was created at `2026-09-24T21:06:46Z` for the same full commit. Its latency job IDs
+are `107834191124` (Time-of-Day / `demo-evening`) and `107834192128` (Hourly /
+`demo-evening-hourly`). No job rerun was requested. Ordinary CI metadata/logs are
+retained as `ordinary.json` and `ordinary.log` in the private fourth-step directory;
+manual-run results will be appended after both jobs finish.
+
+#### Completed CI measurements — both scenarios pass; author review pending
+
+The manual run completed successfully on attempt **1**, with both latency jobs
+and all ten ordinary jobs successful. Neither latency job was rerun. The completed
+job logs contain the same payload-free tables printed to the step summaries and
+the protocol line:
+
+> Gate: raw authenticated JSON-RPC tools/call POST, request send through full response body; decoding and validation excluded. SDK call_tool reference timings: onboarding and context-all only, outside the gate.
+
+| Scenario | Job | Test summary | Case gates | Pooled-tool gates | Failing cases / tools |
+|---|---|---|---:|---:|---|
+| Time-of-Day (`demo-evening`) | [107834191124](https://github.com/BashaarJavaid/Hirz/actions/runs/36059341623/job/107834191124) | `1 passed in 3052.76s (0:50:52)` | 54/54 | 12/12 | None / None |
+| Hourly (`demo-evening-hourly`) | [107834192128](https://github.com/BashaarJavaid/Hirz/actions/runs/36059341623/job/107834192128) | `1 passed in 2400.91s (0:40:00)` | 54/54 | 12/12 | None / None |
+
+Each scenario retains five warmups and 100 measured calls per case: **5,400 gate
+samples**, plus 100 separate SDK references for each of two cases. There are no
+failing case or pooled-tool p95 values to list. All requested summary values were
+available; no artifact fallback was needed. Values below are copied from the job
+summary logs at their published three-decimal precision; the gate uses unrounded
+report values. Maximum samples remain visible even when greater than 250 ms.
+Private raw reports and household audit exports were not uploaded by the existing
+workflow, so no claim of locally retained CI raw arrays is made.
+
+**Time-of-Day.** Highest case p95: `objective-most_comfortable` **203.753 ms**; highest pooled-tool p95: `get_household_plan` **151.921 ms**.
+
+| Tool | n | Minimum ms | Median ms | p95 ms | Maximum ms | Gate |
+|---|---:|---:|---:|---:|---:|---|
+| `what_can_you_do` | 100 | 5.381 | 5.766 | 6.842 | 7.102 | PASS |
+| `get_household_context` | 200 | 12.718 | 14.851 | 17.403 | 88.861 | PASS |
+| `propose_household_rule` | 200 | 9.950 | 30.557 | 54.632 | 65.410 | PASS |
+| `get_household_plan` | 700 | 12.115 | 60.117 | 151.921 | 253.908 | PASS |
+| `explain_plan` | 400 | 27.332 | 30.068 | 35.339 | 42.715 | PASS |
+| `approve_action` | 700 | 30.730 | 35.128 | 124.970 | 199.995 | PASS |
+| `revise_household_plan` | 600 | 10.239 | 71.692 | 134.378 | 220.409 | PASS |
+| `execute_household_action` | 800 | 10.686 | 43.564 | 76.080 | 153.891 | PASS |
+| `evaluate_permission` | 100 | 22.070 | 24.098 | 27.204 | 31.004 | PASS |
+| `get_action_audit` | 400 | 13.351 | 15.670 | 38.395 | 49.118 | PASS |
+| `assess_request_risk` | 400 | 9.804 | 46.674 | 55.444 | 128.046 | PASS |
+| `verify_trusted_identity` | 800 | 9.845 | 13.144 | 72.164 | 89.172 | PASS |
+
+SDK references, excluded from the gate (100 raw and 100 SDK samples each):
+
+| Case | Raw median ms | Raw p95 ms | Raw maximum ms | SDK median ms | SDK p95 ms | SDK maximum ms |
+|---|---:|---:|---:|---:|---:|---:|
+| `onboarding` | 5.766 | 6.842 | 7.102 | 85.187 | 92.885 | 98.095 |
+| `context-all` | 15.196 | 17.469 | 19.630 | 98.953 | 112.798 | 144.884 |
+
+**Hourly.** Highest case p95: `revision-car` **215.672 ms**; highest pooled-tool p95: `revise_household_plan` **131.051 ms**.
+
+| Tool | n | Minimum ms | Median ms | p95 ms | Maximum ms | Gate |
+|---|---:|---:|---:|---:|---:|---|
+| `what_can_you_do` | 100 | 4.713 | 4.978 | 5.806 | 6.867 | PASS |
+| `get_household_context` | 200 | 10.807 | 11.787 | 13.305 | 14.666 | PASS |
+| `propose_household_rule` | 200 | 8.474 | 37.905 | 47.567 | 205.278 | PASS |
+| `get_household_plan` | 700 | 10.473 | 48.242 | 125.309 | 346.674 | PASS |
+| `explain_plan` | 400 | 22.621 | 23.799 | 33.282 | 178.515 | PASS |
+| `approve_action` | 700 | 25.492 | 28.217 | 101.686 | 364.979 | PASS |
+| `revise_household_plan` | 600 | 8.754 | 35.412 | 131.051 | 509.056 | PASS |
+| `execute_household_action` | 800 | 8.922 | 34.985 | 64.653 | 525.846 | PASS |
+| `evaluate_permission` | 100 | 18.206 | 19.179 | 22.726 | 34.460 | PASS |
+| `get_action_audit` | 400 | 10.995 | 12.390 | 34.284 | 44.472 | PASS |
+| `assess_request_risk` | 400 | 8.527 | 27.460 | 42.585 | 161.726 | PASS |
+| `verify_trusted_identity` | 800 | 8.539 | 10.543 | 55.755 | 223.237 | PASS |
+
+SDK references, excluded from the gate (100 raw and 100 SDK samples each):
+
+| Case | Raw median ms | Raw p95 ms | Raw maximum ms | SDK median ms | SDK p95 ms | SDK maximum ms |
+|---|---:|---:|---:|---:|---:|---:|
+| `onboarding` | 4.978 | 5.806 | 6.867 | 56.493 | 59.836 | 64.912 |
+| `context-all` | 11.925 | 14.089 | 14.666 | 67.383 | 70.548 | 78.178 |
+
+Completed logs are retained privately as `time-of-day.log` and `hourly.log`;
+extracted, count-checked summaries are `time-of-day-tables.json` and
+`hourly-tables.json`; run/job metadata are `latency-ci.json` and `latency-run.json`,
+all under `/tmp/hirz-item26b-fourth-step/`. GitHub's `gh run view --job --log`
+initially refused the completed Hourly job while the overall run remained active
+(`run 36059341623 is still in progress; logs will be available when it is complete`);
+the completed-job logs API supplied the data directly. This required no rerun.
+
+**Item 26b remains Deferred until the author reads this evidence, despite both
+scenario gates passing.** These are Linux CI runner, loopback HTTP, disposable
+PostgreSQL and twin results, not AWS cold start, real phone/security execution or
+Alexa end-to-end performance. No local full latency run was made. Development
+remains on 0005; Bedrock, the selection ledger and `AWSCLIV2.pkg` remain untouched.
+
+The records follow-up keeps both instruction files byte-identical, with a
+60-word Current phase, and leaves `tests/latency/test_tool_budget.py` unchanged.
+After CI, a second read-only development check again returned
+`development_revision=0005_execution_attempt`. `git diff --check` and
+`cmp CLAUDE.md AGENTS.md` passed; the final formatting check reported
+`238 files already formatted`. The complete task diff before this final evidence
+note was 11 files, 475 insertions and 25 deletions; runtime server code is unchanged.
