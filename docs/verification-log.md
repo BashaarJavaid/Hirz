@@ -6375,3 +6375,71 @@ Ruff and strict mypy passed again (152 source files).
 The author explicitly approved raising both existing isolated latency job limits
 from 60 to **75 minutes** after the Time-of-Day timeout. Only the timeout changes;
 all sample counts, signed-audit verification and the 250 ms gate remain intact.
+
+### Retained-history diagnosis after e6bd046 — 2026-09-23
+
+Commit `e6bd046b4888f1afceb1fc7fc595c720803250c5` was pushed to `phase-4`,
+starting [CI run 35951675477](https://github.com/BashaarJavaid/Hirz/actions/runs/35951675477).
+The following diagnosis uses the retained Time-of-Day baseline database in
+explicit read-only transactions; it changes neither benchmark records nor the
+development database.
+
+The retained home snapshot has **315 withdrawn constraints** and is **309,583
+bytes** using the diagnostic's standard JSON encoding. Across ten reads, median
+SQL fetch/JSON decode took **16.535251 ms** and snapshot validation **7.754813 ms**;
+PostgreSQL `EXPLAIN ANALYZE` measured **8.540 ms** server execution, including
+**6.667 ms** aggregating constraints. The parents snapshot was 2,819 bytes, with
+1.759355 ms median fetch and 0.156584 ms validation. Private plans and counts are
+`/tmp/hirz-item26-readonly-growth.jsonl`.
+
+Thirty repeated in-memory copies of the validated home snapshot measured median
+`deepcopy` **4.118980 ms**, JSON encode/decode **2.270125 ms**, and decoding a
+previously encoded JSON value **1.103937 ms**. Each decoded result equaled the
+original data. Pydantic's full snapshot JSON decode averaged 1.748039 ms.
+The private output is `/tmp/hirz-item26-snapshot-decode.txt`. These are diagnostic
+copy costs, not an end-to-end comparison or passing p95. No snapshot-cache change
+has been implemented; author approval was requested separately.
+
+The verified-control query on the latest retained plan took 2.194584 ms median
+over ten calls; its server plan took 0.132 ms and returned no controls, so that
+probe does not characterize an active plan with verified actions. An initial
+diagnostic selected nonexistent `plans.created_at` and failed before that query;
+the corrected script orders by the existing `audit_seq`. Private output:
+`/tmp/hirz-item26-growth-costs.txt`.
+
+### Approved JSON snapshot cache — 2026-09-23
+
+The author approved the [JSON snapshot-cache amendment](./adr/ADR-017-tool-latency-and-isolation.md#json-snapshot-cache-amendment--2026-09-23).
+The shared Pipeline stores the full validated data as standard-library JSON;
+cache hits decode a fresh dictionary and retain existing timestamp and revision
+checks. No graph row or returned field is removed.
+
+The focused pipeline/graph/refresh suite passed **135 tests in 3.38 seconds**;
+PostgreSQL storage tests passed **3 tests in 5.53 seconds**, covering signed
+lifecycle equivalence, mutation isolation, graph-write and transaction
+invalidation, including rollback. The first extended unit run had **1 failed,
+134 passed** because its reused constraint helper defaulted to an October deadline
+against a September snapshot. Supplying that fixture's two-hour horizon fixed
+the test without a production change. Ruff and strict mypy passed (152 files).
+
+An authenticated SDK approval diagnostic in a fresh disposable database measured
+**284.263500 ms** end to end, with **224.081 ms** in the handler, **58 SQL calls /
+123.574 ms**, and **17 snapshot calls / 8.331 ms**. Nested spans overlap. The private
+report is `/tmp/hirz-item26-json-cache-approval-spans.json`; the disposable database
+was dropped and development remained unchanged. This single diagnostic remains
+above 250 ms and establishes neither p95 nor a controlled improvement.
+
+The implemented `Pipeline.snapshot` cache also passed a read-only comparison
+against a fresh snapshot of the retained baseline database: all **315 withdrawn
+constraints** remained present and identical, mutations of the initial and reused
+copies did not affect subsequent reads, and thirty cache hits had median
+**1.122271 ms**. This isolates snapshot copying; it is not a tool latency result.
+
+Full verification used `HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run --locked pytest -q`
+followed by `HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run --locked pytest -m integration --cov=hirz --cov-append -q`:
+**1,418 passed, 141 deselected in 197.34 seconds**, then **139 passed, 1,420
+deselected in 281.65 seconds**. `uv run --locked coverage report --fail-under=80`
+passed at **93%** (12,142 statements, 887 misses). Private logs are
+`/tmp/hirz-item26-unit-json-cache.log` and
+`/tmp/hirz-item26-integration-json-cache.log`. Ruff and strict mypy passed again.
+These results do not close the still-unpassed full latency gate.

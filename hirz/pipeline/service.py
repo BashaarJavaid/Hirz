@@ -171,7 +171,7 @@ class Pipeline:
         self._refresh_command: dict[str, Any] | None = None
         self._memory_turn: Any = None
         self._household_command: dict[str, Any] | None = None
-        self._snapshot: tuple[int, datetime, ContextSnapshot] | None = None
+        self._snapshot: tuple[int, datetime, ContextSnapshot, str] | None = None
         self._members: tuple[int, dict[tuple[str, str, str], Requester]] | None = None
         self._refresh_fingerprint: tuple[int, str, dict[str, Any]] | None = None
 
@@ -179,8 +179,6 @@ class Pipeline:
         return table.c.household_id == self.household_id
 
     async def snapshot(self, at: datetime) -> ContextSnapshot:
-        from copy import deepcopy
-
         cached = self._snapshot
         if (
             self.repo._at is not None
@@ -189,7 +187,7 @@ class Pipeline:
             and at >= cached[1]
         ):
             return cached[2].model_copy(
-                update={"as_of": at, "read_at": at, "data": deepcopy(cached[2].data)}
+                update={"as_of": at, "read_at": at, "data": json.loads(cached[3])}
             )
         row = (
             (
@@ -214,7 +212,12 @@ class Pipeline:
             data=validate_snapshot(row["data"], self.household_id, at),
         )
         if self.repo._at is not None:
-            self._snapshot = (self.repo._revision, at, snapshot.model_copy(deep=True))
+            self._snapshot = (
+                self.repo._revision,
+                at,
+                snapshot.model_copy(update={"data": {}}),
+                json.dumps(snapshot.data),
+            )
         return snapshot
 
     async def requester(self, principal: Principal) -> Requester:

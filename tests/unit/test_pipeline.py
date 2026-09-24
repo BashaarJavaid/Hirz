@@ -1,6 +1,7 @@
 """Service-free pipeline precedence, canonicalization and fact selection."""
 
 import asyncio
+import json
 from copy import deepcopy
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
@@ -16,7 +17,7 @@ from sqlalchemy.dialects import postgresql
 from hirz.constitution.boundary import BoundaryResult
 from hirz.constitution.schema import Constitution, load
 from hirz.graph.context import ContextSnapshot
-from hirz.graph.models import ASSET_DOMAINS
+from hirz.graph.models import ASSET_DOMAINS, GraphError
 from hirz.graph.seeds import demo_id, read_seed
 from hirz.pipeline.audit import AuditWriter, PipelineError
 from hirz.pipeline.context import extract, quiet_hours
@@ -196,6 +197,72 @@ def test_usage_combines_scoped_decimal_sums():
         query = p.connection.scalar.await_args.args[0]
         assert "JOIN actions" in str(query)
         assert "RESERVATION_ADJUSTED" in query.compile().params.values()
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("seed", ["quinn-home", "quinn-parents"])
+def test_snapshot_json_cache_preserves_values_and_independent_copies(seed):
+    from tests.unit.test_graph import connection, raw_context
+
+    async def run():
+        fixture = read_seed(Path(f"constitutions/{seed}.yaml"))
+        data = raw_context(fixture)
+        if seed == "quinn-home":
+            from tests.unit.test_coordinator import requirement
+            from tests.unit.test_coordinator import snapshot as coordinator_snapshot
+
+            record = requirement(
+                "don't charge car past 40",
+                snap=coordinator_snapshot(AT),
+                end=AT + timedelta(hours=2),
+            )
+            data["constraints"].append(
+                record.model_dump(mode="json")
+                | dict(
+                    withdrawn_at=AT.isoformat(),
+                    withdrawn_seq=4,
+                    withdrawal_decision_seq=3,
+                    valid_from=AT.isoformat(),
+                    valid_to=None,
+                )
+            )
+        value = {"nested": [True, False, None, 1, 1.0, -0.0, 2**70, "家 🏠", {"x": []}]}
+        data["preferences"].append(
+            dict(
+                id=str(uuid4()),
+                household_id=str(fixture.household_id),
+                member_id=data["members"][0]["id"],
+                scope="member",
+                key="cache-equivalence-fixture",
+                value=value,
+                source="declared",
+                confidence=1.0,
+                valid_from=AT.isoformat(),
+                valid_to=None,
+            )
+        )
+        c = connection({"data": data})
+        p = Pipeline(c, Mock(household_id=fixture.household_id), Mock(), Mock())
+        p.repo._at = AT
+        first = await p.snapshot(AT)
+        expected = first.model_dump()
+        encoded = json.dumps(first.data)
+        first.data["preferences"][-1]["value"]["nested"][-1]["x"].append("changed")
+        later = AT + timedelta(seconds=1)
+        cached = await p.snapshot(later)
+        assert cached.model_dump() == expected | {"as_of": later, "read_at": later}
+        assert json.dumps(cached.data) == encoded
+        assert c.execute.await_count == 1
+        cached.data["preferences"].clear()
+        assert json.dumps((await p.snapshot(later)).data) == encoded
+        with pytest.raises(GraphError, match="outside the requested instant"):
+            await p.snapshot(AT - timedelta(seconds=1))
+        assert c.execute.await_count == 2
+        p.repo._at = None
+        fresh = await p.snapshot(later)
+        assert fresh.model_dump() == expected | {"as_of": later, "read_at": later}
+        assert c.execute.await_count == 3
 
     asyncio.run(run())
 

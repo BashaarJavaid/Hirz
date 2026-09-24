@@ -2,6 +2,7 @@
 
 import asyncio
 from collections import Counter
+from copy import deepcopy
 from dataclasses import replace
 from datetime import timedelta
 from decimal import Decimal
@@ -380,9 +381,12 @@ def test_snapshot_reuse_is_private_and_invalidated_by_write_and_transaction(
                     assert (await p.requester(alexa)).surface == "alexa"
                     assert len(member_reads) == 3
                     first = await p.snapshot(p.clock())
+                    expected = deepcopy(first.data)
                     first.data["households"].clear()
                     second = await p.snapshot(p.clock())
-                    assert second.data["households"] and len(reads) == 1
+                    assert second.data == expected and len(reads) == 1
+                    second.data["assets"].clear()
+                    assert (await p.snapshot(p.clock())).data == expected
                     action = governance(p, "pause_automation", {}, PRINCIPAL)
                     assert (
                         await p.mutate_locked(action, PRINCIPAL)
@@ -401,6 +405,14 @@ def test_snapshot_reuse_is_private_and_invalidated_by_write_and_transaction(
                     assert (await p.snapshot(p.clock())).data["households"][0][
                         "autonomy_paused"
                     ] is True
+                assert len(reads) == count + 1
+                with pytest.raises(RuntimeError, match="rollback cache fixture"):
+                    async with p.repo.write(p.clock):
+                        await p.snapshot(p.clock())
+                        raise RuntimeError("rollback cache fixture")
+                count = len(reads)
+                async with p.repo.write(p.clock):
+                    await p.snapshot(p.clock())
                 assert len(reads) == count + 1
             finally:
                 sa.event.remove(c.engine.sync_engine, "before_cursor_execute", observe)

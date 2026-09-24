@@ -1386,7 +1386,9 @@ The local gate times authenticated SDK calls over HTTP against disposable
 PostgreSQL: five warmups and 100 samples per case, nearest-rank p95, with both
 individual cases and pooled tools gated. Plan lifecycle writes retain individual
 signed events while batching SQL; Pipeline snapshot reuse is limited to one locked
-transaction and invalidated by graph writes. Policy fingerprints are memoized by
+transaction and invalidated by graph writes. Its validated data is stored as JSON
+and decoded into an independent copy on reuse, preserving the full context.
+Policy fingerprints are memoized by
 all input values, and identical validated narration is reused only within a
 scheduling batch. Identical refresh fingerprints and linked-member resolutions
 can be reused within the locked graph revision; verified-control reads and

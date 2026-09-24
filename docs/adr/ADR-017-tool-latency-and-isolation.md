@@ -209,6 +209,23 @@ within 60 minutes. Sample counts, signed-audit verification, private evidence
 handling and the 250 ms case/tool gate are unchanged; this extends only the time
 available to finish the measurement. It supersedes the earlier 60-minute limit.
 
+## JSON snapshot-cache amendment — 2026-09-23
+
+The author approved storing the validated transaction snapshot's data as a JSON
+string and decoding an independent dictionary on reuse. The existing standard
+library encoder/decoder preserves the full data, including withdrawn constraints;
+the cached metadata holds no caller-owned mutable data. Household ownership,
+graph-revision and transaction boundaries, backward-time refusal and refreshed
+read timestamps retain their existing behavior. Fresh reads still validate the
+database snapshot. No public context shape, history, authorization, audit row or
+250 ms threshold changes.
+
+Regressions compare fresh and cached values in both households, including nested
+mutable values, booleans, integers, floats, nulls, Unicode and a withdrawn
+constraint; PostgreSQL tests check write/transaction invalidation and rollback.
+Rejected dropping withdrawn constraints from context or sharing mutable cached
+objects with callers. Measurements and limits belong in the verification log.
+
 ## Rejected alternatives
 
 - Timing only onboarding/context, only handler functions, or only cached receipts
