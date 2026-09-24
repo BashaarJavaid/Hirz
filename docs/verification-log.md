@@ -5993,3 +5993,80 @@ coverage, lint and strict types are verified above. Only onboarding/context were
 timed; item 26, browser display modes, simulator harness and production/Amazon
 identity validation remain with their existing owners. No Amazon certification
 is claimed. The Bedrock budget ledger and developer database were unchanged.
+
+## Item 26 — 2026-09-23
+
+### Initial implementation and regression run — 2026-09-23
+
+**Partial; latency and CI completion are not claimed.** Protocol and author-approved
+fixture/performance/CI decisions are in [ADR-017](./adr/ADR-017-tool-latency-and-isolation.md).
+The working tree was based on `85475a17ce69bf421771cd6529b9f3c7a36d8453` on `phase-4`.
+The local environment was macOS 15.7.3 arm64, Python 3.12.13, MCP SDK 1.30.0,
+SQLAlchemy 2.0.54, psycopg 3.3.5 and SciPy 1.18.0, with local PostgreSQL and native
+Dogwood. No paid model calls or development-database migration were performed.
+
+- `uv run --locked pytest -q --cov-report=term:skip-covered --tb=short`:
+  **1,402 passed, 133 deselected** in 136.84 seconds.
+- `uv run --locked pytest -m integration --cov=hirz --cov-append --cov-report=term:skip-covered --tb=short -q`:
+  **132 passed, 1,403 deselected** in 316.46 seconds.
+- `uv run --locked coverage report --fail-under=80 --format=total`: **92**, exit 0;
+  the combined report counted 12,026 statements and 903 misses.
+- Ruff lint, formatting and strict mypy passed (151 checked source files).
+- The dedicated storage regressions exercise batch rollback, one signed lifecycle
+  event per action, scheduling without device grants, overlapping bounded-opening
+  refusal, snapshot mutation isolation and invalidation on writes/transactions.
+
+The integration isolation report passed **177 primary checks**, including **20
+concurrent rounds**, plus **10 symmetric foreign-reference checks** using the
+explicitly labeled disposable home copy. Restart assertions also passed. Independent
+signed exports verified **333 home + 76 parents + 138 disposable-copy rows = 547**.
+The database held 365 action rows, two plans, 61 tool receipts and two verification
+cases. Private evidence was copied to `/tmp/hirz-item26-isolation-regression-01`;
+report SHA-256 `88cb02af13894371825200d0d584c034277545c2d21f6c76878d8021640e830b`.
+No household payloads or exports are committed.
+
+The first full latency attempt retained `/tmp/hirz-item26-latency-01/report.json`
+and disposable database `hirz_ha_smoke_334450b8f73141bfafb7b3a1387d0da2` after a
+warmup-round-2 failure. The runner had proposed, rather than committed, its resume
+cleanup. It was corrected to redeem the real Pipeline action and assert the stored
+unpaused state. Two consecutive diagnostic rounds then passed. No measured sample
+was collected in the failed attempt, so it supplies no p95 evidence. Later isolated
+diagnostic approval samples remained approximately 0.47–0.52 seconds; these are
+individual samples, not a passed latency gate. Further optimization/verification
+is still owed; the threat-model row remains Planned.
+
+### Approved internal optimizations and equivalence checks — 2026-09-23
+
+The refresh-read, pure-work and transaction-reuse amendments are recorded in
+[ADR-017](./adr/ADR-017-tool-latency-and-isolation.md). No migration, dependency,
+public contract, paid call or latency-threshold change was introduced.
+
+- After policy fingerprint memoization and scheduling-narration reuse,
+  `uv run --locked pytest tests/unit/test_pipeline.py tests/unit/test_refresh.py tests/unit/test_explainer.py --no-cov`
+  passed **173 tests** in 4.13 seconds. A first test attempt incorrectly tried to
+  assign a frozen constitution field; replacing the test model corrected it.
+- The PostgreSQL storage/refresh checks passed **17 tests** in 44.69 seconds;
+  each scheduling decision and signed payload matched independently prepared
+  narration. Coverage was subsequently extended to differing narration contexts.
+- Two complete diagnostic SDK lifecycles passed their behavior assertions, but
+  approval took **370.0575 ms and 581.688667 ms**. These are individual diagnostic
+  observations, not warm p95 evidence. The gate remained unpassed.
+- After the additionally approved transaction-scoped fingerprint/member reuse,
+  `uv run --locked pytest tests/unit/test_refresh.py tests/unit/test_pipeline.py --no-cov`
+  passed **93 tests** in 3.51 seconds. Mutation checks include observations,
+  runtime thresholds, policy and verified-control parameters; returned cached
+  data cannot mutate later results, and verified-control reads still occur.
+- `uv run --locked pytest tests/integration/test_tool_budget_storage.py tests/integration/test_refresh_database.py -m integration --no-cov`
+  passed **17 tests** in 44.95 seconds, including linked-account/surface separation,
+  graph-write and transaction invalidation, narration-context separation and
+  independently regenerated scheduling output. Ruff and strict mypy passed
+  (151 source files).
+
+The independent checker was also run with Node 24 explicitly selected through
+`PATH=/opt/homebrew/opt/node@24/bin:$PATH`, `HIRZ_LLM=off`, native Dogwood and
+`scripts/smoke_household_tools.py --audit-output /tmp/hirz-item26-conformance-node24-01.json --conformance-cli ../addon-check/dist/cli.js`.
+It reported **117 PASS, 0 FAIL, complete=true**, with **611 signed rows** verified
+offline. Its disposable database was dropped and development was unchanged.
+This run preceded the final transaction-reuse amendment; it establishes tool
+contract compatibility at that point, not final item-26 completion. The full
+latency gate and final CI evidence remain owed.

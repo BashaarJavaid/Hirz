@@ -2,6 +2,7 @@
 
 import asyncio
 from copy import deepcopy
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -497,6 +498,19 @@ def test_binding_strength_and_bundle_integrity():
 
     async def run():
         p = await pipeline()
+        original = p.bundle.policy()
+        assert p.bundle.policy() == original
+        assert p.bundle.policy() is not original
+        original = original.model_copy(update={"version": original.version + 1})
+        assert p.bundle.policy().version != original.version
+        for changed in (
+            replace(p.bundle, policy_json=original.model_dump_json()),
+            replace(p.bundle, compiled=replace(p.bundle.compiled, policy="changed")),
+            replace(p.bundle, compiled=replace(p.bundle.compiled, schema="changed")),
+            replace(p.bundle, fingerprint="changed"),
+        ):
+            with pytest.raises(PipelineError, match="changed after validation"):
+                changed.policy()
         p.bundle.compiled.manifest["version"] = 100
         with pytest.raises(PipelineError):
             p.bundle.policy()

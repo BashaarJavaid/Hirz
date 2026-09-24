@@ -256,11 +256,61 @@ jobs:
 
   latency:
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        scenario: [demo-evening, demo-evening-hourly]
+    env:
+      HIRZ_LLM: "off"
+      HIRZ_BUDGET_SCENARIO: ${{ matrix.scenario }}
+      COMPOSE_PROJECT_NAME: hirz-latency-${{ matrix.scenario }}-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
-      - name: Phase 0 placeholder — MCP latency suite not implemented
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version: "0.12.15"
+          enable-cache: false
+      - run: uv python install
+      - run: uv sync --locked
+      - name: Build pinned native Dogwood
         run: |
-          echo 'DEFERRED: No latency budget was measured or enforced. Phase 4 adds MCP tool checks; item 38 adds AWS latency and cold-start measurements.' | tee -a "$GITHUB_STEP_SUMMARY"
+          rustup toolchain install 1.98.1 --profile minimal
+          RUSTUP_TOOLCHAIN=1.98.1 uv run --locked python scripts/build_dogwood.py
+          echo "HIRZ_DOGWOOD=$PWD/.tools/dogwood" >> "$GITHUB_ENV"
+      - name: Initialize isolated local services
+        run: |
+          uv run --locked python scripts/init_dev.py
+          docker compose -f compose.dev.yml up -d --wait postgres
+      - name: All twelve tools, every case at warm p95 <= 250 ms
+        run: HIRZ_BUDGET_ARTIFACTS="$RUNNER_TEMP/tool-budget" uv run --locked pytest tests/latency -m latency --no-cov -s
+      - name: Payload-free timing summary
+        if: always()
+        run: |
+          python - <<'PYTHON'
+          import json, os
+          from pathlib import Path
+          path = Path(os.environ["RUNNER_TEMP"]) / "tool-budget" / os.environ["HIRZ_BUDGET_SCENARIO"] / "report.json"
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              if not path.exists():
+                  print("No completed timing report; item 26 gate did not pass.", file=summary)
+              else:
+                  report = json.loads(path.read_text())
+                  print("Local tool budget: " + report["status"], file=summary)
+                  for scenario, result in report["scenarios"].items():
+                      for tool, stats in result.get("latency", {}).get("tools", {}).items():
+                          print(f"{scenario} / {tool}: n={stats['count']}, p95={stats['p95_ms']:.3f} ms, max={stats['max_ms']:.3f} ms", file=summary)
+                  print("Five warmups and 100 measured calls per case; nearest-rank p95; no discarded samples. Local twin evidence, not AWS cold start. Private evidence is not uploaded.", file=summary)
+          PYTHON
+      - name: Remove only this runner's services and credentials
+        if: always()
+        run: |
+          trap 'rm -f .env' EXIT
+          if [ -f .env ]; then
+            docker compose -f compose.dev.yml down --volumes --remove-orphans
+          fi
 
   cedar-conform:
     runs-on: ubuntu-24.04

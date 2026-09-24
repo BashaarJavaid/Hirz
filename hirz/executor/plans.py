@@ -10,8 +10,8 @@ import sqlalchemy as sa
 from hirz import db
 from hirz.executor.contracts import expired, validate
 from hirz.executor.runtime import RuntimeInputs
-from hirz.executor.storage import notice, scheduled, transition
-from hirz.explainer.core import context, prepared
+from hirz.executor.storage import check_overlaps, notice, transition, transition_many
+from hirz.explainer.core import Context, context, decision_context, facts, prepared
 from hirz.pipeline.hashing import action_hash, digest
 from hirz.pipeline.models import (
     Action,
@@ -402,34 +402,45 @@ async def stop_unstarted(
         .mappings()
         .all()
     )
-    for current in rows:
-        action_id = current["action_id"]
-        if current["execution_status"] != "skipped":
-            await transition(p, action_id, status, event, plan_id=plan_id)
-        if action_id == preserve_approval_for:
-            continue
-        approvals = (
-            (
-                await p.connection.execute(
-                    sa.select(db.approvals).where(
-                        p.scope(db.approvals),
-                        db.approvals.c.action_id == action_id,
-                        db.approvals.c.status.in_(["pending", "approved"]),
-                    )
+    await transition_many(
+        p,
+        tuple(r["action_id"] for r in rows if r["execution_status"] != "skipped"),
+        status,
+        event,
+        plan_id=plan_id,
+    )
+    action_ids = [
+        r["action_id"] for r in rows if r["action_id"] != preserve_approval_for
+    ]
+    approvals = tuple(
+        (
+            await p.connection.execute(
+                sa.select(db.approvals.c.approval_id).where(
+                    p.scope(db.approvals),
+                    db.approvals.c.action_id.in_(action_ids),
+                    db.approvals.c.status.in_(["pending", "approved"]),
                 )
             )
-            .mappings()
-            .all()
+        ).scalars()
+    )
+    if approvals:
+        await p.audit.append_many(
+            p.connection,
+            p.household_id,
+            tuple(
+                (
+                    p.clock(),
+                    EventType.EXPIRED,
+                    {"approval_id": approval_id, "reason": event.value},
+                )
+                for approval_id in approvals
+            ),
         )
-        for approval in approvals:
-            await p.status(dict(approval), "expired")
-            await p.audit.append(
-                p.connection,
-                p.household_id,
-                p.clock(),
-                EventType.EXPIRED,
-                {"approval_id": approval["approval_id"], "reason": event.value},
-            )
+        await p.connection.execute(
+            db.approvals.update()
+            .where(p.scope(db.approvals), db.approvals.c.approval_id.in_(approvals))
+            .values(status="expired")
+        )
 
 
 async def await_approval(p: "Pipeline", action: Action, decision: Decision) -> None:
@@ -774,43 +785,113 @@ async def commit_mutation(
     from hirz.executor.budget import allocate
 
     await allocate(p, stored, action.params["budget_action"])
-    missed = False
-    for action_id in plan.actions:
-        raw = await p.connection.scalar(
-            sa.select(db.actions.c.proposal).where(
-                p.scope(db.actions), db.actions.c.action_id == action_id
+    proposals = {
+        r["action_id"]: dict(r)
+        for r in (
+            await p.connection.execute(
+                sa.select(db.actions).where(
+                    p.scope(db.actions), db.actions.c.action_id.in_(plan.actions)
+                )
             )
-        )
-        a = Action.model_validate(raw).model_copy(
+        ).mappings()
+    }
+    actions = tuple(
+        Action.model_validate(proposals[action_id]["proposal"]).model_copy(
             update={"requested_by": member.model_copy(update={"surface": "scheduler"})}
         )
-        await p.connection.execute(
-            db.actions.update()
-            .where(p.scope(db.actions), db.actions.c.action_id == action_id)
-            .values(
-                proposal=a.model_dump(mode="json", by_alias=True),
-                principal=identity(scheduler),
-            )
-        )
-        if expired(a, p.clock()):
-            await transition(
-                p,
-                action_id,
-                "skipped",
-                EventType.EXECUTION_CANCELLED,
-                reason="expired before consent",
-            )
-            missed = True
-            continue
-        # Consent schedules work; it grants no device permission and clears no device ASK.
+        for action_id in plan.actions
+    )
+    missed = False
+    await check_overlaps(p, tuple(a for a in actions if not expired(a, p.clock())))
+    # All device permissions remain in the worker. Batch only the already
+    # authorized plan's scheduling rows; retain one signed event per action.
+    events = []
+    changes = []
+    narrations: list[tuple[tuple[Context, dict[str, Any]], Decision]] = []
+    for a in actions:
+        previous = proposals[a.action_id]
+        at = p.clock()
+        stale = expired(a, at)
+        missed |= stale
         queued = decision.model_copy(
             update={
-                "action_id": action_id,
+                "action_id": a.action_id,
                 "event_type": EventType.EXECUTE,
                 "audit_id": None,
+                "status": "executing",
+                "speakable": {"headline": "Your request is queued."},
             }
         )
-        await scheduled(p, a, queued, None)
+        ctx = await decision_context(p, a)
+        inputs = (ctx, facts(queued, ctx))
+        cached = next((prior for key, prior in narrations if key == inputs), None)
+        if cached is None:
+            queued = prepared(queued, ctx)
+            narrations.append((inputs, queued))
+        else:
+            queued = queued.model_copy(
+                update={"speakable": cached.speakable, "narration": cached.narration}
+            )
+        document = queued.model_dump(mode="json", by_alias=True)
+        status = "skipped" if stale else "scheduled"
+        events.append(
+            (
+                at,
+                EventType.EXECUTION_CANCELLED if stale else EventType.SCHEDULED,
+                {
+                    "action_id": a.action_id,
+                    "status": status,
+                    **(
+                        {"reason": "expired before consent"}
+                        if stale
+                        else {"decision": document}
+                    ),
+                },
+            )
+        )
+        changes.append(
+            (
+                a.action_id,
+                a.model_dump(mode="json", by_alias=True),
+                identity(scheduler),
+                status,
+                (previous["due_at"] or sa.cast(sa.null(), db.actions.c.due_at.type))
+                if stale
+                else a.scheduled_for or at,
+                (
+                    previous["lifecycle"]
+                    if previous["lifecycle"] is not None
+                    else sa.cast(sa.null(), db.actions.c.lifecycle.type)
+                )
+                if stale
+                else {
+                    "decision": document,
+                    "approval_id": None,
+                    "member_id": a.requested_by.member_id,
+                    "retry": 0,
+                },
+            )
+        )
+    sequences = await p.audit.append_many(p.connection, p.household_id, tuple(events))
+    if changes:
+        columns = (
+            "action_id",
+            "proposal",
+            "principal",
+            "execution_status",
+            "due_at",
+            "lifecycle",
+            "lifecycle_seq",
+        )
+        values = sa.values(
+            *(sa.column(name, db.actions.c[name].type) for name in columns),
+            name="scheduled_changes",
+        ).data([(*change, seq) for change, seq in zip(changes, sequences, strict=True)])
+        await p.connection.execute(
+            db.actions.update()
+            .where(p.scope(db.actions), db.actions.c.action_id == values.c.action_id)
+            .values({name: values.c[name] for name in columns if name != "action_id"})
+        )
     if missed:
         from hirz.executor.refresh import queue
 

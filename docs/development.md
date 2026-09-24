@@ -1251,3 +1251,40 @@ npm's lockfile and native Dogwood. It initializes and cleans up only its runner'
 Compose project. The checker measures two tools; the full tool latency/isolation
 suite remains item 26. See the [evidence log](./verification-log.md#item-25a--2026-09-23)
 for publication state and actual runs.
+
+## Authenticated tool budget and isolation (item 26)
+
+[ADR-017](./adr/ADR-017-tool-latency-and-isolation.md) owns the approved protocol.
+Use the existing local PostgreSQL service, `.env` and native Dogwood. The runner
+creates disposable databases and starts loopback OAuth/MCP and separate worker
+processes. Bedrock stays off; development migrations remain manual.
+
+```sh
+HIRZ_LLM=off HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run --locked python scripts/smoke_tool_budget.py \
+  --mode all --artifacts-dir /private/tmp/hirz-tool-budget-NEW
+uv run --locked pytest tests/latency -m latency --no-cov -s
+uv run --locked pytest tests/integration/test_mcp_isolation.py -m integration --no-cov
+```
+
+The CLI requires a new artifact directory; `--mode latency` or `--mode isolation`
+runs one gate separately. `all` is the default. Run latency without competing test
+or benchmark processes. The explicit `latency` marker excludes it from the normal
+suite and coverage; never omit `--no-cov` from a timing run. Set
+`HIRZ_BUDGET_ARTIFACTS` to a new parent directory to retain pytest reports in one
+subdirectory per energy scenario. CI sets `HIRZ_BUDGET_SCENARIO` to select one of
+`demo-evening` or `demo-evening-hourly` in each isolated 60-minute matrix job;
+the default pytest invocation and CLI still cover both.
+
+Private mode-0600 reports and signed audit exports live in a mode-0700 directory.
+The report retains all raw samples, per-case/per-tool summaries, local interaction
+and startup observations, software/platform information and row counts. Partial
+samples survive an assertion failure. Failed disposable databases remain available
+for diagnosis; successful runs drop only their disposable databases. Never upload
+these household reports or exports as public CI artifacts. The dedicated CI job
+publishes a payload-free timing summary and cleans up its own services.
+
+The parents fixture remains unchanged in capability. The additional explicitly
+labeled disposable home copy exists only for symmetric foreign plan, constraint
+and approval probes. All runtime records use Pipeline. These gates concern local
+authenticated tools and simulated devices; AWS cold start, production linking,
+Alexa voice latency and real phone/security execution remain separate work.

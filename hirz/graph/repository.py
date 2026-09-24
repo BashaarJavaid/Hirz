@@ -80,6 +80,7 @@ class GraphRepository:
         self.household_id = household_id
         self._at: datetime | None = None
         self._changed = False
+        self._revision = 0
 
     @asynccontextmanager
     async def write(self, clock: Callable[[], datetime] = now) -> AsyncIterator[None]:
@@ -98,6 +99,7 @@ class GraphRepository:
                 },
             )
             self._at = utc(clock())
+            self._revision += 1
             self._changed = False
             try:
                 yield
@@ -111,6 +113,7 @@ class GraphRepository:
                     )
             finally:
                 self._at = None
+                self._revision += 1
                 self._changed = False
 
     def _where(self, name: str, key: dict[str, Any]) -> sa.ColumnElement[bool]:
@@ -252,6 +255,7 @@ class GraphRepository:
                 .values(**values, valid_from=self._at)
             )
         self._changed = True
+        self._revision += 1
         return True
 
     async def _require_zone(self, zone_id: UUID) -> None:

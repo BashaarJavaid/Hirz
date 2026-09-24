@@ -1382,6 +1382,20 @@ Alexa+ requires < 500 ms round trip. Budget per tool call on the AWS path, measu
 
 Things that never run inside a tool call: the MILP planner, Bedrock calls, the Gateway call (stage 7 runs in the worker at execution time, §5.6), adapter network calls to third parties (state is read from `observations`, refreshed by the worker's polls and Hirz Link's observation stream), and Cedar compilation. `tests/latency/test_tool_budget.py` fails the build if any tool's warm p95 over the scenario corpus exceeds 250 ms locally.
 
+The local gate times authenticated SDK calls over HTTP against disposable
+PostgreSQL: five warmups and 100 samples per case, nearest-rank p95, with both
+individual cases and pooled tools gated. Plan lifecycle writes retain individual
+signed events while batching SQL; Pipeline snapshot reuse is limited to one locked
+transaction and invalidated by graph writes. Policy fingerprints are memoized by
+all input values, and identical validated narration is reused only within a
+scheduling batch. Identical refresh fingerprints and linked-member resolutions
+can be reused within the locked graph revision; verified-control reads and
+authorization checks still run. The separate isolation integration
+test exercises both household directions, concurrent requests and restart.
+[ADR-017](./docs/adr/ADR-017-tool-latency-and-isolation.md) defines the corpus,
+fixture exception and evidence scope; [development procedures](./docs/development.md#authenticated-tool-budget-and-isolation-item-26)
+own the commands.
+
 **Cold start is outside the budget and is reported, not hidden.** The first Alexa call after an idle gap creates a new Runtime session (a fresh microVM) and pays a cold start measured in seconds; Alexa's 500 ms requirement cannot be met on that call by any design on this host. Mitigations: a small image, lazy imports of the planner and Bedrock clients, a warm Postgres pool, and `idleRuntimeSessionTimeout` raised toward its maximum for the demo window. `tests/latency` reports cold-start time separately from warm p95, and the measured figure goes in `docs/friction-log.md`.
 
 ---
@@ -1486,8 +1500,11 @@ The add-on conformance job runs the full-SHA-pinned independent `addon-check`
 through the twelve-tool disposable smoke with `--require-complete`, Node 24,
 locked dependencies and native Dogwood ([ADR-016](./docs/adr/ADR-016-add-on-conformance-checker.md)).
 Only onboarding/context are timed; item 26 owns full latency/isolation.
-The latency and release jobs remain explicit successful placeholders. Their logs and job summaries name the
-deferred work; TypeScript tests and build also disclose absent browser tests
+The latency job runs the local authenticated gate without coverage instrumentation,
+with a payload-free summary and no private artifact upload. Local startup and
+worker interaction observations are reported separately; AWS cold-start evidence
+remains item 38. The release job remains an explicit successful placeholder;
+TypeScript tests and build also disclose absent browser tests
 and frontend bundles. The release placeholder runs on every event and publishes
 nothing. Green scaffold CI does not establish any of these future guarantees.
 Phase 0 item 4 is verified (2026-09-17): all eleven jobs passed in

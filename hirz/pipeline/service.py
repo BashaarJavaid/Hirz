@@ -1,14 +1,17 @@
 """Internal deterministic pipeline and local single-attempt HA execution claims."""
 
+import json
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from decimal import Decimal
+from functools import lru_cache
 from typing import Any, cast
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
+import rfc8785
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncConnection
 
@@ -48,6 +51,21 @@ from hirz.risk.engine import RiskFacts, score
 log = logging.getLogger(__name__)
 
 
+@lru_cache
+def _bundle_fingerprint(
+    policy: str, compiled: str, schema: str, manifest: bytes
+) -> str:
+    """Memoize only immutable input values; every changed value gets rehashed."""
+    return digest(
+        {
+            "policy": json.loads(policy),
+            "compiled": compiled,
+            "schema": schema,
+            "manifest": json.loads(manifest),
+        }
+    )
+
+
 @dataclass(frozen=True)
 class PolicyBundle:
     household_id: UUID
@@ -78,13 +96,11 @@ class PolicyBundle:
 
     def policy(self) -> Constitution:
         policy = Constitution.model_validate_json(self.policy_json)
-        if self.fingerprint != digest(
-            {
-                "policy": policy.model_dump(mode="json"),
-                "compiled": self.compiled.policy,
-                "schema": self.compiled.schema,
-                "manifest": self.compiled.manifest,
-            }
+        if self.fingerprint != _bundle_fingerprint(
+            policy.model_dump_json(),
+            self.compiled.policy,
+            self.compiled.schema,
+            rfc8785.dumps(wire(self.compiled.manifest)),
         ):
             raise PipelineError("Policy bundle changed after validation")
         return policy
@@ -155,11 +171,28 @@ class Pipeline:
         self._refresh_command: dict[str, Any] | None = None
         self._memory_turn: Any = None
         self._household_command: dict[str, Any] | None = None
+        self._snapshot: tuple[int, datetime, ContextSnapshot] | None = None
+        self._members: tuple[int, dict[tuple[str, str, str], Requester]] | None = None
+        self._refresh_fingerprint: tuple[int, dict[str, Any], dict[str, Any]] | None = (
+            None
+        )
 
     def scope(self, table: sa.Table) -> sa.ColumnElement[bool]:
         return table.c.household_id == self.household_id
 
     async def snapshot(self, at: datetime) -> ContextSnapshot:
+        from copy import deepcopy
+
+        cached = self._snapshot
+        if (
+            self.repo._at is not None
+            and cached
+            and cached[0] == self.repo._revision
+            and at >= cached[1]
+        ):
+            return cached[2].model_copy(
+                update={"as_of": at, "read_at": at, "data": deepcopy(cached[2].data)}
+            )
         row = (
             (
                 await self.connection.execute(
@@ -172,7 +205,7 @@ class Pipeline:
         )
         if row is None:
             raise PipelineError("Household unavailable")
-        return ContextSnapshot(
+        snapshot = ContextSnapshot(
             household_id=self.household_id,
             scope="all",
             as_of=at,
@@ -182,9 +215,22 @@ class Pipeline:
             policy_status="unvalidated",
             data=validate_snapshot(row["data"], self.household_id, at),
         )
+        if self.repo._at is not None:
+            self._snapshot = (self.repo._revision, at, snapshot.model_copy(deep=True))
+        return snapshot
 
     async def requester(self, principal: Principal) -> Requester:
-        return await resolve_member(self.connection, self.household_id, principal)
+        if self.repo._at is None:
+            return await resolve_member(self.connection, self.household_id, principal)
+        if self._members is None or self._members[0] != self.repo._revision:
+            self._members = (self.repo._revision, {})
+        members = self._members[1]
+        key = (principal.provider, principal.sub, principal.surface)
+        if key not in members:
+            members[key] = await resolve_member(
+                self.connection, self.household_id, principal
+            )
+        return members[key].model_copy(deep=True)
 
     async def usage(self, name: str, local_date: str) -> Decimal:
         budget = db.audit_log.c.payload["budget"]

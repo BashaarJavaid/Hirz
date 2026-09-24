@@ -1,5 +1,6 @@
 """Durable refresh requests and generation-checked lifecycle in Pipeline transactions."""
 
+from copy import deepcopy
 from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
@@ -161,6 +162,17 @@ async def owned_control(
     )
     if not binding:
         return False
+    return await _matches_control(
+        p,
+        observation,
+        binding["attributes"],
+        await _verified_controls(p, observation.observed_at),
+        since=since,
+        previous_mode=previous_mode,
+    )
+
+
+async def _verified_controls(p: "Pipeline", at: datetime) -> list[dict[str, Any]]:
     rows = (
         (
             await p.connection.execute(
@@ -175,22 +187,36 @@ async def owned_control(
                 .where(
                     p.scope(db.actions),
                     db.actions.c.execution_status == "verified",
-                    db.audit_log.c.created_at <= observation.observed_at,
+                    db.audit_log.c.created_at <= at,
                 )
             )
         )
         .mappings()
         .all()
     )
+    return [dict(row) for row in rows]
+
+
+async def _matches_control(
+    p: "Pipeline",
+    observation: Any,
+    binding: dict[str, Any],
+    rows: list[dict[str, Any]],
+    *,
+    since: datetime | None = None,
+    previous_mode: str | None = None,
+) -> bool:
     controls = observation.state.model_dump()
     for row in rows:
         target = row["proposal"]["target"]
         if (
-            target["adapter"] != binding["attributes"]["adapter"]
-            or target["entity"] != binding["attributes"]["entity_id"]
+            target["adapter"] != binding["adapter"]
+            or target["entity"] != binding["entity_id"]
         ):
             continue
-        if since is not None and row["created_at"] < since:
+        if row["created_at"] > observation.observed_at or (
+            since is not None and row["created_at"] < since
+        ):
             continue
         params = row["proposal"]["params"]
         if row["proposal"]["class"] == "energy.appliance_start":
@@ -266,6 +292,26 @@ async def applied_controls(
 async def fingerprint(p: "Pipeline", stored: dict[str, Any]) -> dict[str, Any]:
     snapshot = await p.snapshot(p.clock())
     data: Any = snapshot.data
+    bound = {(b["adapter"], b["entity_id"]) for b in data["asset_bindings"]}
+    applied = (
+        tuple(
+            (at, a)
+            for at, a in await applied_controls(p, stored)
+            if (a.target.adapter, a.target.entity) in bound
+        )
+        if stored["runtime"]
+        else ()
+    )
+    policy = p.bundle.policy().model_dump(mode="json")
+    inputs = dict(data=data, runtime=stored["runtime"], applied=applied, policy=policy)
+    cached = p._refresh_fingerprint
+    if (
+        p.repo._at is not None
+        and cached is not None
+        and cached[0] == p.repo._revision
+        and cached[1] == inputs
+    ):
+        return deepcopy(cached[2])
     structural = {}
     for name in (
         "households",
@@ -288,16 +334,6 @@ async def fingerprint(p: "Pipeline", stored: dict[str, Any]) -> dict[str, Any]:
         ]
     runtime = (
         RuntimeInputs.model_validate(stored["runtime"]) if stored["runtime"] else None
-    )
-    bound = {(b["adapter"], b["entity_id"]) for b in data["asset_bindings"]}
-    applied = (
-        tuple(
-            (at, a)
-            for at, a in await applied_controls(p, stored)
-            if (a.target.adapter, a.target.entity) in bound
-        )
-        if runtime
-        else ()
     )
     bindings = {str(b["asset_id"]): b["entity_id"] for b in data["asset_bindings"]}
     samples = {}
@@ -366,12 +402,15 @@ async def fingerprint(p: "Pipeline", stored: dict[str, Any]) -> dict[str, Any]:
             samples[key]["deviation"] = {
                 k: v for k, v in state.items() if v is not None
             }
-    return {
+    result = {
         "graph": digest(structural),
-        "policy": digest(p.bundle.policy().model_dump(mode="json")),
+        "policy": digest(policy),
         "samples": samples,
         "inputs": digest(stored["runtime"]),
     }
+    if p.repo._at is not None:
+        p._refresh_fingerprint = (p.repo._revision, deepcopy(inputs), deepcopy(result))
+    return result
 
 
 async def compensate_owned_controls(
@@ -381,12 +420,27 @@ async def compensate_owned_controls(
     from hirz.planner.coordinator import clean
 
     snapshot = await p.snapshot(p.clock())
-    for raw in snapshot.data["observations"]:
-        obs = Observation.model_validate(clean(raw))
+    observations = tuple(
+        Observation.model_validate(clean(raw))
+        for raw in snapshot.data["observations"]
+        if raw.get("asset_id")
+    )
+    if not observations:
+        return
+    assets = {str(o.asset_id) for o in observations}
+    relevant = [
+        b for b in snapshot.data["asset_bindings"] if str(b["asset_id"]) in assets
+    ]
+    bindings = {str(b["asset_id"]): b for b in relevant}
+    if len(bindings) != len(relevant):
+        raise ValueError("Ambiguous asset binding")
+    rows = await _verified_controls(p, max(o.observed_at for o in observations))
+    for obs in observations:
         key = str(obs.asset_id)
         previous_sample = previous.get("samples", {}).get(key, {})
-        if obs.asset_id and await owned_control(
-            p, obs, previous_mode=previous_sample.get("mode")
+        binding = bindings.get(key)
+        if binding and await _matches_control(
+            p, obs, binding, rows, previous_mode=previous_sample.get("mode")
         ):
             for field in ("charging", "dispatch_kw", "on", "mode", "target_f"):
                 if field in current["samples"].get(key, {}):

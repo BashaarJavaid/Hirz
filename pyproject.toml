@@ -48,8 +48,11 @@ files = ["hirz", "scripts", "alembic"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-m 'not integration' --cov=hirz --cov-report=term-missing"
-markers = ["integration: requires local Postgres; creates only a disposable test database"]
+addopts = "-m 'not integration and not latency' --cov=hirz --cov-report=term-missing"
+markers = [
+    "integration: requires local Postgres; creates only a disposable test database",
+    "latency: authenticated disposable PostgreSQL benchmark; run explicitly without coverage",
+]
 
 [dependency-groups]
 dev = [

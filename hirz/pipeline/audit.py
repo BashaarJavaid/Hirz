@@ -39,6 +39,20 @@ class AuditWriter:
         event: EventType,
         payload: dict[str, Any] | Decision,
     ) -> int:
+        return (
+            await self.append_many(connection, household_id, ((at, event, payload),))
+        )[0]
+
+    async def append_many(
+        self,
+        connection: AsyncConnection,
+        household_id: UUID,
+        events: tuple[tuple[datetime, EventType, dict[str, Any] | Decision], ...],
+    ) -> tuple[int, ...]:
+        """Sign every row in order; amortize SQL under the same household lock."""
+        if not events:
+            return ()
+        at = events[0][0]
         # The caller already owns the graph transaction lock, before this row lock.
         pointer = (
             (
@@ -82,33 +96,44 @@ class AuditWriter:
                 )
             ):
                 raise PipelineError("Invalid audit pointer or incompatible signing key")
-        if isinstance(payload, Decision):
-            payload = payload.model_copy(update={"audit_id": seq}).model_dump(
-                mode="json", by_alias=True
+        rows = []
+        sequences = []
+        previous_at = at
+        for at, event, payload in events:
+            if at < previous_at:
+                raise PipelineError("Audit batch timestamps must be ordered")
+            if isinstance(payload, Decision):
+                payload = payload.model_copy(update={"audit_id": seq}).model_dump(
+                    mode="json", by_alias=True
+                )
+            envelope = dict(
+                household_id=str(household_id),
+                seq=seq,
+                event_type=event.value,
+                payload=wire(payload),
+                prev_hash=previous,
+                key_fingerprint=self.fingerprint,
+                created_at=timestamp(at),
             )
-        envelope = dict(
-            household_id=str(household_id),
-            seq=seq,
-            event_type=event.value,
-            payload=wire(payload),
-            prev_hash=previous,
-            key_fingerprint=self.fingerprint,
-            created_at=timestamp(at),
-        )
-        current = digest(envelope)
-        signature = self.key.sign(
-            bytes.fromhex(current), ec.ECDSA(utils.Prehashed(hashes.SHA256()))
-        )
-        await connection.execute(
-            db.audit_log.insert().values(
-                **(envelope | {"household_id": household_id, "created_at": at}),
-                curr_hash=current,
-                signature=signature,
+            current = digest(envelope)
+            signature = self.key.sign(
+                bytes.fromhex(current), ec.ECDSA(utils.Prehashed(hashes.SHA256()))
             )
-        )
+            rows.append(
+                envelope
+                | {
+                    "household_id": household_id,
+                    "created_at": at,
+                    "curr_hash": current,
+                    "signature": signature,
+                }
+            )
+            sequences.append(seq)
+            seq, previous, previous_at = seq + 1, current, at
+        await connection.execute(db.audit_log.insert(), rows)
         await connection.execute(
             db.audit_pointer.update()
             .where(db.audit_pointer.c.household_id == household_id)
-            .values(seq=seq, curr_hash=current)
+            .values(seq=sequences[-1], curr_hash=previous)
         )
-        return seq
+        return tuple(sequences)
