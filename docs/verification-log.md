@@ -7318,3 +7318,33 @@ The last check, `uv run --locked ruff format --check .`, reported
 after appending this record, immediately before the implementation commit.
 Ordinary push-triggered CI will be recorded in a follow-up commit; the manual
 latency jobs are not dispatched.
+
+#### Ordinary CI for scheduling commit
+
+Implementation commit `238a4cfb151381f35796f97d74e07739b2394b61` was pushed to
+`phase-4` without merging. Its ordinary push-triggered
+[CI run 36052972119](https://github.com/BashaarJavaid/Hirz/actions/runs/36052972119)
+completed successfully: all ten jobs (`python-lint`, `python-types`, `python-test`,
+`ts-lint-types`, `ts-test`, `build`, `release`, `cedar-conform`, `conformance`, and
+`scenarios`) passed; `latency` was skipped. No workflow was manually dispatched.
+
+CI summary lines:
+
+- Service-free: `1419 passed, 152 deselected in 143.31s (0:02:23)`.
+- PostgreSQL integration: `150 passed, 1421 deselected in 408.88s (0:06:48)`.
+- Combined coverage: `TOTAL 12191 859 93%`.
+- Native Cedar: `155 passed in 142.47s (0:02:22)`.
+- Ruff: `All checks passed!`; formatting: `238 files already formatted`.
+- Mypy strict: `Success: no issues found in 153 source files`.
+
+The scenario job also passed its live HA **demo** lamp and bounded restoration
+step; this is not a physical-device or AWS execution claim. Full CI metadata and
+logs are retained privately as `ci-238a4cf.json` and `ci-238a4cf.log` under
+`/tmp/hirz-item26b-third-step/`. The implementation diff is 19 files,
+1,016 insertions and 40 deletions, including the complete pre-change fixture and
+append-only evidence. This follow-up changes only this evidence log.
+
+Before the follow-up commit, repeat `git diff --check`, identical instruction-body
+comparison, then `uv run --locked ruff format --check .`; the previously recorded
+local tests and the single failed latency measurement remain unchanged. Ordinary
+CI success does not close the deferred latency gate.
