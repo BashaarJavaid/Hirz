@@ -299,10 +299,23 @@ jobs:
                   print("No completed timing report; item 26 gate did not pass.", file=summary)
               else:
                   report = json.loads(path.read_text())
+                  print(report["protocol"], file=summary)
+                  print(report["protocol"])
                   print("Local tool budget: " + report["status"], file=summary)
                   for scenario, result in report["scenarios"].items():
-                      for tool, stats in result.get("latency", {}).get("tools", {}).items():
-                          print(f"{scenario} / {tool}: n={stats['count']}, p95={stats['p95_ms']:.3f} ms, max={stats['max_ms']:.3f} ms", file=summary)
+                      for group in ("cases", "tools"):
+                          lines = [
+                              f"\n{scenario} / {group} — raw round-trip milliseconds\n",
+                              "| Name | n | Min | Median | p95 | Max | Gate | SDK n | SDK median | SDK p95 | SDK max |",
+                              "|---|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|",
+                          ]
+                          for name, stats in result.get("latency", {}).get(group, {}).items():
+                              gate = "PASS" if stats["p95_ms"] <= report["budget_ms"] else "FAIL"
+                              sdk = stats.get("sdk")
+                              reference = f"{sdk['count']} | {sdk['median_ms']:.3f} | {sdk['p95_ms']:.3f} | {sdk['max_ms']:.3f}" if sdk else "— | — | — | —"
+                              lines.append(f"| {name} | {stats['count']} | {stats['min_ms']:.3f} | {stats['median_ms']:.3f} | {stats['p95_ms']:.3f} | {stats['max_ms']:.3f} | {gate} | {reference} |")
+                          print("\n".join(lines), file=summary)
+                          print("\n".join(lines))
                   print("Five warmups and 100 measured calls per case; nearest-rank p95; no discarded samples. Local twin evidence, not AWS cold start. Private evidence is not uploaded.", file=summary)
           PYTHON
       - name: Remove only this runner's services and credentials

@@ -7348,3 +7348,66 @@ Before the follow-up commit, repeat `git diff --check`, identical instruction-bo
 comparison, then `uv run --locked ruff format --check .`; the previously recorded
 local tests and the single failed latency measurement remain unchanged. Ordinary
 CI success does not close the deferred latency gate.
+
+### Server round-trip — 2026-09-24
+
+Author-authorized fourth step from `ad64ca1` on `phase-4`. The established section B
+floor finding is accepted without another probe. The gate now measures the raw
+authenticated JSON-RPC POST from immediately before HTTPX send through receipt of
+the full body. SDK linking/refresh and every successful-result schema assertion
+remain; SDK/MCP decoding and validation happen outside the timer. Onboarding and
+context-all each have a separate SDK reference sample per round, including the
+same five warmups, with 100 retained reference samples required by the report.
+The 54-case corpus, 100 gate samples per case, pooled-tool sample counts,
+nearest-rank p95 and 250 ms threshold are unchanged. The latency test is unchanged.
+The [ADR amendment](./adr/ADR-017-tool-latency-and-isolation.md#server-round-trip-amendment--2026-09-24)
+owns the protocol; the [Minor friction entry](./friction-log.md#item-26b-sdk-per-call-schema-validation--2026-09-24)
+records SDK `session.py:441` and the established 54 ms onboarding difference.
+
+`tests/unit/test_tool_budget_statistics.py::test_raw_request_is_byte_identical_to_sdk`
+captures both reference requests through HTTPX with the real SDK OAuth provider.
+It aligns independent stateless request IDs after SDK initialization/tool listing,
+then compares method, raw path, authorization, accept, content-type, MCP protocol
+version and complete body bytes without normalizing the payload. Both cases pass;
+the same test confirms malformed structured content still fails SDK validation
+after raw receipt. The focused file reported `4 passed in 2.92s`. The benchmark
+asserts stateless initialization; the actual server already uses stateless JSON
+responses and requires no per-call session observation.
+
+Local checks use Python 3.12, existing native Dogwood and PostgreSQL, with
+`HIRZ_LLM=off` and `HIRZ_DOGWOOD="$PWD/.tools/dogwood"`. Private logs and smoke
+artifacts are under `/tmp/hirz-item26b-fourth-step/`.
+
+| Command | Summary |
+|---|---|
+| `uv run --locked pytest -q` | `1421 passed, 152 deselected in 213.68s (0:03:33)`; service-free coverage alone 78%. |
+| `uv run --locked pytest -m integration --cov=hirz --cov-append` | `150 passed, 1423 deselected in 297.60s (0:04:57)`. |
+| `uv run --locked coverage report --fail-under=80` | `TOTAL 12191 864 93%`; exit 0. |
+| `uv run --locked ruff check .` | `All checks passed!` |
+| `uv run --locked mypy hirz/ scripts/ alembic/` | `Success: no issues found in 153 source files`. |
+
+The first mypy invocation caught the SDK's `str | int` protocol-version annotation;
+converting it to a string for the header resolved that check. The initial sandboxed
+uv formatting attempt hit the previously recorded cache-access restriction; the
+authorized checks then used the existing cache. A read-only development query
+returned `development_revision=0005_execution_attempt`. No development migration,
+Bedrock invocation, selection-ledger access, local full latency run, SDK patch or
+`AWSCLIV2.pkg` modification was made. No AWS or real phone/security result is
+claimed. The instruction files are byte-identical and Current phase is 57 words.
+CI timing summaries now expose every case and pooled tool, including SDK reference
+columns, in both the step summary and payload-free job logs; private household
+artifacts remain unuploaded. CI measurement and author review are still pending
+at this local-check checkpoint, so item 26b remains Deferred.
+
+The separately requested CLI check completed:
+`HIRZ_LLM=off HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run --locked python scripts/smoke_tool_budget.py --mode isolation --artifacts-dir /tmp/hirz-item26b-fourth-step/isolation`
+printed `{"status": "passed", "mode": "isolation", "report": "/tmp/hirz-item26b-fourth-step/isolation/report.json"}`
+and `disposable_database=dropped; development_database=unchanged`. It passed
+177 checks, 20 concurrent rounds and 10 symmetric-reference checks, including
+restart; independently verified exports contained 333, 76 and 138 signed rows,
+all `valid` (547 total). Persisted counts were 365 actions, 547 audit rows, two
+plans, 61 tool requests and two verification cases. This exercises `Client.call`
+end to end without taking a local latency measurement.
+
+Final precommit checks: `git diff --check` and `cmp CLAUDE.md AGENTS.md` exited 0;
+`uv run --locked ruff format --check .` reported `238 files already formatted`.

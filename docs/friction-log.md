@@ -602,3 +602,22 @@ checks passed. See the [completion evidence](./verification-log.md#publication-a
   and the client's pooling settings were unchanged. Private raw counts and logs
   are retained under `/tmp/hirz-item26b-third-step/` and recorded in the evidence
   follow-up.
+
+## Item 26b: SDK per-call schema validation — 2026-09-24
+
+- **Tool/task:** MCP Python SDK 1.30.0,
+  [`src/mcp/client/session.py:441`](https://github.com/modelcontextprotocol/python-sdk/blob/v1.30.0/src/mcp/client/session.py#L441),
+  `ClientSession._validate_tool_result` (starts at line 417).
+  **Steps/expected:** compare `await session.call_tool("what_can_you_do", {})`
+  with the identical authenticated raw JSON-RPC POST, expecting the measured
+  round trip to reflect server/transport work. **Actual:** the established floor
+  probe measured 58 ms versus 4 ms, a **54 ms** difference; each successful call
+  executes `validate(result.structuredContent, output_schema, registry=registry)`,
+  rechecking the schema against the metaschema and building a validator anew.
+  No exception or error text occurred; this is repeated client validation cost.
+  **Severity:** Minor. **Workaround:** time raw HTTP through receipt of the full
+  body, then retain SDK schema validation and the existing assertions outside the
+  timer, with separate SDK reference columns. **Suggestion:** cache a checked
+  validator per tool/output-schema version and invalidate it when the schema
+  changes. [Finding and measurement scope](./verification-log.md#scheduling-and-harness--2026-09-24),
+  [author's decision](./adr/ADR-017-tool-latency-and-isolation.md#server-round-trip-amendment--2026-09-24).

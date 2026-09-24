@@ -1387,7 +1387,7 @@ and [deferral checkpoint](./docs/verification-log.md#deferral-checkpoint--2026-0
 
 Target-state budget per tool call on the AWS path; `tests/latency` is the local proxy:
 
-Plan scheduling runs in the worker after consent, the benchmark harness uses a 120-second keep-alive timeout, and the measured SDK-client floor remains included in the unchanged 250 ms gate ([evidence](./docs/verification-log.md#scheduling-and-harness--2026-09-24)).
+Plan scheduling runs in the worker after consent, the benchmark harness uses a 120-second keep-alive timeout, and the unchanged 250 ms gate now times the raw authenticated POST through the full response body, excluding client decoding/validation while retaining those assertions and separate onboarding/context-all SDK timings ([ADR amendment](./docs/adr/ADR-017-tool-latency-and-isolation.md#server-round-trip-amendment--2026-09-24)).
 
 | Stage | Budget |
 |---|---|
@@ -1401,7 +1401,7 @@ Plan scheduling runs in the worker after consent, the benchmark harness uses a 1
 
 Things that never run inside a tool call: the MILP planner, Bedrock calls, the Gateway call (stage 7 runs in the worker at execution time, §5.6), adapter network calls to third parties (state is read from `observations`, refreshed by the worker's polls and Hirz Link's observation stream), and Cedar compilation. `tests/latency/test_tool_budget.py` fails the manual latency job if any tool's warm p95 over the scenario corpus exceeds 250 ms locally.
 
-The local gate times authenticated SDK calls over HTTP against disposable
+The local gate times authenticated raw calls over HTTP against disposable
 PostgreSQL: five warmups and 100 samples per case, nearest-rank p95, with both
 individual cases and pooled tools gated. Plan lifecycle writes retain individual
 signed events while batching SQL; Pipeline snapshot reuse is limited to one locked

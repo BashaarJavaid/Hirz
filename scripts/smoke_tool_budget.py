@@ -29,7 +29,7 @@ import uvicorn
 import yaml
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
-from mcp import ClientSession
+from mcp import ClientSession, types
 from mcp.client.auth import OAuthClientProvider
 from mcp.client.streamable_http import streamable_http_client
 from mcp.shared.auth import OAuthClientMetadata
@@ -71,6 +71,12 @@ from scripts.tool_selection import CASES
 WARMUPS = 5
 SAMPLES = 100
 BUDGET_MS = 250
+PROTOCOL = (
+    "Gate: raw authenticated JSON-RPC tools/call POST, request send through full "
+    "response body; decoding and validation excluded. SDK call_tool reference "
+    "timings: onboarding and context-all only, outside the gate."
+)
+SDK_CASES = {"onboarding", "context-all"}
 
 
 def statistics(samples: list[float]) -> dict[str, Any]:
@@ -100,11 +106,18 @@ class Client:
         storage: Storage,
         tick: Callable[[], None],
         auth: OAuthClientProvider,
+        http: httpx.AsyncClient,
+        url: str,
+        protocol_version: str,
     ):
         self.session, self.storage = session, storage
         self.auth = auth
+        self.http, self.url = http, url
+        self.protocol_version = protocol_version
+        self.request_id = 0
         self.tick = tick
         self.samples: dict[str, list[float]] = defaultdict(list)
+        self.sdk_samples: dict[str, list[float]] = defaultdict(list)
         self.tools: dict[str, str] = {}
         self.inputs: dict[str, dict[str, Any]] = {}
         self.measuring = False
@@ -129,15 +142,50 @@ class Client:
                 await self.session.call_tool(
                     "get_household_context", {"scope": "people"}
                 )
+        assert self.storage.tokens, "Complete SDK linking before raw calls"
+        body = types.JSONRPCRequest(
+            jsonrpc="2.0",
+            id=self.request_id,
+            **types.CallToolRequest(
+                params=types.CallToolRequestParams(name=tool, arguments=args)
+            ).model_dump(by_alias=True, mode="json", exclude_none=True),
+        )
+        self.request_id += 1
+        request = self.http.build_request(
+            "POST",
+            self.url,
+            json=body.model_dump(by_alias=True, mode="json", exclude_none=True),
+            headers={
+                "Authorization": "Bearer " + self.storage.tokens.access_token,
+                "Accept": "application/json, text/event-stream",
+                "Content-Type": "application/json",
+                "MCP-Protocol-Version": self.protocol_version,
+            },
+        )
         start = time.perf_counter_ns()
-        raw = await self.session.call_tool(tool, args)
+        reply = await self.http.send(request, auth=None)
         elapsed = (time.perf_counter_ns() - start) / 1_000_000
         if self.measuring and case:
             self.samples[case].append(elapsed)
             self.tools[case] = tool
             self.inputs[case] = args
+        reply.raise_for_status()
+        envelope = types.JSONRPCResponse.model_validate_json(reply.content)
+        assert envelope.id == body.id, "Mismatched JSON-RPC response"
+        raw = types.CallToolResult.model_validate(envelope.result)
+        if not raw.isError:
+            # Keep the SDK's per-call schema assertion, outside the gate timer.
+            await self.session._validate_tool_result(tool, raw)
         assert bool(raw.isError) == error, (case, "unexpected MCP error status")
         result = Result.model_validate(raw.structuredContent)
+        if case in SDK_CASES:
+            start = time.perf_counter_ns()
+            sdk = await self.session.call_tool(tool, args)
+            elapsed = (time.perf_counter_ns() - start) / 1_000_000
+            assert bool(sdk.isError) == error
+            assert Result.model_validate(sdk.structuredContent) == result
+            if self.measuring:
+                self.sdk_samples[case].append(elapsed)
         return result
 
 
@@ -427,18 +475,30 @@ class Environment:
         async with httpx.AsyncClient(auth=auth, trust_env=False, timeout=60) as http:
             async with streamable_http_client(
                 self.config["resource"], http_client=http
-            ) as (read, write, _):
+            ) as (read, write, session_id):
                 async with ClientSession(read, write) as session:
-                    await session.initialize()
+                    initialized = await session.initialize()
+                    assert session_id() is None, "Raw timing requires stateless MCP"
                     assert {t.name for t in (await session.list_tools()).tools} == set(
                         TOOLS
                     )
-                    client = Client(session, storage, self.tick, auth)
                     # Complete PKCE linking before timing any authenticated call.
                     if storage.tokens is None:
-                        await client.call(
-                            "", "get_household_context", {"scope": "people"}
+                        self.tick()
+                        linked = await session.call_tool(
+                            "get_household_context", {"scope": "people"}
                         )
+                        assert not linked.isError
+                        Result.model_validate(linked.structuredContent)
+                    client = Client(
+                        session,
+                        storage,
+                        self.tick,
+                        auth,
+                        http,
+                        self.config["resource"],
+                        str(initialized.protocolVersion),
+                    )
                     yield client
 
     def tick(self) -> None:
@@ -868,6 +928,9 @@ def timing_report(clients: list[Client]) -> dict[str, Any]:
             assert name not in cases, "Case names must be unique"
             assert len(samples) == SAMPLES, (name, len(samples))
             cases[name] = statistics(samples) | {"tool": client.tools[name]}
+            if name in SDK_CASES:
+                assert len(client.sdk_samples[name]) == SAMPLES
+                cases[name]["sdk"] = statistics(client.sdk_samples[name])
             tools[client.tools[name]].extend(samples)
     assert set(tools) == set(TOOLS), "Every tool needs measured samples"
     assert set(cases) == REQUIRED_CASES, (
@@ -1107,6 +1170,7 @@ async def latency(env: Environment, report: dict[str, Any]) -> list[Storage]:
                 for case, values in client.samples.items()
             }
             report["raw_interactions"] = dict(interactions)
+            report["raw_sdk_cases"] = dict(home.sdk_samples)
 
 
 async def startup(env: Environment, storage: Storage) -> dict[str, Any]:
@@ -1704,6 +1768,7 @@ async def run(
     logging.disable(logging.CRITICAL)
     report: dict[str, Any] = dict(
         status="failed",
+        protocol=PROTOCOL,
         mode=mode,
         platform=platform.platform(),
         python=sys.version,

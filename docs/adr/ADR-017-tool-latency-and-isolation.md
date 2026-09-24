@@ -384,3 +384,52 @@ per-action events (loses individually verifiable lifecycle evidence), and a
 synchronous partial schedule (makes the approval contract depend on batch size and
 splits an atomic scheduling operation). Hourly latency, a second local measurement
 and a manual CI dispatch remain outside this step.
+
+## Server round-trip amendment — 2026-09-24
+
+The author changes the gate's measurement boundary to the raw authenticated
+JSON-RPC `tools/call` POST an add-on host sends, using the existing pooled HTTPX
+client, URL, bearer token and negotiated MCP protocol version. `perf_counter_ns`
+starts immediately before the awaited send and stops after the full response body
+has arrived. Transport, server authentication, persistence and server serialization
+remain measured; client-side JSON/MCP decoding and the SDK's structured-content
+validation no longer contribute to the gate. HTTPX request construction is outside
+the timer. This supersedes the SDK timing decision above, not the corpus, five
+warmups, 100 samples per case, nearest-rank p95 or 250 ms threshold.
+
+The established floor probe measured onboarding at 58 ms through SDK `call_tool`
+versus 4 ms for the identical raw POST (54 ms difference), and context at 70 versus
+13 ms. MCP Python SDK 1.30.0
+[`src/mcp/client/session.py:417–441`](https://github.com/modelcontextprotocol/python-sdk/blob/v1.30.0/src/mcp/client/session.py#L417-L441),
+`ClientSession._validate_tool_result`, calls
+`validate(result.structuredContent, output_schema, registry=registry)` on every
+successful result. `jsonschema.validate` checks the schema against its metaschema
+and constructs a validator each time. This is client-library cost, not server
+cost; the finding is accepted from the retained floor probe, not remeasured here.
+
+The SDK still links accounts through PKCE, refreshes tokens before the timer, and
+validates each successful raw `CallToolResult` through its unchanged schema
+validator after timing. `Result` validation, error checks and every corpus
+assertion still run. Onboarding and context-all additionally call SDK `call_tool`
+once each round, including warmups, for separate reference columns; these samples
+never enter the gate or pooled-tool statistics. No mutation corpus is duplicated.
+
+The server is configured with `stateless_http=True` and `json_response=True`;
+these ordinary tool requests require no SDK session observation. Initialization
+asserts that no session ID exists. A unit test captures SDK and raw requests via
+the same HTTPX transport, aligns independent request IDs, and compares exact
+method, path, authorization/accept/content-type/protocol header values and body
+bytes. It uses the SDK OAuth provider and fails on wire drift or lost validation.
+No session messages or responses are fabricated in the benchmark.
+
+Linux CI is the measurement instrument: the established Docker Desktop/macOS
+outliers are not used to judge this step. After ordinary CI, one manual dispatch
+runs both existing latency matrix jobs, without reruns. Item 26b remains Deferred
+pending the author's review even if both pass; no local full latency run, Bedrock,
+ledger access, development migration or AWS measurement is authorized.
+
+Rejected keeping SDK timing because it charges client schema work to the server;
+loosening the threshold because the server budget is unchanged; and patching or
+forking the SDK because the host-specific optimization is outside this server gate
+and would weaken the independent reference. Validator caching is suggested
+upstream in the [friction log](../friction-log.md#item-26b-sdk-per-call-schema-validation--2026-09-24).

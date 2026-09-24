@@ -1,4 +1,4 @@
-# CLAUDE.md
+# CLAUDE.md / AGENTS.md
 
 Project-specific context and instructions for Hirz, merged with a set of general behavioral guidelines (sections 1–5 below, adapted from [andrej-karpathy-skills/CLAUDE.md](https://github.com/multica-ai/andrej-karpathy-skills/blob/main/CLAUDE.md) and from the author's PortunusMCP conventions) aimed at reducing common LLM coding mistakes: unstated assumptions, speculative complexity, unrelated edits, vague success criteria, and unverified claims of completion.
 
@@ -27,7 +27,7 @@ Hirz — house rules for the AI in your home, and your parents': a permissioned 
 
 ## Keeping the instruction files in sync
 
-This project ships the same guidance as `CLAUDE.md` (Claude Code) and `AGENTS.md` (Codex and other agents). They are **not** auto-generated. They are near-identical (only the top heading differs). Whenever you change one — Commands, Current phase, Conventions, or any substantive guidance — mirror the change into the other in the **same commit**.
+This project ships the same guidance as `CLAUDE.md` (Claude Code) and `AGENTS.md` (Codex and other agents). They are identical and **not** auto-generated. Whenever you change one — Commands, Current phase, Conventions, or any substantive guidance — mirror the change into the other in the **same commit**.
 
 ## Where records go
 
@@ -128,12 +128,12 @@ The verified toolchain and scaffold setup are in `README.md`; use Node 24.
 
 ## Current phase
 
-**Item 26 isolation is complete; item 26b latency remains Deferred. Item 27 is
-next.** Harness keep-alive and worker scheduling are implemented; the single
-complete local gate still failed ([evidence](./docs/verification-log.md#scheduling-and-harness--2026-09-24)).
+**Item 26 isolation is complete; item 26b latency remains Deferred pending author
+review. Item 27 is next.** The gate now measures raw authenticated server round
+trips with separate SDK references; CI measurement is pending
+([protocol](./docs/adr/ADR-017-tool-latency-and-isolation.md#server-round-trip-amendment--2026-09-24)).
 Development stays on 0005; migrations through 0013 remain manual. Keep Bedrock off
 and preserve the $2 ledger. Real phone/security execution remains unverified.
-Scope: [ADR-017](./docs/adr/ADR-017-tool-latency-and-isolation.md#scheduling-and-harness-amendment--2026-09-24).
 
 ---
 
