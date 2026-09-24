@@ -128,12 +128,13 @@ The verified toolchain and scaffold setup are in `README.md`; use Node 24.
 
 ## Current phase
 
-**Phase 4 items 25 and 25a are complete; item 26 is in progress.**
-Local regression and authenticated isolation checks pass. Full latency and CI
-verification remain owed. Preserve the $2 budget ledger; these gates keep Bedrock
-off. Development stays on 0005; migrations through 0012 remain manual. Real
-phone/security execution remains unverified. Evidence: `docs/verification-log.md`;
-protocol: ADR-017; procedure: `docs/development.md`.
+**Phase 4 items 25 and 25a are complete; item 26 is partial and paused.**
+Regression and authenticated isolation checks pass; local/CI latency gates fail.
+Resume from the item 26 handoff in `docs/verification-log.md`; proposed additional
+indexes/projection still need approval. Preserve the $2 ledger; keep Bedrock off.
+Development stays on 0005; migrations through 0012 remain manual. Real
+phone/security execution remains unverified. Protocol: ADR-017; procedure:
+`docs/development.md`.
 
 ---
 

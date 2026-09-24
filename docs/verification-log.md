@@ -6443,3 +6443,177 @@ passed at **93%** (12,142 statements, 887 misses). Private logs are
 `/tmp/hirz-item26-unit-json-cache.log` and
 `/tmp/hirz-item26-integration-json-cache.log`. Ruff and strict mypy passed again.
 These results do not close the still-unpassed full latency gate.
+
+The cache revision was pushed as `0dc1ccf075cc80b084064b85e650c99f38d69f94`,
+starting [CI run 35953560008](https://github.com/BashaarJavaid/Hirz/actions/runs/35953560008).
+The repository's existing push-concurrency policy cancelled the two unfinished
+latency jobs in run 35951675477; all ten of that earlier run's other jobs had
+passed. Its cancellation is not a completed latency measurement or a timeout.
+
+The new run's native conformance job passed **155 tests in 141.43 seconds**.
+Its independent add-on checker reported **117 PASS, 0 FAIL, complete=true**, with
+**628 signed rows independently verified offline**. Its disposable database was
+dropped and development remained unchanged. Private conformance log:
+`/tmp/hirz-item26-ci-conformance-0dc1ccf.log`.
+
+### Full gate results for 0dc1ccf — 2026-09-23
+
+The complete local command was `HIRZ_LLM=off HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run --locked python scripts/smoke_tool_budget.py --mode all --artifacts-dir /tmp/hirz-item26-budget-json-cache-01`. It exited **1** at the Time-of-Day latency assertion after its measurements, isolation, restart, startup and independently verified exports completed. The default runner therefore did not reach its local Hourly scenario; no local Hourly result is claimed.
+
+The report retains **54 cases, 100 samples per case after five warmups, and all twelve tools**. It failed **14 case gates and four pooled-tool gates**. Environment: macOS 15.7.3 arm64, Python 3.12.13, MCP 1.30.0, SQLAlchemy 2.0.54, psycopg 3.3.5 and SciPy 1.18.0. Runtime code was committed as `0dc1ccf075cc80b084064b85e650c99f38d69f94`; the tracked diff at launch contained documentation evidence only. Its SHA-256 was `2a2c17dd5d1bb6f24f35be366717f11f3c6d7ae1c2fb76a9e6a0c63c4ad62d1f`; runner SHA-256 was `c4a1c58192647df697db4bd3fd381fb4c1255b86b1f60685437cb831f7a79b6b`.
+
+Private report: `/tmp/hirz-item26-budget-json-cache-01/report.json`, SHA-256 `67ef1aae2280613759d77003c14c5f4e627f0f288de226d7e3fcd13635fda4b6`; private log: `/tmp/hirz-item26-budget-json-cache-01.log`. Failure retained `hirz_ha_smoke_c30887559bcf49e8b80215cf6240e6fa`; development remained unchanged.
+
+| Tool | n | Minimum ms | Median ms | p95 ms | Maximum ms |
+|---|---:|---:|---:|---:|---:|
+| `what_can_you_do` | 100 | 56.738667 | 63.542250 | 95.020500 | 152.080166 |
+| `get_household_context` | 200 | 66.183084 | 104.325583 | 216.692250 | 430.606917 |
+| `propose_household_rule` | 200 | 59.478333 | 109.873063 | 191.628292 | 362.666000 |
+| `get_household_plan` | 700 | 61.824750 | 192.501166 | 331.386250 | 858.734250 |
+| `explain_plan` | 400 | 80.998333 | 136.025209 | 262.783250 | 700.304834 |
+| `approve_action` | 700 | 84.919292 | 123.837312 | 462.823791 | 795.118500 |
+| `revise_household_plan` | 600 | 60.712416 | 141.183959 | 333.431667 | 743.563250 |
+| `execute_household_action` | 800 | 62.120708 | 124.411750 | 232.691334 | 560.333500 |
+| `evaluate_permission` | 100 | 73.102125 | 98.808687 | 166.918750 | 345.879458 |
+| `get_action_audit` | 400 | 65.884459 | 92.171083 | 171.168875 | 415.492459 |
+| `assess_request_risk` | 400 | 59.593250 | 100.931146 | 149.542833 | 232.167125 |
+| `verify_trusted_identity` | 800 | 60.509875 | 76.558916 | 165.778667 | 527.734250 |
+
+Failed individual cases (each n=100):
+
+| Case | Minimum ms | Median ms | p95 ms | Maximum ms |
+|---|---:|---:|---:|---:|
+| `plan-first` | 103.905750 | 146.926125 | 265.287334 | 354.389625 |
+| `plan-ready` | 141.589584 | 224.223479 | 402.554625 | 858.734250 |
+| `explain-conflicts` | 80.998333 | 136.025209 | 272.636875 | 585.992167 |
+| `explain-goal` | 89.210542 | 134.958188 | 334.597458 | 553.749750 |
+| `plan-approval` | 254.003500 | 400.076375 | 629.548875 | 795.118500 |
+| `objective-most_comfortable` | 169.451500 | 225.050937 | 344.926208 | 420.206417 |
+| `objective-greenest` | 179.641792 | 222.481395 | 361.277125 | 450.621875 |
+| `objective-cheapest` | 169.112917 | 217.988729 | 336.042209 | 518.689583 |
+| `revision-car` | 182.528208 | 252.277500 | 378.771833 | 541.816625 |
+| `revision-dishwasher` | 133.183959 | 206.412584 | 361.136792 | 743.563250 |
+| `revision-guest` | 136.481750 | 213.793896 | 324.231625 | 472.828708 |
+| `plan-cancel` | 151.910834 | 189.229501 | 324.296625 | 711.010333 |
+| `action-profile` | 125.977084 | 161.620625 | 273.560833 | 461.975375 |
+| `pause` | 133.177500 | 180.785833 | 281.195875 | 560.333500 |
+
+Outcome timings are reported without an additional threshold:
+
+| Outcome | n | Minimum ms | Median ms | p95 ms | Maximum ms |
+|---|---:|---:|---:|---:|---:|
+| `accurate_acknowledgment` | 100 | 93.671666 | 124.936312 | 239.170917 | 338.009458 |
+| `verified_twin_outcome` | 100 | 2475.442875 | 3042.584916 | 4255.680083 | 5935.443000 |
+| `understandable_preparation_failure` | 100 | 1845.857292 | 2070.932626 | 2702.583500 | 3735.840250 |
+| `process_to_health` (local startup) | 10 | 1679.884084 | 1945.478167 | 2591.411542 | 2591.411542 |
+| `first_authenticated_context` (local startup) | 10 | 165.935250 | 187.092291 | 285.877291 | 285.877291 |
+
+These are local twin/process observations, not AWS cold start or Alexa voice latency. All raw samples and all passing-case statistics remain in the private report. No sample was discarded or retried into a pass.
+
+Isolation reported **177 checks and 20 concurrent rounds**, plus **10 symmetric foreign-reference checks** using the approved disposable home copy; restart verification completed. All three signed exports verified independently: **158,084 home + 2,281 parents + 142 mirror = 160,507 audit rows**. Final counts: **57,535 actions, 422 plans, 3,211 tool receipts and 212 verification cases**. The full-mode persisted-row comparisons run over that accumulated history; they add verification work beyond the CI latency-only mode.
+
+[CI run 35953560008](https://github.com/BashaarJavaid/Hirz/actions/runs/35953560008) passed all ten non-latency jobs. Python CI passed **1,418 service-free tests in 214.44 seconds**, **139 integration tests in 290.64 seconds**, and **93% combined coverage** (12,142 statements, 882 misses). Its private Python log is `/tmp/hirz-item26-ci-python-0dc1ccf.log`; conformance results are recorded above.
+
+Both latency jobs completed all samples and signed-audit verification within their approved 75-minute limits, then failed `Warm p95 budget exceeded`:
+
+- Time-of-Day: **1 failed in 2813.69 seconds**; failing cases `plan-approval`, `revision-car`, `revision-dishwasher`; failing pooled tool `approve_action`. Private log: `/tmp/hirz-item26-ci-evening-0dc1ccf.log`.
+- Hourly: **1 failed in 3504.24 seconds**; failing cases `plan-ready`, `plan-approval`, `objective-most_comfortable`, `objective-greenest`, `revision-car`, `revision-guest`; failing pooled tools `get_household_plan`, `approve_action`, `revise_household_plan`. Private log: `/tmp/hirz-item26-ci-hourly-0dc1ccf.log`.
+
+Exact CI p95 values were written only to GitHub step summaries and were not available in the fetched job logs. Browser discovery returned no available connection; no CI percentile values are inferred. **Item 26 remains incomplete.**
+
+### Accumulated-history query diagnosis — 2026-09-23
+
+A read-only, twenty-pair alternating comparison on the retained database compared the existing binary-JSON aggregate with ordinary JSON aggregation, preserving row projections. The home snapshot (317 constraints) took median **16.004458 ms versus 11.990792 ms**; validated values and canonical hashes matched for all three households. Private output: `/tmp/hirz-item26-snapshot-aggregation.jsonl`. This roughly four-millisecond saving was not implemented or presented as sufficient for the full gate.
+
+An isolated database copy, `hirz_ha_smoke_ddb9117d61ff43ff81f2772e7e9acfe4`, retained the real signed history. New resume, cancellation, withdrawal, plan and revision records went through Pipeline, with the existing worker preparing the plan. Profiling called the internal household runtime under a freshly resolved linked-account principal; it was not an authenticated SDK timing gate. The clone was dropped afterward; the original evidence and development database remained unchanged.
+
+Instrumented handler workflows measured **285.668 ms plan read, 619.551 ms approval, 271.768 ms car revision and 204.069 ms dishwasher revision**, including profiler/report-writing overhead. Approval issued **58 SQL calls totaling 352.127 ms** under profiling; three verified-control reads accounted for **125.945 ms**. Nested coroutine profile totals overlap and are not independent wall-clock measurements. Private profiles and SQL spans: `/tmp/hirz-item26-history-profile-01`; log: `/tmp/hirz-item26-history-profile-01.log`.
+
+The verified-control query fetches every action column although attribution reads only proposal and dispatch timestamp. Twenty alternating read-only comparisons retained identical values and observed row order for all **210** verified records: median **39.859167 ms full rows versus 31.577500 ms projection**; a later repeat measured **32.341271 versus 25.256063 ms**. The narrow query still scanned all **57,535 actions**, rejecting **57,325**, with **17.444 ms** server execution. Private outputs: `/tmp/hirz-item26-projection-probe.txt` and `/tmp/hirz-item26-control-query-plan.txt`.
+
+Active-plan lookup scanned **422 plans to return one**. One cold `EXPLAIN ANALYZE` took **122.795 ms** with 352 shared blocks read; this is not a warm median. The instrumented revision queries took approximately 11–13 ms each. Retained recent plans contained only one or two constraints, so no claim is made that withdrawn constraints were copied into those plan documents.
+
+Approval was requested for a separate explicit migration indexing verified-action and active-plan lookups, plus narrowing the verified-control projection with equivalence coverage. Those proposed query/index changes have not been implemented. The 250 ms gate and development migration remain unchanged.
+
+### Paused handoff — 2026-09-23
+
+At the author's request, implementation stops here and item 26 is marked
+**Partial**. This checkpoint changes documentation only. The implemented runtime
+remains `0dc1ccf`; its complete local and CI failures are recorded above. No
+benchmark or diagnostic process remains running from that work. A push of this
+checkpoint triggers the existing CI workflow; its result is not claimed here.
+
+The work and attempts are retained in this item entry rather than a new status
+document:
+
+- The initial implementation records the authenticated SDK corpus, disposable
+  home/parents/mirror isolation, concurrent requests, restart, startup/outcome
+  observations and signed exports; the full protocol and approved amendments
+  are in [ADR-017](./adr/ADR-017-tool-latency-and-isolation.md).
+- The optimization sections record per-action SQL/audit batching, batched
+  refresh-attribution reads, policy/narration reuse, transaction-scoped
+  fingerprint/member/snapshot reuse, migration 0012, terminal-plan SQL filters,
+  the native helper, typed scheduling recordsets, canonicalization cleanup,
+  combined budget/audit reads and the final JSON snapshot cache. Each section
+  preserves its regressions, failed attempts and diagnostic limits.
+- Implementation checkpoints are `eb5d7f8`, `b65ee3e`, `e900366`, `e6bd046` and
+  `0dc1ccf`. The earlier timeout mentioned above belongs to
+  [CI run 35941645697](https://github.com/BashaarJavaid/Hirz/actions/runs/35941645697)
+  on `b65ee3e`: both latency jobs timed out at 60 minutes; its ten other jobs
+  passed. Later cancellations, completed failures and the approved 75-minute
+  limits are distinguished in the subsequent run entries.
+- Read-only experiments compared deep copies and JSON decoding, snapshot JSON
+  aggregation, and narrow verified-control projections. Only the explicitly
+  approved JSON snapshot cache was implemented from those experiments. The
+  accumulated-history handler profile used a disposable clone that was dropped;
+  the original retained databases and their timing reports were not rewritten.
+
+**Remaining work, in order:**
+
+1. Obtain an explicit answer on the pending verified-action/active-plan indexes
+   and narrower attribution projection. The author's question about the problem
+   was not approval. No migration beyond 0012 is authorized or implemented.
+   These measured candidates are not a promise that the gate will pass.
+2. If approved, implement and verify the scoped change, including migration
+   roundtrip/result equivalence, household boundaries, observation cutoffs and
+   unchanged signed evidence. Review multiple matching controls and prior-mode
+   handling: the current verified-control query has no explicit ordering, so
+   matching row order in the projection experiment alone is not a general
+   equivalence proof. Any unresolved attribution decision must go back to the
+   author; no new ordering rule has been selected.
+3. Resolve the remaining latency failures without changing the accepted corpus,
+   sample counts, growing audited history, authorization rules or 250 ms gate.
+   Seek the author's decision before any additional optimization outside the
+   already approved scope. Profile results and single fast calls cannot close
+   this item.
+4. Run relevant regressions, required local checks and the complete authenticated
+   gate for **both** energy scenarios with parents cases, isolation/restart and
+   independent signed exports. The latest default local run stopped after its
+   first scenario failed; local Hourly completion is still owed. Obtain passing
+   CI on the final runtime revision on `phase-4`; do not merge.
+5. Append the passing evidence before marking item 26 complete and advancing the
+   threat-model row only to its earned local authenticated scope. Until then,
+   the roadmap remains Partial and the cross-household threat row stays Planned.
+
+Resume commands and artifact permissions are in
+[development procedures](./development.md); the latest exact full command and
+report digest are in the full-gate entry above. All `/tmp` reports, audit exports,
+profiles and diagnostic scripts are private local artifacts, not durable remote
+storage; check that they still exist before relying on them. The committed
+results remain the handoff if temporary files disappear. No household exports,
+tokens, signing keys or `.env` contents are committed. Development stays on
+`0005_execution_attempt`, Bedrock remains off and the existing spend ledger is
+unchanged. The unrelated untracked `AWSCLIV2.pkg` is excluded from this checkpoint.
+
+Friction review found the earned index-reflection and native-compilation entries
+already recorded in [the friction log](./friction-log.md). Browser unavailability
+prevented reading CI step-summary percentiles, as disclosed above; no new
+upstream defect or invented CI measurement is claimed.
+
+Checkpoint documentation checks passed: `git diff --check`, identical
+AGENTS/CLAUDE instruction bodies, a 63-word Current phase and an explicit Partial
+roadmap marker. No runtime code changed, so the functional suites were not rerun
+for this documentation checkpoint; their latest results remain recorded above.
+Final `uv run --locked ruff format --check .` passed: **235 files already
+formatted**. The first sandboxed invocation could not open the existing uv cache;
+the authorized cache-access retry succeeded.
