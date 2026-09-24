@@ -6650,3 +6650,29 @@ unchanged. No latency measurement was taken. Bedrock stayed off, the $2 ledger
 was not run or changed, development stays on 0005, and `AWSCLIV2.pkg` was left
 alone. The checkpoint commit hash and observed push-CI result will be appended
 after the run completes.
+
+Checkpoint commit: `9fe3bad67fd6ac7e5b8c22778261843fa444df76`, pushed to
+`phase-4` without merging. [Push CI run 36021610833](https://github.com/BashaarJavaid/Hirz/actions/runs/36021610833)
+completed successfully on that exact commit. All ten ordinary jobs ran and
+passed: `python-lint`, `python-types`, `python-test`, `ts-lint-types`, `ts-test`,
+`scenarios`, `conformance`, `cedar-conform`, `build` and `release`. GitHub reports
+the single unexpanded `latency` job as **skipped**; neither latency matrix job ran.
+This validates the dispatch condition, not latency performance. No latency
+measurement was taken for this checkpoint.
+
+Checks, in the requested order: `git diff --check` exited 0 with no output;
+`diff <(tail -n +2 CLAUDE.md) <(tail -n +2 AGENTS.md)` exited 0 with no output;
+Current phase is **56 words** in each file; final
+`uv run --locked ruff format --check .` exited 0 with
+`235 files already formatted`. The first Ruff attempt hit the existing uv-cache
+sandbox restriction (`Failed to initialize cache` / `Operation not permitted`);
+the authorized retry passed. The first push hit `Could not resolve host: github.com`;
+the authorized network retry succeeded. These repeat the existing environment
+friction. One new Minor entry records the unspecified quickstart measurement
+method; no upstream runtime failure is inferred.
+
+Scope review also confirmed the workflow differs only by the requested condition,
+all earlier verification text is unchanged, item 26's original spec and both
+verify clauses are retained verbatim, and the target-state budget table is
+unchanged. The follow-up commit adds only this CI evidence and its roadmap and
+changelog links.
