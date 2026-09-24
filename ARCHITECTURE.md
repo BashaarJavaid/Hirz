@@ -1371,23 +1371,17 @@ or the full household-tool isolation gate (item 26).
 
 ## 8. Latency budget
 
-The latency gate is deferred until after the 2026-10-23 submission and runs in CI
-on `workflow_dispatch` only. Verified-control reads now select the latest verified
-control per bound device through an index, active-plan reads use a shared partial
-index predicate, and constraint commits close withdrawn/expired rows into history.
-End-to-end latency remains unresolved: the single bounded-read measurement stopped
-on a transport error with partial samples still above 250 ms; full-corpus timing,
-complete late-round means and remaining profiling stay in item 26b
-([evidence](./docs/verification-log.md#item-26b--2026-09-24)). The 500 ms figure comes
-from the [partner MCP Toolkit quickstart](https://www.developer.amazon.com/docs/alexaplus/add-ons/mcp-toolkit-quickstart.html#performance);
-the [hackathon rules](https://amazonappdev2026.devpost.com/rules) specify no latency
-requirement. Remaining latency work is scheduled after submission; see the
-[measured evidence](./docs/verification-log.md#full-gate-results-for-0dc1ccf--2026-09-23)
-and [deferral checkpoint](./docs/verification-log.md#deferral-checkpoint--2026-09-24).
+The gate measures the raw authenticated JSON-RPC `tools/call` round trip through
+receipt of the full response body, with SDK references reported beside it; both
+scenarios pass on CI. This covers the local authenticated MCP surface on the CI
+runner only; AWS ingress, cold start and Alexa host overhead remain item 38.
+Jobs run on manual `workflow_dispatch`, once before closing any roadmap item that
+changes the pipeline, tools, executor, refresh or storage, and once before
+submission; record each run in the evidence log
+([ADR-017](./docs/adr/ADR-017-tool-latency-and-isolation.md#closure-amendment--2026-09-24),
+[evidence](./docs/verification-log.md#closure--2026-09-24)).
 
 Target-state budget per tool call on the AWS path; `tests/latency` is the local proxy:
-
-Plan scheduling runs in the worker after consent, the benchmark harness uses a 120-second keep-alive timeout, and the unchanged 250 ms gate now times the raw authenticated POST through the full response body, excluding client decoding/validation while retaining those assertions and separate onboarding/context-all SDK timings ([ADR amendment](./docs/adr/ADR-017-tool-latency-and-isolation.md#server-round-trip-amendment--2026-09-24)).
 
 | Stage | Budget |
 |---|---|
@@ -1416,6 +1410,11 @@ and JSON-expression indexes; refresh scans exclude terminal plans in SQL.
 Local MCP startup prepares policies in a private native Dogwood helper. Each
 replay uses fresh authorization history over cloned compiled artifacts; failed
 helpers deny without fallback. The unmodified CLI supplies equivalence checks.
+Verified-control reads select the latest verified control per bound device through
+an index. Constraint commits close withdrawn/expired rows into graph history.
+Active-plan reads use the shared partial-index predicate. Plan scheduling runs in
+the worker after durable consent, preserving every signed per-action event.
+The benchmark harness uses a 120-second keep-alive timeout.
 The separate isolation integration
 test exercises both household directions, concurrent requests and restart.
 [ADR-017](./docs/adr/ADR-017-tool-latency-and-isolation.md) defines the corpus,

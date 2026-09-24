@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-09-24: Close item 26b after author review of the CI runner’s local authenticated MCP raw JSON-RPC round-trip gate; require manual latency dispatch before relevant item closures and submission, with AWS ingress, cold start and Alexa host overhead remaining item 38 ([closure](./docs/verification-log.md#closure--2026-09-24), [ADR-017](./docs/adr/ADR-017-tool-latency-and-isolation.md#closure-amendment--2026-09-24)).
+
 - 2026-09-24: Measure authenticated server round trips with separate SDK references and byte-identity checks; both scenarios passed the single [CI latency run](https://github.com/BashaarJavaid/Hirz/actions/runs/36059341623), with item 26b still Deferred pending author review ([ADR amendment](./docs/adr/ADR-017-tool-latency-and-isolation.md#server-round-trip-amendment--2026-09-24), [evidence and tables](./docs/verification-log.md#completed-ci-measurements--both-scenarios-pass-author-review-pending)).
 
 - 2026-09-24: Raise benchmark harness keep-alive, measure the SDK client floor, and defer approved-plan scheduling to the worker while preserving signed per-action events; item 26b remains Deferred after the complete single local gate failed ([ADR amendment](./docs/adr/ADR-017-tool-latency-and-isolation.md#scheduling-and-harness-amendment--2026-09-24), [evidence](./docs/verification-log.md#scheduling-and-harness--2026-09-24)).

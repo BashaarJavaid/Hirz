@@ -7525,3 +7525,41 @@ After CI, a second read-only development check again returned
 `cmp CLAUDE.md AGENTS.md` passed; the final formatting check reported
 `238 files already formatted`. The complete task diff before this final evidence
 note was 11 files, 475 insertions and 25 deletions; runtime server code is unchanged.
+
+
+### Closure — 2026-09-24
+
+The author reviewed Item 26b's [Completed CI measurements](#completed-ci-measurements--both-scenarios-pass-author-review-pending)
+and [CI run 36059341623](https://github.com/BashaarJavaid/Hirz/actions/runs/36059341623)
+(`workflow_dispatch`, `b8c1bc3`, attempt 1) and accepted item 26b as Complete on
+2026-09-24. Both scenarios pass all 54 case gates and 12 pooled-tool gates under
+the server round-trip protocol; highest case p95 is 203.753 ms for Time-of-Day and
+215.672 ms for Hourly. The claim is limited to the local authenticated MCP surface
+on the Linux CI runner, measuring the raw authenticated JSON-RPC `tools/call`
+round trip; SDK references are reported separately. AWS ingress, cold start and
+Alexa host overhead remain item 38.
+
+The gate of record is that Linux CI run under the
+[server round-trip amendment](./adr/ADR-017-tool-latency-and-isolation.md#server-round-trip-amendment--2026-09-24).
+The author supersedes the [2026-09-23 handoff](#paused-handoff--2026-09-23)
+requirement to complete both local scenarios: macOS runs use PostgreSQL inside
+Docker Desktop and produce multi-second disk outliers absent on the CI runner.
+On the same `0dc1ccf` commit, Time-of-Day had three failing case gates on CI versus
+14 locally ([retained comparison](#full-gate-results-for-0dc1ccf--2026-09-23),
+[CI run 35953560008](https://github.com/BashaarJavaid/Hirz/actions/runs/35953560008)).
+Local runs remain diagnostic; earlier measurements and the handoff are preserved
+as historical evidence.
+
+The latency jobs remain on `workflow_dispatch`. Dispatch CI once before closing
+any roadmap item that changes the pipeline, tools, executor, refresh or storage,
+and once before submission; record each run in this evidence log. The
+[closure amendment](./adr/ADR-017-tool-latency-and-isolation.md#closure-amendment--2026-09-24)
+records the decisions and rejected alternatives; the
+[development procedure](./development.md#authenticated-tool-budget-and-isolation-item-26)
+explains dispatch and local/CI comparison.
+
+This checkpoint changes records only. No latency run, Bedrock invocation, ledger
+access, development migration or AWS measurement is performed; development stays
+on 0005, migrations through 0013 remain manual, and `AWSCLIV2.pkg` is untouched.
+Real phone/security execution remains unverified. Ordinary push-CI results for
+this checkpoint will be appended after the ten jobs complete.

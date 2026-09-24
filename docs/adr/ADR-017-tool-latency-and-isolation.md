@@ -1,6 +1,6 @@
 # ADR-017: Local tool latency and household isolation
 
-Date: 2026-09-23. Status: accepted protocol; isolation verified; latency deferred as item 26b.
+Date: 2026-09-23. Status: accepted; item 26 isolation and item 26b latency verified 2026-09-24 on the local authenticated surface.
 
 ## Decision
 
@@ -433,3 +433,33 @@ loosening the threshold because the server budget is unchanged; and patching or
 forking the SDK because the host-specific optimization is outside this server gate
 and would weaken the independent reference. Validator caching is suggested
 upstream in the [friction log](../friction-log.md#item-26b-sdk-per-call-schema-validation--2026-09-24).
+
+
+## Closure amendment — 2026-09-24
+
+The author reviewed the [completed measurements](../verification-log.md#completed-ci-measurements--both-scenarios-pass-author-review-pending)
+and accepts item 26b as Complete. The gate of record is Linux
+[CI run 36059341623](https://github.com/BashaarJavaid/Hirz/actions/runs/36059341623)
+(`workflow_dispatch` on `b8c1bc3`, attempt 1) under the server round-trip amendment:
+both scenarios pass on the local authenticated MCP surface measured on the CI
+runner, using raw authenticated JSON-RPC `tools/call` round trips with separate
+SDK references. AWS ingress, cold start and Alexa host overhead remain item 38.
+
+This supersedes the 2026-09-23 handoff's requirement to complete both local
+scenarios. Local macOS runs use PostgreSQL inside Docker Desktop and produce
+multi-second disk outliers absent on the runner; the same `0dc1ccf` commit had
+three failing Time-of-Day cases on CI versus 14 locally. Local runs remain
+diagnostic. The [closure evidence](../verification-log.md#closure--2026-09-24)
+links the retained comparison and author review; earlier evidence stays intact.
+
+The latency jobs remain on `workflow_dispatch`. Dispatch CI once before closing
+any roadmap item that changes the pipeline, tools, executor, refresh or storage,
+and once before submission, recording each run in the evidence log. The
+[development procedure](../development.md#authenticated-tool-budget-and-isolation-item-26)
+owns dispatch and local/CI comparison instructions.
+
+Rejected alternatives: re-enabling jobs on push repeats expensive measurements
+without a closure decision; requiring a local macOS pass makes Docker Desktop
+disk outliers the acceptance criterion; treating the CI runner as an AWS
+measurement claims ingress, cold start and Alexa host costs this gate does not
+measure. The corpus, sample counts and 250 ms threshold remain unchanged.

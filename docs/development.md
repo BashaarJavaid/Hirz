@@ -1255,14 +1255,32 @@ for publication state and actual runs.
 
 ## Authenticated tool budget and isolation (item 26)
 
-Item 26 isolation is complete; item 26b latency is deferred until after the
-2026-10-23 submission. Pushes and pull requests no longer run the latency job;
-isolation still runs in integration CI. To run latency explicitly, open the
-repository's **Actions** tab, select **CI**, choose **Run workflow**, select the
-branch (for this checkpoint, `phase-4`), and click **Run workflow**. This sends
-`workflow_dispatch` and runs both unchanged latency matrix jobs alongside the
-ordinary CI jobs. See the
-[deferral amendment](./adr/ADR-017-tool-latency-and-isolation.md#deferral-amendment--2026-09-24).
+Item 26 isolation and item 26b latency are complete following author review on
+2026-09-24 ([closure](./verification-log.md#closure--2026-09-24)). Both scenarios
+pass the raw authenticated JSON-RPC `tools/call` round-trip gate for the local
+authenticated MCP surface on the Linux CI runner, with SDK references reported
+separately; AWS ingress, cold start and Alexa host overhead remain item 38.
+Linux CI is the gate of record; local runs are diagnostic because macOS with
+PostgreSQL inside Docker Desktop produces multi-second disk outliers.
+
+Latency jobs stay on `workflow_dispatch`; pushes and pull requests run ordinary
+CI, including isolation. **Dispatch CI once before closing any roadmap item that
+changes the pipeline, tools, executor, refresh or storage, and once before
+submission; record each run in the evidence log.** Open the repository's
+**Actions → CI → Run workflow**, select the branch, and click **Run workflow**.
+This runs both latency matrix jobs alongside the ordinary jobs. See the
+[closure amendment](./adr/ADR-017-tool-latency-and-isolation.md#closure-amendment--2026-09-24).
+
+To compare a private local `report.json` with a CI run's payload-free timing
+summary, first match the commit, scenario and measurement protocol; distinguish
+raw round-trip gate values from the separate SDK references. Compare the same
+case and pooled-tool rows, sample counts, minimum, median, nearest-rank p95 and
+maximum, retaining every sample and the unchanged 250 ms threshold. Record the
+platform/PostgreSQL environment and CI run link beside the comparison in the
+evidence log; an SDK-timed historical run is not directly comparable to the raw
+server protocol. Private local reports remain private; CI does not upload raw
+household reports. The retained same-commit `0dc1ccf` Time-of-Day comparison had
+three failing cases on CI versus 14 locally ([evidence](./verification-log.md#full-gate-results-for-0dc1ccf--2026-09-23)).
 
 [ADR-017](./adr/ADR-017-tool-latency-and-isolation.md) owns the approved protocol.
 Use the existing local PostgreSQL service, `.env` and native Dogwood. The runner

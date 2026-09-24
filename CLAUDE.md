@@ -102,7 +102,7 @@ The verified toolchain and scaffold setup are in `README.md`; use Node 24.
 - `uv run hirz decide --household <uuid> --as malik --surface alexa --action energy.hvac_adjust --adapter twin --entity hvac.living_room --zone <zone-uuid> --params '{"target_f":72}'` — hypothetical preview of a stored, unactivated policy; optional `--cost`, `--at`, `--evidence`, and `--requester-confirmed`. Required observation/evidence setup and exit codes: `docs/development.md`.
 - `uv run --locked python scripts/dev_oauth.py init|serve` — explicit separate RSA key initialization or simulated login on loopback 8001; no graph changes. `uv run --locked uvicorn --factory hirz.api.app:create_local_oauth_app --host 127.0.0.1 --port 8000 --no-access-log` starts authenticated MCP. `uv run --locked python scripts/smoke_oauth.py [--browser]` verifies SDK discovery/linking/refresh in a disposable database; browser mode requires explicit Approve and Deny. Procedures: `docs/development.md`.
 - `uv run --locked python scripts/smoke_household_tools.py --audit-output <new-file>` — twelve authenticated tools, separate OAuth/MCP/worker processes, restart and independently verified signed exports in disposable twin databases; `--live-selection --budget-ledger <same-ledger>` reruns the Bedrock selection gate within the aggregate $2.00 ceiling. Never reset its ledger to bypass the ceiling; recheck pricing before another invocation. Procedures: `docs/development.md`.
-- `HIRZ_LLM=off uv run --locked python scripts/smoke_tool_budget.py --mode all --artifacts-dir <new-dir>` — disposable authenticated latency/isolation gates and private signed evidence; protocol ADR-017 and procedure `docs/development.md`. Full verification remains pending.
+- `HIRZ_LLM=off uv run --locked python scripts/smoke_tool_budget.py --mode all --artifacts-dir <new-dir>` — disposable authenticated latency/isolation gates and private signed evidence; protocol ADR-017 and procedure `docs/development.md`. Local runs are diagnostic; CI is the gate of record (see the development procedure).
 - `uv run --locked python scripts/smoke_mcp.py` — real HTTP SDK initialization, tool listing and validated generic onboarding against local `/mcp`; no household access or mutation. Inspector procedures: `docs/development.md`.
 - `uv run python scripts/smoke_twin.py` — verify in-memory twin physics, eight read adapters and source labels; no database or device actions.
 - `uv run python scripts/smoke_energy.py` — recorded energy-feed reads; `--live --history-month 2026-08` opts into public APIs, `--tariff-file PATH` supplies a reviewed tariff explicitly. No database or device actions.
@@ -119,7 +119,7 @@ The verified toolchain and scaffold setup are in `README.md`; use Node 24.
 - `uv run python scripts/build_dogwood.py` — build the pinned native CLI (Rust/Cargo required); `export HIRZ_DOGWOOD="$PWD/.tools/dogwood"` enables local checks.
 - `uv run hirz constitution validate|compile constitutions/quinn-home.yaml [--gateway-resource hirz-local]` — database-free JSON output, native policy validation; reports `not analyzed: local mode`.
 - `uv run hirz constitution preview OLD NEW` — deterministic situation differences; no activation. `analyze`/`activate` remain later work.
-- `uv run pytest` — service-free tests with coverage; `uv run pytest -m integration --cov=hirz --cov-append` — live PostgreSQL tests in uniquely named disposable databases, appending coverage; `uv run --locked coverage report --fail-under=80` — 80 percent over service-free and integration tests combined (run those three commands in order); `uv run pytest -m integration --no-cov` — standalone integration checks without coverage; `uv run pytest tests/latency -m latency --no-cov` — budget; CI runs it on workflow_dispatch only; `uv run pytest tests/cedar_conformance` — YAML/native Dogwood agreement; AWS comparison remains item 37.
+- `uv run pytest` — service-free tests with coverage; `uv run pytest -m integration --cov=hirz --cov-append` — live PostgreSQL tests in uniquely named disposable databases, appending coverage; `uv run --locked coverage report --fail-under=80` — 80 percent over service-free and integration tests combined (run those three commands in order); `uv run pytest -m integration --no-cov` — standalone integration checks without coverage; `uv run pytest tests/latency -m latency --no-cov` — budget; CI workflow_dispatch only, required before pipeline/tools/executor/refresh/storage item closure and submission (record each run; docs/development.md); `uv run pytest tests/cedar_conformance` — YAML/native Dogwood agreement; AWS comparison remains item 37.
 - `uv run ruff check . && uv run ruff format --check . && uv run mypy hirz/ scripts/ alembic/`.
 - `uv run --locked python scripts/smoke_household_tools.py --audit-output <new-file> --conformance-cli ../addon-check/dist/cli.js` — independent twelve-tool checks with `--require-complete` after restart; private cases, environment token and signed audit verification. Build the separate Node 24 checker first; only onboarding/context are timed. Procedure: `docs/development.md`.
 - `pnpm -r lint && pnpm -r typecheck && pnpm -r test`; `pnpm --filter web dev` (companion pages + simulator route), `pnpm --filter mcp-app build`.
@@ -128,12 +128,12 @@ The verified toolchain and scaffold setup are in `README.md`; use Node 24.
 
 ## Current phase
 
-**Item 26 isolation is complete; item 26b latency remains Deferred pending author
-review. Item 27 is next.** The gate now measures raw authenticated server round
-trips with separate SDK references; both scenarios passed the single CI run
-([evidence](./docs/verification-log.md#completed-ci-measurements--both-scenarios-pass-author-review-pending)).
-Development stays on 0005; migrations through 0013 remain manual. Keep Bedrock off
-and preserve the $2 ledger. Real phone/security execution remains unverified.
+**Phase 4 is complete through 26b; item 27 is next.** The CI runner's local
+authenticated MCP gate measures raw authenticated JSON-RPC round trips; AWS
+ingress, cold start and Alexa host overhead remain item 38
+([closure](./docs/verification-log.md#closure--2026-09-24)). Development stays on
+0005; migrations through 0013 remain manual. Keep Bedrock off and the $2 ledger
+preserved. Real phone/security execution remains unverified.
 
 ---
 
