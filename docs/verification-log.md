@@ -8863,3 +8863,13 @@ The earlier size and service-free failures are retained above as failures.
 The eight designed browser MANUAL notes remain recorded. No additional
 third-party friction entry was earned; the existing item 26b SDK entry carries
 the measured follow-up. No merge was performed.
+
+## Housekeeping after Phase 4 — 2026-09-25
+
+The 76 disposable `hirz_ha_smoke_*` databases retained by failed or comparison
+smoke runs (2,496 MB, no active connections) were dropped from the local
+PostgreSQL after Phase 4 merged to `main`; only `hirz` and `postgres` remain.
+Entries above that name one of those databases as retained now describe a
+database that no longer exists. The numbers, fingerprints and CI links they
+record are unaffected. No development-database change and no repository code
+change was made.
