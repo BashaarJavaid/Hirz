@@ -1,5 +1,71 @@
 # MCP Tool Catalog
 
+**Item 25 approved local contract (implemented).** The authenticated factory exposes all twelve
+names below. The generic unauthenticated app still exposes only onboarding.
+The implemented contract is in `hirz/mcp/contracts.py`; [ADR-015](./adr/ADR-015-household-tools.md)
+records the approved choices and trust vocabulary. Voice and native structured
+rendering are supported; cards, elicitation and the full simulator remain pending.
+
+| Tool | Scope | Implemented inputs and behavior |
+|---|---|---|
+| what_can_you_do | anonymous | No inputs; generic capability speech; linked read access adds the available tool list. |
+| get_household_context | read | scope, optional member; redacted observations, provenance and availability. |
+| get_household_plan | plan | horizon defaults to tonight; optional objective (cheapest, most_comfortable, greenest); request_id when enqueueing or choosing an objective; existing canonical Plan or durable preparation status. |
+| revise_household_plan | plan | text, applies_to, kind, operation, change and applicable scalar values; atomic constraint recording and refresh invalidation. |
+| explain_plan | read | Optional plan_id and focus (summary, conflicts, action/goal reference); stored facts and bounded narration. |
+| approve_action | act | approved, exact plan_id/version or action_id/approval_id, request_id; stale consent refused; security remains unresolved. |
+| execute_household_action | act | action plus applicable profile, room, temperature_f, percent, minutes, beneficiary, claimed_requester; request_id; queued execution. |
+| assess_request_risk | verify | text, claimed_party, party, optional presented_number, request_id; deterministic advice, no contact initiation. |
+| verify_trusted_identity | verify | operation start/status; case_id/contact, text for a new request and request_id for start; private simulated app checks only. |
+| propose_household_rule | plan | text, request_id; records the sentence with CONSTITUTION_PROPOSED, without drafting, delivery or activation. |
+| evaluate_permission | read | Shared action fields, optional at and required request_id; current policy preview with DRY_RUN, no authority. |
+| get_action_audit | read | window or action_id, limit default 20/max 100 and cursor; newest-first consumer summaries. |
+
+The action enum is generated from consumer_actions metadata in risk/classes.yaml:
+charge_car, stop_charging, set_temperature, turn_on_light, turn_off_light,
+request_door_unlock, hold_battery, pause_automation, apply_profile. Money requests route to advice;
+resume remains app-only. Missing applicable values require clarification, unique
+household targets are mandatory, and immediate commands promise one setting change.
+
+Revision changes are car_target, car_limit, charge_after, car_ready_by,
+appliance_after, appliance_ready_by, temperature, temperature_range and release_hold.
+Values use percent, temperature_f, lower_f, upper_f, at, window_start and window_end.
+Replacement/removal requires constraint_id, except release of a unique active hold.
+Optional claimed_author is provenance. All revisions expire with the current plan,
+or after 24 hours without a plan; explicit windows reuse local-time/DST validation.
+There is no permanent learning. Tonight/overnight/tomorrow_morning end at the next
+local 08:00; next_24h ends 24 hours after creation. Existing horizons stay fixed.
+
+Inputs reject unknown fields, irrelevant parameters and invalid combinations.
+Text is bounded to 2,000 characters, names/references to 200, request keys to 128.
+Each tool returns its own strict typed `speakable`/`data` envelope, with only the
+data fields that tool can return ([per-tool schemas](./adr/ADR-015-household-tools.md#per-tool-output-schemas--2026-09-24)). Speech has at most 20 headline words, two
+headline sentences, three details, five options and fewer than 75 total words.
+Clarifications are typed results; validation errors set MCP isError and a machine
+code. OAuth retains HTTP 401/403/503. Request receipts survive restart and bind the
+household, principal, tool and arguments. No tool input can raise authority.
+
+Trust and phone normalization rules are recorded once in [ADR-015](./adr/ADR-015-household-tools.md#trust-contract-approved-during-implementation).
+No supplied number means no number-related speech. All executable checks are
+labeled simulated, expire after two minutes, and require both a verified twin app
+channel and policy permission. General context/audit never exposes private case
+contents or stored channel hashes. The consumer must ask again for a delayed result.
+
+Profiles use explicit household-configured thermostat/light settings: each device
+receives its own Pipeline decision, missing configurations are unavailable, and
+later automation may change the settings. Objective tilts preserve hard constraints
+and follow the approved priority order in [ADR-015](./adr/ADR-015-household-tools.md#completion-scope-amendment--2026-09-23-author-approved).
+Greenest means reduced grid electricity, without an emissions claim. Changing an
+objective invalidates prior consent and requires approval of the resulting plan.
+
+**The remaining sections describe the full target surface.** Cards, permanent
+preference tools, real phone delivery, drafting/activation, additional trust
+methods and organization verification are not implemented here. Elicitation is
+assigned to item 29; cards to 27; drafting/activation and approval notifications to 28; real contact
+checks and further trust methods to 31; organization verification to 33. The full
+simulator remains item 29. These assignments do not change the target contracts
+below ([scope amendment](./adr/ADR-015-household-tools.md#completion-scope-amendment--2026-09-23-author-approved)).
+
 The tool surface Alexa+ (and the simulator) sees. Five groups, twelve tools. The surface is deliberately small: an orchestrator picks reliably among a dozen distinct verbs and unreliably among two dozen near-duplicates, and Alexa's own guidance is tools whose outputs feed each other. The tool-selection test in `ROADMAP.md` item 25 is the arbiter of this surface: if a tool misfires there, the surface changes. Every tool follows the same contract:
 
 - **Input** is a JSON Schema 2020-12 `inputSchema` that is **flat**: enums and scalar parameters only, no free-form objects, no `oneOf`. Every parameter is described in consumer terms and with synonyms (Alexa+ resolves "the living room", "lounge", "front room" through the description). Internal action-class names (`energy.ev_charge`) never appear in an input schema.
@@ -8,7 +74,7 @@ The tool surface Alexa+ (and the simulator) sees. Five groups, twelve tools. The
 - **Errors** are MCP tool-execution errors with a consumer-language `message` and a machine `code`; never protocol errors for validation problems, so the host can self-correct. A parameter combination that makes no sense for the chosen action ("set_temperature" with no temperature) is this kind of error.
 - **No internal IDs in speakable text.** Plan, action, and case ids, and internal class names, travel in `data` and in `_meta` only.
 - **Latency** under the §8 budget; nothing in a tool waits on a model, a solver, the Gateway, an adapter, or a third-party network call. Tools that act hand execution to the worker and say so in `speakable`.
-- **Scopes** (OAuth): `hirz:read`, `hirz:plan`, `hirz:act`, `hirz:verify`. A token without the scope gets a friendly refusal, not a 401. The Skill-bridge demo token carries `hirz:read` only (ADR-007).
+- **Scopes** (OAuth): `hirz:read`, `hirz:plan`, `hirz:act`, `hirz:verify`. A valid token without the required scope gets HTTP 403, a friendly JSON message and an `insufficient_scope` challenge naming the required scope. Missing or invalid credentials get HTTP 401 with PRM discovery. The Skill-bridge demo token carries `hirz:read` only (ADR-007).
 
 Naming follows the 2025-11-25 guidance: lowercase, underscores, verb first. Amazon's "Tools, Schema, Data Design" page of the add-on design guide is read and cited when the tools are built (`ROADMAP.md` item 25).
 
@@ -25,7 +91,7 @@ Naming follows the 2025-11-25 guidance: lowercase, underscores, verb first. Amaz
 
 | Tool | Scope | Purpose |
 |---|---|---|
-| `get_household_plan` | plan | The current plan for a horizon (`tonight`, `overnight`, `tomorrow_morning`, `next_24h`) with goals honored, actions, numbers, alternatives, and approval state. Optional `objective` tilt (`cheapest`, `greenest`, `most_comfortable`) requests a re-plan with that weighting. The summary leads with dollars saved and always includes the "do nothing" and "do everything now" comparisons, so no separate forecast tool exists. Fresh plan if one exists; otherwise the last plan marked `refreshing` plus an enqueued re-plan. Options: `Approve`, `Change something`, `Skip tonight`. Card: inline summary, fullscreen timeline. |
+| `get_household_plan` | plan | The current plan for a horizon (`tonight`, `overnight`, `tomorrow_morning`, `next_24h`) with goals honored, actions, numbers, alternatives, and approval state. Optional `objective` tilt (`cheapest`, `greenest`, `most_comfortable`) requests a re-plan with that weighting. The summary leads with dollars saved and always includes the timer, immediate ("do everything now") and greedy comparisons, so no separate forecast tool exists. Fresh plan if one exists; otherwise the last plan marked `refreshing` plus an enqueued re-plan. Options: `Approve`, `Change something`, `Skip tonight`. Card: inline summary, fullscreen timeline. |
 | `revise_household_plan` | plan | Records a spoken preference or constraint (`text`, `applies_to` member/asset/zone, optional `window`, `kind` ∈ `preference`, `constraint`, `one_time`) with the linked account and surface as its provenance (Alexa does not say who spoke; a name in the sentence is kept as `claimed_author`, shown as claimed), runs Coordinator normalization, and, if the plan is affected, marks it `refreshing` and enqueues the re-plan. No solver runs in the call, so the tool does not return a revised plan or a savings delta. Its `speakable` states the constraint, which is certain ("Got it, the car stops at 50. I'm updating the plan."); the card re-fetches when the new version lands, about a second later, and shows what moved and the new figure; by voice the member hears it on the next `get_household_plan`. "Don't charge past 50" and "Don't run the dishwasher until I'm done in the kitchen at eleven" both land here. |
 | `explain_plan` | read | Why the plan is what it is: facts, considered alternatives, rejected ones with reasons, the rules that shaped it, and, with `focus: conflicts`, the conflicts between goals, member constraints, and the constitution with suggested resolutions and the members involved. Optional `focus` may also name an action or a goal. |
 
@@ -33,7 +99,7 @@ Naming follows the 2025-11-25 guidance: lowercase, underscores, verb first. Amaz
 
 | Tool | Scope | Purpose |
 |---|---|---|
-| `approve_action` | act | Approves or declines the current plan, a specific action within it, or a pending approval, with requester confirmation elicitation when the constitution requires it. A plan that is `refreshing` cannot be approved ("Still updating, one moment"), so a cached plan is never approved as though it held a change just asked for. Runs pipeline stages 1–6 for what it approves; returns what is now executing (asynchronously, via the worker, `ARCHITECTURE.md` §5.6), what still needs approval, and what was blocked. Voice can resolve an approval only for classes whose `ask_channels` include `alexa`; for `security.*` classes (never voice-approvable, `docs/constitution.md` §2.5) the tool creates the approval, sends it to the companion app, and its `speakable` says the request is waiting on the phone. |
+| `approve_action` | act | Approves or declines the current plan, a specific action within it, or a pending approval, with requester confirmation elicitation when the constitution requires it. A plan that is `refreshing` cannot be approved ("Still updating, one moment"), so a cached plan is never approved as though it held a change just asked for. Runs pipeline stages 1–6 for what it approves; returns what is now executing (asynchronously, via the worker, `ARCHITECTURE.md` §5.6), what still needs approval, and what was blocked. Plan consent returns “being queued” with action references from the approved plan document; the next worker tick materializes its signed scheduling rows. Voice can resolve an approval only for classes whose `ask_channels` include `alexa`; for `security.*` classes (never voice-approvable, `docs/constitution.md` §2.5) the tool creates the approval, sends it to the companion app, and its `speakable` says the request is waiting on the phone. |
 | `execute_household_action` | act | An immediate action, chosen from a consumer-language `action` enum: `charge_car`, `stop_charging`, `set_temperature`, `turn_on_light`, `turn_off_light`, `request_door_unlock`, `hold_battery`, `apply_profile`, `pause_automation` (every `auto` becomes `ask` until a member resumes Hirz in the app; pausing only tightens, so a voice may do it). Flat optional parameters, each described with synonyms: `room`, `temperature_f`, `percent`, `profile` (`recovery_morning`, `guests_arriving`, `night`, `away`), `for_whom`. The server maps each enum value to an action class through a table generated from `hirz/risk/classes.yaml`; the class name appears only in `data` and `_meta`. Runs pipeline stages 1–6 and either asks, denies, or hands each action to the worker for execution within seconds. Returns the Decision(s) with `status: executing` and a `speakable` that does not promise an outcome the boundary has not yet allowed, such as "I'm starting the charge. I'll tell you on your phone if it doesn't go through."; the verified outcome lands in the audit ledger and is reported by `get_action_audit`, the plan card, and a push notification. The call never waits on the Gateway or an adapter. **There is no money action in the enum**: a request to send money is routed to `assess_request_risk` by that tool's description, because Hirz has no way to move money, by design. |
 
 ## Trust
@@ -66,7 +132,7 @@ All cards follow `docs/design.md`: Amazon's published design tokens verbatim, a 
 | `ui://hirz/plan-card` | `get_household_plan`, `revise_household_plan` | inline, fullscreen | Inline: dollars saved tonight, three rows, Approve. Fullscreen: the timeline, all actions, alternatives. Buttons call `approve_action` / `revise_household_plan` through the host bridge |
 | `ui://hirz/approval-card` | `approve_action`, `execute_household_action` (when ASK) | inline | One action, its rule, its band, Approve / Deny (for `security.*` classes the card says the approval is on the phone and shows no Approve button) |
 | `ui://hirz/verification-card` | `assess_request_risk`, `verify_trusted_identity` | inline | One headline, up to three signals, verification status (`pending` → result; the card re-calls `verify_trusted_identity` through the host bridge while pending, so the screen updates without anyone asking) |
-| `ui://hirz/doorbell-card` | `get_household_context` (scope `environment` or `security`) when a visitor context is active | inline | Snapshot, schedule context worded as context ("Mom is expected now", never "Mom is at the door"), unlock request button (pipeline-gated) |
+| `ui://hirz/doorbell-card` | `get_household_context` (scope `environment`) when a visitor context is active | inline | Snapshot, schedule context worded as context ("Mom is expected now", never "Mom is at the door"), unlock request button (pipeline-gated) |
 | `ui://hirz/scorecard` | `get_action_audit` | inline, fullscreen | Inline: dollars saved, annualized figure, peak kWh avoided. Fullscreen: counts and the decision list |
 
 All cards are built with `@modelcontextprotocol/ext-apps`, render in the host's sandboxed iframe, and call tools only through the host bridge so every action still passes the pipeline. Cards are optional overlays; the `speakable` block carries every critical fact.
@@ -90,7 +156,7 @@ The simulator's emulated host is given these rules, which mirror Alexa+'s publis
 - In voice-only mode, never refer to the screen.
 - On tool error, say what happened in plain words and offer a next step.
 
-The generic, black-box parts of this contract (Streamable HTTP on 2025-11-25, Protected Resource Metadata, the `401` challenge, schema completeness, naming, declared display modes, warm round trip under 500 ms, spoken length under 30 seconds, no formatting artefacts) are checked by the open-source conformance checker (`ROADMAP.md` item 25a), which Hirz's CI runs against its own server. Hirz's own tests keep only the Hirz-specific rules: `speakable` present, options ≤ 5, headline length, no internal IDs or class names in consumer strings.
+The independent [addon-check](https://github.com/BashaarJavaid/addon-check) checks the generic contract through explicit cases in Hirz CI: transport, PRM/scoped challenges, schemas, naming, selected speech and authorized latency samples. All twelve tools have output/speech cases; only onboarding/context are timed. MCP Apps references are checked when declared; display-mode behavior belongs to the browser initialization exchange and requires manual review. This is scoped evidence, not Amazon certification ([ADR-016](./adr/ADR-016-add-on-conformance-checker.md)). Hirz retains runtime validators, transport/security regressions and its specific flat inputs, `speakable`, option/headline limits, privacy and authority checks.
 
 
 Item 18's reserved `governance.record_constraint` and
@@ -112,3 +178,44 @@ Item 25 maps the flat tool input onto these three cases and adds no fourth path.
 `revise_household_plan`'s text field is provenance: item 25 builds `ConstraintSpec`
 from `applies_to`, `kind` and `window`; the sentence grammar in
 `hirz/planner/coordinator.py` stays for the scenario host and tests only.
+
+## Local authentication (item 24)
+
+Generic `what_can_you_do` remains anonymous. The authenticated startup and separate
+simulated issuer are documented in [development procedures](./development.md#item-24-local-oauth).
+Other tools default to protected `hirz:read` access and cannot register without
+authentication wiring; their eventual catalog scopes must be supplied explicitly.
+The normal catalog still contains only generic onboarding. `oauth_probe` is a
+test/smoke-only read of resolved identity, with a fixed required scope per test.
+Unmapped/child tokens can use generic onboarding but receive 403 for protected
+calls. Required keys/database unavailable gives 503. Policy denials remain tool
+results. Full household tools/isolation and Inspector OAuth registration remain
+later work; [ADR-014](./adr/ADR-014-local-oauth.md) records the exact local contract.
+
+## Card result fields and estimates (item 27)
+
+Authenticated startup registers the five resources above with MIME
+`text/html;profile=mcp-app` and tool `_meta.ui.resourceUri`. Static templates are
+anonymous and contain no household data or evidence configuration. Tool reads and
+mutations retain their existing scopes. Resources bundle all assets and declare
+empty external network/resource destinations. Modes are declared by the SDK during
+`ui/initialize`; only plan and scorecard offer customer-operated fullscreen.
+
+`Result.data.presentation` is optional and discriminated by `kind` (`plan`,
+`approval`, `verification`, `doorbell`, `scorecard`). Its labels, source, timestamps
+and control eligibility are deterministic server output. `data.actions` contains
+canonical Actions for the plan timeline, without a second action shape. Every
+result retains complete `speakable`. Missing specialized content renders neutrally.
+Successful queued plan consent returns its neutral acknowledgement and approved
+Plan, without presentation or Actions; `get_household_plan` still returns the full
+card and timeline. Its durable retry returns the same acknowledgement.
+
+`get_action_audit` selects the most recently created eligible plan overlapping its
+window, excluding superseded, abandoned and refreshing plans; action queries use
+that action's plan. The displayed horizon is exact, overlapping estimates are not
+summed, and invalid comparisons are unavailable. Separate backtest extrapolation
+requires the explicit startup evidence mapping described in
+[development](./development.md#item-27-mcp-app-cards). Negative figures are preserved.
+Counts independently deduplicate device action IDs for autonomous execution,
+ASK, DENY and VERIFIED read-back. Categories can overlap; previews, bookkeeping
+and private contact cases are excluded. Pagination changes only the decision list.

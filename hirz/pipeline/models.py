@@ -120,6 +120,7 @@ class Action(Model):
 
 
 class EventType(StrEnum):
+    DRY_RUN = "DRY_RUN"
     PLAN_REFRESH = "PLAN_REFRESH"
     RESERVATION_ADJUSTED = "RESERVATION_ADJUSTED"
     EXECUTE = "EXECUTE"
@@ -369,3 +370,51 @@ class Plan(Model):
         ):
             raise ValueError("Invalid comparison cannot claim savings or avoided peak")
         return self
+
+
+class VerificationClaim(Model):
+    text: str = Field(min_length=1, max_length=2000)
+    channel: Literal["reported"] = "reported"
+    presented_number: str | None = Field(default=None, max_length=200)
+
+
+class VerificationSubject(Model):
+    contact_id: str | None = None
+    trusted: bool
+    claimed_party: str = Field(min_length=1, max_length=200)
+    party: Literal["person", "organization"]
+
+
+class VerificationSignal(Model):
+    signal: Literal[
+        "financial_or_access_request",
+        "unfamiliar_channel_reported",
+        "secrecy",
+        "third_party_recipient",
+        "urgency_language",
+        "claimed_authority",
+    ]
+    weight: Literal[1, 2]
+
+
+class VerificationState(Model):
+    method: Literal["app_confirmation"] = "app_confirmation"
+    status: Literal["pending", "genuine", "not_genuine", "will_call", "no_answer"]
+    sent_to: str
+    started_at: AwareDatetime
+    expires_at: AwareDatetime
+    source: Literal["twin"] = "twin"
+
+
+class VerificationCase(Model):
+    case_id: str
+    claim: VerificationClaim
+    subject: VerificationSubject
+    signals: tuple[VerificationSignal, ...]
+    risk_band: RiskBand
+    recommended: tuple[Literal["verify_via_verified_channel", "do_not_transfer"], ...]
+    number_comparison: (
+        Literal["matches", "does_not_match", "insufficient_information"] | None
+    ) = None
+    verification: VerificationState | None = None
+    speakable: dict[str, JsonValue]

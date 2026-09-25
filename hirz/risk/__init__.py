@@ -2,7 +2,7 @@
 
 from enum import StrEnum
 from importlib.resources import files
-from typing import Literal, TypedDict, cast
+from typing import Literal, NotRequired, TypedDict, cast
 
 import yaml
 
@@ -25,6 +25,7 @@ def floor_outcome(band: RiskBand) -> Literal["none", "ask", "never_auto"]:
 
 
 class Profile(TypedDict):
+    consumer_actions: NotRequired[list[str]]
     impact: int
     reversibility: str
     band: str
@@ -41,7 +42,12 @@ def load_catalog(text: str) -> dict[str, Profile]:
             or len(name.split(".")) != 2
             or not all(part.isidentifier() for part in name.split("."))
             or not isinstance(profile, dict)
-            or set(profile) != set(Profile.__annotations__)
+            or set(profile) - {"consumer_actions"} != set(Profile.__required_keys__)
+            or not isinstance(profile.get("consumer_actions", []), list)
+            or any(
+                not isinstance(a, str) or not a.isidentifier()
+                for a in profile.get("consumer_actions", [])
+            )
             or type(profile["impact"]) is not int
             or not 1 <= profile["impact"] <= 5
             or not isinstance(profile["reversibility"], str)
@@ -56,3 +62,9 @@ def load_catalog(text: str) -> dict[str, Profile]:
 
 
 CLASSES = load_catalog(files(__package__).joinpath("classes.yaml").read_text())
+
+CONSUMER_ACTIONS = {
+    action: name
+    for name, profile in CLASSES.items()
+    for action in profile.get("consumer_actions", [])
+}

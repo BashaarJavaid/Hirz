@@ -91,6 +91,19 @@ audit_log = sa.Table(
         for column in ("prev_hash", "curr_hash", "key_fingerprint")
     ),
 )
+sa.Index(
+    "audit_budget_usage",
+    audit_log.c.household_id,
+    sa.text("(payload['budget'] ->> 'class')"),
+    sa.text("(payload['budget'] ->> 'local_date')"),
+)
+sa.Index(
+    "audit_budget_adjustments",
+    audit_log.c.household_id,
+    audit_log.c.event_type,
+    audit_log.c.payload["class"].astext,
+    audit_log.c.payload["local_date"].astext,
+)
 audit_pointer = sa.Table(
     "audit_pointer",
     metadata,
@@ -428,6 +441,20 @@ actions = sa.Table(
         "cost IS NULL OR cost ~ '^[0-9]+([.][0-9]+)?$'", name="actions_cost_nonnegative"
     ),
 )
+sa.Index(
+    "actions_grant_lookup",
+    actions.c.household_id,
+    actions.c.grant_seq,
+    postgresql_where=actions.c.grant_seq.is_not(None),
+)
+sa.Index(
+    "actions_verified_target",
+    actions.c.household_id,
+    sa.text("(proposal['target'] ->> 'adapter')"),
+    sa.text("(proposal['target'] ->> 'entity')"),
+    actions.c.execution_attempt_seq.desc(),
+    postgresql_where=sa.text("execution_status = 'verified'"),
+)
 approvals = sa.Table(
     "approvals",
     metadata,
@@ -499,6 +526,19 @@ plans = sa.Table(
     sa.ForeignKeyConstraint(
         ["household_id", "audit_seq"], ["audit_log.household_id", "audit_log.seq"]
     ),
+)
+# Fixed literals let PostgreSQL prove the partial index applies to prepared reads.
+ACTIVE_PLAN = sa.literal_column("(document ->> 'status')").not_in(
+    [
+        sa.literal_column(repr(status))
+        for status in ("superseded", "completed", "abandoned")
+    ]
+)
+sa.Index(
+    "plans_active_latest",
+    plans.c.household_id,
+    plans.c.audit_seq.desc(),
+    postgresql_where=ACTIVE_PLAN,
 )
 plan_refresh_jobs = sa.Table(
     "plan_refresh_jobs",
@@ -632,4 +672,75 @@ memory_proposals = sa.Table(
     sa.CheckConstraint("status IN ('pending','accepted','rejected')"),
     sa.CheckConstraint("(preference_id IS NULL) = (preference_version IS NULL)"),
     sa.CheckConstraint("(status = 'pending') = (review_seq IS NULL)"),
+)
+
+tool_requests = sa.Table(
+    "tool_requests",
+    metadata,
+    sa.Column("household_id", sa.UUID, primary_key=True),
+    sa.Column("principal_hash", sa.Text, primary_key=True),
+    sa.Column("request_id", sa.Text, primary_key=True),
+    sa.Column("fingerprint", sa.Text, nullable=False),
+    sa.Column("result", JSONB, nullable=False),
+    sa.Column("decision_seq", sa.BigInteger, nullable=False),
+    sa.ForeignKeyConstraint(
+        ["household_id", "decision_seq"], ["audit_log.household_id", "audit_log.seq"]
+    ),
+    sa.CheckConstraint("length(request_id) BETWEEN 1 AND 128"),
+)
+rule_proposals = sa.Table(
+    "rule_proposals",
+    metadata,
+    sa.Column("household_id", sa.UUID, primary_key=True),
+    sa.Column("id", sa.Text, primary_key=True),
+    sa.Column("member_id", sa.UUID, nullable=False),
+    sa.Column("text", sa.Text, nullable=False),
+    sa.Column("surface", sa.Text, nullable=False),
+    sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+    sa.Column("decision_seq", sa.BigInteger, nullable=False),
+    sa.ForeignKeyConstraint(
+        ["household_id", "member_id"], ["members.household_id", "members.id"]
+    ),
+    sa.ForeignKeyConstraint(
+        ["household_id", "decision_seq"], ["audit_log.household_id", "audit_log.seq"]
+    ),
+    sa.CheckConstraint("length(text) BETWEEN 1 AND 2000"),
+)
+plan_requests = sa.Table(
+    "plan_requests",
+    metadata,
+    sa.Column("household_id", sa.UUID, primary_key=True),
+    sa.Column("id", sa.Text, primary_key=True),
+    sa.Column("principal", JSONB, nullable=False),
+    sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+    sa.Column("horizon_end", sa.DateTime(timezone=True), nullable=False),
+    sa.Column("objective", sa.Text),
+    sa.Column("status", sa.Text, nullable=False),
+    sa.Column("plan_id", sa.Text),
+    sa.Column("decision_seq", sa.BigInteger, nullable=False),
+    sa.ForeignKeyConstraint(
+        ["household_id", "decision_seq"], ["audit_log.household_id", "audit_log.seq"]
+    ),
+    sa.CheckConstraint("status IN ('pending','ready','failed')"),
+    sa.CheckConstraint("horizon_end > created_at"),
+    sa.CheckConstraint(
+        "objective IN ('cheapest','greenest','most_comfortable')",
+        name="plan_requests_objective",
+    ),
+)
+verification_cases = sa.Table(
+    "verification_cases",
+    metadata,
+    sa.Column("household_id", sa.UUID, primary_key=True),
+    sa.Column("id", sa.Text, primary_key=True),
+    sa.Column("member_id", sa.UUID, nullable=False),
+    sa.Column("document", JSONB, nullable=False),
+    sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+    sa.Column("decision_seq", sa.BigInteger, nullable=False),
+    sa.ForeignKeyConstraint(
+        ["household_id", "member_id"], ["members.household_id", "members.id"]
+    ),
+    sa.ForeignKeyConstraint(
+        ["household_id", "decision_seq"], ["audit_log.household_id", "audit_log.seq"]
+    ),
 )

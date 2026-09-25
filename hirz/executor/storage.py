@@ -47,6 +47,33 @@ async def transition(
     return seq
 
 
+async def transition_many(
+    p: "Pipeline",
+    actions: tuple[str, ...],
+    status: str,
+    event: EventType,
+    **details: Any,
+) -> None:
+    if not actions:
+        return
+    sequences = await p.audit.append_many(
+        p.connection,
+        p.household_id,
+        tuple(
+            (p.clock(), event, {"action_id": action_id, "status": status, **details})
+            for action_id in actions
+        ),
+    )
+    changes = sa.values(
+        sa.column("action_id", sa.Text), sa.column("seq", sa.BigInteger), name="changes"
+    ).data(list(zip(actions, sequences, strict=True)))
+    await p.connection.execute(
+        db.actions.update()
+        .where(p.scope(db.actions), db.actions.c.action_id == changes.c.action_id)
+        .values(execution_status=status, lifecycle_seq=changes.c.seq)
+    )
+
+
 async def notice(p: "Pipeline", member_id: str, action_id: str, message: str) -> None:
     # All callers own the graph writer lock; a pending reason needs one member notice.
     if (
@@ -84,6 +111,56 @@ async def notice(p: "Pipeline", member_id: str, action_id: str, message: str) ->
     )
 
 
+async def check_overlaps(
+    p: "Pipeline", actions: tuple[Action, ...], *, retry_of: str | None = None
+) -> None:
+    """Check both persisted operations and earlier openings in an atomic batch."""
+    from hirz.executor.contracts import ending
+
+    bounded = tuple(a for a in actions if a.revert)
+    if not bounded:
+        return
+    existing = (
+        await p.connection.execute(
+            sa.select(db.actions.c.proposal).where(
+                p.scope(db.actions),
+                db.actions.c.lifecycle.is_not(None),
+                db.actions.c.execution_status.not_in(["cancelled", "skipped", "held"]),
+            )
+        )
+    ).scalars()
+    candidates = [Action.model_validate(value) for value in existing]
+    candidates = [a for a in candidates if a.revert]
+    endings = {a.action_id: ending(a) for a in (*candidates, *bounded)}
+    completed = set(
+        (
+            await p.connection.execute(
+                sa.select(db.actions.c.action_id).where(
+                    p.scope(db.actions),
+                    db.actions.c.action_id.in_([a.action_id for a in endings.values()]),
+                    db.actions.c.execution_status == "verified",
+                )
+            )
+        ).scalars()
+    )
+    for action in bounded:
+        end = endings[action.action_id]
+        assert action.scheduled_for and end.scheduled_for
+        for candidate in candidates:
+            if candidate.action_id in {action.action_id, retry_of}:
+                continue
+            candidate_end = endings[candidate.action_id]
+            assert candidate.scheduled_for and candidate_end.scheduled_for
+            if (
+                candidate.target == action.target
+                and candidate.scheduled_for < end.scheduled_for
+                and action.scheduled_for < candidate_end.scheduled_for
+                and candidate_end.action_id not in completed
+            ):
+                raise ValueError("Overlapping bounded operations are refused")
+        candidates.append(action)
+
+
 async def scheduled(
     p: "Pipeline",
     action: Action,
@@ -92,48 +169,7 @@ async def scheduled(
     *,
     retry_of: str | None = None,
 ) -> Decision:
-    from hirz.executor.contracts import ending
-
-    if action.revert:
-        assert action.scheduled_for
-        end = ending(action)
-        existing = (
-            await p.connection.execute(
-                sa.select(db.actions).where(
-                    p.scope(db.actions),
-                    db.actions.c.lifecycle.is_not(None),
-                    db.actions.c.execution_status.not_in(
-                        ["cancelled", "skipped", "held"]
-                    ),
-                )
-            )
-        ).mappings()
-        for other in existing:
-            candidate = Action.model_validate(other["proposal"])
-            if (
-                candidate.action_id in {action.action_id, retry_of}
-                or not candidate.revert
-            ):
-                continue
-            candidate_end = ending(candidate)
-            assert (
-                candidate.scheduled_for
-                and candidate_end.scheduled_for
-                and end.scheduled_for
-            )
-            if (
-                candidate.target == action.target
-                and candidate.scheduled_for < end.scheduled_for
-                and action.scheduled_for < candidate_end.scheduled_for
-            ):
-                ended = await p.connection.scalar(
-                    sa.select(db.actions.c.execution_status).where(
-                        p.scope(db.actions),
-                        db.actions.c.action_id == candidate_end.action_id,
-                    )
-                )
-                if ended != "verified":
-                    raise ValueError("Overlapping bounded operations are refused")
+    await check_overlaps(p, (action,), retry_of=retry_of)
     decision = decision.model_copy(
         update={
             "status": "executing",

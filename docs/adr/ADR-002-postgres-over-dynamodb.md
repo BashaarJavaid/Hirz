@@ -224,3 +224,18 @@ session reads or introduce unscoped hints. Rejected provider-first writes, raw
 transcripts in the ledger, mutable proposals, fallback to an older follow-up
 reference and unchecked last-writer-wins preference replacement. Exact limits and
 read contracts live in [architecture §5.9](../../ARCHITECTURE.md#59-memory).
+
+## Household tools amendment — 2026-09-23
+
+Migration 0010 adds household-scoped request receipts, first-plan jobs, sentence-only rule proposals and member-private verification cases. Effects and receipts commit together under the existing household transaction lock; permission previews retain only DRY_RUN evidence. Full contract and rejected alternatives: [ADR-015](./ADR-015-household-tools.md).
+
+### Profiles/objectives follow-up — 2026-09-23
+
+Explicit migration 0011 adds a nullable, checked objective to first-plan requests; existing refresh runtime JSON stores subsequent changes. Publication checks the current requested objective before committing. Downgrade refuses to erase retained objective evidence. Development remains unmigrated. Exact contract and rejected alternatives: [ADR-015](./ADR-015-household-tools.md#completion-scope-amendment--2026-09-23-author-approved).
+
+### Budget read indexes — 2026-09-23
+
+Author-approved migration 0012 adds grant-reference and budget-ledger indexes;
+its downgrade removes only indexes. No household or signed audit data is rewritten.
+Verification upgrades disposable databases only. Decision and query details:
+[ADR-017](./ADR-017-tool-latency-and-isolation.md#budget-index-and-terminal-read-amendment--2026-09-23).

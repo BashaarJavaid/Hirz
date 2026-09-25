@@ -14,3 +14,12 @@ One file per consequential decision, each with the alternatives that were reject
 - [`ADR-010-passkey-verified-approvals.md`](./ADR-010-passkey-verified-approvals.md) — Security approvals proven to the signer by the member's passkey, so the worker can relay an approval and cannot make one (below the cut line)
 
 - [`ADR-012-explainer.md`](./ADR-012-explainer.md) — validated narration, selected facts, fixed Converse contract and audited persistence; live Bedrock remains item 38
+- [`ADR-013-mcp-transport.md`](./ADR-013-mcp-transport.md) — fixed local guards, stateless JSON transport and generic onboarding; OAuth and household tools remain later work
+
+- [`ADR-014-local-oauth.md`](./ADR-014-local-oauth.md) — simulated local consent, SDK PKCE linking, resource-bound JWTs, bounded key cache and current member mapping
+
+- [`ADR-015-household-tools.md`](./ADR-015-household-tools.md) — partial local twelve-tool contract, durable retries, private simulated trust checks and bounded headless host
+
+- [`ADR-016-add-on-conformance-checker.md`](./ADR-016-add-on-conformance-checker.md) — independent explicit-case MCP checker, source distinctions, scoped evidence and disposable Hirz integration
+- [`ADR-017-tool-latency-and-isolation.md`](./ADR-017-tool-latency-and-isolation.md) — authenticated local timing protocol, audited lifecycle corpus and concurrent household-isolation gate
+- [`ADR-018-mcp-app-cards.md`](./ADR-018-mcp-app-cards.md) — five bridge-only cards, deterministic presentation, evidence mapping, unchanged reference host and browser gates

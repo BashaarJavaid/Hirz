@@ -20,6 +20,8 @@ dependencies = [
     "websockets==17.1",
     "scipy==1.18.0",
     "boto3==1.43.90",
+    "mcp==1.30.0",
+    "PyJWT[crypto]==2.14.0",
 ]
 
 [project.scripts]
@@ -27,10 +29,12 @@ hirz = "hirz.cli:main"
 
 [build-system]
 requires = ["uv_build==0.12.15"]
-build-backend = "uv_build"
+build-backend = "build_backend"
+backend-path = ["."]
 
 [tool.uv.build-backend]
 module-root = ""
+source-include = ["build_backend.py", "hirz/mcp/ui/*.html"]
 
 [tool.ruff]
 target-version = "py312"
@@ -46,8 +50,11 @@ files = ["hirz", "scripts", "alembic"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-m 'not integration' --cov=hirz --cov-report=term-missing"
-markers = ["integration: requires local Postgres; creates only a disposable test database"]
+addopts = "-m 'not integration and not latency' --cov=hirz --cov-report=term-missing"
+markers = [
+    "integration: requires local Postgres; creates only a disposable test database",
+    "latency: authenticated disposable PostgreSQL benchmark; run explicitly without coverage",
+]
 
 [dependency-groups]
 dev = [
@@ -56,5 +63,6 @@ dev = [
     "pytest==9.1.1",
     "pytest-cov==7.1.0",
     "ruff==0.16.8",
+    "strands-agents==1.57.0",
     "types-PyYAML==6.0.12.20260906",
 ]

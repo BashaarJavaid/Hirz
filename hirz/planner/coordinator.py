@@ -54,12 +54,19 @@ if TYPE_CHECKING:
 class Clarification(ValueError):
     """A bounded request could not be resolved without asking the member."""
 
+    def __init__(self, message: str, *, options: tuple[str, ...] = ()):
+        super().__init__(message)
+        self.options = options
+
 
 class Intake(Model):
     text: str
     horizon_end: AwareDatetime
     replaces: UUID | None = None
     manual: Observation | None = None
+    spec: ConstraintSpec | None = None
+    claimed_author: str | None = None
+    kind: str | None = None
 
 
 class IntakeResult(Model):
@@ -357,6 +364,24 @@ async def prepare(
         and intake.replaces is not None
     ):
         spec, claimed, revision = None, None, False
+    elif intake.spec is not None:
+        spec, claimed, revision = intake.spec, intake.claimed_author, False
+        assets = {str(r["id"]): r["kind"] for r in snapshot.data["assets"]}
+        expected = (
+            "ev"
+            if spec.kind.startswith("ev_")
+            else "appliance"
+            if spec.kind.startswith("appliance_")
+            else "hvac_zone"
+        )
+        if assets.get(str(spec.asset_id)) != expected or spec.kind == "manual_hold":
+            raise Clarification(
+                "The constraint target is unavailable in this household."
+            )
+        if utc(spec.starts_at) < utc(pipeline.repo._at or at) or utc(
+            spec.ends_at
+        ) > utc(intake.horizon_end):
+            raise Clarification("The constraint must fit this planning window.")
     elif observation is None:
         spec, claimed, revision, release = parse(
             intake.text, snapshot, intake.horizon_end
@@ -472,6 +497,20 @@ async def commit_constraint(
     )
     assert decision.audit_id is not None and action.requested_by.member_id is not None
     intake = Intake.model_validate(action.params)
+    expired = tuple(
+        record
+        for record in records(await pipeline.snapshot(at))
+        if utc(record.spec.ends_at) <= utc(at)
+    )
+    for record in expired:
+        if record.id in {r.id for r in previous}:
+            continue
+        current = await pipeline.repo.get("constraints", {"id": record.id})
+        assert current is not None
+        await pipeline.repo.close(
+            "constraints", record, expected_version=current["valid_from"]
+        )
+    expired_ids = [str(record.id) for record in expired]
     for record in previous:
         seq = await pipeline.audit.append(
             pipeline.connection,
@@ -482,12 +521,13 @@ async def commit_constraint(
                 "constraint_id": str(record.id),
                 "action_id": action.action_id,
                 "decision_seq": decision.audit_id,
+                "expired_constraint_ids": expired_ids,
                 "member_id": action.requested_by.member_id,
             },
         )
         current = await pipeline.repo.get("constraints", {"id": record.id})
         assert current is not None
-        await pipeline.repo.put(
+        await pipeline.repo.close(
             "constraints",
             changed(
                 record,
@@ -519,6 +559,7 @@ async def commit_constraint(
                 "constraint_id": str(constraint_id),
                 "action_id": action.action_id,
                 "decision_seq": decision.audit_id,
+                "expired_constraint_ids": expired_ids,
                 "member_id": action.requested_by.member_id,
                 "provenance": provenance.model_dump(mode="json"),
             },
@@ -570,10 +611,19 @@ class Coordinator:
         replaces: UUID | None = None,
         manual: Observation | None = None,
         withdraw: bool = False,
+        spec: ConstraintSpec | None = None,
+        claimed_author: str | None = None,
+        kind: str | None = None,
     ) -> IntakeResult:
         p = self.pipeline
         request = Intake(
-            text=text, horizon_end=horizon_end, replaces=replaces, manual=manual
+            text=text,
+            horizon_end=horizon_end,
+            replaces=replaces,
+            manual=manual,
+            spec=spec,
+            claimed_author=claimed_author,
+            kind=kind,
         )
         withdraw = withdraw or bool(
             re.fullmatch(r"release .+ hold\.?", text.strip(), re.IGNORECASE)

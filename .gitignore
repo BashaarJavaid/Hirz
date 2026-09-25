@@ -1,6 +1,7 @@
 .DS_Store
 __pycache__/
 *.pyc
+*.pkg
 .venv/
 node_modules/
 dist/
@@ -25,3 +26,6 @@ tests/benchmarks/reports/
 
 .tools/
 .hypothesis/
+hirz/mcp/ui/
+apps/mcp-app/test-results/
+apps/mcp-app/playwright-report/

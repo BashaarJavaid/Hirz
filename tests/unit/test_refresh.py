@@ -451,9 +451,23 @@ def test_fingerprints_ignore_tariff_and_window_crossings_but_detect_changes(
                 clock=lambda: snap.as_of,
                 snapshot=AsyncMock(side_effect=lambda _: snap),
                 bundle=SimpleNamespace(policy=lambda: POLICY),
+                repo=SimpleNamespace(_at=AT, _revision=1),
+                _refresh_fingerprint=None,
             )
             stored = {"runtime": r.model_dump(mode="json")}
             first = await module.fingerprint(p, stored)
+            cached = p._refresh_fingerprint
+            repeated = await module.fingerprint(p, stored)
+            assert repeated == first and p._refresh_fingerprint is cached
+            assert module.applied_controls.await_count == 2
+            repeated["samples"].clear()
+            assert await module.fingerprint(p, stored) == first
+            p.repo._revision += 1
+            assert await module.fingerprint(p, stored) == first
+            assert p._refresh_fingerprint is not cached
+            p.repo._at = None
+            assert await module.fingerprint(p, stored) == first
+            p.repo._at = AT
             # Poll timestamps alone do not invalidate physical predictions.
             for o in snap.data["observations"]:
                 if o.get("member_id"):
@@ -794,13 +808,11 @@ def test_recorded_ha_changes_need_matching_dispatch_and_unchanged_mode(tmp_path)
             )
 
             def query(_):
-                if "asset_bindings" in str(_):
+                if "LATERAL" not in str(_):
                     return SimpleNamespace(
                         mappings=lambda: SimpleNamespace(one_or_none=lambda: binding)
                     )
-                return SimpleNamespace(
-                    mappings=lambda: SimpleNamespace(all=lambda: rows)
-                )
+                return SimpleNamespace(mappings=lambda: rows)
 
             p.connection.execute.side_effect = query
             assert await owned_control(
@@ -826,6 +838,63 @@ def test_recorded_ha_changes_need_matching_dispatch_and_unchanged_mode(tmp_path)
             assert not await owned_control(p, observed)
             binding = None
             assert not await owned_control(p, observed)
+            from uuid import uuid4
+
+            from hirz.executor.refresh import compensate_owned_controls
+
+            later = observed.model_copy(
+                update={
+                    "id": uuid4(),
+                    "asset_id": uuid4(),
+                    "observed_at": observed.observed_at + timedelta(seconds=2),
+                }
+            )
+            observations = (observed, later)
+            bindings = [
+                {"asset_id": str(o.asset_id), "adapter": "ha", "entity_id": entity}
+                for o, entity in zip(
+                    observations, ("climate.demo", "climate.other"), strict=True
+                )
+            ]
+            rows = [
+                {
+                    "created_at": observed.observed_at + timedelta(seconds=1),
+                    "proposal": {
+                        "class": "energy.hvac_adjust",
+                        "target": {"adapter": "ha", "entity": b["entity_id"]},
+                        "params": {"target_f": 72},
+                    },
+                }
+                for b in bindings
+            ]
+            p.snapshot = AsyncMock(
+                return_value=SimpleNamespace(
+                    data={
+                        "observations": [
+                            o.model_dump(mode="json") for o in observations
+                        ],
+                        "asset_bindings": bindings,
+                    }
+                )
+            )
+            p.clock = lambda: later.observed_at
+            previous = {
+                "samples": {
+                    str(o.asset_id): {"mode": "heat", "target_f": 68}
+                    for o in observations
+                }
+            }
+            current = {
+                "samples": {
+                    str(o.asset_id): {"mode": "heat", "target_f": 72}
+                    for o in observations
+                }
+            }
+            p.connection.execute.reset_mock()
+            await compensate_owned_controls(p, previous, current)
+            assert previous["samples"][str(observed.asset_id)]["target_f"] == 68
+            assert previous["samples"][str(later.asset_id)]["target_f"] == 72
+            p.connection.execute.assert_awaited_once()
         finally:
             await ha.close()
 
@@ -955,6 +1024,8 @@ def test_ev_limit_adjacent_power_is_expected_without_hiding_soc_drift(monkeypatc
                 clock=lambda: snap.as_of,
                 snapshot=AsyncMock(side_effect=lambda _: snap),
                 bundle=SimpleNamespace(policy=lambda: POLICY),
+                repo=SimpleNamespace(_at=AT, _revision=1),
+                _refresh_fingerprint=None,
             )
             _, result = runtime()
             action = result.actions[0].model_copy(
@@ -987,6 +1058,18 @@ def test_ev_limit_adjacent_power_is_expected_without_hiding_soc_drift(monkeypatc
             assert "deviation" in (await module.fingerprint(p, stored))["samples"][key]
             o["state"].update(soc=0.47, power_kw=0)
             assert "deviation" in (await module.fingerprint(p, stored))["samples"][key]
+            o["state"].update(soc=0.4999, power_kw=7.4)
+            assert (
+                "deviation" not in (await module.fingerprint(p, stored))["samples"][key]
+            )
+            action.params["charging"] = 1
+            assert "deviation" in (await module.fingerprint(p, stored))["samples"][key]
+            action.params["charging"] = True
+            assert (
+                "deviation" not in (await module.fingerprint(p, stored))["samples"][key]
+            )
+            action.params["charge_limit"] = 0.6
+            assert "deviation" in (await module.fingerprint(p, stored))["samples"][key]
         finally:
             await reg.close()
 
@@ -999,26 +1082,30 @@ def test_skipped_opening_keeps_status_but_pending_approval_still_expires(monkeyp
 
     async def run():
         approval = {"approval_id": "vote", "action_id": "missed"}
-        rows = [[{"action_id": "missed", "execution_status": "skipped"}], [approval]]
         results = [
             SimpleNamespace(
-                mappings=lambda value=value: SimpleNamespace(all=lambda: value)
-            )
-            for value in rows
+                mappings=lambda: SimpleNamespace(
+                    all=lambda: [{"action_id": "missed", "execution_status": "skipped"}]
+                )
+            ),
+            SimpleNamespace(scalars=lambda: [approval["approval_id"]]),
+            None,
         ]
         p = SimpleNamespace(
             connection=SimpleNamespace(execute=AsyncMock(side_effect=results)),
             scope=lambda _: True,
             clock=lambda: AT,
             household_id=HOME,
-            status=AsyncMock(),
-            audit=SimpleNamespace(append=AsyncMock()),
+            audit=SimpleNamespace(append_many=AsyncMock()),
         )
         transition = AsyncMock()
         monkeypatch.setattr(module, "transition", transition)
         await module.stop_unstarted(p, "plan", EventType.PLAN_REVISED, "cancelled")
         transition.assert_not_awaited()
-        p.status.assert_awaited_once_with(approval, "expired")
-        assert p.audit.append.call_args.args[3] == EventType.EXPIRED
+        assert p.audit.append_many.call_args.args[2] == (
+            (AT, EventType.EXPIRED, {"approval_id": "vote", "reason": "PLAN_REVISED"}),
+        )
+        update = p.connection.execute.call_args.args[0].compile()
+        assert update.params["status"] == "expired"
 
     asyncio.run(run())

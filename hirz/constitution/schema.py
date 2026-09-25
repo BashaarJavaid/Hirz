@@ -213,6 +213,10 @@ class Constitution(Model):
         if action_class in {
             "governance.pause_automation",
             "governance.resume_automation",
+            "governance.record_tool_request",
+            "governance.propose_rule",
+            "governance.request_plan",
+            "governance.record_verification",
             "governance.record_constraint",
             "governance.withdraw_constraint",
             "governance.refresh_plan",

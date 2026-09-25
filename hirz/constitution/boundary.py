@@ -4,6 +4,8 @@ import asyncio
 import json
 import logging
 import os
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -55,10 +57,74 @@ class Dogwood:
     def __init__(self, executable: str | None = None, timeout: float = REQUEST_TIMEOUT):
         self.executable = executable or os.environ.get("HIRZ_DOGWOOD", "dogwood")
         self.timeout = timeout
+        self._persistent = False
+        self._process: asyncio.subprocess.Process | None = None
+        self._lock = asyncio.Lock()
+
+    async def _stop(self) -> None:
+        process, self._process = self._process, None
+        if process is not None:
+            if process.returncode is None:
+                process.kill()
+            await process.wait()
+
+    @asynccontextmanager
+    async def persistent(self) -> AsyncIterator[None]:
+        """One private helper per MCP lifespan; never fall back after failure."""
+        if self._persistent:
+            raise BoundaryError("Native helper lifespan is already active")
+        self._persistent = True
+        try:
+            self._process = await asyncio.create_subprocess_exec(
+                self.executable + "-helper",
+                stdin=asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.DEVNULL,
+            )
+            yield
+        except OSError:
+            raise BoundaryError("Native helper unavailable; no authorization") from None
+        finally:
+            await self._stop()
+            self._persistent = False
+
+    async def _exchange(self, compiled: Compiled, trace: str | None) -> dict[str, Any]:
+        # ponytail: one pipe serializes native checks; use a bounded pool only if
+        # measured concurrent-household throughput requires it.
+        async with self._lock:
+            process = self._process
+            if process is None or process.returncode is not None:
+                raise BoundaryError("Native helper unavailable; no authorization")
+            assert process.stdin is not None and process.stdout is not None
+            try:
+                async with asyncio.timeout(self.timeout):
+                    process.stdin.write(
+                        json.dumps(
+                            dict(
+                                policy=compiled.policy,
+                                schema=compiled.schema,
+                                trace=trace,
+                            )
+                        ).encode()
+                        + b"\n"
+                    )
+                    await process.stdin.drain()
+                    result = json.loads(await process.stdout.readline())
+                if not isinstance(result, dict) or "error" in result:
+                    raise ValueError()
+                return result
+            except (OSError, TimeoutError, ValueError):
+                await self._stop()
+                raise BoundaryError("Native helper failed; no authorization") from None
+            except asyncio.CancelledError:
+                await self._stop()
+                raise
 
     async def run(
         self, compiled: Compiled, command: str, trace: str | None = None
     ) -> dict[str, Any]:
+        if self._persistent and command == "replay":
+            return await self._exchange(compiled, trace)
         with TemporaryDirectory(prefix="hirz-policy-") as directory:
             root = Path(directory)
             policy, schema = root / "policy.dw", root / "schema.cedarschema"
@@ -120,10 +186,24 @@ class Dogwood:
             raise BoundaryError(
                 "Dogwood validation failed or returned malformed findings"
             )
+        if self._persistent:
+            prepared = await self._exchange(compiled, None)
+            if prepared.keys() != {"ready"} or prepared["ready"] is not True:
+                await self._stop()
+                raise BoundaryError("Native helper preparation failed")
         return result
 
     async def replay(self, compiled: Compiled, trace: str) -> list[dict[str, Any]]:
         result = await self.run(compiled, "replay", trace)
+        try:
+            return self._verdicts(result)
+        except BoundaryError:
+            if self._persistent:
+                await self._stop()
+            raise
+
+    @staticmethod
+    def _verdicts(result: dict[str, Any]) -> list[dict[str, Any]]:
         verdicts = result.get("verdicts")
         if not isinstance(verdicts, list) or not verdicts:
             raise BoundaryError("Dogwood returned no verdicts")

@@ -61,3 +61,7 @@ governance.memory:
     - {label: Accept memory, params: {operation: accept}}
     - {label: Reject memory, params: {operation: reject}}
     - {label: Record session context, params: {operation: append_turn}}
+governance.record_tool_request: {params: {}}
+governance.propose_rule: {params: {}}
+governance.request_plan: {params: {}}
+governance.record_verification: {params: {}}

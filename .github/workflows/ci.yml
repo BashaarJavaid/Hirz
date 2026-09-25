@@ -55,6 +55,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: ./.github/actions/build-cards
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
           version: "0.12.15"
@@ -72,6 +73,10 @@ jobs:
         run: uv run --locked python scripts/init_dev.py
       - name: Build and start Hirz with readiness checks
         run: docker compose -f compose.dev.yml up -d --build --wait --wait-timeout 180
+      - name: MCP client SDK handshake and onboarding
+        run: uv run --locked python scripts/smoke_mcp.py
+      - name: Local OAuth SDK linking and refresh in a disposable database
+        run: uv run --locked python scripts/smoke_oauth.py
       - run: uv run --locked alembic upgrade head
       - run: uv run --locked alembic check
       - run: uv run --locked hirz doctor
@@ -80,6 +85,28 @@ jobs:
         run: uv run --locked pytest -m integration --cov=hirz --cov-append
       - name: 80 percent combined coverage gate
         run: uv run --locked coverage report --fail-under=80
+      - name: Check out unchanged MCP Apps reference host
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: modelcontextprotocol/ext-apps
+          ref: 352f6ced4d80772e92b4e7a311854481a8d65b04 # v2.0.0
+          path: .tools/ext-apps-v2
+          persist-credentials: false
+      - name: Authenticated card fixtures and verified audit exports
+        run: uv run --locked python -m scripts.smoke_cards --artifacts-dir "$RUNNER_TEMP/card-fixtures"
+      - name: Build unchanged reference renderer and bridge
+        run: pnpm --filter mcp-app exec node reference-host.mjs
+      - name: Install pinned Chromium for the authenticated relay
+        run: pnpm --filter mcp-app exec playwright install --with-deps chromium
+      - name: Reference host over real authenticated household calls
+        run: HIRZ_CARD_LIVE=1 uv run --locked python -m scripts.smoke_cards --artifacts-dir "$RUNNER_TEMP/card-live" --browser-test
+      - name: Linux Chromium card baselines and behavior
+        run: >-
+          docker run --rm --ipc=host
+          -v "$PWD:/work" -v "$RUNNER_TEMP/card-fixtures:/fixtures:ro"
+          -w /work/apps/mcp-app -e HIRZ_CARD_FIXTURES=/fixtures/fixtures.json -e CI=1
+          mcr.microsoft.com/playwright:v1.57.0-noble@sha256:3bed4b1a12f2338642f3d8cba28e291deef3c66bd4a964bbeb3e57bbff511dbd
+          node node_modules/@playwright/test/cli.js test
       - name: Service status on failure (no configuration or raw logs)
         if: failure()
         run: >-
@@ -182,23 +209,147 @@ jobs:
       - run: pnpm -r test
       - name: Browser coverage awaits Phase 5
         run: |
-          echo 'DEFERRED: No Playwright, companion, simulator, or voice-only checks ran. Phase 5 adds these surfaces and browser tests.' | tee -a "$GITHUB_STEP_SUMMARY"
+          echo 'MCP card browser checks run with the Python integration fixtures; companion and simulator checks remain Phase 5.' | tee -a "$GITHUB_STEP_SUMMARY"
 
   conformance:
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 30
+    env:
+      HIRZ_LLM: "off"
+      COMPOSE_PROJECT_NAME: hirz-conformance-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
-      - name: Phase 0 placeholder — add-on checker not implemented
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/build-cards
+      - name: Check out reviewed independent checker
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: BashaarJavaid/addon-check
+          ref: c8b65e0977204883d2ec23d5ac0f7a08300d021e
+          path: .tools/addon-check
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24.21.0"
+          package-manager-cache: false
+      - name: Build locked checker
+        working-directory: .tools/addon-check
+        run: npm ci && npm run build
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version: "0.12.15"
+          enable-cache: false
+      - run: uv python install
+      - run: uv sync --locked
+      - name: Build pinned native Dogwood (required)
         run: |
-          echo 'DEFERRED: No add-on contract checks ran. Item 25a adds the separate conformance checker against the local MCP server.' | tee -a "$GITHUB_STEP_SUMMARY"
+          rustup toolchain install 1.98.1 --profile minimal
+          RUSTUP_TOOLCHAIN=1.98.1 uv run --locked python scripts/build_dogwood.py
+          echo "HIRZ_DOGWOOD=$PWD/.tools/dogwood" >> "$GITHUB_ENV"
+      - name: Initialize isolated PostgreSQL and HA demo
+        run: uv run --locked python scripts/init_dev.py
+      - name: Twelve-tool conformance, restart and signed audit verification
+        run: >-
+          uv run --locked python scripts/smoke_household_tools.py
+          --audit-output "$RUNNER_TEMP/conformance-audit.json"
+          --conformance-cli "$PWD/.tools/addon-check/dist/cli.js"
+      - name: Publish payload-free conformance summary
+        run: |
+          python - <<'PYTHON'
+          import json, os
+          from pathlib import Path
+          report = json.loads((Path(os.environ["RUNNER_TEMP"]) / "conformance-audit.conformance.json").read_text())
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              print("addon-check: " + json.dumps(report["summary"]), file=summary)
+              print("Twelve output/speech cases; only onboarding/context timed. Scoped evidence, not Amazon certification. Full latency/isolation remains item 26.", file=summary)
+          PYTHON
+      - name: Service status on failure (no configuration or raw logs)
+        if: failure()
+        run: >-
+          docker ps -a
+          --filter "label=com.docker.compose.project=$COMPOSE_PROJECT_NAME"
+          --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+      - name: Remove only this runner's isolated services and credentials
+        if: always()
+        run: |
+          trap 'rm -f .env' EXIT
+          if [ -f .env ]; then
+            docker compose -f compose.dev.yml down --volumes --remove-orphans
+          fi
 
   latency:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      matrix:
+        scenario: [demo-evening, demo-evening-hourly]
+    env:
+      HIRZ_LLM: "off"
+      HIRZ_BUDGET_SCENARIO: ${{ matrix.scenario }}
+      COMPOSE_PROJECT_NAME: hirz-latency-${{ matrix.scenario }}-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
-      - name: Phase 0 placeholder — MCP latency suite not implemented
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/build-cards
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version: "0.12.15"
+          enable-cache: false
+      - run: uv python install
+      - run: uv sync --locked
+      - name: Build pinned native Dogwood
         run: |
-          echo 'DEFERRED: No latency budget was measured or enforced. Phase 4 adds MCP tool checks; item 38 adds AWS latency and cold-start measurements.' | tee -a "$GITHUB_STEP_SUMMARY"
+          rustup toolchain install 1.98.1 --profile minimal
+          RUSTUP_TOOLCHAIN=1.98.1 uv run --locked python scripts/build_dogwood.py
+          echo "HIRZ_DOGWOOD=$PWD/.tools/dogwood" >> "$GITHUB_ENV"
+      - name: Initialize isolated local services
+        run: |
+          uv run --locked python scripts/init_dev.py
+          docker compose -f compose.dev.yml up -d --wait postgres
+      - name: All twelve tools, every case at warm p95 <= 250 ms
+        run: HIRZ_BUDGET_ARTIFACTS="$RUNNER_TEMP/tool-budget" uv run --locked pytest tests/latency -m latency --no-cov -s
+      - name: Payload-free timing summary
+        if: always()
+        run: |
+          python - <<'PYTHON'
+          import json, os
+          from pathlib import Path
+          path = Path(os.environ["RUNNER_TEMP"]) / "tool-budget" / os.environ["HIRZ_BUDGET_SCENARIO"] / "report.json"
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              if not path.exists():
+                  print("No completed timing report; item 26 gate did not pass.", file=summary)
+              else:
+                  report = json.loads(path.read_text())
+                  print(report["protocol"], file=summary)
+                  print(report["protocol"])
+                  print("Local tool budget: " + report["status"], file=summary)
+                  for scenario, result in report["scenarios"].items():
+                      for group in ("cases", "tools"):
+                          lines = [
+                              f"\n{scenario} / {group} — raw round-trip milliseconds\n",
+                              "| Name | n | Min | Median | p95 | Max | Gate | SDK n | SDK median | SDK p95 | SDK max |",
+                              "|---|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|",
+                          ]
+                          for name, stats in result.get("latency", {}).get(group, {}).items():
+                              gate = "PASS" if stats["p95_ms"] <= report["budget_ms"] else "FAIL"
+                              sdk = stats.get("sdk")
+                              reference = f"{sdk['count']} | {sdk['median_ms']:.3f} | {sdk['p95_ms']:.3f} | {sdk['max_ms']:.3f}" if sdk else "— | — | — | —"
+                              lines.append(f"| {name} | {stats['count']} | {stats['min_ms']:.3f} | {stats['median_ms']:.3f} | {stats['p95_ms']:.3f} | {stats['max_ms']:.3f} | {gate} | {reference} |")
+                          print("\n".join(lines), file=summary)
+                          print("\n".join(lines))
+                  print("Five warmups and 100 measured calls per case; nearest-rank p95; no discarded samples. Local twin evidence, not AWS cold start. Private evidence is not uploaded.", file=summary)
+          PYTHON
+      - name: Remove only this runner's services and credentials
+        if: always()
+        run: |
+          trap 'rm -f .env' EXIT
+          if [ -f .env ]; then
+            docker compose -f compose.dev.yml down --volumes --remove-orphans
+          fi
 
   cedar-conform:
     runs-on: ubuntu-24.04
@@ -230,6 +381,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: ./.github/actions/build-cards
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
           version: "0.12.15"
@@ -244,14 +396,14 @@ jobs:
           uv pip install --python "$RUNNER_TEMP/wheel-smoke/bin/python" "$wheel"
           cd "$RUNNER_TEMP"
           ./wheel-smoke/bin/python -c 'import hirz; from importlib.metadata import version; print("PASS installed hirz", version("hirz"))'
-          ./wheel-smoke/bin/python -c 'from hirz.risk import CLASSES; from hirz.constitution.preview import SITUATIONS; assert len(CLASSES) == len(SITUATIONS) == 32; print("PASS packaged catalogs: 32 classes, 32 situation groups")'
+          ./wheel-smoke/bin/python -c 'from hirz.risk import CLASSES; from hirz.constitution.preview import SITUATIONS; assert len(CLASSES) == len(SITUATIONS) == 36; print("PASS packaged catalogs: 36 classes, 36 situation groups")'
+          ./wheel-smoke/bin/python -c 'from hirz.mcp.cards import assets; assert len(assets()) == 5; print("PASS five packaged cards")'
           ./wheel-smoke/bin/hirz --help
       - run: docker build --tag hirz-ci:check .
       - name: Container runs as the existing unprivileged user
         run: docker run --rm --entrypoint python hirz-ci:check -c 'import os; assert os.getuid() == 10001; print("PASS container UID", os.getuid())'
-      - name: Frontend bundles await Phase 5
-        run: |
-          echo 'DEFERRED: No MCP App or companion bundle was built. Phase 5 adds the frontend build scripts.' | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Packaged card resources in container
+        run: docker run --rm --entrypoint python hirz-ci:check -c 'from hirz.mcp.cards import assets; assert len(assets()) == 5; print("PASS five packaged cards")'
 
   release:
     runs-on: ubuntu-24.04

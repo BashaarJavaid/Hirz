@@ -15,7 +15,7 @@ from hirz.adapters.registry import Registry
 from hirz.audit import Verification
 from hirz.executor import observations, twin
 from hirz.executor.contracts import expired, inverse, validate
-from hirz.executor.plans import get, hold
+from hirz.executor.plans import get, hold, schedule_approved
 from hirz.executor.storage import notice, repeated, row, transition
 from hirz.pipeline.audit import PipelineError
 from hirz.pipeline.hashing import action_hash, digest
@@ -81,29 +81,42 @@ class Executor:
         try:
             if self.world is not None:
                 self.world.clock.set_speed(0)
-            async with p.connection.begin():
-                rows = (
-                    (
-                        await p.connection.execute(
-                            sa.select(db.actions)
-                            .where(
-                                p.scope(db.actions),
-                                db.actions.c.lifecycle.is_not(None),
-                                db.actions.c.execution_status.in_(
-                                    ["scheduled", "executing", "dispatched"]
-                                ),
-                                db.actions.c.due_at <= p.clock(),
-                            )
-                            .order_by(db.actions.c.due_at, db.actions.c.action_id)
-                        )
-                    )
-                    .mappings()
-                    .all()
+            due_query = (
+                sa.select(db.actions)
+                .where(
+                    p.scope(db.actions),
+                    db.actions.c.lifecycle.is_not(None),
+                    db.actions.c.execution_status.in_(
+                        ["scheduled", "executing", "dispatched"]
+                    ),
+                    db.actions.c.due_at <= p.clock(),
                 )
+                .order_by(db.actions.c.due_at, db.actions.c.action_id)
+            )
+            results = []
+            if not endings_only:
+                async with p.connection.begin():
+                    endings = (
+                        (
+                            await p.connection.execute(
+                                due_query.where(
+                                    db.actions.c.lifecycle["ending_of"].astext.is_not(
+                                        None
+                                    )
+                                )
+                            )
+                        )
+                        .mappings()
+                        .all()
+                    )
+                for ending in endings:
+                    results.append(await self.run(dict(ending)))
+                await schedule_approved(p)
+            async with p.connection.begin():
+                rows = (await p.connection.execute(due_query)).mappings().all()
             ordered = sorted(
                 rows, key=lambda r: not bool(r["lifecycle"].get("ending_of"))
             )
-            results = []
             for stored in ordered:
                 if endings_only and not stored["lifecycle"].get("ending_of"):
                     continue
@@ -142,6 +155,7 @@ class Executor:
             if (
                 self.world is not None
                 and not ordered
+                and not results
                 and not endings_only
                 and not self.refresh_polls
             ):

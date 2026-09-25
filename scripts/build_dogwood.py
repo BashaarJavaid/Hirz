@@ -1,4 +1,4 @@
-"""Build the pinned native CLI; Cargo and network access are setup requirements."""
+"""Build the pinned reference CLI and private helper; requires Cargo/network."""
 
 import argparse
 import shutil
@@ -38,7 +38,25 @@ def main() -> None:
         )
         args.output.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(root / "target/release/dogwood", args.output)
-    print(f"Built Dogwood {REVISION}: {args.output.resolve()}")
+        # Keep the reference CLI unmodified; only the helper uses Clone support.
+        subprocess.run(
+            ["git", "apply", str(lock.with_name("dogwood-clone.patch"))],
+            cwd=root,
+            check=True,
+        )
+        binary = root / "dogwood-cli/src/bin/dogwood-helper.rs"
+        binary.parent.mkdir(exist_ok=True)
+        shutil.copyfile(lock.with_name("dogwood-helper.rs"), binary)
+        subprocess.run(
+            ["cargo", "build", "--locked", "--release", "--bin", "dogwood-helper"],
+            cwd=root,
+            check=True,
+        )
+        shutil.copy2(
+            root / "target/release/dogwood-helper",
+            args.output.with_name(args.output.name + "-helper"),
+        )
+    print(f"Built Dogwood {REVISION} and helper: {args.output.resolve()}")
 
 
 if __name__ == "__main__":

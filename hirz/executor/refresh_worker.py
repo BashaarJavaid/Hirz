@@ -11,7 +11,7 @@ from hirz.adapters.devices.ha import HomeAssistant, fahrenheit
 from hirz.adapters.registry import Registry
 from hirz.executor import observations
 from hirz.executor.contracts import expired
-from hirz.executor.plans import PlanService, get, governance
+from hirz.executor.plans import PlanService, get, governance, schedule_approved
 from hirz.executor.refresh import RefreshService, fingerprint, job
 from hirz.executor.replanning import bind_result, outstanding
 from hirz.executor.runtime import RuntimeInputs
@@ -62,15 +62,16 @@ class RefreshWorker:
             rows = (
                 (
                     await p.connection.execute(
-                        sa.select(db.plans).where(p.scope(db.plans))
+                        sa.select(db.plans).where(
+                            p.scope(db.plans),
+                            db.ACTIVE_PLAN,
+                        )
                     )
                 )
                 .mappings()
                 .all()
             )
         for row in rows:
-            if row["document"]["status"] in {"superseded", "abandoned", "completed"}:
-                continue
             principal = (
                 Principal.model_validate(row["approver"] or row["requester"])
                 if row["approver"] or row["requester"]
@@ -269,6 +270,10 @@ class RefreshWorker:
         if not locked:
             return
         try:
+            from hirz.executor.service import Executor
+
+            await Executor(p, self.registry, world=self.world).sweep(endings_only=True)
+            await schedule_approved(p)
             await self.poll()
             # A restart reclaims running generations only after obtaining the session lock.
             async with p.connection.begin():

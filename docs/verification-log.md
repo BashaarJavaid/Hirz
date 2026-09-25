@@ -5028,3 +5028,3838 @@ No new third-party friction was earned: the encountered errors were in the new f
 Remote completion: fix commit `7492c2a2ce8fecb83e0abbf0ecb47c9c7444eec7` was pushed to `phase-3`. [Run 35827170454](https://github.com/BashaarJavaid/Hirz/actions/runs/35827170454) passed **all 11 jobs**. Python: **1,247 passed, 119 deselected in 132.39s**; PostgreSQL: **119 passed, 1,247 deselected in 202.71s**; combined coverage **93%** (10,252 statements, 733 missed), passing the 80% gate. The scenarios job passed evening, Hourly and parents regressions, then the live HA smoke returned `execution_checks_passed`, `restored: true`, `error: null`, and no unsuccessful checks at `2026-09-23T06:39:00Z` (01:39 America/Chicago, during quiet hours). The disposable database was dropped. Lint, types, Cedar conformance and build jobs also passed; pre-existing placeholder jobs remain placeholders.
 
 Final friction review caught an omitted minor CLI limitation from the diagnostic turn: completed-job logs required the REST endpoint while the overall workflow was still active. The exact message and workaround are now recorded in [the friction log](./friction-log.md). Final Ruff checks follow these append-only records; no application code changed after the green run.
+
+## Item 23 — 2026-09-23
+
+Local Streamable HTTP transport and generic onboarding only. The author approved
+[ADR-013](./adr/ADR-013-mcp-transport.md), including the additional GET 405 guard,
+and explicitly authorized temporary standalone Playwright after the browser
+connector twice reported no available browser. No household tool, OAuth, policy
+activation, device action, new audit event or AWS deployment was introduced.
+
+### Implementation and automated checks
+
+Environment: macOS arm64, Python 3.12.13, official `mcp==1.30.0`, Node 24 for
+Inspector `2.7.0` through pnpm 12.4.2. All prior direct Python dependency pins were
+compared against HEAD and preserved; only MCP was added. The lock resolved 70
+packages. The app factory owns each SDK manager's startup/shutdown; the Docker
+entrypoint and Compose loopback binding remain unchanged.
+
+Commands and observed output:
+
+- `.venv/bin/pytest tests/unit/test_mcp.py --no-cov -q`:
+  **76 passed in 1.20s**. Coverage includes concurrent/repeated independent SDK
+  sessions, fresh app lifecycles, generated input/output schemas and speech limits,
+  protocol 2025-11-25, JSON/no session ID/no redirect, health, unsupported methods
+  and versions, Host/Origin allowlists and duplicates/empty/deceptive/forwarded
+  headers, declared and streamed byte boundaries, 32/33-level arrays and objects,
+  escapes/brackets in strings, Unicode, UTF-16/32, malformed UTF-8/JSON and
+  interrupted bodies without dispatch.
+- First combined focused run inside the sandbox: **2 failed, 92 passed in 2.68s**.
+  Both failures were existing WebSocket tests denied loopback binding, not MCP
+  assertions. The full runs below used authorized sandbox escalation.
+- `uv run --locked pytest --tb=short`:
+  **1323 passed, 119 deselected in 120.59s (0:02:00)**; service-free coverage 81%.
+- `uv run --locked pytest -m integration --cov=hirz --cov-append --tb=short`:
+  **119 passed, 1323 deselected in 205.14s (0:03:25)**. Existing fixtures create
+  uniquely named disposable databases; no development upgrade was run.
+- `uv run --locked coverage report --fail-under=80`: **93%**, 10,354 statements,
+  739 missed; exit 0. MCP server and API app 100%, edge guard 96%.
+- `uv build`: built `dist/hirz-0.0.0.tar.gz` and
+  `dist/hirz-0.0.0-py3-none-any.whl` successfully.
+- `.venv/bin/ruff check .`: **All checks passed!**
+- `.venv/bin/mypy hirz/ scripts/ alembic/`:
+  **Success: no issues found in 132 source files**.
+- Read-only `uv run --locked alembic current`: **0005_execution_attempt**.
+
+### Real HTTP clients
+
+A standalone Uvicorn server used an explicitly allocated socket on
+`127.0.0.1:63568`, with `create_app(port=63568)` and its socket passed to Uvicorn.
+`uv run --locked python scripts/smoke_mcp.py --url http://127.0.0.1:63568/mcp`
+passed. Then `docker compose -f compose.dev.yml up -d --build --wait --wait-timeout 180`
+rebuilt Hirz and reported Postgres, Home Assistant and Hirz healthy. Running
+`uv run --locked python scripts/smoke_mcp.py` against Compose on 8000 also passed.
+Both real HTTP runs printed:
+
+```text
+protocol=2025-11-25; session_id=none
+tools=what_can_you_do
+PASS initialize -> tools/list -> tools/call; structured output validated
+```
+
+Both printed this validated structured output (formatted here for readability):
+
+```json
+{
+  "speakable": {
+    "headline": "Hirz helps families set rules for home automation, plan energy use, and check suspicious requests.",
+    "details": [
+      "This local preview only describes Hirz. Household tools are not connected yet."
+    ],
+    "options": []
+  },
+  "data": {
+    "available_tools": ["what_can_you_do"]
+  }
+}
+```
+
+Inspector CLI checks used Node 24, `pnpm dlx @modelcontextprotocol/inspector@2.7.0
+--cli --transport http --server-url http://127.0.0.1:8000/mcp`, and temporary storage.
+Each of `--method initialize --format json`, `--method tools/list --format json`,
+and `--method tools/call --tool-name what_can_you_do --tool-args-json '{}' --format json`
+exited 0. Initialization reported protocol 2025-11-25 and Hirz; listing contained
+exactly the typed onboarding tool; invocation returned `isError:false`, the same
+structured output above, and the SDK's corresponding text content.
+
+The Python CI job now runs the smoke after Compose startup. Remote CI was not run
+for this change. No latency, authentication, household isolation, live Alexa or AWS
+claim is made. `THREAT_MODEL.md` is unchanged. Third-party friction and environment
+workarounds are recorded in the [friction log](./friction-log.md#item-23-local-transport-and-inspector--2026-09-23).
+
+### Inspector UI verification
+
+Inspector 2.7.0's web launcher ran with authentication enabled, a random token,
+`MCP_INSPECTOR_SECRET_STORE=memory`, and catalog/storage/client/OAuth/log paths in
+`/tmp/hirz-inspector-ui.F1IgBM`. No auth token was copied into repository evidence.
+The built-in sample servers stayed disconnected.
+
+The authorized standalone Playwright 1.63.0 browser used a fresh temporary profile
+and Chromium 153.0.8010.12. After opening Inspector's authenticated launch URL,
+selected Add Servers → Add manually, entered `hirz-item23`, selected
+`streamable-http`, and entered `http://127.0.0.1:8000/mcp`. The connection switch
+was operated with keyboard Space because its styled track intercepted Playwright's
+pointer click. The UI showed **Connected**, **Hirz** and **MCP 2025-11-25**.
+
+Tools listed exactly `what_can_you_do`; its detail had no input fields and an
+Execute Tool button. Invoking it displayed **Results** and **Structured Output**,
+both containing exactly the JSON recorded above, including the full headline,
+local-preview detail, empty options and one available tool. The protocol panel
+showed **OK INITIALIZE**, **OK TOOLS/LIST**, and **OK TOOLS/CALL**. Its individual
+call observation was 73 ms; this is not a latency-suite or p95 claim. A screenshot
+was visually inspected and retained locally at `/tmp/hirz-item23-inspector-result.png`.
+The temporary browser was closed after verification.
+
+### Completion
+
+All item 23 gates passed locally, including Inspector UI/CLI and both real Python
+SDK runs. `.venv/bin/ruff format --check .` reported **201 files already formatted**
+after evidence/procedure edits; it is rerun as the final check after the completion
+records. OAuth is next (item 24); the development database remains unmigrated and
+remote CI remains unverified for this change.
+
+## Item 24 — 2026-09-23
+
+### Local implementation and verification
+
+Implemented the accepted [local OAuth decision](./adr/ADR-014-local-oauth.md):
+separate simulated issuer, explicit RSA-key initialization, SDK authorization and
+token handlers with resource-binding checks, bounded in-memory consent/grants,
+rotating refresh families, PRM, RS256 access-token validation, periodic bounded
+JWKS cache, scope enforcement and current household/member mapping. No household
+tools, production login, companion authentication or AWS deployment are claimed.
+The test/smoke `oauth_probe` is absent from both ordinary app factories.
+
+Environment: macOS arm64, Python 3.12.13, MCP SDK 1.30.0, PyJWT 2.14.0,
+PostgreSQL disposable databases; Inspector 2.7.0 on Node 24, temporary Playwright
+1.63.0 with Chromium 153.0.8010.12. Only the already-installed PyJWT dependency
+became a direct pin. Development was neither migrated nor seeded.
+
+Commands and actual summaries:
+
+| Check | Result |
+|---|---|
+| `uv lock --offline` | 70 packages resolved; direct PyJWT crypto pin locked |
+| `uv run --locked pytest` | **1,331 passed, 120 deselected in 117.57s**; service-free coverage 81% |
+| `uv run --locked pytest -m integration --cov=hirz --cov-append` | **120 passed, 1,331 deselected in 195.07s**; combined coverage 93% |
+| Final focused regression after malformed-input and browser-header fixes: `uv run --locked pytest tests/unit/test_oauth.py tests/unit/test_mcp.py --cov=hirz --cov-append -q` | **86 passed in 10.04s** |
+| `uv run --locked coverage report --fail-under=80` | **93%**, 10,839 statements, 765 missed; exit 0 |
+| `uv run --locked ruff check .` | **All checks passed!** |
+| `uv run --locked mypy hirz/ scripts/ alembic/` | **Success: no issues found in 137 source files** |
+| `uv build` | sdist and wheel built successfully |
+| `uv run --locked alembic current` | **0005_execution_attempt** (read-only) |
+| `.venv/bin/ruff format --check .` | **209 files already formatted** before evidence finalization; rerun as the final check afterward |
+
+The full suite preceded two additional OAuth regressions and the browser-header
+fixes; the 86-test final focused run covers those final changes. Integration
+mapping code did not change after its full run. Local command logs are
+`/private/tmp/hirz-item24-unit.log`, `hirz-item24-integration.log`,
+`hirz-item24-final-oauth.log` and `hirz-item24-coverage.log`. No remote CI run was
+triggered or claimed; the CI Python test job now invokes `scripts/smoke_oauth.py`.
+
+The focused checks exercise code expiry/replay, denied consent, CSRF and one-time
+consumption, exact redirects, S256/verifier validation, missing/wrong resource,
+unsupported scopes, refresh omission/preservation of resource, scope narrowing
+and escalation refusal, refresh replay revocation and atomic rotation. Limit
+branches are exercised at a reduced injected limit with the production 1,024
+constant asserted; expired state is purged before capacity refusal. Refresh-family
+expiry remains fixed through rotation. Forged refresh generations cannot revoke
+another family. A restarted provider loses codes and refresh grants while its
+already-issued access JWT still verifies with the retained key.
+
+JWT checks cover wrong scalar/list audience, signature with a known key ID,
+issuer, expiry, future issuance/nbf, missing or wrongly typed claims, non-finite
+timestamps, maximum lifetime, missing/unknown key ID, token type, unsupported
+algorithm and malformed/duplicate Authorization headers. Cache checks cover
+initial outage, freshness expiry and recovery, 60-second polling, the 2-second
+fetch deadline, redirects, different-origin JWKS, wrong issuer, empty/malformed
+keys, body size and JSON nesting. No key lookup runs inside a tool request.
+Database failure yields 503; anonymous generic onboarding remains available.
+Supplied credentials never downgrade to guest access.
+
+The PostgreSQL integration test linked all five canonical identities and exercised
+all four fixed scope gates, including 16 interleaved requests per gate. The same
+subject `mom` resolved to different member IDs and adult/owner roles in the two
+homes. Token role/provider/surface/passkey claims did not change authority.
+Unmapped and child accounts were refused protected access. A rollback-only
+synthetic membership change was exposed through the test resolver's database
+connection for the next request; the subsequent restored role was read again.
+No change was persisted. Complete seeded graph/policy/history comparison and empty
+audit/action tables proved the authentication exercise made no household writes.
+No adapter or device call is part of these entrypoints.
+
+### Official SDK and documented commands
+
+`uv run --locked python scripts/dev_oauth.py init` reported
+`Dev OAuth RSA key ready; existing entries preserved.` The documented `serve`
+command ran at loopback 8001 with access logs disabled; public metadata and JWKS
+both returned 200, advertised S256, and contained one RSA public key. The issuer
+was stopped after this check. Key contents were not included in repository evidence.
+
+`uv run --locked python scripts/smoke_oauth.py` passed through separate issuer and
+MCP processes with allocated loopback ports, a callback listener, and a uniquely
+named disposable database. SDK token storage began with static client registration
+only; it did not inject an access token. Redacted output:
+
+```text
+PASS SDK discovery -> simulated consent -> S256 exchange -> authenticated MCP -> SDK refresh
+resolved={'household': '536fa8ee-854e-56ca-8c5d-5ba418e710a0', 'member': '5d3aca33-ac5e-5bd7-a277-1034c1dca469', 'role': 'adult'}
+PASS SDK discovery -> simulated consent -> S256 exchange -> authenticated MCP -> SDK refresh
+resolved={'household': 'bf745178-9146-5952-a310-f1d7e563977b', 'member': 'c718c622-1d64-5512-bde3-cacbeff62893', 'role': 'owner'}
+PASS SDK denial; same subject resolves adult/owner in two homes
+PASS wrong audience -> 401
+PASS zero household changes, audit events and device actions
+disposable_database=dropped; development_database=unchanged
+```
+
+Initial development failures were reported rather than counted as passes: six
+existing invalid-body tests hit the new registration guard when monkeypatching the
+onboarding function; registering its explicit public name fixed this. The first
+HTTP smoke incorrectly called httpx `raise_for_status` on an intentional 302;
+expecting that redirect fixed the harness. An integration probe initially used an
+unparameterized `dict` return annotation and omitted SDK structured output; its
+annotation was corrected to `dict[str, Any]`. Failed smoke databases were retained
+by the existing disposable helper; successful reruns dropped their databases.
+The normal generic SDK smoke passed against both the existing loopback preview
+and a separate process built from the changed checkout on an allocated port:
+
+```text
+protocol=2025-11-25; session_id=none
+tools=what_can_you_do
+PASS initialize -> tools/list -> tools/call; structured output validated
+```
+
+### Browser consent and anonymous Inspector regression
+
+The browser plugin reported `No browser is available` and `[]`; retry after the
+author enabled it still failed. One waiting browser smoke timed out. The author
+then explicitly approved a temporary standalone Playwright browser. The initial
+browser run found two genuine Hirz consent-page problems that HTTP-only tests
+could not expose: `no-referrer` caused `Origin: null` and a 403 `Invalid Origin
+header`; after fixing that, the initial self-only CSP blocked navigation to the
+registered callback. The final page uses same-origin referrer policy and permits
+only self plus the exact registered callback in `form-action`. Origin and CSRF
+checks remain enforced; regression assertions cover those response headers.
+
+The final `uv run --locked python scripts/smoke_oauth.py --browser` displayed
+**Hirz simulated login**, the local-development explanation, requested
+`hirz:read` scope, all five seed-derived member/home choices, and visible Approve
+and Deny buttons with a labeled native select. Selecting **Mom — Malik's home**
+and Approve rendered **Callback complete**; the SDK completed exchange, protected
+call and refresh. The second home's SDK link ran automatically. Reopening the
+harness and clicking Deny rendered **Consent denied** and **No household access
+was granted.** The smoke then printed all PASS lines above and dropped its database.
+Screenshots were visually inspected at `/private/tmp/hirz-item24-consent.png`,
+`hirz-item24-callback-approve.png` and `hirz-item24-callback-deny.png`; no grant
+material is visible in them.
+
+Inspector CLI `initialize`, `tools/list`, and `tools/call` each exited 0 against the
+changed checkout's isolated preview on port 49904. The catalog contained only
+`what_can_you_do`; initialization used 2025-11-25 and invocation returned
+`isError:false` with validated structured onboarding.
+
+Inspector UI used a fresh temporary catalog, memory-only secret store and its
+normal launcher authentication. The default sample servers stayed disconnected.
+Adding `hirz-item24` with Streamable HTTP and the isolated preview URL showed
+**Connected**, **Hirz** and **MCP 2025-11-25**. In Tools, invoking the sole
+`what_can_you_do` displayed Results and Structured Output containing:
+
+```json
+{
+  "speakable": {
+    "headline": "Hirz helps families set rules for home automation, plan energy use, and check suspicious requests.",
+    "details": ["This local preview only describes Hirz. Household tools are not connected yet."],
+    "options": []
+  },
+  "data": {"available_tools": ["what_can_you_do"]}
+}
+```
+
+The protocol panel showed successful initialization, listing and invocation. The
+result screenshot is `/private/tmp/hirz-item24-inspector-result.png`; it was
+visually inspected. No p95/latency claim is inferred from these individual calls.
+Inspector OAuth registration remains deferred. Browser/SDK integration friction
+is recorded in the [friction log](./friction-log.md#item-24-local-oauth--2026-09-23).
+
+### Local completion scope
+
+Item 24's local gates passed. Only local stolen-token protection is marked
+Partial; full cross-household tool isolation stays Planned until item 26.
+Production identity, real login, companion authentication, household tools,
+AWS deployment and remote CI remain unverified. Development remains on 0005;
+no policy was activated and no device action was authorized or performed.
+
+Cleanup: stopped this task's standalone dev issuer, isolated preview and Inspector;
+removed its temporary Playwright installation, Inspector catalog and launch
+credentials. Redacted screenshots and test summaries remain under `/private/tmp`.
+The existing Compose preview was left running. `AGENTS.md` and `CLAUDE.md` match
+apart from their heading; `git diff --check` passed. No commit, push or deployment
+was performed. The final format check follows this evidence/documentation update.
+
+## Item 25 — partial (2026-09-23)
+
+The author approved a local subset, disposable twin households and a reusable
+headless host; **item 25 remains partial**. The original roadmap specification is
+preserved. Decisions and rejected alternatives live in
+[ADR-015](./adr/ADR-015-household-tools.md); operational procedure and exact public
+inputs live in [development](./development.md#item-25-local-household-tools-partial)
+and [the catalog](./tool-catalog.md). No threat-model row changed.
+
+Implemented: all twelve authenticated tool names with described flat strict
+schemas, canonical structured results and bounded speech; durable principal/tool/
+argument-bound retries; atomic constraint intake/refresh invalidation; exact-version
+consent and cancellation during refresh; queued settings and tightening-only pause;
+first-plan worker requests with honest missing-input/failure results; sentence-only
+rule proposals; private advisory assessments and explicitly simulated contact
+checks; household-local safe audit summaries; and a pinned Strands host that holds
+commitments for explicit confirmation. The author separately approved the bounded
+phrase vocabulary/negation and US/international phone normalization in ADR-015.
+Migration 0010 is explicit and was exercised only in disposable databases.
+
+### Environment and commands
+
+Local macOS, Python 3.12.13, locked uv dependencies, PostgreSQL 16 in the existing
+local stack, pinned native Dogwood at `.tools/dogwood`, official MCP SDK 1.30.0 and
+Strands 1.57.0. `UV_CACHE_DIR=/tmp/hirz-uv-cache` avoids the known sandbox cache
+restriction. PostgreSQL and HTTP process checks used authorized local network
+access. No real device or contact was used. No development schema upgrade occurred.
+
+The required service-free then integration coverage sequence ran as follows
+(stdout retained locally; no secrets copied into this record):
+
+```text
+uv run --locked pytest --tb=short -q
+1396 passed, 127 deselected in 129.20s (0:02:09)
+
+uv run --locked pytest -m integration --cov=hirz --cov-append -q --tb=short
+127 passed, 1397 deselected in 221.39s (0:03:41)
+
+uv run --locked pytest tests/unit/test_household_tools.py tests/unit/test_oauth.py --cov=hirz --cov-append -q --tb=short
+42 passed in 10.14s
+
+uv run --locked pytest -m integration tests/integration/test_household_tools_database.py --cov=hirz --cov-append -q --tb=short
+7 passed in 18.09s
+
+uv run --locked coverage report --fail-under=80
+TOTAL 11844 948 92%
+
+uv run --locked ruff check .
+All checks passed!
+
+uv run --locked mypy hirz/ scripts/ alembic/
+Success: no issues found in 148 source files
+
+uv run --locked ruff format --check .
+223 files already formatted
+```
+
+The focused runs cover final schema/explanation changes and the additional host
+confirmation test (hence the later service-free collection count is 1397). The
+full service-free run includes native YAML/Dogwood conformance; the updated
+catalog has 36 classes and the two policies' expected native count is 82. Tests
+exercise schema/parameter validation, speech bounds, approved signal weights and
+negation, phone normalization, durable budget reservations, exact held host calls,
+retry conflicts/restart, privacy, missing and failed worker inputs, simulated
+reply outcomes and expiry, ambiguous cases, number match/mismatch/absence,
+organization unavailability, same-second revision consent, exact versions,
+cancellation during refresh, claimed-author provenance and claimed-requester
+restriction. Alexa approval and rejection both leave a pending security approval
+unresolved with zero votes. A tool-path guard forbids compiler, planner and
+external HTTP calls after setup. Changed-policy checks run under the household
+transaction lock. Source labels and canonical output aliases are checked by SDK
+schema validation and the focused explanation tests.
+
+Earlier runs exposed expected catalog/count updates and an OAuth onboarding
+regression: a read token whose member is no longer linked must still get generic
+onboarding; it cannot get contextual data. The first complete integration attempt
+reported `1 failed, 125 passed`; the corrected full run above passes. A later
+service-free attempt reported `2 failed, 1394 passed` because the sandbox refused
+two existing WebSocket listeners; the authorized loopback rerun above passes.
+A focused OAuth test exposed a clock-tick test bug: generating a fresh default iat
+could shorten a deliberately invalid 301-second lifetime to 300 seconds. Pinning
+both endpoints and leaving margin for future-time checks fixed the test; production
+JWT validation was not weakened. Initial smoke iterations also corrected OAuth
+scope re-consent, temporary fixture paths and input coverage through 08:00; an
+invocation without HIRZ_DOGWOOD failed closed before tool work. No failed run is
+used as passing evidence. Third-party friction was reviewed and the existing
+sandbox entry was updated; missing Bedrock credentials are an access gate.
+
+### Separate-process SDK execution
+
+```sh
+export HIRZ_DOGWOOD="$PWD/.tools/dogwood"
+uv run --locked python scripts/smoke_household_tools.py --audit-output /tmp/hirz-item25-schema-audit.json
+```
+
+Actual final output:
+
+```text
+PASS SDK OAuth linking; twelve typed tools; scoped context
+PASS first plan prepared by separate worker; source=simulated
+PASS revision/approval race refused; separate worker restarted
+PASS proposal retries, ambiguity, advisory privacy, security and pause
+PASS read-only OAuth token refused act tool with HTTP 403
+PASS durable retry after MCP process restart
+household_tools=PASS; signed_rows=300; offline=valid
+trusted_fingerprint=385589f309b374189ea1b391f4a3ad193f3674cf7fb6e72e1a97caf76e21912b
+disposable_database=dropped; development_database=unchanged
+```
+
+This uses separate OAuth, MCP and worker processes, SDK PKCE and actual
+initialize/tools/list/tools/call for all twelve names, a verified queued twin lamp
+setting, worker restart, server restart receipt replay, friendly invalid-field
+execution errors, plan/action/goal explanations and independent offline signed
+export verification. Both homes are disposable; the temporary evening fixture
+extends input coverage to 08:00 without changing the source scenario. The export
+is private and local at `/tmp/hirz-item25-schema-audit.json`; intermediate successful
+runs retained 284 and then 300 signed rows as the smoke expanded. A separate
+read-only query confirmed `development_migration=0005_execution_attempt`.
+
+### Live selection gate — pending
+
+A live invocation was attempted with the approved $1 ceiling:
+
+```sh
+uv run --locked python scripts/smoke_household_tools.py --audit-output /tmp/hirz-item25-live-audit.json --live-selection --budget-ledger /tmp/hirz-item25-bedrock-budget.json
+```
+
+The deterministic smoke portion passed with 284 signed rows at that iteration.
+The model portion returned `LIVE_GATE_PENDING NoCredentialsError` before any
+inference. `/tmp/hirz-item25-bedrock-budget.selection.json` contains exactly one
+failure record: `{"passed": false, "pending": "NoCredentialsError"}`. There was
+no budget ledger created, no inference tokens consumed and no inference charge.
+This **does not pass** tool selection. The prepared corpus now contains 26 cases
+plus a missing-value ambiguity probe, drawn from README/demo/main-scenario
+utterances with explicit values where necessary, plus money, permission, pause,
+approval and security cases. No live selection success or token-efficiency claim
+is made. Pricing was checked before the attempted invocation; ADR-015 records
+the source and conservative rates. Native CountTokens and durable reservations
+bound subsequent attempts, including retries; retain the same ledger across runs.
+
+Remaining: successful live selection with Bedrock access, profiles, objective
+tilts, MCP elicitation, cards, drafting/activation, real phone delivery, additional
+trust methods, organization verification and the full simulator. Item 26's full
+latency/isolation gate remains separate. Development stays unmigrated; no AWS
+resource was deployed, no production linking added and no security execution or
+real contact delivery claimed. The final format check is rerun after this record,
+roadmap, changelog and synchronized instruction-file updates.
+
+Native-count clarification: both seeded constitutions pass native validation;
+the `policy_count == 82` assertion specifically checks the main household's
+compiled bundle, not a combined or separately asserted count for both households.
+Final record checks confirmed identical AGENTS/CLAUDE bodies, a 65-word current
+phase, the original item 25 specification preserved, and no THREAT_MODEL diff.
+
+### AWS profile preflight — 2026-09-23, live gate still pending
+
+The author supplied AWS profile `hirz`. Boto3 STS authenticated it successfully
+as the account's root identity; no key material or use-case form contents were
+copied into repository records. Read-only/free preflights in `us-east-1` found:
+
+- Runtime CountTokens with the pinned US Haiku 4.5 inference profile failed with
+  `ValidationException: The provided model doesn't support counting tokens.`
+- The documented Mantle Anthropic counting endpoint, signed using SigV4 service
+  `bedrock-mantle`, returned HTTP 403 `permission_error`: the Haiku model is not
+  available for this account (exact message in the friction log).
+- `get_foundation_model_availability` reported `AUTHORIZED`, entitlement and
+  region `AVAILABLE`, and agreement `NOT_AVAILABLE`; `get_use_case_for_model_access`
+  confirmed a form exists. No form contents were printed.
+- `list_foundation_model_agreement_offers` confirmed US standard rates matching
+  $1.10/M input and $5.50/M output, with legal terms and a no-refunds policy.
+  No agreement was accepted, AWS configuration changed or inference invoked.
+
+The approved ledger path remains `/tmp/hirz-item25-bedrock-budget.json`; it does
+not yet exist, with zero reservations, inference tokens and inference spend.
+The previous `.selection.json` failure report was preserved; this was an access
+preflight, not a rerun or successful completion of the 27-case selection gate.
+The runner's runtime CountTokens integration cannot count this model; adapting
+and verifying supported counting remains required before any paid invocation.
+The separate Mantle access denial also remains unresolved. No heuristic counting,
+model substitution or scripted selection evidence was used. Local implementation
+and earlier test results are unchanged; this follow-up changes documentation only.
+
+### AWS retry and first live selection run — 2026-09-23
+
+At the author's request, repeated the availability and free counting checks after
+the setup wait. At 19:53:58 UTC, agreement remained `NOT_AVAILABLE`, authorization
+was `AUTHORIZED`, and entitlement/region were `AVAILABLE`. Mantle still returned
+403; its model metadata reported an account restriction, while default retention
+was compatible with the model's allowed modes. No retention setting was changed.
+
+The decisive additional probe was runtime CountTokens using
+`anthropic.claude-haiku-4-5-20251001-v1:0` instead of the US inference profile ID:
+it succeeded with 24 counted tokens. The previous conclusion that this model
+could not be counted was too broad. Fixed the host to use the foundation model
+ID for counting and the existing US inference profile for inference, retaining
+full conversation/tool counting and durable reservations without fallback.
+
+A single diagnostic Converse call reserved 24 input / 16 maximum output tokens
+in the existing ledger, then succeeded with actual usage of 8 input / 16 output.
+The full run used:
+
+```sh
+HIRZ_DOGWOOD="$PWD/.tools/dogwood" AWS_PROFILE=hirz AWS_EC2_METADATA_DISABLED=true UV_CACHE_DIR=/tmp/hirz-uv-cache uv run --locked python scripts/smoke_household_tools.py --audit-output /tmp/hirz-item25-live-profile-audit.json --live-selection --budget-ledger /tmp/hirz-item25-bedrock-budget.json
+```
+
+Actual result: **24/27 live selection checks passed; live gate remains pending.**
+The retained report at `/tmp/hirz-item25-bedrock-budget.selection.json` records:
+
+- Money request: no tool selected; expected `assess_request_risk`.
+- Plan explanation: selected `get_household_plan`; expected `explain_plan`.
+- Exact plan/version approval: requested the already-supplied plan ID instead of
+  selecting `approve_action`.
+
+No scripted substitution, changed expectations or second paid selection run was
+used. The SDK execution portion passed all twelve tools, worker/MCP restart,
+read-only-token HTTP 403 and independent signed export verification:
+`household_tools=PASS; signed_rows=300; offline=valid`. The fingerprint remains
+`385589f309b374189ea1b391f4a3ad193f3674cf7fb6e72e1a97caf76e21912b`.
+The disposable database was dropped; development was unchanged.
+
+Final cumulative selection usage was **191,547 input / 3,068 output tokens**;
+including the diagnostic, **191,555 input / 3,084 output**. At the checked US
+standard rates of $1.10/M input and $5.50/M output, estimated inference cost is
+**$0.2276725**, not a reconciled bill. The ledger conservatively reserves
+**$0.2942522 across 28 attempts**, leaving **$0.7057478** of the $1 ceiling.
+Keep this ledger for every later retry. The prior NoCredentialsError report was
+archived at `/tmp/hirz-item25-bedrock-budget.no-credentials.selection.json`.
+
+The live report exposed a separate reporting bug: Strands' mutable accumulated
+usage dictionary was retained by reference, causing all saved rows to show the
+final total. The stdout snapshots were correct, and the final cumulative usage
+above is valid; never sum those rows. The host now copies usage per turn, with
+a regression test. The historical report remains unchanged. After the run,
+the AWS CLI availability check returned agreement `AVAILABLE`, confirming that
+automatic model setup completed; no explicit agreement-creation call was made.
+
+Focused verification after both host fixes: **34 tests passed**, repository Ruff
+passed, and strict mypy passed for **148 source files**. Full service-free and
+integration suites were not repeated for these two small host changes; the new
+separate-process smoke above covers the integration route. Formatting is checked
+last after these records. Item 25 remains partial for the three live-selection
+failures and the previously listed product omissions; no threat-model claim moves.
+
+### Item 25 completion scope and routing follow-up — 2026-09-23
+
+The author approved completing profiles and objective tilts in item 25, moving
+MCP elicitation explicitly to item 29, and retaining cards/app/trust work in their
+existing later items. Item 29 now includes authenticated elicitation completion,
+refusal and cancellation checks. ADR-015 records the assignments. Repository
+inspection found profile names but no settings/durations, and no objective-tilt
+weights or carbon-intensity inputs. Questions about explicit household profile
+bundles and deterministic objective meanings were sent to the author; dependent
+implementation awaits those answers, with no invented defaults or emissions claims.
+
+Tool descriptions and the host prompt were revised to route money commands to
+risk assessment, explanation questions directly to stored explanation, and exact
+approval references verbatim to server validation. A second full live run used
+the same ledger after archiving the first report. Pricing was rechecked against
+the AWS source in ADR-015. The second run still passed **24/27**: money and
+explanation passed, but exact approval still asked for the supplied reference;
+energy optimization and a named-room lamp command also asked unnecessary
+clarifications. Failures are retained unchanged at
+`/tmp/hirz-item25-bedrock-budget.second-live.selection.json`.
+It used **197,343 input / 2,915 output tokens** and brought cumulative conservative
+reservations to **$0.5949768**. Its separate SDK/worker/restart smoke passed and
+independently verified **300 signed rows**, retaining
+`/tmp/hirz-item25-routing-audit.json`; the disposable database was dropped and
+development was unchanged.
+
+A further prompt/description correction leaves reference validity and household
+target resolution to the server, describes plan-reference/version extraction,
+and uses ordinary planning defaults for a general optimization request. No test
+utterance or expected tool/key arguments were changed, and no deterministic
+router was substituted for the live model.
+
+### Profiles, objective tilts and retained live gate — 2026-09-23
+
+The author approved explicit household-configured thermostat/light bundles and
+these objective meanings: cheapest orders electricity plus battery wear before
+comfort; most_comfortable orders occupied temperature deviation before cost;
+greenest orders grid-import kWh, comfort, then cost, without an emissions claim.
+ADR-015 records the resulting contract and rejected alternatives. No demo profile
+settings were inferred: tests supply labeled temporary fixtures, while missing
+household configurations return unavailable.
+
+The third full live selection run passed **25/27** original cases. Money advice
+and exact plan approval still failed to select the expected tool. It used
+**202,342 input / 2,999 output tokens** (the final cumulative snapshot for that
+run), retained at `/tmp/hirz-item25-bedrock-budget.selection.json`. Its ordinary
+SDK smoke verified **300 signed rows** at
+`/tmp/hirz-item25-routing-final-audit.json`. Across all attempts, the unchanged
+ledger `/tmp/hirz-item25-bedrock-budget.json` reserves **$0.9009891** of the
+approved $1 ceiling, leaving **$0.0990109**; these are conservative reservations,
+not an AWS billing claim. Another full run does not fit. No further paid calls
+were made after this run. Four profile/objective cases were subsequently added
+without changing the original cases; those four have not run live. The current
+31-case gate remains pending, with no scripted substitute or budget reset.
+
+Implementation uses existing Pipeline transactions, canonical Actions/Decisions,
+worker execution, refresh inputs and PlanService. Migration 0011 persists first
+request objectives. Profile approvals bind frozen concrete settings; child actions
+still need independent authorization. Explicit objective changes invalidate old
+consent, survive worker restart and yield proposed replacements. The refresh
+path now preserves the explicitly requested goals instead of overwriting them
+with predecessor goals; its authorization guard permits only that durable explicit
+choice, while automatic refresh retains its previous goal restriction.
+
+Verification commands used `UV_CACHE_DIR=/tmp/hirz-uv-cache` and
+`HIRZ_DOGWOOD=$PWD/.tools/dogwood`:
+
+- `uv run --locked pytest --tb=short`: **1,401 passed, 129 deselected**, 131.66 s.
+  Log: `/tmp/hirz-item25-expanded-unit-tests.log`.
+- `uv run --locked pytest -m integration --cov=hirz --cov-append --tb=short`:
+  **129 passed, 1,401 deselected**, 238.74 s, all databases disposable.
+  Log: `/tmp/hirz-item25-expanded-integration-tests.log`.
+- `uv run --locked coverage report --fail-under=80`: **92%**, 11,980 statements,
+  992 missed, exit 0. This is combined service-free/integration coverage.
+- `uv run --locked python scripts/smoke_household_tools.py --audit-output
+  /tmp/hirz-item25-profiles-objectives-verified-audit.json`: **PASS**, all twelve
+  authenticated tools, separate OAuth/MCP/worker processes, objective change and
+  revision consent races, worker restart, per-device profile decisions, durable
+  MCP retry, read-only HTTP 403, security non-resolution and pause; **611 signed
+  rows independently verified offline**. Export fingerprint:
+  `385589f309b374189ea1b391f4a3ad193f3674cf7fb6e72e1a97caf76e21912b`.
+  Log: `/tmp/hirz-item25-expanded-smoke.log`; successful scratch database dropped.
+- Ruff passed; strict mypy passed for **150 source files**. The final formatting
+  check follows the documentation updates below.
+- A read-only query confirms development is still **0005_execution_attempt**;
+  neither migration 0010 nor 0011 was applied there.
+
+The extended smoke initially exposed two fixture assertions: its missing sleeping
+observation correctly denies the thermostat, so the test now verifies that denial
+alongside light execution; and multiple device writes advance the twin by
+microseconds, so the simulated MCP clock must advance past those recorded events.
+The integration fixture separately verifies both configured devices when required
+observations are present. No risk rule, observation requirement or temporal graph
+check was weakened. Earlier failed disposable runs remain retained for diagnosis.
+
+Local coverage also exercises missing configurations, restart-safe profile retries,
+request conflicts, claimed-identity reductions, preview without authority, pause
+and aggregate/child approvals. Hand-computed planner tests distinguish cheap
+negative-price grid energy from solar/grid-minimizing choices and verify comfort
+priority with all replay constraints intact. The host's confirmation regression
+now includes objective mutations. Live selection failures remain the only item 25
+completion gate; later product integrations have explicit roadmap owners in
+ADR-015. Item 26 and threat-model claims remain unchanged. The friction-log review
+found no additional third-party defect; model selection failures and fixture
+mistakes are recorded here as verification failures.
+
+Final follow-up: `pytest tests/unit/test_household_tools.py tests/cedar_conformance
+--no-cov --tb=short` passed **108 tests** (35 household/host tests and 73 native
+policy conformance tests), 72.88 s. This includes confirmation before objective
+changes. Final Ruff passed; strict mypy passed **150 source files**;
+`ruff format --check .` reported **225 files already formatted**;
+`git diff --check` passed. AGENTS.md and CLAUDE.md bodies are synchronized.
+
+### Approved $1.50 live rerun — 2026-09-23
+
+The author approved the recommended increase from $1 to **$1.50 total** for one
+additional full run. The original ledger retained all **82 earlier calls** and
+**$0.9009891** reservations. Its previous report was preserved as
+`/tmp/hirz-item25-bedrock-budget.third-live.selection.json`; the ledger was neither
+reset nor refunded. AWS pricing was checked again before invocation against
+[the published Haiku rates](https://aws.amazon.com/blogs/machine-learning/live-meeting-assistant-with-amazon-transcribe-amazon-bedrock-and-strands-agents/):
+$1.10/M input and $5.50/M output for the configured route.
+
+The host prompt now distinguishes tool selection from the confirmation gate that
+follows selection, and requires a new deterministic assessment for each money
+request. Tool descriptions now explicitly include profile requests; the plan
+version description accepts a user-supplied reviewed version. No corpus utterance,
+expected selection or expected key argument was changed. Budget enforcement now
+uses the author-approved $1.50 constant and includes a persistence/ceiling regression.
+
+Command: `AWS_PROFILE=hirz HIRZ_DOGWOOD="$PWD/.tools/dogwood"
+UV_CACHE_DIR=/tmp/hirz-uv-cache uv run --locked python
+scripts/smoke_household_tools.py --audit-output /tmp/hirz-item25-fourth-live-audit.json
+--live-selection --budget-ledger /tmp/hirz-item25-bedrock-budget.json`.
+
+Result: **30/31 live selections passed**. Money routing, the configured night
+profile, all three objective tilts, pause, security requests and ambiguous
+missing-temperature handling passed. The one remaining failure is unchanged:
+`I reviewed plan selection-plan version 3. Approve exactly that plan. Do it.`
+The model selected no tool and asked whether the supplied plan reference really
+was `selection-plan`. The expected selection remains `approve_action` with
+`plan_id=selection-plan`, `version=3`, `approved=true`. This is a failure, not an
+accepted clarification. No scripted fallback or expected-result relaxation was used.
+Report: `/tmp/hirz-item25-bedrock-budget.selection.json`;
+log: `/tmp/hirz-item25-fourth-live.log`.
+
+The run used **245,540 input / 3,265 output tokens**, an estimated **$0.2880515**
+at the checked rates (not a reconciled AWS bill). It reserved **$0.3666289** under
+the conservative maximum-output policy. The retained ledger now contains **113
+calls** and **$1.2676180** total reservations, leaving **$0.2323820** of the $1.50
+ceiling. No further model invocations were made; another full run is not covered
+by that remaining headroom.
+
+The same process run passed SDK/tool schemas, objective and revision races,
+worker and MCP restart, per-device profile enforcement, pause, privacy and
+read-only scope denial. It independently verified **611 signed audit rows** in
+`/tmp/hirz-item25-fourth-live-audit.json`, fingerprint
+`385589f309b374189ea1b391f4a3ad193f3674cf7fb6e72e1a97caf76e21912b`.
+The disposable database was dropped; development remained unchanged.
+
+`pytest tests/unit/test_household_tools.py --no-cov --tb=short`: **35 passed**,
+2.05 s. Ruff passed; strict mypy passed for **150 source files**. Existing full
+service-free/integration coverage evidence above remains applicable; this change
+is limited to host prompting, schema descriptions and the approved budget constant.
+Formatting is checked last after these records. Item 25 remains partial solely
+for the exact-approval live-selection failure. No new third-party defect was
+identified; the failed model selection is retained as gate evidence. No
+threat-model claims or later-item scopes changed.
+
+### Item 25 completion within approved scope — 2026-09-23
+
+The author approved a **$2.00 aggregate ceiling** for the remaining targeted
+approval check and full rerun. All prior ledger entries were retained. Pricing
+was rechecked against the AWS source above before invocation. The approval tool
+now documents its plan-ID/version and action-ID/approval-ID input combinations;
+the host has a generic reference-extraction example using `oak-42`, version 7,
+which is not a corpus case. The unchanged server still enforces exact-version
+consent, household scope and security non-resolution. No test utterance or expected
+selection was changed and no deterministic router substituted for the model.
+
+A separate targeted diagnostic passed **2/2**: the previously failing original
+utterance and another reference, `north-lantern`, version 12. This diagnostic
+was explicitly labeled insufficient for the full gate. It used **13,738 input /
+223 output tokens** and reserved **$0.0208164**. Report:
+`/tmp/hirz-item25-approval-probe.json`; log:
+`/tmp/hirz-item25-approval-probe.log`; its SDK smoke independently verified 611
+signed rows at `/tmp/hirz-item25-approval-probe-audit.json` and dropped its database.
+
+The subsequent full attempt stopped after **16 passing selections** with
+`LIVE_GATE_PENDING InternalServerException`. Its final recorded cumulative usage
+was **125,261 input / 1,687 output tokens**. It reserved **$0.1868383**, bringing
+the ledger to $1.4752727; no reservations were removed. The endpoint-specific
+message was not retained and is not inferred. Preserved report:
+`/tmp/hirz-item25-bedrock-budget.fifth-live.selection.json`; log:
+`/tmp/hirz-item25-fifth-live.log`; independently verified 611-row export:
+`/tmp/hirz-item25-fifth-live-audit.json`. This interrupted run did not satisfy the
+gate. The service interruption and retained-history retry are documented in the
+[friction log](./friction-log.md#item-25-interrupted-bedrock-selection-run--2026-09-23).
+
+Retry command: `AWS_PROFILE=hirz HIRZ_DOGWOOD="$PWD/.tools/dogwood"
+UV_CACHE_DIR=/tmp/hirz-uv-cache uv run --locked python
+scripts/smoke_household_tools.py --audit-output /tmp/hirz-item25-sixth-live-audit.json
+--live-selection --budget-ledger /tmp/hirz-item25-bedrock-budget.json`.
+
+**Full live gate PASS: 31/31 cases**, including the exact `selection-plan`,
+version 3 approval, money routing, profile selection, all three objective tilts,
+ambiguous missing temperature, pause and Alexa security requests. The host used
+real authenticated tools/list, preserved conversation context and selected through
+Claude Haiku 4.5 on Bedrock; selection-only hooks canceled execution, while the
+separate SDK path verified actual service behavior. The report preserves every
+selected tool, key argument and cumulative token snapshot:
+`/tmp/hirz-item25-bedrock-budget.selection.json`; complete stdout:
+`/tmp/hirz-item25-sixth-live.log`. The earlier 30/31 report remains at
+`/tmp/hirz-item25-bedrock-budget.fourth-live.selection.json`.
+
+The successful run used **251,280 input / 3,327 output tokens**, estimated
+**$0.2947065** at the checked rates, and conservatively reserved **$0.3732597**.
+The unchanged aggregate ledger contains **162 calls**, **$1.8485324** reserved,
+and **$0.1514676** remaining under the approved $2 ceiling. This is not an AWS
+billing reconciliation. No further inference was performed after success.
+
+The successful run also passed all twelve authenticated tools, durable retries,
+MCP and worker restart, objective-change and same-second revision consent refusal,
+per-device profile decisions, privacy, pause and read-only HTTP 403. It verified
+**611 signed rows independently offline**, fingerprint
+`385589f309b374189ea1b391f4a3ad193f3674cf7fb6e72e1a97caf76e21912b`, in
+`/tmp/hirz-item25-sixth-live-audit.json`. Its disposable database was dropped;
+development stayed unchanged on 0005. Migrations through 0011 remain explicit.
+
+Focused verification after the final prompt/schema/budget changes:
+`pytest tests/unit/test_household_tools.py --no-cov --tb=short` **35 passed**,
+2.14 s; Ruff passed; strict mypy passed **150 source files**. The preceding full
+implementation evidence remains **1,401 service-free tests, 129 PostgreSQL tests,
+92% combined coverage**, plus **73 native policy conformance tests**. These full
+suites were not repeated for description/prompt changes and the budget constant;
+the new live SDK smoke and focused tests verify those changes. Final formatting
+and whitespace checks follow the documentation updates.
+
+Item 25 is complete within the author-approved scope and allocation: cards 27,
+app drafting/activation and phone approvals 28, elicitation/full simulator 29,
+real contact checks/further trust methods 31, organization verification 33. No
+production Alexa deployment, real phone delivery or universal model reliability
+is claimed. The requirement was one successful full live selection run; earlier
+failures remain retained. Item 26's latency/isolation gate is next and remains
+unverified. No threat-model row advances.
+
+Final closure checks passed: Ruff; strict mypy (**150 source files**);
+`ruff format --check .` (**225 files already formatted**); `git diff --check`;
+and identical AGENTS.md/CLAUDE.md bodies. The original item 25 specification and
+verification clause were preserved; only its completion status and evidence
+sentence changed. No deployment, development migration or item 26 work was run.
+
+### Item 25 CI catalog count fix — 2026-09-23
+
+[CI run 35919909504](https://github.com/BashaarJavaid/Hirz/actions/runs/35919909504)
+failed only the build job's fresh-wheel catalog assertion on commit `17b6f64`.
+The assertion still expected 32 classes/situation groups; item 25 added four
+governance entries to each. The other ten jobs passed (including placeholders).
+Updated the assertion and its success message to 36.
+
+Verification on macOS ARM64, Python 3.12.13: `UV_CACHE_DIR=/private/tmp/hirz-uv-cache
+uv build` built the sdist and wheel. Loaded the exact fresh-wheel step from
+`.github/workflows/ci.yml` with PyYAML and executed it with `bash -e -o pipefail`
+and a temporary `RUNNER_TEMP`, outside the checkout for imports and CLI checks.
+The successful run used a fresh temporary uv cache and installed 51 packages:
+`PASS installed hirz 0.0.0`; `PASS packaged catalogs: 36 classes, 36 situation groups`;
+`hirz --help` printed the command list and exited 0. Temporary environments and
+the fresh cache were removed. Initial sandbox DNS and existing-cache failures
+are recorded in the friction log. No GitHub rerun, push, Docker build, database
+mutation or AWS call was performed for this workflow-only fix.
+
+## Item 25a — 2026-09-23
+
+### Local implementation and publication preparation
+
+Independent repository: <https://github.com/BashaarJavaid/addon-check>, revision
+`f9bf2914c136c4e5b196558c2795477dd21c2a46`. Node 24.21.0; SDK 1.30.1, Ajv 8.20.0,
+strict TypeScript 6.0.3; npm lockfile and Apache-2.0. Decision/source distinctions:
+[ADR-016](./adr/ADR-016-add-on-conformance-checker.md).
+
+- Checker `npm run lint`, `npm run typecheck`, `npm test` and build passed:
+  **42 tests, 42 passed, 0 failed**, including JSON/SSE fixture transport,
+  cursor bounds, response/body deadlines and size bounds, auth metadata/challenges,
+  explicit calls, schema references, expected errors, UI references/manual review,
+  74/75-word boundaries, exact repetition count, 500 ms failure boundary and CLI
+  exit codes. Output retained locally at `/private/tmp/addon-check-final-tests.log`.
+- `npm pack --dry-run`, `npm pack`, then
+  `node test/package.mjs ./addon-check-0.1.0.tgz` passed from a clean temporary
+  installation: complete fixture exited 0; broken 75-word fixture exited 1 and
+  identified `speech.estimate`. Nine packed files; tarball SHA-1
+  `b11fca27fb49eb688b42d06ad04ad7cdbeaef5d1`. No real tokens or case payloads are packed.
+- The first two Hirz smoke attempts stopped at private cases-file creation
+  (`TypeError`; `Path.open` does not accept `opener`). Corrected to built-in open
+  with 0600 permissions; arguments also use the SDK's Pydantic JSON conversion.
+  The failed disposable databases were retained by the existing helper:
+  `hirz_ha_smoke_498ba51249774d99bf460270143624bd` and
+  `hirz_ha_smoke_e23395aa46bf45d5859de26c41f8d6c2`. No conformance result or audit
+  export is claimed for those attempts.
+- `PATH=/opt/homebrew/opt/node@24/bin:$PATH HIRZ_DOGWOOD=$PWD/.tools/dogwood
+  HIRZ_LLM=off uv run --locked python scripts/smoke_household_tools.py
+  --audit-output /private/tmp/hirz-item25a-audit-3.json
+  --conformance-cli ../addon-check/dist/cli.js` passed all existing SDK, worker,
+  scope and restart assertions, followed by **117 PASS, 0 FAIL/WARN/SKIP/MANUAL**,
+  complete evidence for twelve tools, and **611 signed rows independently valid**.
+  Export fingerprint: `385589f309b374189ea1b391f4a3ad193f3674cf7fb6e72e1a97caf76e21912b`.
+  Adjacent `.conformance.json` retains every check/sample. Onboarding warm-up
+  17.713 ms, 20 measured calls 3.891–6.914 ms; context warm-up 22.619 ms,
+  20 measured calls 13.677–20.862 ms. Only these two tools were timed.
+  The successful disposable database was dropped; development remained unchanged.
+- Generic JSON Schema assertions in the smoke and household contract unit test
+  moved after this replacement passed. Runtime models, flat/strict Hirz inputs,
+  transport/security regressions and behavior assertions remain.
+- Full service-free Python suite: **1401 passed, 129 deselected in 127.00s**;
+  standalone coverage was 78%, with the combined integration gate still pending
+  at this entry. Ruff passed; strict mypy passed **150 source files**.
+  Output: `/private/tmp/hirz-item25a-unit.log`.
+
+No Bedrock request was made; the retained budget ledger and developer database
+were unchanged. Browser display modes, production OAuth and Amazon certification
+are not claimed. Item 26's full latency/isolation suite remains separate.
+At this entry, checker/Hirz CI runs and npm publication/registry installation remain
+owed. npm readiness returned `ENEEDAUTH`; interactive author login was requested
+only after the artifact passed clean installation. Item 25a is not complete.
+
+### Independent source CI
+
+[addon-check CI run 35930153274](https://github.com/BashaarJavaid/addon-check/actions/runs/35930153274)
+passed at `f9bf2914c136c4e5b196558c2795477dd21c2a46`: locked install, lint,
+strict types, 42 HTTP/CLI tests, package inspection/build, and clean tarball
+installation against passing/broken fixtures. npm registry publication remains
+separate; no certification is implied.
+
+### Final local checks and release artifact
+
+The full integration suite passed **129 tests, 1401 deselected in 237.75s**.
+Combined coverage is **92% (11981 statements, 957 missed)** and
+`uv run --locked coverage report --fail-under=80` passed. Outputs:
+`/private/tmp/hirz-item25a-integration.log` and `/private/tmp/hirz-item25a-coverage.log`.
+Ruff and strict mypy (150 source files) pass; instruction files match below their
+headings. No development migrations were applied.
+
+Final checker review added acceptance of equivalent standard schema dialect URIs
+with/without an empty fragment. Revision
+`c8b65e0977204883d2ec23d5ac0f7a08300d021e` passes lint and all **42 tests**
+(`/private/tmp/addon-check-final-tests-2.log`), including those URI cases. `npm pack`
+and fresh installation again pass both fixtures. The final nine-file tarball
+SHA-1 is **`c8beb6918c065ecb0e7fdee5feaa489906c6d53e`**; this supersedes the earlier
+artifact above. Hirz pins this exact source revision. npm login is still missing;
+publication and installation from the registry have not happened.
+
+### Final checker CI and independent audit CLI
+
+The [final checker CI run 35930520002](https://github.com/BashaarJavaid/addon-check/actions/runs/35930520002)
+passed at `c8b65e0977204883d2ec23d5ac0f7a08300d021e`, including clean packed-package
+installation and both fixture outcomes. Both retained Hirz evidence files were
+confirmed mode `0600`. A separate public CLI invocation also verified the export:
+
+```text
+uv run --locked hirz verify-audit --household 536fa8ee-854e-56ca-8c5d-5ba418e710a0 --file /private/tmp/hirz-item25a-audit-3.json --trusted-fingerprint 385589f309b374189ea1b391f4a3ad193f3674cf7fb6e72e1a97caf76e21912b
+status=valid; start_seq=1; end_seq=611; checked_count=611; failure_seq=null
+```
+
+Its usual local-mode anchoring limitations remain; this does not prove omitted
+history or prevent a re-signed rewrite. The author subsequently completed npm's
+interactive login, verified as the expected publisher; `npm view addon-check version`
+still returned E404 before first publication. Login is no longer a blocker.
+Hirz's earlier run 35930388108 was superseded/cancelled when the final checker pin
+was pushed; only the subsequent run can establish the final integration gate.
+
+### Pinned Hirz conformance CI and first registry publication attempt
+
+At Hirz revision `4457253a4220c7e9b1e72b51f5edcfc134070570`, the
+[conformance job](https://github.com/BashaarJavaid/Hirz/actions/runs/35930587239/job/107416104981)
+passed: **117 PASS, 0 FAIL/WARN/SKIP/MANUAL**, complete twelve-tool evidence,
+onboarding/context timed, and **628 signed rows independently valid** on the
+Ubuntu runner. The CI fingerprint was
+`4df7c5f923db66576386f6bb2cc15f8d76beb9bf632806fc5cc7c258ba5662a0`;
+the different row count from the local run is reported as observed, not replaced
+with the local count. The job cleaned up its disposable services; Bedrock stayed off.
+
+The first `npm publish ./addon-check-0.1.0.tgz --access public` attempt was refused
+with E403 after a successful login. Exact text and the required interactive 2FA
+follow-up are in the [friction log](./friction-log.md#item-25a-npm-publishing-authentication--2026-09-23).
+The attempted tarball checksum matched the tested artifact. No registry publication
+is claimed at this point; the author was asked to publish that artifact after 2FA.
+
+### Full Hirz CI result
+
+[Hirz CI run 35930587239](https://github.com/BashaarJavaid/Hirz/actions/runs/35930587239)
+completed successfully at `4457253a4220c7e9b1e72b51f5edcfc134070570`: all eleven
+jobs passed, including the real pinned conformance job, Python lint/types,
+service-free and disposable PostgreSQL coverage gate, native Cedar checks,
+scenarios, TypeScript checks and package/container build. Existing latency and
+release placeholders remain explicit deferrals; this run does not close their
+roadmap owners. At this entry, only npm publication and fresh registry installation
+remain owed for item 25a; the required interactive 2FA step is pending with the author.
+
+### Publication and completion
+
+The author completed npm's interactive publishing authentication and published
+[addon-check@0.1.0](https://www.npmjs.com/package/addon-check/v/0.1.0).
+Read-only registry verification returned version `0.1.0`, repository
+`git+https://github.com/BashaarJavaid/addon-check.git`, and dist SHA-1
+`c8beb6918c065ecb0e7fdee5feaa489906c6d53e`, exactly matching the reviewed and tested
+tarball. Registry integrity:
+`sha512-VCAT/9VeDOeoXG44mUyxKo5o27AwrmR+BObiQLFZbH9jyEOndfga5239Ex5issA3ZMQn11uUR9PSh410LpUohQ==`.
+
+From the clean source checkout, Node 24 ran
+`node test/package.mjs addon-check@0.1.0`. This installed the registry package into
+a new temporary directory and invoked its installed bin (not the checkout build):
+
+```text
+PASS installed package: complete fixture exits 0; addon-check@0.1.0
+PASS installed package: broken fixture exits 1 with speech.estimate; addon-check@0.1.0
+```
+
+**Item 25a complete (2026-09-23).** The independent public source and npm artifact,
+42 checker tests, clean packed/registry installations, pinned Hirz CI, twelve-tool
+117-check evidence, signed offline audit verification, full Python tests/92%
+coverage, lint and strict types are verified above. Only onboarding/context were
+timed; item 26, browser display modes, simulator harness and production/Amazon
+identity validation remain with their existing owners. No Amazon certification
+is claimed. The Bedrock budget ledger and developer database were unchanged.
+
+## Item 26 — 2026-09-23
+
+### Initial implementation and regression run — 2026-09-23
+
+**Partial; latency and CI completion are not claimed.** Protocol and author-approved
+fixture/performance/CI decisions are in [ADR-017](./adr/ADR-017-tool-latency-and-isolation.md).
+The working tree was based on `85475a17ce69bf421771cd6529b9f3c7a36d8453` on `phase-4`.
+The local environment was macOS 15.7.3 arm64, Python 3.12.13, MCP SDK 1.30.0,
+SQLAlchemy 2.0.54, psycopg 3.3.5 and SciPy 1.18.0, with local PostgreSQL and native
+Dogwood. No paid model calls or development-database migration were performed.
+
+- `uv run --locked pytest -q --cov-report=term:skip-covered --tb=short`:
+  **1,402 passed, 133 deselected** in 136.84 seconds.
+- `uv run --locked pytest -m integration --cov=hirz --cov-append --cov-report=term:skip-covered --tb=short -q`:
+  **132 passed, 1,403 deselected** in 316.46 seconds.
+- `uv run --locked coverage report --fail-under=80 --format=total`: **92**, exit 0;
+  the combined report counted 12,026 statements and 903 misses.
+- Ruff lint, formatting and strict mypy passed (151 checked source files).
+- The dedicated storage regressions exercise batch rollback, one signed lifecycle
+  event per action, scheduling without device grants, overlapping bounded-opening
+  refusal, snapshot mutation isolation and invalidation on writes/transactions.
+
+The integration isolation report passed **177 primary checks**, including **20
+concurrent rounds**, plus **10 symmetric foreign-reference checks** using the
+explicitly labeled disposable home copy. Restart assertions also passed. Independent
+signed exports verified **333 home + 76 parents + 138 disposable-copy rows = 547**.
+The database held 365 action rows, two plans, 61 tool receipts and two verification
+cases. Private evidence was copied to `/tmp/hirz-item26-isolation-regression-01`;
+report SHA-256 `88cb02af13894371825200d0d584c034277545c2d21f6c76878d8021640e830b`.
+No household payloads or exports are committed.
+
+The first full latency attempt retained `/tmp/hirz-item26-latency-01/report.json`
+and disposable database `hirz_ha_smoke_334450b8f73141bfafb7b3a1387d0da2` after a
+warmup-round-2 failure. The runner had proposed, rather than committed, its resume
+cleanup. It was corrected to redeem the real Pipeline action and assert the stored
+unpaused state. Two consecutive diagnostic rounds then passed. No measured sample
+was collected in the failed attempt, so it supplies no p95 evidence. Later isolated
+diagnostic approval samples remained approximately 0.47–0.52 seconds; these are
+individual samples, not a passed latency gate. Further optimization/verification
+is still owed; the threat-model row remains Planned.
+
+### Approved internal optimizations and equivalence checks — 2026-09-23
+
+The refresh-read, pure-work and transaction-reuse amendments are recorded in
+[ADR-017](./adr/ADR-017-tool-latency-and-isolation.md). No migration, dependency,
+public contract, paid call or latency-threshold change was introduced.
+
+- After policy fingerprint memoization and scheduling-narration reuse,
+  `uv run --locked pytest tests/unit/test_pipeline.py tests/unit/test_refresh.py tests/unit/test_explainer.py --no-cov`
+  passed **173 tests** in 4.13 seconds. A first test attempt incorrectly tried to
+  assign a frozen constitution field; replacing the test model corrected it.
+- The PostgreSQL storage/refresh checks passed **17 tests** in 44.69 seconds;
+  each scheduling decision and signed payload matched independently prepared
+  narration. Coverage was subsequently extended to differing narration contexts.
+- Two complete diagnostic SDK lifecycles passed their behavior assertions, but
+  approval took **370.0575 ms and 581.688667 ms**. These are individual diagnostic
+  observations, not warm p95 evidence. The gate remained unpassed.
+- After the additionally approved transaction-scoped fingerprint/member reuse,
+  `uv run --locked pytest tests/unit/test_refresh.py tests/unit/test_pipeline.py --no-cov`
+  passed **93 tests** in 3.51 seconds. Mutation checks include observations,
+  runtime thresholds, policy and verified-control parameters; returned cached
+  data cannot mutate later results, and verified-control reads still occur.
+- `uv run --locked pytest tests/integration/test_tool_budget_storage.py tests/integration/test_refresh_database.py -m integration --no-cov`
+  passed **17 tests** in 44.95 seconds, including linked-account/surface separation,
+  graph-write and transaction invalidation, narration-context separation and
+  independently regenerated scheduling output. Ruff and strict mypy passed
+  (151 source files).
+
+The independent checker was also run with Node 24 explicitly selected through
+`PATH=/opt/homebrew/opt/node@24/bin:$PATH`, `HIRZ_LLM=off`, native Dogwood and
+`scripts/smoke_household_tools.py --audit-output /tmp/hirz-item26-conformance-node24-01.json --conformance-cli ../addon-check/dist/cli.js`.
+It reported **117 PASS, 0 FAIL, complete=true**, with **611 signed rows** verified
+offline. Its disposable database was dropped and development was unchanged.
+This run preceded the final transaction-reuse amendment; it establishes tool
+contract compatibility at that point, not final item-26 completion. The full
+latency gate and final CI evidence remain owed.
+
+### Interrupted measurement and type-equivalence correction — 2026-09-23
+
+Commit `eb5d7f8c119c6d9b510eb05a7a97979310488a0c` was pushed to `phase-4` with
+item 26 explicitly incomplete. [CI run 35940685288](https://github.com/BashaarJavaid/Hirz/actions/runs/35940685288)
+passed lint, types, TypeScript tests, build, native Cedar conformance and the
+independent add-on conformance job before cancellation. Python integration,
+scenarios and both latency jobs were cancelled; no full CI pass is claimed.
+
+The local full benchmark began on the working tree subsequently committed as
+`eb5d7f8`; production code remained unchanged during measurement. Review found
+that Python dictionary equality treats boolean `True` and numeric `1` as equal,
+which could make the new refresh-fingerprint cache reuse a result after a type
+change. The run was deliberately interrupted and CI cancelled to correct that
+equivalence bug. JSON input encoding now retains value-type distinctions, and a
+regression changes a verified EV control from boolean to integer and back.
+Interrupted benchmark workers are now terminated and reaped in cleanup.
+
+`HIRZ_BUDGET_ARTIFACTS=/tmp/hirz-item26-latency-02 uv run --locked pytest tests/latency -m latency --no-cov -s --tb=short`
+stopped after 1,038.44 seconds (exit 2), with 29 complete evening rounds and part
+of round 30. Partial raw samples remain in
+`/tmp/hirz-item26-latency-02/demo-evening/report.json`; the disposable database
+`hirz_ha_smoke_52d08167d85f45fcbce9a01c760f53e7` was retained. There were 25
+approval samples (first 493.04 ms, last 521.32 ms, maximum 863.37 ms) and 24
+car-revision samples (maximum 1,565.03 ms). These are incomplete diagnostic
+samples, not a 100-sample p95 result; no samples were trimmed or converted into a
+passing gate.
+
+After correction, the pipeline/refresh/explainer unit command passed **173 tests**
+in 4.34 seconds; storage/refresh integration passed **17 tests** in 46.09 seconds.
+Read-only query inspection of the retained database found 44,246 audit rows;
+one `energy.optimize_cost` budget check took 53.28 ms. `EXPLAIN ANALYZE` showed
+a grant-usage query scanning 15,586 actions (13.357 ms execution) and an adjustment
+query scanning the audit table (7.398 ms execution). No records were changed by
+this inspection. Further schema/query optimization was put to the author for
+approval; full latency and final CI verification remain owed.
+
+### Approved budget indexes and terminal-plan filtering — 2026-09-23
+
+The author approved migration `0012_budget_indexes` and moving the existing
+terminal-plan exclusions into refresh SQL; the decision and scope are recorded in
+[ADR-017](./adr/ADR-017-tool-latency-and-isolation.md#budget-index-and-terminal-read-amendment--2026-09-23).
+Development remains on 0005. The retained disposable benchmark database named
+above was explicitly upgraded to 0012 for the following diagnostic; its original
+timing report was not changed.
+
+Exact budget totals for two action classes on two dates matched before and after
+the migration, and independent verification of the complete signed audit chain
+was unchanged. With PostgreSQL forced to use generic prepared plans, eight
+successive budget checks took **4.594, 1.704, 1.450, 1.597, 1.476, 1.341, 1.592 and
+1.467 ms**. `EXPLAIN ANALYZE` reported **0.074 ms** for grant usage using
+`audit_budget_usage` and `actions_grant_lookup`, and **0.034 ms** for adjustments
+using `audit_budget_adjustments`. These are query diagnostics, not tool p95.
+
+`uv run --locked pytest tests/integration/test_tool_budget_storage.py tests/integration/test_database.py -m integration --no-cov --tb=short`
+passed **7 tests in 9.15 seconds**, including migration downgrade/upgrade result
+equivalence, signed evidence preservation, schema metadata agreement, active-only
+refresh reads and unchanged terminal-plan evidence. An initial run failed two
+schema-consistency checks because Alembic compared equivalent nested-JSON index
+expressions differently; matching the metadata expression to PostgreSQL's
+reflection corrected it. The exact friction and workaround are recorded in
+[the friction log](./friction-log.md).
+
+The full service-free command passed **1,403 tests, 135 deselected, in 154.50
+seconds**. Its standalone coverage was 78%; combined integration coverage is
+reported separately below. Strict mypy passed for **152 source files**.
+
+With Node 24, `HIRZ_LLM=off`, native Dogwood and the independent checker,
+`scripts/smoke_household_tools.py --audit-output /tmp/hirz-item26-conformance-node24-02.json --conformance-cli ../addon-check/dist/cli.js`
+returned **117 PASS, 0 FAIL, complete=true** and independently verified **611 signed
+rows**. The disposable database was dropped; development was unchanged. Private
+export SHA-256:
+`e4d6e080d8748c581bee4dddf0729a404f229573b291b18f2fe1382dbb6ec84c`.
+
+Two complete diagnostic SDK lifecycles after these changes passed behavior checks,
+but plan approval still took **471.645334 and 382.838375 ms**. A separate instrumented
+approval took **464.787334 ms** end to end: the server handler accounted for
+390.407291 ms, three native Dogwood authorizations for 139.061334 ms, and 66 SQL
+calls for 120.249 ms (nested spans overlap). The private wall-clock span report is
+`/tmp/hirz-item26-approval-spans.json`, SHA-256
+`7983f5e05566e5d8b48f26e1b51174bfc06c42a38c62fd2e034efdc8c1039d0d`.
+These individual diagnostics do not establish warm p95. The full 250 ms latency
+gate remains unpassed, and item 26 remains incomplete.
+
+The subsequent full integration run passed **133 tests, 1,405 deselected, in
+398.81 seconds**, including the authenticated household-isolation test. Combined
+coverage was **93%** (12,074 statements, 887 misses), and
+`coverage report --fail-under=80 --format=total` exited 0. A read-only check
+confirmed development still at `0005_execution_attempt`; AGENTS/CLAUDE bodies
+matched. This run predates the subsequently approved native-helper implementation.
+
+### Approved native-helper implementation and focused checks — 2026-09-23
+
+The author approved the Rust exception, private helper and pinned library patch
+described in [ADR-017](./adr/ADR-017-tool-latency-and-isolation.md#native-helper-amendment--2026-09-23).
+The local pinned toolchain's former temporary installation had lost its executables;
+initial build attempts failed with `FileNotFoundError: [Errno 2] No such file or
+directory: 'cargo'`. Rust 1.98.1 was installed into new task-specific temporary
+directories, without changing shell configuration. The first installer invocation
+used the wrong basename and was corrected to `rustup-init`.
+
+`scripts/build_dogwood.py` then built the unmodified reference CLI in **3m 22s**
+and the helper in **29.33s**, using the existing Cargo lock. The helper-only patch
+adds two `Clone` derivations to the pinned library; no dependency version changed.
+MCP prepares policies at startup and uses a fresh native Authorizer per replay.
+
+- The existing CLI plus initial helper failure checks passed **85 tests in 4.27
+  seconds**. An added fake-process acknowledgement test initially timed out while
+  Cargo was compiling; its setup timeout was increased, without changing production
+  or benchmark deadlines. The final helper unit file passed **9 tests in 2.70
+  seconds**, including malformed replies, crash, timeout, cancellation, reaping,
+  missing binary, nested lifespan and exact boolean preparation acknowledgement.
+- `uv run --locked pytest tests/cedar_conformance/test_helper.py --no-cov -q --tb=short`
+  passed **4 tests in 93.01 seconds**. It compares native decisions across 36
+  classes, seven roles and both seeded policies, with and without approval;
+  additional probes cover expiry, foreign household/hash/session, lower authority,
+  concurrency, changed policy/schema, malformed traces and fresh history after
+  an allowed request and restart.
+- `uv run --locked pytest tests/integration/test_mcp_isolation.py tests/integration/test_tool_budget_storage.py -m integration --no-cov -q --tb=short`
+  passed **4 tests in 57.67 seconds**, with the helper active in authenticated MCP.
+- Ruff lint and strict mypy passed (152 checked source files).
+
+A diagnostic instrumented during native equivalence work recorded three Dogwood
+calls totaling **24.032 ms**, versus the earlier diagnostic's 139.061334 ms; the
+end-to-end approval was still **470.980375 ms**, with **168.768 ms** across 66 SQL
+calls. These separately observed timings are not a controlled benchmark comparison.
+After those checks finished, two complete SDK lifecycle diagnostics passed their
+behavior assertions and recorded approvals of **301.230125 and 396.744042 ms**.
+All diagnostic databases were dropped. The 250 ms gate remains unchanged and
+unpassed; neither these samples nor the native optimization closes item 26.
+
+The full service-free suite after these changes passed **1,416 tests, 135
+deselected, in 199.41 seconds**. Standalone coverage was 78% (integration append
+is reported separately). Python format checks covered 235 files; the helper also
+passed Rust 1.98.1 `rustfmt --edition 2024 --check`.
+
+The independent Node 24 conformance command, with native helper active,
+`HIRZ_LLM=off` and `--audit-output /tmp/hirz-item26-conformance-helper-01.json`,
+again returned **117 PASS, 0 FAIL, complete=true** and **611 independently verified
+signed rows**. The disposable database was dropped and development was unchanged.
+Private export SHA-256:
+`45febaeed8e8c5162deafb96ea8ebbafaea9e169433b7d042cfcd5950c4d550f`.
+
+Full integration with the helper passed **133 tests, 1,418 deselected, in 308.85
+seconds**. Combined coverage was **93%** (12,137 statements, 889 misses), with the
+80% coverage gate exiting 0. This run precedes the following recordset/hash change.
+
+### Approved recordset and audit-normalization optimization — 2026-09-23
+
+A private Python profile of one approval counted 121 scheduled actions; compiling
+the variable-width `VALUES` update consumed approximately 19 ms under profiling.
+The profile also exposed a second normalization walk over already normalized
+audit envelopes. The author approved the targeted changes in
+[ADR-017](./adr/ADR-017-tool-latency-and-isolation.md#recordset-and-canonicalization-amendment--2026-09-23).
+Profiled end-to-end time was 482.407334 ms; this diagnostic is not a gate sample.
+
+`uv run --locked pytest tests/integration/test_tool_budget_storage.py tests/integration/test_refresh_database.py tests/integration/test_audit_database.py -m integration --no-cov -q --tb=short`
+passed **26 tests in 63.03 seconds**. The scheduling regression compares complete
+stored rows, and late-consent coverage asserts that skipped lifecycle data remains
+SQL NULL. Rollback, concurrent signed appends and independent canonical-hash and
+signature verification also pass. The audit/pipeline unit command passed **101
+tests in 1.87 seconds**. Ruff lint and strict mypy passed (152 source files).
+
+After limiting the recordset's wire conversion to its timestamp field (the other
+fields are already JSON data), the complete-row and late-consent regressions
+passed **2 tests, 16 deselected, in 6.18 seconds**. Ruff lint and strict mypy
+again passed for 152 source files.
+
+Two diagnostic SDK lifecycles before that final cleanup recorded approval times
+of **381.144041 and 391.350875 ms**. A separate instrumented approval recorded
+**266.085167 ms** end to end, with 203.179 ms in the server handler, 87.997 ms
+across 66 SQL calls and 16.254 ms across three native checks. The private report
+is `/tmp/hirz-item26-recordset-approval-spans.json`; these overlapping spans are
+diagnostics, not gate samples.
+
+Two complete diagnostic SDK lifecycles after the timestamp cleanup passed every
+behavior assertion. Approval took **301.612333 and 253.418959 ms**. Light
+acknowledgment took 103.032458 and 95.539375 ms; verified twin outcomes took
+2519.531666 and 2471.929208 ms, including fresh-worker launch. The disposable
+database was dropped and development was unchanged. These two rounds have no
+warmup and establish no p95; the full 250 ms gate remains unpassed.
+
+### Full Time-of-Day baseline and CI on e900366 — 2026-09-23
+
+`HIRZ_LLM=off HIRZ_DOGWOOD="$PWD/.tools/dogwood" HIRZ_BUDGET_ARTIFACTS=/tmp/hirz-item26-latency-03 uv run --locked pytest tests/latency -m latency --no-cov -s -q --tb=short`
+ran commit `e9003665df89785091e58c5da14e027c911d6034` with no tracked diff at startup.
+Platform: `macOS-15.7.3-arm64-arm-64bit`; Python `3.12.13 (main, Mar  3 2026, 12:39:30) [Clang 17.0.0 (clang-1700.6.4.2)]`.
+Locked runtime versions: `{"mcp": "1.30.0", "psycopg": "3.3.5", "scipy": "1.18.0", "sqlalchemy": "2.0.54"}`.
+
+The Time-of-Day scenario completed five warmups and **100 measured samples for
+each of 54 cases**, covering all twelve tools. Behavior assertions, all three
+100-sample interaction measurements, ten startup measurements and independent
+signed exports completed. The unchanged 250 ms gate **failed**: 16 individual
+cases and three pooled tools exceeded it. No sample was discarded or retried.
+
+| Tool | Samples | Minimum ms | Median ms | p95 ms | Maximum ms |
+|---|---:|---:|---:|---:|---:|
+| `what_can_you_do` | 100 | 58.142 | 61.085 | 98.104 | 201.471 |
+| `get_household_context` | 200 | 68.149 | 102.137 | 176.242 | 464.572 |
+| `propose_household_rule` | 200 | 59.919 | 115.636 | 195.929 | 383.128 |
+| `get_household_plan` | 700 | 62.635 | 198.459 | 347.608 | 930.297 |
+| `explain_plan` | 400 | 82.034 | 139.546 | 238.795 | 601.626 |
+| `approve_action` | 700 | 86.462 | 130.456 | 497.335 | 1064.405 |
+| `revise_household_plan` | 600 | 59.744 | 147.791 | 339.218 | 630.384 |
+| `execute_household_action` | 800 | 67.745 | 132.621 | 248.606 | 1427.175 |
+| `evaluate_permission` | 100 | 78.031 | 103.650 | 175.978 | 779.102 |
+| `get_action_audit` | 400 | 66.950 | 93.414 | 158.670 | 1197.011 |
+| `assess_request_risk` | 400 | 59.960 | 105.400 | 213.251 | 619.011 |
+| `verify_trusted_identity` | 800 | 59.942 | 81.763 | 238.696 | 1451.989 |
+
+Individual cases over budget (100 samples each):
+
+| Case | Median ms | p95 ms | Maximum ms |
+|---|---:|---:|---:|
+| `plan-first` | 154.511 | 272.566 | 364.215 |
+| `plan-ready` | 238.261 | 406.165 | 655.263 |
+| `explain-summary` | 141.978 | 272.694 | 601.626 |
+| `plan-approval` | 442.594 | 835.567 | 1064.405 |
+| `objective-most_comfortable` | 235.190 | 370.460 | 791.506 |
+| `objective-greenest` | 240.568 | 377.212 | 690.405 |
+| `objective-cheapest` | 230.182 | 365.770 | 930.297 |
+| `revision-car` | 274.583 | 431.613 | 630.384 |
+| `revision-dishwasher` | 228.517 | 341.731 | 516.352 |
+| `revision-guest` | 227.245 | 342.617 | 433.173 |
+| `plan-cancel` | 193.025 | 279.650 | 562.196 |
+| `action-profile` | 176.332 | 261.079 | 1427.175 |
+| `pause` | 196.770 | 350.272 | 647.429 |
+| `verify-not_genuine` | 86.246 | 293.161 | 672.429 |
+| `risk-no_answer` | 136.737 | 297.339 | 619.011 |
+| `verify-start-no_answer` | 164.311 | 485.073 | 1451.989 |
+
+| Interaction | Samples | Median ms | p95 ms | Maximum ms |
+|---|---:|---:|---:|---:|
+| `accurate_acknowledgment` | 100 | 133.999 | 215.321 | 744.600 |
+| `verified_twin_outcome` | 100 | 3035.478 | 4414.314 | 6846.718 |
+| `understandable_preparation_failure` | 100 | 1984.484 | 2285.708 | 3645.110 |
+| Local startup: `process_to_health` | 10 | 1540.091 | 2218.947 | 2218.947 |
+| Local startup: `first_authenticated_context` | 10 | 194.759 | 394.275 | 394.275 |
+
+These interaction/startup rows have no extra gate and make no AWS or Alexa latency
+claim. Row counts were `{"actions": 57158, "audit_log": 159941, "plans": 420, "tool_requests": 3150, "verification_cases": 210}`.
+Independent audit verification passed for **157,736 home rows and 2,205 parents
+rows** (159,941 total). The failed scenario retained disposable database
+`hirz_ha_smoke_f4b79bf0153f4f0e8e0c53092676b335`. Development was not migrated.
+
+Private raw report: `/tmp/hirz-item26-latency-03/demo-evening/report.json`, SHA-256
+`5076ff90a7c404b465b1b4082112bb952a47cedda2aff230b9e90352b19ed7a1`.
+The adjacent household audit exports retain every signed row. These private files
+are not committed or uploaded.
+
+After the author approved the next combined-read change, the superseded local
+Hourly case was interrupted after two warmup rounds and **zero measured samples**.
+An initial PID probe matched no process and sent no signal; the identified pytest
+child was then interrupted with SIGINT. Pytest exited 2, reporting one failed test
+in 3711.26 seconds. Its incomplete report is
+`/tmp/hirz-item26-latency-03/demo-evening-hourly/report.json`, SHA-256
+`8c7a9625fdfea39e0476daaf8795045a2ac399a26f852d3670210e1e4d82a470`;
+it retained `hirz_ha_smoke_22dabd369107479ca0a657724f697906`. It establishes no
+Hourly latency result. Runtime edits began only after the process exited.
+
+[CI run 35946103988](https://github.com/BashaarJavaid/Hirz/actions/runs/35946103988)
+on the same commit passed all ten non-latency jobs: **1,416 service-free tests
+(222.56 s), 133 integration tests (291.39 s), 93% combined coverage** (12,142
+statements, 885 misses), **155 native conformance tests** (140.61 s), and the
+independent checker **117 PASS, 0 FAIL, complete=true**, with **628 independently
+verified signed rows**. Build, release, scenario and TypeScript jobs also passed.
+
+The Hourly CI job completed all samples and failed only `plan-approval` and pooled
+`approve_action`; the assertion was `Warm p95 budget exceeded`. The Time-of-Day
+CI job completed 105 home rounds at 03:02:55 UTC but reached its 60-minute limit
+before the remaining verification finished; cancellation was logged at 03:10:36
+UTC. Private job logs are `/tmp/hirz-item26-ci-hourly-e900366.log` and
+`/tmp/hirz-item26-ci-evening-e900366.log`. The earlier b65ee3e run also timed out
+at 60 minutes (GitHub annotation: `The job has exceeded the maximum execution
+ time of 1h0m0s`), rather than completing a latency gate. **Item 26 remains
+incomplete.**
+
+### Approved combined budget/audit reads — 2026-09-23
+
+The author approved the [combined-read amendment](./adr/ADR-017-tool-latency-and-isolation.md#combined-read-amendment--2026-09-23).
+The existing pipeline/storage selection passed **75 tests in 29.73 seconds**.
+Added signed-ledger equivalence checks (including negative cancellation adjustments)
+and pointer/head corruption checks passed with the existing concurrency/key tests:
+**9 passed, 24 deselected, in 21.03 seconds**. That selection includes 100
+concurrent Pipeline decisions and transaction rollback. Ruff and strict mypy
+passed (152 source files).
+
+A subsequent diagnostic reduced approval SQL calls from 66 to **58**, but recorded
+**349.835083 ms** end to end (269.716 ms server handler; 136.809 ms SQL; nested
+spans overlap). The private span report is
+`/tmp/hirz-item26-combined-approval-spans.json`. This is not a controlled timing
+comparison or p95 result; the full budget remains unpassed.
+
+The final combined-read revision passed **1,416 service-free tests, 141 deselected,
+in 224.68 seconds**, then **139 PostgreSQL integration tests, 1,418 deselected,
+in 285.15 seconds**. Commands were `uv run --locked pytest -q` and
+`HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run --locked pytest -m integration --cov=hirz --cov-append -q`;
+`uv run --locked coverage report --fail-under=80` passed with **93% combined
+coverage** (12,143 statements, 888 misses). Private logs are
+`/tmp/hirz-item26-unit-combined.log` and `/tmp/hirz-item26-integration-combined.log`.
+Ruff and strict mypy passed again (152 source files).
+
+The author explicitly approved raising both existing isolated latency job limits
+from 60 to **75 minutes** after the Time-of-Day timeout. Only the timeout changes;
+all sample counts, signed-audit verification and the 250 ms gate remain intact.
+
+### Retained-history diagnosis after e6bd046 — 2026-09-23
+
+Commit `e6bd046b4888f1afceb1fc7fc595c720803250c5` was pushed to `phase-4`,
+starting [CI run 35951675477](https://github.com/BashaarJavaid/Hirz/actions/runs/35951675477).
+The following diagnosis uses the retained Time-of-Day baseline database in
+explicit read-only transactions; it changes neither benchmark records nor the
+development database.
+
+The retained home snapshot has **315 withdrawn constraints** and is **309,583
+bytes** using the diagnostic's standard JSON encoding. Across ten reads, median
+SQL fetch/JSON decode took **16.535251 ms** and snapshot validation **7.754813 ms**;
+PostgreSQL `EXPLAIN ANALYZE` measured **8.540 ms** server execution, including
+**6.667 ms** aggregating constraints. The parents snapshot was 2,819 bytes, with
+1.759355 ms median fetch and 0.156584 ms validation. Private plans and counts are
+`/tmp/hirz-item26-readonly-growth.jsonl`.
+
+Thirty repeated in-memory copies of the validated home snapshot measured median
+`deepcopy` **4.118980 ms**, JSON encode/decode **2.270125 ms**, and decoding a
+previously encoded JSON value **1.103937 ms**. Each decoded result equaled the
+original data. Pydantic's full snapshot JSON decode averaged 1.748039 ms.
+The private output is `/tmp/hirz-item26-snapshot-decode.txt`. These are diagnostic
+copy costs, not an end-to-end comparison or passing p95. No snapshot-cache change
+has been implemented; author approval was requested separately.
+
+The verified-control query on the latest retained plan took 2.194584 ms median
+over ten calls; its server plan took 0.132 ms and returned no controls, so that
+probe does not characterize an active plan with verified actions. An initial
+diagnostic selected nonexistent `plans.created_at` and failed before that query;
+the corrected script orders by the existing `audit_seq`. Private output:
+`/tmp/hirz-item26-growth-costs.txt`.
+
+### Approved JSON snapshot cache — 2026-09-23
+
+The author approved the [JSON snapshot-cache amendment](./adr/ADR-017-tool-latency-and-isolation.md#json-snapshot-cache-amendment--2026-09-23).
+The shared Pipeline stores the full validated data as standard-library JSON;
+cache hits decode a fresh dictionary and retain existing timestamp and revision
+checks. No graph row or returned field is removed.
+
+The focused pipeline/graph/refresh suite passed **135 tests in 3.38 seconds**;
+PostgreSQL storage tests passed **3 tests in 5.53 seconds**, covering signed
+lifecycle equivalence, mutation isolation, graph-write and transaction
+invalidation, including rollback. The first extended unit run had **1 failed,
+134 passed** because its reused constraint helper defaulted to an October deadline
+against a September snapshot. Supplying that fixture's two-hour horizon fixed
+the test without a production change. Ruff and strict mypy passed (152 files).
+
+An authenticated SDK approval diagnostic in a fresh disposable database measured
+**284.263500 ms** end to end, with **224.081 ms** in the handler, **58 SQL calls /
+123.574 ms**, and **17 snapshot calls / 8.331 ms**. Nested spans overlap. The private
+report is `/tmp/hirz-item26-json-cache-approval-spans.json`; the disposable database
+was dropped and development remained unchanged. This single diagnostic remains
+above 250 ms and establishes neither p95 nor a controlled improvement.
+
+The implemented `Pipeline.snapshot` cache also passed a read-only comparison
+against a fresh snapshot of the retained baseline database: all **315 withdrawn
+constraints** remained present and identical, mutations of the initial and reused
+copies did not affect subsequent reads, and thirty cache hits had median
+**1.122271 ms**. This isolates snapshot copying; it is not a tool latency result.
+
+Full verification used `HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run --locked pytest -q`
+followed by `HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run --locked pytest -m integration --cov=hirz --cov-append -q`:
+**1,418 passed, 141 deselected in 197.34 seconds**, then **139 passed, 1,420
+deselected in 281.65 seconds**. `uv run --locked coverage report --fail-under=80`
+passed at **93%** (12,142 statements, 887 misses). Private logs are
+`/tmp/hirz-item26-unit-json-cache.log` and
+`/tmp/hirz-item26-integration-json-cache.log`. Ruff and strict mypy passed again.
+These results do not close the still-unpassed full latency gate.
+
+The cache revision was pushed as `0dc1ccf075cc80b084064b85e650c99f38d69f94`,
+starting [CI run 35953560008](https://github.com/BashaarJavaid/Hirz/actions/runs/35953560008).
+The repository's existing push-concurrency policy cancelled the two unfinished
+latency jobs in run 35951675477; all ten of that earlier run's other jobs had
+passed. Its cancellation is not a completed latency measurement or a timeout.
+
+The new run's native conformance job passed **155 tests in 141.43 seconds**.
+Its independent add-on checker reported **117 PASS, 0 FAIL, complete=true**, with
+**628 signed rows independently verified offline**. Its disposable database was
+dropped and development remained unchanged. Private conformance log:
+`/tmp/hirz-item26-ci-conformance-0dc1ccf.log`.
+
+### Full gate results for 0dc1ccf — 2026-09-23
+
+The complete local command was `HIRZ_LLM=off HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run --locked python scripts/smoke_tool_budget.py --mode all --artifacts-dir /tmp/hirz-item26-budget-json-cache-01`. It exited **1** at the Time-of-Day latency assertion after its measurements, isolation, restart, startup and independently verified exports completed. The default runner therefore did not reach its local Hourly scenario; no local Hourly result is claimed.
+
+The report retains **54 cases, 100 samples per case after five warmups, and all twelve tools**. It failed **14 case gates and four pooled-tool gates**. Environment: macOS 15.7.3 arm64, Python 3.12.13, MCP 1.30.0, SQLAlchemy 2.0.54, psycopg 3.3.5 and SciPy 1.18.0. Runtime code was committed as `0dc1ccf075cc80b084064b85e650c99f38d69f94`; the tracked diff at launch contained documentation evidence only. Its SHA-256 was `2a2c17dd5d1bb6f24f35be366717f11f3c6d7ae1c2fb76a9e6a0c63c4ad62d1f`; runner SHA-256 was `c4a1c58192647df697db4bd3fd381fb4c1255b86b1f60685437cb831f7a79b6b`.
+
+Private report: `/tmp/hirz-item26-budget-json-cache-01/report.json`, SHA-256 `67ef1aae2280613759d77003c14c5f4e627f0f288de226d7e3fcd13635fda4b6`; private log: `/tmp/hirz-item26-budget-json-cache-01.log`. Failure retained `hirz_ha_smoke_c30887559bcf49e8b80215cf6240e6fa`; development remained unchanged.
+
+| Tool | n | Minimum ms | Median ms | p95 ms | Maximum ms |
+|---|---:|---:|---:|---:|---:|
+| `what_can_you_do` | 100 | 56.738667 | 63.542250 | 95.020500 | 152.080166 |
+| `get_household_context` | 200 | 66.183084 | 104.325583 | 216.692250 | 430.606917 |
+| `propose_household_rule` | 200 | 59.478333 | 109.873063 | 191.628292 | 362.666000 |
+| `get_household_plan` | 700 | 61.824750 | 192.501166 | 331.386250 | 858.734250 |
+| `explain_plan` | 400 | 80.998333 | 136.025209 | 262.783250 | 700.304834 |
+| `approve_action` | 700 | 84.919292 | 123.837312 | 462.823791 | 795.118500 |
+| `revise_household_plan` | 600 | 60.712416 | 141.183959 | 333.431667 | 743.563250 |
+| `execute_household_action` | 800 | 62.120708 | 124.411750 | 232.691334 | 560.333500 |
+| `evaluate_permission` | 100 | 73.102125 | 98.808687 | 166.918750 | 345.879458 |
+| `get_action_audit` | 400 | 65.884459 | 92.171083 | 171.168875 | 415.492459 |
+| `assess_request_risk` | 400 | 59.593250 | 100.931146 | 149.542833 | 232.167125 |
+| `verify_trusted_identity` | 800 | 60.509875 | 76.558916 | 165.778667 | 527.734250 |
+
+Failed individual cases (each n=100):
+
+| Case | Minimum ms | Median ms | p95 ms | Maximum ms |
+|---|---:|---:|---:|---:|
+| `plan-first` | 103.905750 | 146.926125 | 265.287334 | 354.389625 |
+| `plan-ready` | 141.589584 | 224.223479 | 402.554625 | 858.734250 |
+| `explain-conflicts` | 80.998333 | 136.025209 | 272.636875 | 585.992167 |
+| `explain-goal` | 89.210542 | 134.958188 | 334.597458 | 553.749750 |
+| `plan-approval` | 254.003500 | 400.076375 | 629.548875 | 795.118500 |
+| `objective-most_comfortable` | 169.451500 | 225.050937 | 344.926208 | 420.206417 |
+| `objective-greenest` | 179.641792 | 222.481395 | 361.277125 | 450.621875 |
+| `objective-cheapest` | 169.112917 | 217.988729 | 336.042209 | 518.689583 |
+| `revision-car` | 182.528208 | 252.277500 | 378.771833 | 541.816625 |
+| `revision-dishwasher` | 133.183959 | 206.412584 | 361.136792 | 743.563250 |
+| `revision-guest` | 136.481750 | 213.793896 | 324.231625 | 472.828708 |
+| `plan-cancel` | 151.910834 | 189.229501 | 324.296625 | 711.010333 |
+| `action-profile` | 125.977084 | 161.620625 | 273.560833 | 461.975375 |
+| `pause` | 133.177500 | 180.785833 | 281.195875 | 560.333500 |
+
+Outcome timings are reported without an additional threshold:
+
+| Outcome | n | Minimum ms | Median ms | p95 ms | Maximum ms |
+|---|---:|---:|---:|---:|---:|
+| `accurate_acknowledgment` | 100 | 93.671666 | 124.936312 | 239.170917 | 338.009458 |
+| `verified_twin_outcome` | 100 | 2475.442875 | 3042.584916 | 4255.680083 | 5935.443000 |
+| `understandable_preparation_failure` | 100 | 1845.857292 | 2070.932626 | 2702.583500 | 3735.840250 |
+| `process_to_health` (local startup) | 10 | 1679.884084 | 1945.478167 | 2591.411542 | 2591.411542 |
+| `first_authenticated_context` (local startup) | 10 | 165.935250 | 187.092291 | 285.877291 | 285.877291 |
+
+These are local twin/process observations, not AWS cold start or Alexa voice latency. All raw samples and all passing-case statistics remain in the private report. No sample was discarded or retried into a pass.
+
+Isolation reported **177 checks and 20 concurrent rounds**, plus **10 symmetric foreign-reference checks** using the approved disposable home copy; restart verification completed. All three signed exports verified independently: **158,084 home + 2,281 parents + 142 mirror = 160,507 audit rows**. Final counts: **57,535 actions, 422 plans, 3,211 tool receipts and 212 verification cases**. The full-mode persisted-row comparisons run over that accumulated history; they add verification work beyond the CI latency-only mode.
+
+[CI run 35953560008](https://github.com/BashaarJavaid/Hirz/actions/runs/35953560008) passed all ten non-latency jobs. Python CI passed **1,418 service-free tests in 214.44 seconds**, **139 integration tests in 290.64 seconds**, and **93% combined coverage** (12,142 statements, 882 misses). Its private Python log is `/tmp/hirz-item26-ci-python-0dc1ccf.log`; conformance results are recorded above.
+
+Both latency jobs completed all samples and signed-audit verification within their approved 75-minute limits, then failed `Warm p95 budget exceeded`:
+
+- Time-of-Day: **1 failed in 2813.69 seconds**; failing cases `plan-approval`, `revision-car`, `revision-dishwasher`; failing pooled tool `approve_action`. Private log: `/tmp/hirz-item26-ci-evening-0dc1ccf.log`.
+- Hourly: **1 failed in 3504.24 seconds**; failing cases `plan-ready`, `plan-approval`, `objective-most_comfortable`, `objective-greenest`, `revision-car`, `revision-guest`; failing pooled tools `get_household_plan`, `approve_action`, `revise_household_plan`. Private log: `/tmp/hirz-item26-ci-hourly-0dc1ccf.log`.
+
+Exact CI p95 values were written only to GitHub step summaries and were not available in the fetched job logs. Browser discovery returned no available connection; no CI percentile values are inferred. **Item 26 remains incomplete.**
+
+### Accumulated-history query diagnosis — 2026-09-23
+
+A read-only, twenty-pair alternating comparison on the retained database compared the existing binary-JSON aggregate with ordinary JSON aggregation, preserving row projections. The home snapshot (317 constraints) took median **16.004458 ms versus 11.990792 ms**; validated values and canonical hashes matched for all three households. Private output: `/tmp/hirz-item26-snapshot-aggregation.jsonl`. This roughly four-millisecond saving was not implemented or presented as sufficient for the full gate.
+
+An isolated database copy, `hirz_ha_smoke_ddb9117d61ff43ff81f2772e7e9acfe4`, retained the real signed history. New resume, cancellation, withdrawal, plan and revision records went through Pipeline, with the existing worker preparing the plan. Profiling called the internal household runtime under a freshly resolved linked-account principal; it was not an authenticated SDK timing gate. The clone was dropped afterward; the original evidence and development database remained unchanged.
+
+Instrumented handler workflows measured **285.668 ms plan read, 619.551 ms approval, 271.768 ms car revision and 204.069 ms dishwasher revision**, including profiler/report-writing overhead. Approval issued **58 SQL calls totaling 352.127 ms** under profiling; three verified-control reads accounted for **125.945 ms**. Nested coroutine profile totals overlap and are not independent wall-clock measurements. Private profiles and SQL spans: `/tmp/hirz-item26-history-profile-01`; log: `/tmp/hirz-item26-history-profile-01.log`.
+
+The verified-control query fetches every action column although attribution reads only proposal and dispatch timestamp. Twenty alternating read-only comparisons retained identical values and observed row order for all **210** verified records: median **39.859167 ms full rows versus 31.577500 ms projection**; a later repeat measured **32.341271 versus 25.256063 ms**. The narrow query still scanned all **57,535 actions**, rejecting **57,325**, with **17.444 ms** server execution. Private outputs: `/tmp/hirz-item26-projection-probe.txt` and `/tmp/hirz-item26-control-query-plan.txt`.
+
+Active-plan lookup scanned **422 plans to return one**. One cold `EXPLAIN ANALYZE` took **122.795 ms** with 352 shared blocks read; this is not a warm median. The instrumented revision queries took approximately 11–13 ms each. Retained recent plans contained only one or two constraints, so no claim is made that withdrawn constraints were copied into those plan documents.
+
+Approval was requested for a separate explicit migration indexing verified-action and active-plan lookups, plus narrowing the verified-control projection with equivalence coverage. Those proposed query/index changes have not been implemented. The 250 ms gate and development migration remain unchanged.
+
+### Paused handoff — 2026-09-23
+
+At the author's request, implementation stops here and item 26 is marked
+**Partial**. This checkpoint changes documentation only. The implemented runtime
+remains `0dc1ccf`; its complete local and CI failures are recorded above. No
+benchmark or diagnostic process remains running from that work. A push of this
+checkpoint triggers the existing CI workflow; its result is not claimed here.
+
+The work and attempts are retained in this item entry rather than a new status
+document:
+
+- The initial implementation records the authenticated SDK corpus, disposable
+  home/parents/mirror isolation, concurrent requests, restart, startup/outcome
+  observations and signed exports; the full protocol and approved amendments
+  are in [ADR-017](./adr/ADR-017-tool-latency-and-isolation.md).
+- The optimization sections record per-action SQL/audit batching, batched
+  refresh-attribution reads, policy/narration reuse, transaction-scoped
+  fingerprint/member/snapshot reuse, migration 0012, terminal-plan SQL filters,
+  the native helper, typed scheduling recordsets, canonicalization cleanup,
+  combined budget/audit reads and the final JSON snapshot cache. Each section
+  preserves its regressions, failed attempts and diagnostic limits.
+- Implementation checkpoints are `eb5d7f8`, `b65ee3e`, `e900366`, `e6bd046` and
+  `0dc1ccf`. The earlier timeout mentioned above belongs to
+  [CI run 35941645697](https://github.com/BashaarJavaid/Hirz/actions/runs/35941645697)
+  on `b65ee3e`: both latency jobs timed out at 60 minutes; its ten other jobs
+  passed. Later cancellations, completed failures and the approved 75-minute
+  limits are distinguished in the subsequent run entries.
+- Read-only experiments compared deep copies and JSON decoding, snapshot JSON
+  aggregation, and narrow verified-control projections. Only the explicitly
+  approved JSON snapshot cache was implemented from those experiments. The
+  accumulated-history handler profile used a disposable clone that was dropped;
+  the original retained databases and their timing reports were not rewritten.
+
+**Remaining work, in order:**
+
+1. Obtain an explicit answer on the pending verified-action/active-plan indexes
+   and narrower attribution projection. The author's question about the problem
+   was not approval. No migration beyond 0012 is authorized or implemented.
+   These measured candidates are not a promise that the gate will pass.
+2. If approved, implement and verify the scoped change, including migration
+   roundtrip/result equivalence, household boundaries, observation cutoffs and
+   unchanged signed evidence. Review multiple matching controls and prior-mode
+   handling: the current verified-control query has no explicit ordering, so
+   matching row order in the projection experiment alone is not a general
+   equivalence proof. Any unresolved attribution decision must go back to the
+   author; no new ordering rule has been selected.
+3. Resolve the remaining latency failures without changing the accepted corpus,
+   sample counts, growing audited history, authorization rules or 250 ms gate.
+   Seek the author's decision before any additional optimization outside the
+   already approved scope. Profile results and single fast calls cannot close
+   this item.
+4. Run relevant regressions, required local checks and the complete authenticated
+   gate for **both** energy scenarios with parents cases, isolation/restart and
+   independent signed exports. The latest default local run stopped after its
+   first scenario failed; local Hourly completion is still owed. Obtain passing
+   CI on the final runtime revision on `phase-4`; do not merge.
+5. Append the passing evidence before marking item 26 complete and advancing the
+   threat-model row only to its earned local authenticated scope. Until then,
+   the roadmap remains Partial and the cross-household threat row stays Planned.
+
+Resume commands and artifact permissions are in
+[development procedures](./development.md); the latest exact full command and
+report digest are in the full-gate entry above. All `/tmp` reports, audit exports,
+profiles and diagnostic scripts are private local artifacts, not durable remote
+storage; check that they still exist before relying on them. The committed
+results remain the handoff if temporary files disappear. No household exports,
+tokens, signing keys or `.env` contents are committed. Development stays on
+`0005_execution_attempt`, Bedrock remains off and the existing spend ledger is
+unchanged. The unrelated untracked `AWSCLIV2.pkg` is excluded from this checkpoint.
+
+Friction review found the earned index-reflection and native-compilation entries
+already recorded in [the friction log](./friction-log.md). Browser unavailability
+prevented reading CI step-summary percentiles, as disclosed above; no new
+upstream defect or invented CI measurement is claimed.
+
+Checkpoint documentation checks passed: `git diff --check`, identical
+AGENTS/CLAUDE instruction bodies, a 63-word Current phase and an explicit Partial
+roadmap marker. No runtime code changed, so the functional suites were not rerun
+for this documentation checkpoint; their latest results remain recorded above.
+Final `uv run --locked ruff format --check .` passed: **235 files already
+formatted**. The first sandboxed invocation could not open the existing uv cache;
+the authorized cache-access retry succeeded.
+
+
+### Deferral checkpoint — 2026-09-24
+
+Author decision: close item 26's isolation clause using the existing
+[full-gate evidence](#full-gate-results-for-0dc1ccf--2026-09-23), and defer latency
+as item 26b until after the 2026-10-23 submission. Completion of the latency gate
+no longer blocks the local authenticated MCP isolation claim; the AWS token path
+remains item 38. The earlier paused handoff remains historical evidence, with its
+completion dependency superseded by the
+[ADR-017 amendment](./adr/ADR-017-tool-latency-and-isolation.md#deferral-amendment--2026-09-24).
+
+Rules check: opened the [hackathon rules](https://amazonappdev2026.devpost.com/rules)
+and searched for `latency`, `performance`, `response time`, `response-time` and
+`500`; reviewed Stage One and Stage Two. No latency, performance or response-time
+requirement is specified. `performance` occurs in product-feedback examples and
+legal language, not a timing gate. Stage One checks track fit and use of required
+APIs/SDKs; Stage Two scores Tech Implementation, Design, Potential Impact and
+Quality of the Idea. The partner-only
+[MCP Toolkit quickstart, Performance](https://www.developer.amazon.com/docs/alexaplus/add-ons/mcp-toolkit-quickstart.html#performance)
+says: “Your MCP server must meet a round-trip query response latency of less than
+500 ms.” The rules do not reference that requirement; participant toolkit access
+is unavailable as recorded in [friction entry 1](./friction-log.md#entries).
+The 250 ms local gate is Hirz's derived proxy, not a hackathon rule.
+
+The only workflow change adds `if: github.event_name =='workflow_dispatch'` to
+`latency`. The gate, corpus, five warmups, 100 measured samples per case, 250 ms
+threshold and both 75-minute scenario jobs are unchanged; isolation remains in
+ordinary integration CI. Runtime code, tests, migrations and dependencies are
+unchanged. No latency measurement was taken. Bedrock stayed off, the $2 ledger
+was not run or changed, development stays on 0005, and `AWSCLIV2.pkg` was left
+alone. The checkpoint commit hash and observed push-CI result will be appended
+after the run completes.
+
+Checkpoint commit: `9fe3bad67fd6ac7e5b8c22778261843fa444df76`, pushed to
+`phase-4` without merging. [Push CI run 36021610833](https://github.com/BashaarJavaid/Hirz/actions/runs/36021610833)
+completed successfully on that exact commit. All ten ordinary jobs ran and
+passed: `python-lint`, `python-types`, `python-test`, `ts-lint-types`, `ts-test`,
+`scenarios`, `conformance`, `cedar-conform`, `build` and `release`. GitHub reports
+the single unexpanded `latency` job as **skipped**; neither latency matrix job ran.
+This validates the dispatch condition, not latency performance. No latency
+measurement was taken for this checkpoint.
+
+Checks, in the requested order: `git diff --check` exited 0 with no output;
+`diff <(tail -n +2 CLAUDE.md) <(tail -n +2 AGENTS.md)` exited 0 with no output;
+Current phase is **56 words** in each file; final
+`uv run --locked ruff format --check .` exited 0 with
+`235 files already formatted`. The first Ruff attempt hit the existing uv-cache
+sandbox restriction (`Failed to initialize cache` / `Operation not permitted`);
+the authorized retry passed. The first push hit `Could not resolve host: github.com`;
+the authorized network retry succeeded. These repeat the existing environment
+friction. One new Minor entry records the unspecified quickstart measurement
+method; no upstream runtime failure is inferred.
+
+Scope review also confirmed the workflow differs only by the requested condition,
+all earlier verification text is unchanged, item 26's original spec and both
+verify clauses are retained verbatim, and the target-state budget table is
+unchanged. The follow-up commit adds only this CI evidence and its roadmap and
+changelog links.
+
+
+## Item 26b — 2026-09-24
+
+**Runtime changes verified; latency remains Deferred.** The only requested local
+latency attempt stopped on an MCP transport `httpx.ReadError` after 102 complete
+lifecycle rounds, during round 103. It did not complete the 100-sample corpus,
+parents cases, startup checks or the runner's final exports/gate calculation.
+The raw report has 40 cases with 97 or 98 samples each; partial p95 exceeds 250 ms
+for seven cases and two pooled tools. These are incomplete observations, not a
+completed gate or a replacement corpus. Exact means for rounds 90–100 cannot be
+reported because the last samples do not exist. No trimming, retry or second
+latency measurement was performed. The Hourly scenario and CI latency workflow
+were not run.
+
+Scope and deliberate semantics are in the
+[bounded reads amendment](./adr/ADR-017-tool-latency-and-isolation.md#bounded-reads-amendment--2026-09-24).
+The active-plan query at this checkout is `hirz/mcp/household.py:current`, rather
+than the executor file named in the request. No latency corpus, sample count,
+threshold, Bedrock invocation, $2 ledger, AWS resource or `AWSCLIV2.pkg` changed.
+
+### Source and regressions
+
+Started on `phase-4` at `fde525e2352168db44963651572fd76564c1c3a9` with only the
+untracked installer present. The measurement used the uncommitted runtime/test
+change before records were written. Its tracked diff SHA-256 was
+`2c67f6996b88033d94db6c5d2ff09610655c0684151ba62a072b4c5de8641988`
+(`/tmp/hirz-bounded-runtime.diff`); the new migration SHA-256 was
+`40679834621e9961a54c1a95a45092ca06aa4291e782d94da0693963090b80e4`, and the new
+bounded-read regression file SHA-256 was
+`68ccc3c205f3034613afcfcaa7f5a9e691eab3cc7e2ed2754aa04a01721ca5d6`.
+The unchanged latency runner SHA-256 is
+`c4a1c58192647df697db4bd3fd381fb4c1255b86b1f60685437cb831f7a79b6b`.
+
+Targeted checks passed `82 passed in 16.96s`; the final focused run, adding
+explicit schema-reflection and offline expiry-export checks, passed
+`7 passed in 13.31s`. Tests exercise superseded-control mismatch, the earlier
+control at an observation cutoff before the newer dispatch, unbound devices and
+both directions of the existing isolation mirror fixture; fresh/cached context,
+as-of intervals, close revision/invalidation, rollback and retained
+`CONSTRAINT_WITHDRAWN` evidence; expiry during both record and withdraw commits;
+and index-only downgrade/upgrade, reflection agreement and active-plan result
+equivalence. The unchanged `active()` rule is tested with a pre-withdrawal window
+and equal re-plan schedules/conflicts after withdrawal. Existing tests expecting
+withdrawn rows in current context now assert their absence.
+
+The author confirmed that `expired_constraint_ids` belongs in the existing
+constraint events linked by `decision_seq`, not in canonical Decision. Tests
+check `[]` on events without expiry and nonempty lists on both expiry paths.
+Both nonempty-list exports were verified with the independent offline verifier
+against a separately trusted public-key fingerprint; signature compatibility was
+run, not assumed. The required smokes below also verify their signed exports.
+
+### Retained-history clone and EXPLAIN
+
+Read-only original: `hirz_ha_smoke_c30887559bcf49e8b80215cf6240e6fa` (0012).
+Created disposable clone `hirz_bounded_1964d5d2c03447fc93b6afe4e25e2e85` with
+`CREATE DATABASE ... TEMPLATE ...`, collected the original query plans on the
+clone, upgraded only the clone to `0013_bounded_reads`, collected the indexed
+plans, compared attribution, and dropped the clone in `finally`. No action or
+constraint cleanup was performed on that clone. The retained original had
+57,535 actions, 422 plans, 160,507 audit rows, 318 current constraints across its
+three households, 26 current observations and 8,203 observation-history rows.
+Original counts, audit heads and migration revision matched before/after and
+again after the latency attempt. Original reads used read-only transactions.
+Development remained `0005_execution_attempt`, with zero actions/audit rows.
+
+Private command/source: `uv run --locked python /tmp/hirz-bounded-evidence.py`;
+output `/tmp/hirz-bounded-explain.log`, machine-readable evidence
+`/tmp/hirz-bounded-explain.json`, SHA-256
+`f72603ee722394ab9a043a159dafceeaedc27fc750869ae22584b21226f628ef`.
+The evidence script's initial metadata probes were corrected for the existing
+`observation_history` name and tables absent on 0005 before any clone was created;
+those failed probes did not write either database.
+
+The reference cutoff was the retained home's last audited instant,
+`2026-10-13T22:34:00.007435+00:00`. Single server-side `EXPLAIN (ANALYZE, BUFFERS)`
+observations follow; cache state differed, so these are neither warm medians nor
+an end-to-end speedup distribution.
+
+| Query | Returned rows | Access / rejected rows | Server execution ms |
+|---|---:|---|---:|
+| Verified controls before | 210 | Sequential actions scan; 57,325 rejected | 34.390 |
+| Verified controls after | 1 | 9 binding probes through `actions_verified_target` | 0.057 |
+| Active plan before | 1 | Sequential plans scan; 421 rejected, then sort | 21.993 |
+| Active plan after | 1 | `plans_active_latest`, limit 1 | 0.020 |
+
+The DESC index supplies descending attempt order without a sort; PostgreSQL labels
+it `Index Scan` because the index itself stores the sequence descending. Full
+server plan rows are retained here:
+
+controls_before (`returned_rows=210`):
+
+```text
+Nested Loop  (cost=0.43..11364.01 rows=217 width=1165) (actual time=0.540..34.340 rows=210 loops=1)
+  Buffers: shared hit=3346 read=6923 written=232
+  ->  Seq Scan on actions  (cost=0.00..10264.69 rows=217 width=1157) (actual time=0.467..21.332 rows=210 loops=1)
+        Filter: ((household_id = '536fa8ee-854e-56ca-8c5d-5ba418e710a0'::uuid) AND (execution_status = 'verified'::text))
+        Rows Removed by Filter: 57325
+        Buffers: shared hit=2830 read=6599 written=15
+  ->  Memoize  (cost=0.43..7.97 rows=1 width=32) (actual time=0.061..0.061 rows=1 loops=210)
+        Cache Key: actions.execution_attempt_seq
+        Cache Mode: logical
+        Hits: 0  Misses: 210  Evictions: 0  Overflows: 0  Memory Usage: 28kB
+        Buffers: shared hit=516 read=324 written=217
+        ->  Index Scan using audit_log_pkey on audit_log  (cost=0.42..7.96 rows=1 width=32) (actual time=0.060..0.060 rows=1 loops=210)
+              Index Cond: ((household_id = '536fa8ee-854e-56ca-8c5d-5ba418e710a0'::uuid) AND (seq = actions.execution_attempt_seq))
+              Filter: (created_at <= '2026-10-13 22:34:00.007435+00'::timestamp with time zone)
+              Buffers: shared hit=516 read=324 written=217
+Planning:
+  Buffers: shared hit=89 read=15 written=5
+Planning Time: 1.121 ms
+Execution Time: 34.390 ms
+```
+
+active_plan_before (`returned_rows=1`):
+
+```text
+Limit  (cost=85.83..85.83 rows=1 width=1046) (actual time=21.965..21.966 rows=1 loops=1)
+  Buffers: shared hit=1570 read=392 written=39
+  ->  Sort  (cost=85.83..86.85 rows=409 width=1046) (actual time=21.964..21.965 rows=1 loops=1)
+        Sort Key: audit_seq DESC
+        Sort Method: quicksort  Memory: 25kB
+        Buffers: shared hit=1570 read=392 written=39
+        ->  Seq Scan on plans  (cost=0.00..83.78 rows=409 width=1046) (actual time=16.191..21.958 rows=1 loops=1)
+              Filter: ((household_id = '536fa8ee-854e-56ca-8c5d-5ba418e710a0'::uuid) AND ((document ->> 'status'::text) <> ALL ('{superseded,completed,abandoned}'::text[])))
+              Rows Removed by Filter: 421
+              Buffers: shared hit=1570 read=392 written=39
+Planning:
+  Buffers: shared hit=70 read=11
+Planning Time: 0.684 ms
+Execution Time: 21.993 ms
+```
+
+controls_after (`returned_rows=1`):
+
+```text
+Nested Loop  (cost=4.87..61.53 rows=3 width=1165) (actual time=0.036..0.041 rows=1 loops=1)
+  Buffers: shared hit=25
+  ->  Bitmap Heap Scan on asset_bindings  (cost=4.17..11.28 rows=3 width=48) (actual time=0.004..0.005 rows=9 loops=1)
+        Recheck Cond: (household_id = '536fa8ee-854e-56ca-8c5d-5ba418e710a0'::uuid)
+        Heap Blocks: exact=1
+        Buffers: shared hit=2
+        ->  Bitmap Index Scan on asset_bindings_household_id_asset_id_key  (cost=0.00..4.17 rows=3 width=0) (actual time=0.002..0.002 rows=9 loops=1)
+              Index Cond: (household_id = '536fa8ee-854e-56ca-8c5d-5ba418e710a0'::uuid)
+              Buffers: shared hit=1
+  ->  Limit  (cost=0.70..16.74 rows=1 width=1165) (actual time=0.004..0.004 rows=0 loops=9)
+        Buffers: shared hit=23
+        ->  Nested Loop  (cost=0.70..16.74 rows=1 width=1165) (actual time=0.004..0.004 rows=0 loops=9)
+              Buffers: shared hit=23
+              ->  Index Scan using actions_verified_target on actions  (cost=0.28..8.30 rows=1 width=1157) (actual time=0.003..0.003 rows=0 loops=9)
+                    Index Cond: ((household_id = asset_bindings.household_id) AND ((proposal['target'::text] ->> 'adapter'::text) = (asset_bindings.attributes ->> 'adapter'::text)) AND ((proposal['target'::text] ->> 'entity'::text) = (asset_bindings.attributes ->> 'entity_id'::text)))
+                    Buffers: shared hit=19
+              ->  Index Scan using audit_log_pkey on audit_log  (cost=0.42..8.44 rows=1 width=32) (actual time=0.005..0.005 rows=1 loops=1)
+                    Index Cond: ((household_id = asset_bindings.household_id) AND (seq = actions.execution_attempt_seq))
+                    Filter: (created_at <= '2026-10-13 22:34:00.007435+00'::timestamp with time zone)
+                    Buffers: shared hit=4
+Planning Time: 0.133 ms
+Execution Time: 0.057 ms
+```
+
+active_plan_after (`returned_rows=1`):
+
+```text
+Limit  (cost=0.13..0.58 rows=1 width=1046) (actual time=0.015..0.015 rows=1 loops=1)
+  Buffers: shared hit=1 read=1
+  ->  Index Scan using plans_active_latest on plans  (cost=0.13..189.18 rows=416 width=1046) (actual time=0.014..0.015 rows=1 loops=1)
+        Index Cond: (household_id = '536fa8ee-854e-56ca-8c5d-5ba418e710a0'::uuid)
+        Buffers: shared hit=1 read=1
+Planning:
+  Buffers: shared hit=21 read=1
+Planning Time: 0.103 ms
+Execution Time: 0.020 ms
+```
+
+Attribution was compared over **all 8,229 current/history observation versions**
+in the clone's three households: 5,697 had a binding and 2,532 were member/unbound
+observations. Applying the existing matcher at each observation's own timestamp
+attributed 626 observations with the old controls and 626 with the new controls:
+**0 differences, 0 superseded-control differences in this retained data**. This is
+not a claim of semantic identity: the synthetic regression proves that an older
+matching control no longer attributes state after a newer mismatching control.
+Any observed difference in the comparison had to be old=true/new=false with an
+older matching superseded sequence. The original remained read-only throughout.
+
+### Required local checks, in order
+
+1. `HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run --locked pytest -q`
+2. `HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run --locked pytest -m integration --cov=hirz --cov-append -q`
+3. `uv run --locked coverage report --fail-under=80`
+4. `uv run --locked ruff check . && uv run --locked mypy hirz/ scripts/ alembic/`
+5. `HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run python scripts/smoke_coordinator.py --audit-output /tmp/hirz-bounded-coordinator-audit.json`
+6. `PATH="/opt/homebrew/opt/node@24/bin:$PATH" HIRZ_LLM=off HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run --locked python scripts/smoke_household_tools.py --audit-output /tmp/hirz-bounded-household-audit.json --conformance-cli ../addon-check/dist/cli.js`
+
+The ordinary shell had Node 23; the conformance invocation explicitly used
+**Node v24.21.0**. The existing uv cache required authorized sandbox access. Ruff's
+first invocation found one import-order error in the extended storage test;
+that import was moved and the complete lint/type command then passed. No runtime
+change followed the complete test suites. Summary lines:
+
+```text
+1419 passed, 145 deselected in 198.43s (0:03:18)
+143 passed, 1421 deselected in 297.81s (0:04:57)
+TOTAL                                     12163    873    93%
+All checks passed!
+Success: no issues found in 153 source files
+```
+
+Coordinator smoke:
+
+```text
+disposable_database=dropped; development_database=unchanged
+clarification=Please specify AM or PM; scripted answer=23:00
+gate_1=PASS; linked=Malik; claimed_author=Dad
+gate_4=PASS; dishwasher_start=2026-10-14 04:45:00+00:00
+gate_2=PASS; target_f=72; mode=heat; source=manual:device; duration=2h
+gate_3=PASS; Explicitly revise or withdraw 'car target to 60' to match the other target.
+gate_5=PASS; Extend the 2026-10-13T22:45:00+00:00 deadline or explicitly lower the 50% target; no requirement was dropped.
+coordinator=PASS; gates=5/5; audit_rows=12; audit_export=/tmp/hirz-bounded-coordinator-audit.json; trusted_fingerprint=385589f309b374189ea1b391f4a3ad193f3674cf7fb6e72e1a97caf76e21912b; offline=valid; device_actions=0
+```
+
+Twelve-tool/independent conformance smoke:
+
+```text
+PASS SDK OAuth linking; twelve typed tools; scoped context
+PASS first plan prepared by separate worker; source=simulated
+PASS objective change survived worker restart; exact old consent refused
+PASS revision/approval race refused; separate worker restarted
+PASS profile device denial/execution verified; retry repeated no effects
+PASS proposal retries, ambiguity, advisory privacy, security and pause
+PASS read-only OAuth token refused act tool with HTTP 403
+PASS durable retry after MCP process restart
+CONFORMANCE {"status": "PASS", "complete": true, "counts": {"PASS": 117, "FAIL": 0, "WARN": 0, "SKIP": 0, "MANUAL": 0}, "timedTools": ["what_can_you_do", "get_household_context"], "missingEvidence": []}
+{"household_tools": "PASS", "signed_rows": 611, "offline": "valid", "trusted_fingerprint": "385589f309b374189ea1b391f4a3ad193f3674cf7fb6e72e1a97caf76e21912b", "audit_export": "/tmp/hirz-bounded-household-audit.json", "development_database": "unchanged"}
+disposable_database=dropped; development_database=unchanged
+```
+
+The conformance checker timed only onboarding/context, as its contract states;
+it does not substitute for the full latency protocol. Both smoke databases were
+dropped. Logs are `/tmp/hirz-bounded-unit.log`, `-integration.log`, `-coverage.log`,
+`-coordinator.log` and `-household.log` under the same `/tmp/hirz-bounded` prefix.
+The coordinator's 12-row and household smoke's 611-row signed exports both passed
+offline verification, including the new signed constraint-event payload field.
+
+### Single latency attempt — incomplete
+
+Ran exactly once:
+
+```sh
+HIRZ_LLM=off HIRZ_DOGWOOD="$PWD/.tools/dogwood" HIRZ_BUDGET_SCENARIO=demo-evening HIRZ_BUDGET_ARTIFACTS=/tmp/hirz-item26b-bounded-01 uv run --locked pytest tests/latency -m latency --no-cov -s -q --tb=short
+```
+
+Environment: macOS 15.7.3 arm64, Python 3.12.13, MCP 1.30.0, SQLAlchemy 2.0.54,
+psycopg 3.3.5, SciPy 1.18.0, HTTPX 0.28.1. The intended five warmups, 100 measured
+samples and nearest-rank p95 threshold of 250 ms were unchanged. The last complete
+progress line was `PROGRESS demo-evening round=102/105`; the next round retained
+98 samples through `stale-approval-cheapest` and 97 for the later home cases.
+The exception chain was `httpcore.ReadError` → `httpx.ReadError`, surfaced through
+`ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)`. Its cause is
+not established by the retained trace. Pytest summary:
+
+```text
+1 failed in 2630.78s (0:43:50)
+```
+
+Private raw report: `/tmp/hirz-item26b-bounded-01/demo-evening/report.json`, SHA-256
+`0927be2efa214aa5fd0f247d045e1357b446c78e095067b431e25e5c56bb3b05`.
+Private log: `/tmp/hirz-item26b-bounded-01.log`, SHA-256
+`d04dfd1cda7455a5f87d2447ce864e88db908dfc18728a3bfb65beef83799466`.
+Failure retained `hirz_ha_smoke_b8847a41f80d44b787a4a01e68b7792b` on 0013.
+The missing samples/cases were not filled, retried, extrapolated or discarded.
+
+The runner never reached `timing_report`, so the tables below were derived from
+**all retained raw samples** using its unchanged `statistics` function. They are
+partial summaries, not the requested completed full-corpus gate. Their actual
+sample counts are shown; zero samples exist for the two unmeasured tools. The
+seven rows in the case table exceed 250 ms on their available samples; no complete
+case or pooled-tool gate result is claimed. Analysis artifacts:
+`/tmp/hirz-bounded-tables.py`, `/tmp/hirz-bounded-partial-statistics.json` and
+`/tmp/hirz-bounded-latency-summary.log`.
+
+Tool — partial samples only
+
+| Tool — partial samples only | n | Minimum ms | Median ms | p95 ms | Maximum ms |
+|---|---:|---:|---:|---:|---:|
+| `what_can_you_do` | 98 | 58.911416 | 62.170208 | 103.230667 | 249.747083 |
+| `get_household_context` | 196 | 64.766083 | 74.839833 | 114.438250 | 251.323917 |
+| `get_household_plan` | 490 | 100.291458 | 177.928333 | 279.279333 | 510.758250 |
+| `revise_household_plan` | 582 | 61.413958 | 127.330500 | 223.666833 | 419.450709 |
+| `explain_plan` | 392 | 78.477250 | 89.776521 | 145.749125 | 279.640333 |
+| `approve_action` | 683 | 82.755625 | 99.727083 | 350.122584 | 779.616792 |
+| `execute_household_action` | 776 | 64.556667 | 104.121459 | 186.658209 | 527.862708 |
+| `propose_household_rule` | 196 | 61.122916 | 102.869479 | 185.930083 | 453.939042 |
+| `evaluate_permission` | 97 | 72.780208 | 83.142959 | 111.883833 | 168.301667 |
+| `get_action_audit` | 388 | 63.971500 | 75.381208 | 117.837750 | 226.675875 |
+
+Unmeasured tools: `assess_request_risk`, `verify_trusted_identity`.
+
+Case above 250 ms — partial samples only
+
+| Case above 250 ms — partial samples only | n | Minimum ms | Median ms | p95 ms | Maximum ms |
+|---|---:|---:|---:|---:|---:|
+| `plan-approval` | 98 | 234.559917 | 301.330834 | 490.222125 | 779.616792 |
+| `objective-most_comfortable` | 98 | 165.257083 | 188.061416 | 294.151708 | 356.570792 |
+| `objective-greenest` | 98 | 171.531750 | 193.109667 | 332.856250 | 510.758250 |
+| `objective-cheapest` | 98 | 165.901292 | 187.911812 | 279.279333 | 336.715334 |
+| `revision-car` | 97 | 161.085291 | 192.227083 | 276.054500 | 419.450709 |
+| `plan-cancel` | 97 | 147.431750 | 169.690166 | 286.575166 | 328.364500 |
+| `action-profile` | 97 | 122.633667 | 140.947750 | 255.656125 | 326.166792 |
+
+Round growth (measured samples; warmups excluded):
+
+| Case | Mean rounds 1–10 ms (n=10) | Mean rounds 90–100 ms | Available late rounds | Available late mean ms |
+|---|---:|---|---|---:|
+| `plan-approval` | 296.141954 | Unavailable | 90–98 (n=9) | 306.695884 |
+| `plan-ready` | 147.599492 | Unavailable | 90–98 (n=9) | 155.744921 |
+| `revision-car` | 186.001054 | Unavailable | 90–97 (n=8) | 204.812432 |
+| `context-all` | 75.576996 | Unavailable | 90–98 (n=9) | 76.144241 |
+
+Outcome — partial samples only
+
+| Outcome — partial samples only | n | Minimum ms | Median ms | p95 ms | Maximum ms |
+|---|---:|---:|---:|---:|---:|
+| `accurate_acknowledgment` | 97 | 92.536375 | 104.771333 | 154.176250 | 242.994125 |
+| `verified_twin_outcome` | 97 | 2375.424167 | 2871.562083 | 3987.035333 | 6556.844083 |
+
+The unavailable rounds 90–100 means are explicitly distinguished from the
+available 90–98 or 90–97 subsets above. Missing-input failure timing, parents
+verification cases, all ten startup measurements and the runner's final signed
+exports were not reached. No AWS cold-start or Alexa voice-response latency is
+claimed. The SDK transport interruption earned a
+[friction entry](./friction-log.md#item-26b-interrupted-mcp-latency-measurement--2026-09-24);
+no upstream defect is inferred from the exception alone.
+
+### Separate read-only verification after interruption
+
+After the failed attempt, a separate read-only inspection of its retained
+database found **54,495 actions, 412 plans, 154,443 audit rows, 2,559 tool receipts,
+0 verification cases, 0 current constraints and 306 constraint-history rows**
+(13 current observations and 8,008 historical observations). This confirms that
+withdrawals moved out of current state during the accumulated run; it is not a
+new timing measurement or a database cleanup.
+
+`uv run --locked python /tmp/hirz-bounded-postfailure.py` verified the complete
+home chain and exported **154,443 rows** to
+`/tmp/hirz-item26b-bounded-01/postfailure-household-0-audit.json`; the independent
+offline verifier returned `valid` against the separately trusted public-key
+fingerprint. All **612 constraint events** carried `expired_constraint_ids`.
+The parents chain/export was correctly `empty` (0 rows), since its runtime cases
+were not reached. The first inspection wrapper incorrectly asserted `valid` for
+that empty chain after the home verification had already succeeded; a subsequent
+read-only metadata/empty-export check recorded the correct `empty` status without
+repeating any latency call. Logs are `/tmp/hirz-bounded-postfailure.log` and
+`/tmp/hirz-bounded-postfailure-counts.log`; machine-readable metadata is
+`/tmp/hirz-bounded-postfailure.json`. The original benchmark's counts, audit heads
+and 0012 revision, and development's empty 0005 state, still matched the initial
+read-only checks. This separate verification does not claim the interrupted
+runner completed its own final export/startup/corpus checks.
+
+### Deliberately not claimed
+
+No complete 100-sample table, exact rounds 90–100 mean, all-twelve-tool p95 result,
+full Time-of-Day gate, Hourly result, CI latency result, AWS performance, real
+phone/security execution, universal attribution identity, or controlled warm
+speedup distribution is claimed. The migration changes indexes only; the retained
+original's historical withdrawn rows were not rewritten. The 250 ms gate and
+corpus remain unchanged, and item 26b remains Deferred. Final checks and ordinary
+CI evidence are appended after execution.
+
+### Commit, final checks and ordinary CI — 2026-09-24
+
+Implementation and records were committed as
+`068097377387e12c7c2f77c2d7503a3fb105ef33` on `phase-4` and pushed without merging.
+[CI run 36033945359](https://github.com/BashaarJavaid/Hirz/actions/runs/36033945359)
+completed successfully for that exact commit: all ten ordinary jobs passed
+(`python-lint`, `python-types`, `python-test`, `scenarios`, `ts-lint-types`,
+`ts-test`, `conformance`, `cedar-conform`, `build`, `release`); `latency` was
+skipped. The release job is the existing placeholder, not a publication.
+The no-Hourly claim above refers to the latency measurement; the authorized
+ordinary CI scenario job retained its existing Hourly planning regression.
+Private CI metadata: `/tmp/hirz-bounded-ci.json`.
+
+The final ordered local checks passed: `git diff --check` produced no output;
+`diff <(tail -n +2 CLAUDE.md) <(tail -n +2 AGENTS.md)` produced no output;
+`uv run --locked ruff format --check .` reported `237 files already formatted`.
+Its first attempt reported `1 file would be reformatted, 236 files already formatted`;
+a whitespace-only correction in the modified refresh test was applied and all
+three final checks were repeated in order. No runtime logic or latency sample
+changed after the measurement. This CI evidence is a separate documentation-only
+follow-up; the incomplete local latency result remains Deferred.
+
+### Scheduling and harness — 2026-09-24
+
+Author-authorized third step from `a48d12d` on `phase-4`. Bedrock is off; no
+selection ledger is read or changed, no development migration is applied, and
+`AWSCLIV2.pkg` is untouched. No corpus, sample-count, threshold or manual-dispatch
+policy change is part of this step. Private artifacts are under
+`/tmp/hirz-item26b-third-step/`; the one latency measurement uses the separately
+requested `/tmp/hirz-item26b-scheduling-01/` path.
+
+**A — prescribed transport reproduction, before then after.**
+`transport.py` uses the existing authenticated benchmark `Environment`, its
+pooled SDK client and `get_household_context(scope="people")`, with a six-second
+idle before each of 200 calls, preserving default HTTPX pooling and SDK OAuth
+refresh behavior. It records every interval and any exception; no exception was
+injected and no failure recovery was needed. The original harness was tested
+before editing it; only the smoke harness's Uvicorn configuration then changed
+from the default five-second keep-alive to 120 seconds. Runtime entry points did
+not change.
+
+| Harness setting | Completed idle intervals | Failures | Private output |
+|---|---:|---:|---|
+| Original, default 5 s | 200 | 0 | `before.log`, `before.json` |
+| Fixed, explicit 120 s | 200 | 0 | `after.log`, `after.json` |
+
+Both runs exited 0 and printed `disposable_database=dropped;
+development_database=unchanged`. **This prescribed probe did not reproduce the
+race.** Its zero-before/zero-after result is not independent proof of the
+established Uvicorn/httpcore close-race diagnosis. The existing item 26b friction
+entry now records the precise round-103 request, timeout mismatch and this
+reproduction limitation. The initial sandboxed `uv` attempt stopped before running
+Python with the already-recorded cache restriction (`failed to open file
+/Users/bashaarjavaid/.cache/uv/sdists-v9/.git: Operation not permitted (os error 1)`);
+the authorized run used the existing cache and local services.
+
+**B — per-call floor, evidence only.** `floor.py` ran one in-process MCP server
+and one disposable database, with the same runtime, linked identity, bearer token
+and captured identical JSON-RPC request body for SDK versus raw HTTPX POST. It
+measured 200 calls per row below with `perf_counter_ns`, after five untimed warmups
+per path. Handler-only calls invoke the same `HouseholdRuntime.call` with the
+captured authenticated identity; their timing excludes HTTP/auth/SDK handling.
+Percentiles use the benchmark's nearest-rank function. All values are milliseconds.
+
+| Tool | Path | n | Median | p95 |
+|---|---|---:|---:|---:|
+| `what_can_you_do` | SDK `call_tool` | 200 | 58.211500 | 73.653917 |
+| `what_can_you_do` | Identical raw HTTPX POST | 200 | 3.994917 | 5.408334 |
+| `what_can_you_do` | Handler alone | 200 | 0.011041 | 0.020416 |
+| `get_household_context(scope=people)` | SDK `call_tool` | 200 | 69.750167 | 87.267167 |
+| `get_household_context(scope=people)` | Identical raw HTTPX POST | 200 | 13.242479 | 20.409125 |
+| `get_household_context(scope=people)` | Handler alone | 200 | 6.698521 | 7.996083 |
+
+The SDK-minus-raw median differences are 54.216584 ms and 56.507688 ms. The large
+floor is on the **SDK client path**, not stateless server-session handling: the
+same stateless server handles the raw calls much faster. No deeper SDK change or
+measurement-protocol change was attempted. Supporting in-process handler medians
+were 0.029480/0.023334 ms for SDK/raw onboarding and 9.186000/7.981625 ms for
+SDK/raw people context; linked-member resolution medians were 2.449166/1.116312 ms
+and 2.676375/1.402687 ms respectively.
+
+All 1,200 measured calls completed and their summaries were printed to `floor.log`;
+`floor-summary.json` preserves those printed summaries. **The private script exited
+1 afterward during cleanup**, because it closed the callback listener before
+Uvicorn shut it down: `ValueError: Invalid file descriptor: -1`. This is a probe
+cleanup bug, not a measured call failure. The disposable database
+`hirz_ha_smoke_0faeb29519ef4a1a8a4e58010c970bbb` was retained automatically. Raw
+per-call arrays were not written because the planned final JSON write followed
+cleanup; only the complete calculated summaries survive. No measurement rerun was
+used to replace these numbers, and no third-party friction claim is made for this
+private-script error.
+
+**C — scheduling regressions.** Before changing runtime scheduling,
+`capture_inline.py` captured two complete stored action rows and both a signed
+`SCHEDULED` and `EXECUTION_CANCELLED` transition, including the late-consent refresh
+consequence. `inline-fixture-02.log` reports `inline fixture: 2 complete action
+rows; 2 signed scheduling events; audit=valid`; the signed source export is
+`inline-audit-02.json`. The first capture reached valid audit export but its JSON
+serialization omitted UUID support (`TypeError: Object of type UUID is not JSON
+serializable`); that attempt's database
+`hirz_ha_smoke_79ce352bac2c4a369d70d0c15b4c547f` and `inline-audit.json` remain
+retained. The corrected capture ran before the runtime edit and dropped only its
+own disposable database.
+
+`tests/fixtures/scheduling-inline.json` is that pre-change fixture. The regression
+compares complete stored action rows and full scheduling-event sequence, timestamp,
+type and payload without dropping fields or normalizing hashes; all signatures
+are separately verified through `verify_database`. Further regressions cover a
+second approval before the tick, cancel/revise before the tick, a fresh Pipeline
+and worker database connection scheduling once, and an overdue bounded ending
+finishing even when subsequent scheduling fails. Existing tests retain inherited
+consent, expired openings, overlapping-operation refusal and whole-batch rollback.
+
+- Initial new regressions: `5 passed in 7.96s` (`scheduling-tests-01.log`).
+- Existing affected suites initially reported `4 failed, 52 passed in 118.55s
+  (0:01:58)` (`affected-tests-01.log`): three pre-tick inline-state expectations and
+  the old approval-time batch-failure injection.
+- Updated affected suites, including the ending-priority regression:
+  `62 passed in 120.10s (0:02:00)` (`affected-tests-02.log`).
+
+Full ordered verification and the single latency result are appended below after
+execution; the results above alone do not close item 26b.
+
+#### First ordered verification and scheduling-order correction
+
+The first ordered sequence used `verify.sh` in the private artifact directory,
+with `HIRZ_LLM=off`, native Dogwood and Node 24 on PATH. It stopped at the scenario:
+
+| Command | Actual summary |
+|---|---|
+| `HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run --locked pytest -q` | `1419 passed, 151 deselected in 194.08s (0:03:14)` |
+| `HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run --locked pytest -m integration --cov=hirz --cov-append -q` | `149 passed, 1421 deselected in 300.68s (0:05:00)` |
+| `uv run --locked coverage report --fail-under=80` | `TOTAL 12188 861 93%` |
+| `uv run --locked ruff check .` | `All checks passed!` |
+| `uv run --locked mypy hirz/ scripts/ alembic/` | `Success: no issues found in 153 source files` |
+| `uv run python scripts/smoke_executor.py --audit-output /tmp/hirz-item26b-third-step/executor-audit.json` | `submission=executing; boundary_calls=0; adapter_writes=0; wording=Your request is queued.`; `worker=verified; signed_rows=13; source=twin; engine=dogwood-local` |
+| `uv run python scripts/smoke_refresh.py --audit-output /tmp/hirz-item26b-third-step/refresh-audit.json` | `restart=queued; replacement=published; approver=malik; per_device_evaluation=fresh`; `restart=running; replacement=published; approver=malik; per_device_evaluation=fresh`; `refresh=PASS; source=twin; signed_rows=73; offline=valid` |
+| `uv run hirz scenario run scenarios/demo-evening.yaml --headless --assert --artifacts-dir /tmp/hirz-item26b-third-step/scenario` | Exit 1: `ValueError: Scenario assertions failed`; appliance-completion observation and `appliance_completed` failed, with 3,477 valid signed audit rows. |
+
+Logs are `pytest.log`, `integration.log`, `coverage.log`, `ruff.log`, `mypy.log`,
+`executor.log`, `refresh.log`, and `scenario.log`. Household-tools had not run when
+this sequence stopped. The failed scenario's private report, audit and public key
+are in `scenario/`; its retained database is
+`hirz_ha_smoke_dd09d467f89f44d1bfd325e9faf499ed`.
+
+The scenario exposed late-consent ordering: scheduling at the end of the worker
+tick queued a missed-opening refresh only after that tick's refresh batch, so it
+was not processed until the next five-minute scenario poll. The retained run
+replanned at 23:36 instead of the consent tick at 23:31; its last-slot dishwasher
+start at 05:15:00.000001 left one microsecond of the cycle at the 07:00 cutoff.
+The correction schedules pending committed consent before the refresh batch,
+with due bounded endings first; the final executor sweep still schedules newly
+inherited consent. A targeted regression requires late consent to publish its
+inherited replacement in the same worker tick. The scenario clock, assertions,
+physics, solver configuration and corpus are unchanged. Ordered verification is
+repeated below for the corrected code; no latency measurement has yet been run.
+
+#### Corrected ordered verification
+
+The same-tick ordering and refresh regressions reported `22 passed in 61.44s
+(0:01:01)` (`ordering-tests.log`). The complete ordered sequence then ran again
+from `verify-02.sh`, retaining each log and new artifact in
+`/tmp/hirz-item26b-third-step/verified-02/`; all commands exited 0:
+
+| Command | Actual summary |
+|---|---|
+| `HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run --locked pytest -q` | `1419 passed, 152 deselected in 217.45s (0:03:37)` |
+| `HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run --locked pytest -m integration --cov=hirz --cov-append -q` | `150 passed, 1421 deselected in 338.71s (0:05:38)` |
+| `uv run --locked coverage report --fail-under=80` | `TOTAL 12191 864 93%` |
+| `uv run --locked ruff check .` | `All checks passed!` |
+| `uv run --locked mypy hirz/ scripts/ alembic/` | `Success: no issues found in 153 source files` |
+| `uv run python scripts/smoke_executor.py --audit-output /tmp/hirz-item26b-third-step/verified-02/executor-audit.json` | `submission=executing; boundary_calls=0; adapter_writes=0; wording=Your request is queued.`; `worker=verified; signed_rows=13; source=twin; engine=dogwood-local` |
+| `uv run python scripts/smoke_refresh.py --audit-output /tmp/hirz-item26b-third-step/verified-02/refresh-audit.json` | `restart=queued; replacement=published; approver=malik; per_device_evaluation=fresh`; `restart=running; replacement=published; approver=malik; per_device_evaluation=fresh`; `refresh=PASS; source=twin; signed_rows=73; offline=valid` |
+| `uv run hirz scenario run scenarios/demo-evening.yaml --headless --assert --artifacts-dir /tmp/hirz-item26b-third-step/verified-02/scenario` | `status=item22_execution_passed`; 47/47 checks passed; 3,509 signed rows, audit `valid`. |
+| `PATH="/opt/homebrew/opt/node@24/bin:$PATH" HIRZ_LLM=off HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run --locked python scripts/smoke_household_tools.py --audit-output /tmp/hirz-item26b-third-step/verified-02/household-audit.json --conformance-cli ../addon-check/dist/cli.js` | `household_tools=PASS; signed_rows=611; offline=valid`; conformance `status=PASS`, `complete=true`, `PASS=117`, `FAIL=0`, `WARN=0`, `SKIP=0`, `MANUAL=0`, no missing evidence. |
+
+Node reported `v24.21.0`. The independent conformance timing covers onboarding
+and context only, not the item 26b latency gate. All smoke/scenario databases in
+this successful sequence were dropped by their existing cleanup and reported
+`development_database=unchanged`. No live HA, Bedrock or AWS execution was tested.
+The first failed scenario remains preserved separately; the successful run did
+not overwrite it or relax any assertion.
+
+#### Single local scheduling measurement
+
+Exactly one measurement was run on the corrected, fully verified code:
+
+```sh
+HIRZ_LLM=off HIRZ_DOGWOOD="$PWD/.tools/dogwood" HIRZ_BUDGET_SCENARIO=demo-evening HIRZ_BUDGET_ARTIFACTS=/tmp/hirz-item26b-scheduling-01 uv run --locked pytest tests/latency -m latency --no-cov -s -q --tb=short
+```
+
+Actual summary: `1 failed in 3572.08s (0:59:32)`, exit 1, `Warm p95 budget exceeded`.
+All 105/105 lifecycle rounds completed without transport failure, followed by the
+remaining unchanged corpus and ten startup probes. There are 100 measured samples
+per case after five warmups, 54 cases and 12 pooled tools. **The gate failed: 13
+case gates and three pooled-tool gates exceed 250 ms. Item 26b remains Deferred.**
+No sample was trimmed, no latency measurement was rerun, and neither Hourly nor
+manual CI dispatch was run. The parents trust/missing-input cases that are already
+part of this corpus were retained; this is not a separate parents-scenario gate.
+
+Private output is `/tmp/hirz-item26b-third-step/latency.log`; complete raw samples,
+interaction timings, tables and signed exports are in
+`/tmp/hirz-item26b-scheduling-01/demo-evening/`. The failed-gate database
+`hirz_ha_smoke_472965c7669645dc8f09df603781c45b` remains retained. Tables below use
+all retained samples, with nearest-rank percentiles; milliseconds are rounded to
+three decimals for display only.
+
+| Tool | n | Minimum ms | Median ms | p95 ms | Maximum ms | Gate |
+|---|---:|---:|---:|---:|---:|---|
+| `approve_action` | 700 | 82.882 | 124.944 | 321.730 | 4537.614 | FAIL |
+| `assess_request_risk` | 400 | 61.331 | 111.007 | 191.597 | 1137.793 | PASS |
+| `evaluate_permission` | 100 | 73.515 | 95.329 | 172.783 | 262.431 | PASS |
+| `execute_household_action` | 800 | 64.552 | 121.335 | 235.100 | 742.373 | PASS |
+| `explain_plan` | 400 | 76.829 | 101.445 | 232.410 | 2310.180 | PASS |
+| `get_action_audit` | 400 | 63.821 | 86.954 | 159.977 | 347.255 | PASS |
+| `get_household_context` | 200 | 66.488 | 84.439 | 148.860 | 270.467 | PASS |
+| `get_household_plan` | 700 | 64.294 | 176.624 | 362.039 | 1109.622 | FAIL |
+| `propose_household_rule` | 200 | 60.260 | 108.737 | 203.547 | 275.803 | PASS |
+| `revise_household_plan` | 600 | 60.987 | 135.680 | 283.681 | 834.134 | FAIL |
+| `verify_trusted_identity` | 800 | 62.194 | 83.195 | 178.670 | 486.408 | PASS |
+| `what_can_you_do` | 100 | 58.417 | 72.704 | 131.223 | 159.741 | PASS |
+
+| Failing case | Tool | n | Minimum ms | Median ms | p95 ms | Maximum ms |
+|---|---|---:|---:|---:|---:|---:|
+| `objective-greenest` | `get_household_plan` | 100 | 173.680 | 235.606 | 474.934 | 1109.622 |
+| `objective-cheapest` | `get_household_plan` | 100 | 167.625 | 224.933 | 458.063 | 800.950 |
+| `plan-cancel` | `approve_action` | 100 | 152.836 | 203.586 | 450.609 | 1946.253 |
+| `objective-most_comfortable` | `get_household_plan` | 100 | 171.740 | 237.705 | 430.769 | 966.989 |
+| `plan-approval` | `approve_action` | 100 | 177.627 | 230.152 | 407.228 | 4537.614 |
+| `revision-car` | `revise_household_plan` | 100 | 171.728 | 220.917 | 382.218 | 834.134 |
+| `plan-ready` | `get_household_plan` | 100 | 134.938 | 161.682 | 356.932 | 858.329 |
+| `verify-start-not_genuine` | `verify_trusted_identity` | 100 | 122.396 | 156.504 | 321.951 | 486.408 |
+| `revision-guest` | `revise_household_plan` | 100 | 130.075 | 168.216 | 297.434 | 493.502 |
+| `action-temperature` | `execute_household_action` | 100 | 93.851 | 117.788 | 277.457 | 373.546 |
+| `revision-dishwasher` | `revise_household_plan` | 100 | 127.231 | 162.750 | 262.745 | 577.401 |
+| `risk-not_genuine` | `assess_request_risk` | 100 | 108.990 | 129.237 | 260.027 | 1137.793 |
+| `action-profile` | `execute_household_action` | 100 | 120.882 | 156.688 | 251.908 | 445.660 |
+
+| Case | n | Median ms | p75 ms | p90 ms | p95 ms | Maximum ms |
+|---|---:|---:|---:|---:|---:|---:|
+| `plan-approval` | 100 | 230.152 | 277.090 | 332.947 | 407.228 | 4537.614 |
+| `objective-greenest` | 100 | 235.606 | 277.297 | 383.509 | 474.934 | 1109.622 |
+| `plan-cancel` | 100 | 203.586 | 256.918 | 347.011 | 450.609 | 1946.253 |
+| `revision-car` | 100 | 220.917 | 262.892 | 338.179 | 382.218 | 834.134 |
+| `action-profile` | 100 | 156.688 | 185.708 | 238.795 | 251.908 | 445.660 |
+
+Failing cases: 13/54; failing pooled tools: 3/12.
+
+Both offline signed exports are valid: home 145,255 rows and parents 2,205 rows,
+147,460 total. Final database counts: 57,158 actions, 147,460 audit rows, 420 plans,
+3,150 tool requests and 210 verification cases. Local process-to-health startup
+(n=10) was median 1,535.330 ms, p95/max 2,391.532 ms; first authenticated context
+(n=10) was median 95.573 ms, p95/max 137.646 ms. These are local process startup,
+not AWS cold-start results.
+
+A final read-only `SELECT version_num FROM alembic_version` reported
+`development migration: 0005_execution_attempt`; the initial helper invocation
+omitted `read_env`'s required path and exited with `TypeError` before connecting,
+then the corrected explicit-path read succeeded. No development migration, Bedrock
+call, ledger edit or `AWSCLIV2.pkg` edit was performed. The complete successful
+functional checks do not override the failed latency gate. The six-second probe
+did not reproduce the historical race, and the floor probe's raw arrays were lost
+after its cleanup error; neither limitation is claimed as verified away.
+
+#### Final local checks
+
+`git diff --check` exited 0 with no output. Comparing instruction bodies after
+the first heading reported `Instruction bodies identical; Current phase 53 words`.
+The last check, `uv run --locked ruff format --check .`, reported
+`238 files already formatted` and exited 0. The same ordered checks are repeated
+after appending this record, immediately before the implementation commit.
+Ordinary push-triggered CI will be recorded in a follow-up commit; the manual
+latency jobs are not dispatched.
+
+#### Ordinary CI for scheduling commit
+
+Implementation commit `238a4cfb151381f35796f97d74e07739b2394b61` was pushed to
+`phase-4` without merging. Its ordinary push-triggered
+[CI run 36052972119](https://github.com/BashaarJavaid/Hirz/actions/runs/36052972119)
+completed successfully: all ten jobs (`python-lint`, `python-types`, `python-test`,
+`ts-lint-types`, `ts-test`, `build`, `release`, `cedar-conform`, `conformance`, and
+`scenarios`) passed; `latency` was skipped. No workflow was manually dispatched.
+
+CI summary lines:
+
+- Service-free: `1419 passed, 152 deselected in 143.31s (0:02:23)`.
+- PostgreSQL integration: `150 passed, 1421 deselected in 408.88s (0:06:48)`.
+- Combined coverage: `TOTAL 12191 859 93%`.
+- Native Cedar: `155 passed in 142.47s (0:02:22)`.
+- Ruff: `All checks passed!`; formatting: `238 files already formatted`.
+- Mypy strict: `Success: no issues found in 153 source files`.
+
+The scenario job also passed its live HA **demo** lamp and bounded restoration
+step; this is not a physical-device or AWS execution claim. Full CI metadata and
+logs are retained privately as `ci-238a4cf.json` and `ci-238a4cf.log` under
+`/tmp/hirz-item26b-third-step/`. The implementation diff is 19 files,
+1,016 insertions and 40 deletions, including the complete pre-change fixture and
+append-only evidence. This follow-up changes only this evidence log.
+
+Before the follow-up commit, repeat `git diff --check`, identical instruction-body
+comparison, then `uv run --locked ruff format --check .`; the previously recorded
+local tests and the single failed latency measurement remain unchanged. Ordinary
+CI success does not close the deferred latency gate.
+
+### Server round-trip — 2026-09-24
+
+Author-authorized fourth step from `ad64ca1` on `phase-4`. The established section B
+floor finding is accepted without another probe. The gate now measures the raw
+authenticated JSON-RPC POST from immediately before HTTPX send through receipt of
+the full body. SDK linking/refresh and every successful-result schema assertion
+remain; SDK/MCP decoding and validation happen outside the timer. Onboarding and
+context-all each have a separate SDK reference sample per round, including the
+same five warmups, with 100 retained reference samples required by the report.
+The 54-case corpus, 100 gate samples per case, pooled-tool sample counts,
+nearest-rank p95 and 250 ms threshold are unchanged. The latency test is unchanged.
+The [ADR amendment](./adr/ADR-017-tool-latency-and-isolation.md#server-round-trip-amendment--2026-09-24)
+owns the protocol; the [Minor friction entry](./friction-log.md#item-26b-sdk-per-call-schema-validation--2026-09-24)
+records SDK `session.py:441` and the established 54 ms onboarding difference.
+
+`tests/unit/test_tool_budget_statistics.py::test_raw_request_is_byte_identical_to_sdk`
+captures both reference requests through HTTPX with the real SDK OAuth provider.
+It aligns independent stateless request IDs after SDK initialization/tool listing,
+then compares method, raw path, authorization, accept, content-type, MCP protocol
+version and complete body bytes without normalizing the payload. Both cases pass;
+the same test confirms malformed structured content still fails SDK validation
+after raw receipt. The focused file reported `4 passed in 2.92s`. The benchmark
+asserts stateless initialization; the actual server already uses stateless JSON
+responses and requires no per-call session observation.
+
+Local checks use Python 3.12, existing native Dogwood and PostgreSQL, with
+`HIRZ_LLM=off` and `HIRZ_DOGWOOD="$PWD/.tools/dogwood"`. Private logs and smoke
+artifacts are under `/tmp/hirz-item26b-fourth-step/`.
+
+| Command | Summary |
+|---|---|
+| `uv run --locked pytest -q` | `1421 passed, 152 deselected in 213.68s (0:03:33)`; service-free coverage alone 78%. |
+| `uv run --locked pytest -m integration --cov=hirz --cov-append` | `150 passed, 1423 deselected in 297.60s (0:04:57)`. |
+| `uv run --locked coverage report --fail-under=80` | `TOTAL 12191 864 93%`; exit 0. |
+| `uv run --locked ruff check .` | `All checks passed!` |
+| `uv run --locked mypy hirz/ scripts/ alembic/` | `Success: no issues found in 153 source files`. |
+
+The first mypy invocation caught the SDK's `str | int` protocol-version annotation;
+converting it to a string for the header resolved that check. The initial sandboxed
+uv formatting attempt hit the previously recorded cache-access restriction; the
+authorized checks then used the existing cache. A read-only development query
+returned `development_revision=0005_execution_attempt`. No development migration,
+Bedrock invocation, selection-ledger access, local full latency run, SDK patch or
+`AWSCLIV2.pkg` modification was made. No AWS or real phone/security result is
+claimed. The instruction files are byte-identical and Current phase is 57 words.
+CI timing summaries now expose every case and pooled tool, including SDK reference
+columns, in both the step summary and payload-free job logs; private household
+artifacts remain unuploaded. CI measurement and author review are still pending
+at this local-check checkpoint, so item 26b remains Deferred.
+
+The separately requested CLI check completed:
+`HIRZ_LLM=off HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run --locked python scripts/smoke_tool_budget.py --mode isolation --artifacts-dir /tmp/hirz-item26b-fourth-step/isolation`
+printed `{"status": "passed", "mode": "isolation", "report": "/tmp/hirz-item26b-fourth-step/isolation/report.json"}`
+and `disposable_database=dropped; development_database=unchanged`. It passed
+177 checks, 20 concurrent rounds and 10 symmetric-reference checks, including
+restart; independently verified exports contained 333, 76 and 138 signed rows,
+all `valid` (547 total). Persisted counts were 365 actions, 547 audit rows, two
+plans, 61 tool requests and two verification cases. This exercises `Client.call`
+end to end without taking a local latency measurement.
+
+Final precommit checks: `git diff --check` and `cmp CLAUDE.md AGENTS.md` exited 0;
+`uv run --locked ruff format --check .` reported `238 files already formatted`.
+
+#### Ordinary CI and single manual dispatch
+
+Implementation commit `b8c1bc31141ea1f9eda77b660443f9bf3b99cfbb` was pushed to
+`phase-4` without merging. [Ordinary CI 36057334935](https://github.com/BashaarJavaid/Hirz/actions/runs/36057334935)
+passed all ten jobs: `python-lint`, `python-types`, `python-test`, `scenarios`,
+`ts-lint-types`, `ts-test`, `conformance`, `cedar-conform`, `build` and `release`;
+`latency` was skipped. The release job remains a placeholder. CI logs report:
+
+- `1421 passed, 152 deselected in 225.54s (0:03:45)` service-free.
+- `150 passed, 1423 deselected in 313.33s (0:05:13)` integration.
+- `TOTAL 12191 859 93%` combined coverage.
+- `238 files already formatted` and `Success: no issues found in 153 source files`.
+
+Only after those ten jobs completed, `gh workflow run CI --ref phase-4` was
+issued once. [Manual CI 36059341623](https://github.com/BashaarJavaid/Hirz/actions/runs/36059341623)
+was created at `2026-09-24T21:06:46Z` for the same full commit. Its latency job IDs
+are `107834191124` (Time-of-Day / `demo-evening`) and `107834192128` (Hourly /
+`demo-evening-hourly`). No job rerun was requested. Ordinary CI metadata/logs are
+retained as `ordinary.json` and `ordinary.log` in the private fourth-step directory;
+manual-run results will be appended after both jobs finish.
+
+#### Completed CI measurements — both scenarios pass; author review pending
+
+The manual run completed successfully on attempt **1**, with both latency jobs
+and all ten ordinary jobs successful. Neither latency job was rerun. The completed
+job logs contain the same payload-free tables printed to the step summaries and
+the protocol line:
+
+> Gate: raw authenticated JSON-RPC tools/call POST, request send through full response body; decoding and validation excluded. SDK call_tool reference timings: onboarding and context-all only, outside the gate.
+
+| Scenario | Job | Test summary | Case gates | Pooled-tool gates | Failing cases / tools |
+|---|---|---|---:|---:|---|
+| Time-of-Day (`demo-evening`) | [107834191124](https://github.com/BashaarJavaid/Hirz/actions/runs/36059341623/job/107834191124) | `1 passed in 3052.76s (0:50:52)` | 54/54 | 12/12 | None / None |
+| Hourly (`demo-evening-hourly`) | [107834192128](https://github.com/BashaarJavaid/Hirz/actions/runs/36059341623/job/107834192128) | `1 passed in 2400.91s (0:40:00)` | 54/54 | 12/12 | None / None |
+
+Each scenario retains five warmups and 100 measured calls per case: **5,400 gate
+samples**, plus 100 separate SDK references for each of two cases. There are no
+failing case or pooled-tool p95 values to list. All requested summary values were
+available; no artifact fallback was needed. Values below are copied from the job
+summary logs at their published three-decimal precision; the gate uses unrounded
+report values. Maximum samples remain visible even when greater than 250 ms.
+Private raw reports and household audit exports were not uploaded by the existing
+workflow, so no claim of locally retained CI raw arrays is made.
+
+**Time-of-Day.** Highest case p95: `objective-most_comfortable` **203.753 ms**; highest pooled-tool p95: `get_household_plan` **151.921 ms**.
+
+| Tool | n | Minimum ms | Median ms | p95 ms | Maximum ms | Gate |
+|---|---:|---:|---:|---:|---:|---|
+| `what_can_you_do` | 100 | 5.381 | 5.766 | 6.842 | 7.102 | PASS |
+| `get_household_context` | 200 | 12.718 | 14.851 | 17.403 | 88.861 | PASS |
+| `propose_household_rule` | 200 | 9.950 | 30.557 | 54.632 | 65.410 | PASS |
+| `get_household_plan` | 700 | 12.115 | 60.117 | 151.921 | 253.908 | PASS |
+| `explain_plan` | 400 | 27.332 | 30.068 | 35.339 | 42.715 | PASS |
+| `approve_action` | 700 | 30.730 | 35.128 | 124.970 | 199.995 | PASS |
+| `revise_household_plan` | 600 | 10.239 | 71.692 | 134.378 | 220.409 | PASS |
+| `execute_household_action` | 800 | 10.686 | 43.564 | 76.080 | 153.891 | PASS |
+| `evaluate_permission` | 100 | 22.070 | 24.098 | 27.204 | 31.004 | PASS |
+| `get_action_audit` | 400 | 13.351 | 15.670 | 38.395 | 49.118 | PASS |
+| `assess_request_risk` | 400 | 9.804 | 46.674 | 55.444 | 128.046 | PASS |
+| `verify_trusted_identity` | 800 | 9.845 | 13.144 | 72.164 | 89.172 | PASS |
+
+SDK references, excluded from the gate (100 raw and 100 SDK samples each):
+
+| Case | Raw median ms | Raw p95 ms | Raw maximum ms | SDK median ms | SDK p95 ms | SDK maximum ms |
+|---|---:|---:|---:|---:|---:|---:|
+| `onboarding` | 5.766 | 6.842 | 7.102 | 85.187 | 92.885 | 98.095 |
+| `context-all` | 15.196 | 17.469 | 19.630 | 98.953 | 112.798 | 144.884 |
+
+**Hourly.** Highest case p95: `revision-car` **215.672 ms**; highest pooled-tool p95: `revise_household_plan` **131.051 ms**.
+
+| Tool | n | Minimum ms | Median ms | p95 ms | Maximum ms | Gate |
+|---|---:|---:|---:|---:|---:|---|
+| `what_can_you_do` | 100 | 4.713 | 4.978 | 5.806 | 6.867 | PASS |
+| `get_household_context` | 200 | 10.807 | 11.787 | 13.305 | 14.666 | PASS |
+| `propose_household_rule` | 200 | 8.474 | 37.905 | 47.567 | 205.278 | PASS |
+| `get_household_plan` | 700 | 10.473 | 48.242 | 125.309 | 346.674 | PASS |
+| `explain_plan` | 400 | 22.621 | 23.799 | 33.282 | 178.515 | PASS |
+| `approve_action` | 700 | 25.492 | 28.217 | 101.686 | 364.979 | PASS |
+| `revise_household_plan` | 600 | 8.754 | 35.412 | 131.051 | 509.056 | PASS |
+| `execute_household_action` | 800 | 8.922 | 34.985 | 64.653 | 525.846 | PASS |
+| `evaluate_permission` | 100 | 18.206 | 19.179 | 22.726 | 34.460 | PASS |
+| `get_action_audit` | 400 | 10.995 | 12.390 | 34.284 | 44.472 | PASS |
+| `assess_request_risk` | 400 | 8.527 | 27.460 | 42.585 | 161.726 | PASS |
+| `verify_trusted_identity` | 800 | 8.539 | 10.543 | 55.755 | 223.237 | PASS |
+
+SDK references, excluded from the gate (100 raw and 100 SDK samples each):
+
+| Case | Raw median ms | Raw p95 ms | Raw maximum ms | SDK median ms | SDK p95 ms | SDK maximum ms |
+|---|---:|---:|---:|---:|---:|---:|
+| `onboarding` | 4.978 | 5.806 | 6.867 | 56.493 | 59.836 | 64.912 |
+| `context-all` | 11.925 | 14.089 | 14.666 | 67.383 | 70.548 | 78.178 |
+
+Completed logs are retained privately as `time-of-day.log` and `hourly.log`;
+extracted, count-checked summaries are `time-of-day-tables.json` and
+`hourly-tables.json`; run/job metadata are `latency-ci.json` and `latency-run.json`,
+all under `/tmp/hirz-item26b-fourth-step/`. GitHub's `gh run view --job --log`
+initially refused the completed Hourly job while the overall run remained active
+(`run 36059341623 is still in progress; logs will be available when it is complete`);
+the completed-job logs API supplied the data directly. This required no rerun.
+
+**Item 26b remains Deferred until the author reads this evidence, despite both
+scenario gates passing.** These are Linux CI runner, loopback HTTP, disposable
+PostgreSQL and twin results, not AWS cold start, real phone/security execution or
+Alexa end-to-end performance. No local full latency run was made. Development
+remains on 0005; Bedrock, the selection ledger and `AWSCLIV2.pkg` remain untouched.
+
+The records follow-up keeps both instruction files byte-identical, with a
+60-word Current phase, and leaves `tests/latency/test_tool_budget.py` unchanged.
+After CI, a second read-only development check again returned
+`development_revision=0005_execution_attempt`. `git diff --check` and
+`cmp CLAUDE.md AGENTS.md` passed; the final formatting check reported
+`238 files already formatted`. The complete task diff before this final evidence
+note was 11 files, 475 insertions and 25 deletions; runtime server code is unchanged.
+
+
+### Closure — 2026-09-24
+
+The author reviewed Item 26b's [Completed CI measurements](#completed-ci-measurements--both-scenarios-pass-author-review-pending)
+and [CI run 36059341623](https://github.com/BashaarJavaid/Hirz/actions/runs/36059341623)
+(`workflow_dispatch`, `b8c1bc3`, attempt 1) and accepted item 26b as Complete on
+2026-09-24. Both scenarios pass all 54 case gates and 12 pooled-tool gates under
+the server round-trip protocol; highest case p95 is 203.753 ms for Time-of-Day and
+215.672 ms for Hourly. The claim is limited to the local authenticated MCP surface
+on the Linux CI runner, measuring the raw authenticated JSON-RPC `tools/call`
+round trip; SDK references are reported separately. AWS ingress, cold start and
+Alexa host overhead remain item 38.
+
+The gate of record is that Linux CI run under the
+[server round-trip amendment](./adr/ADR-017-tool-latency-and-isolation.md#server-round-trip-amendment--2026-09-24).
+The author supersedes the [2026-09-23 handoff](#paused-handoff--2026-09-23)
+requirement to complete both local scenarios: macOS runs use PostgreSQL inside
+Docker Desktop and produce multi-second disk outliers absent on the CI runner.
+On the same `0dc1ccf` commit, Time-of-Day had three failing case gates on CI versus
+14 locally ([retained comparison](#full-gate-results-for-0dc1ccf--2026-09-23),
+[CI run 35953560008](https://github.com/BashaarJavaid/Hirz/actions/runs/35953560008)).
+Local runs remain diagnostic; earlier measurements and the handoff are preserved
+as historical evidence.
+
+The latency jobs remain on `workflow_dispatch`. Dispatch CI once before closing
+any roadmap item that changes the pipeline, tools, executor, refresh or storage,
+and once before submission; record each run in this evidence log. The
+[closure amendment](./adr/ADR-017-tool-latency-and-isolation.md#closure-amendment--2026-09-24)
+records the decisions and rejected alternatives; the
+[development procedure](./development.md#authenticated-tool-budget-and-isolation-item-26)
+explains dispatch and local/CI comparison.
+
+This checkpoint changes records only. No latency run, Bedrock invocation, ledger
+access, development migration or AWS measurement is performed; development stays
+on 0005, migrations through 0013 remain manual, and `AWSCLIV2.pkg` is untouched.
+Real phone/security execution remains unverified. Ordinary push-CI results for
+this checkpoint will be appended after the ten jobs complete.
+
+
+#### Closure checkpoint CI and checks
+
+Closure commit `4463113e92eeaee88182da70b9372f3862069c6e` was pushed to
+`phase-4` without merging. [Ordinary CI 36072207292](https://github.com/BashaarJavaid/Hirz/actions/runs/36072207292)
+completed successfully: all ten ordinary jobs passed (`python-lint`,
+`python-types`, `python-test`, `scenarios`, `ts-lint-types`, `ts-test`,
+`conformance`, `cedar-conform`, `build`, `release`); `latency` was skipped.
+The release job remains a placeholder. This is records-checkpoint CI, not a new
+latency measurement; the reviewed latency gate of record remains run 36059341623
+with the local authenticated MCP server round-trip scope stated above.
+
+Precommit checks ran in the requested order:
+
+| Check | Output |
+|---|---|
+| `git diff --check` | Empty; exit 0. |
+| `diff <(tail -n +2 CLAUDE.md) <(tail -n +2 AGENTS.md)` | Empty; exit 0. |
+| Current phase word count | `CLAUDE.md Current phase: 57 words`; `AGENTS.md Current phase: 57 words`. |
+| `uv run --locked ruff format --check .` | `238 files already formatted`; exit 0 after authorized access to the existing uv cache. |
+
+The initial sandboxed formatting check returned `Failed to initialize cache at
+/Users/bashaarjavaid/.cache/uv` and `failed to open file
+/Users/bashaarjavaid/.cache/uv/sdists-v9/.git: Operation not permitted (os error 1)`.
+This repeats the existing sandbox restriction in friction-log entry 6; no new
+third-party defect was found. Read-only comparisons also confirmed that all
+prior verification text is preserved, item 26 and `THREAT_MODEL.md` are unchanged,
+and `CLAUDE.md` and `AGENTS.md` are byte-identical. The closure commit changed
+only eight documentation files (128 insertions, 41 deletions); this follow-up
+only appends evidence. The same four final checks are repeated after this entry.
+
+## Item 27 — 2026-09-24
+
+### Local implementation and reviewed visuals
+
+Approved scope: [ADR-018](./adr/ADR-018-mcp-app-cards.md). The author reviewed and
+approved all fourteen initial Linux Chromium baselines on 2026-09-24. The gallery
+is `apps/mcp-app/tests/baselines/README.md`. The separate browser-test declaration
+exception was also explicitly approved; application TypeScript checks and all
+pins remain unchanged.
+
+Environment: macOS, Python 3.12.13, Node 24.21.0, pnpm 12.4.2, pinned native Dogwood,
+existing PostgreSQL with uniquely named disposable twin databases. Bedrock stayed
+off, the existing spending ledger was not changed, and development migrations
+were not applied. Generated HTML assets are ignored; the fourteen PNGs contain
+explicitly labeled synthetic household content.
+
+Completed local checks at this checkpoint:
+
+- Service-free pytest: 1,425 passed in 315.39 seconds. Full PostgreSQL integration
+  run: 151 passed in 850.70 seconds. `coverage report --fail-under=80` reports
+  12,476 statements, 876 missed, 93% combined coverage.
+- New card evidence/resource/freshness tests plus database-backed estimate selection:
+  six passed in 54.18 seconds (`/tmp/hirz-card-data.log`). Persisted changes use
+  Pipeline; checks include negative/mismatched retained evidence, anonymous static
+  resources, stale/mixed-source observations, independent pagination counts,
+  newest overlapping plan, action-specific selection, cancellation exclusion,
+  foreign references and independently verified audit history.
+- Independent add-on checker: 117 PASS, 0 FAIL, 0 WARN, 0 SKIP, 8 MANUAL;
+  complete=true, with 611 signed rows independently verified. Private artifacts:
+  `/tmp/hirz-item27-conformance-audit.json` and its `.conformance.json` report.
+  Only onboarding/context are timed by that checker; this does not replace the
+  authenticated CI latency/isolation gate.
+- First complete browser run: 30 passed in 4.7 minutes in the pinned Linux
+  Playwright 1.57.0 image, including fourteen snapshots, exact consent arguments,
+  approve/deny, retry-key identity, car-limit revision, all terminal verification
+  statuses, expiry without fabricated replies, malformed results, source/lock
+  observation behavior, keyboard controls, reduced motion, density and 1280×800.
+  Private fixture source: `/tmp/hirz-cards-05/fixtures.json`; log:
+  `/tmp/hirz-card-browser.log`.
+- Unchanged v2.0.0 reference host over the real local OAuth relay: one browser
+  test passed in 19.9 seconds; foreign Origin rejected, environment context read,
+  unlock request reports unavailable phone approval, observed lock remains locked.
+  `/tmp/hirz-cards-07/report.json` records 404 home and three parents signed rows,
+  both independently valid. The disposable database was dropped; development was
+  unchanged. Earlier failed harness runs are retained under `/tmp/hirz-cards-05`
+  and `/tmp/hirz-cards-06`; neither is claimed as passing.
+- `uv build` produced wheel/sdist containing five complete resources. A fresh
+  install at `/tmp/hirz-item27-wheel-final`, invoked from `/tmp`, imported the
+  installed package and checked all five resources. The first Docker image also
+  checked five resources and existing unprivileged UID 10001; a final rebuild is
+  in progress after the last source changes.
+- Ruff lint/format passed; mypy reported no issues in 158 source files.
+
+An expanded 36-case browser run exposed uncontrolled real-time advancement of
+fixture clocks under a slower shared-machine run. It was stopped rather than
+accepted. The harness now explicitly pauses fixture time and advances it only in
+polling tests; approved image baselines remain unchanged. The expanded run, final
+packaging regression and required CI gates are still pending at this checkpoint.
+No item closure, AWS/host latency, real phone delivery, Ring integration or security
+execution is claimed here.
+
+### Browser clock correction
+
+Pausing every timer also paused the reference SDK's transport scheduling, so that
+attempt was stopped. The final harness uses Playwright `setFixedTime` for stable
+Date values while leaving transport and polling timers running; polling checks
+advance the fixed date and wait their real interval. This changes test scheduling
+only, not the upstream bridge, card behavior or approved baselines.
+
+### Final local safety checks and first CI dispatch
+
+The corrected fixed-Date browser run passed **36/36** in 2.5 minutes without
+updating any approved baseline (`/tmp/hirz-card-browser-fixed.log`). This adds
+unsupported fullscreen, 30-second preparation termination, hidden/error polling,
+one outstanding request, replaced-content late-response refusal, duplicate-click
+refusal and light/dark contrast checks. Strict app and browser-source type-checks,
+workspace unit tests (four card, one web), Ruff and formatting passed.
+
+After explicit author approval to upload the task branch, commit `800bd89` was
+pushed to `item-27-mcp-app-cards` and CI run
+[36083436840](https://github.com/BashaarJavaid/Hirz/actions/runs/36083436840)
+was dispatched. A subsequent final review tightened the unknown observed-lock
+case to suppress the request control both server-side and in the card; its four
+unit tests passed in 2.59 seconds. The initial dispatch is superseded for closure
+by a run including that guard; its latency jobs were still building native Dogwood
+at the last check, and no completed measurement from it is claimed.
+
+### Final local artifacts
+
+The additional unknown-state browser check passed (one test, 8.4 seconds), for
+37 passing browser checks across the complete suite and final targeted addition.
+The final authenticated relay run passed in 4.9 seconds and also anonymously read
+all five static resources from the authenticated startup. It independently verified
+404 home and three parents signed rows, then dropped its disposable database.
+Private artifacts: `/tmp/hirz-cards-final/{fixtures,report}.json` and its signed
+exports; execution log `/tmp/hirz-cards-final.log`.
+
+The final wheel was rebuilt and reinstalled into `/tmp/hirz-item27-wheel-final`;
+invocation from `/tmp` checked the installed (site-packages) module and all five
+complete resources. The local Docker rebuild checked UID 10001 and five packaged
+resources; exact final-commit Docker verification is also part of CI run
+[36083666510](https://github.com/BashaarJavaid/Hirz/actions/runs/36083666510)
+on `b45796f615bd7932219816eb7506c434bbea7e75`. Its duplicate push-triggered run
+36083667025 was explicitly cancelled to avoid redundant work; the manual dispatch
+includes every normal job plus both required latency/isolation scenarios.
+
+### CI browser discrepancy and scoped fixture correction
+
+Run 36083666510 passed service-free pytest (1,425 in 218.09 seconds), integration
+pytest (152 in 305.82 seconds), 93% combined coverage (870 missed of 12,476), and
+the authenticated browser relay (one in 2.9 seconds). Its Linux browser step passed
+35 checks and failed only the two scorecard fullscreen comparisons: 63 pixels in
+light mode and 65 in dark mode differed. The full job log is retained at
+`/tmp/hirz-item27-ci-python.log`; that browser gate is not claimed as passing.
+
+The scorecard fixture now queries one existing Pipeline-denied device action from
+the prepared plan, rather than depending on how many simultaneous openings the
+worker evaluated before refresh held the rest. It derives the displayed count
+through the real `get_action_audit(action_id=...)` tool and preserves the approved
+images, money figures and exact pixel tolerances. Whole-window counts and pagination
+remain covered by PostgreSQL tests. Fixture generation prints only whole-window
+counts for diagnosis and captures the exact initial arguments for the unchanged
+reference host; browser pagination also checks that its selected query survives.
+No production behavior is changed by this correction. The latency/isolation jobs
+on the same production code continue uninterrupted.
+
+The scoped fixture run independently verified 402 home and three parents signed
+rows (`/tmp/hirz-cards-scoped/report.json`). All **38 Linux browser checks passed**
+in 1.9 minutes against the unchanged approved PNGs, including the new exact-query
+pagination check (`/tmp/hirz-card-browser-scoped.log`). Strict TypeScript and mypy
+checks also passed. A push-triggered CI run verifies this harness correction while
+the original full latency measurements continue on the identical production code.
+
+### Corrected regression CI — all jobs pass
+
+[Run 36085932162](https://github.com/BashaarJavaid/Hirz/actions/runs/36085932162)
+on `cda873188313171ff135e6353c1f95341508d7d1` passed every applicable job. Python:
+1,425 service-free tests in 138.42 seconds, 152 integration tests in 205.83 seconds,
+and 93% combined coverage (870 missed of 12,476). The real authenticated browser
+relay passed in 3.8 seconds, and all 38 Linux browser checks passed in 1.6 minutes
+with every approved baseline unchanged. The standalone Linux invocation deliberately
+skips the live relay case because that case runs in the preceding authenticated step.
+Log: `/tmp/hirz-item27-ci-python-corrected.log`.
+
+The CI diagnostic explains why a whole-window screenshot was unstable: its window
+contained one autonomous and one verified action, versus zero of each in the local
+run. The selected actual denial consistently produced 0 autonomous, 0 asked,
+1 blocked and 0 verified through the server's action-specific query. These are
+observed results, not fixture-assigned counts. All whole-window integration assertions
+still ran. The authenticated latency run uses identical production logic; the only
+`hirz/` difference between its commit and this passing regression commit is a module
+docstring. Its two long-running measurement jobs remain pending at this checkpoint.
+
+### Standalone browser command verification
+
+The `--browser-test` launcher now supplies its own `HIRZ_CARD_LIVE=1` to the child
+process, so the documented option cannot silently skip the authenticated check.
+CI already supplied that flag explicitly. Running the option without a caller-set
+flag passed the real relay browser test in 3.9 seconds; the report independently
+verified 404 home and three parents signed rows, then dropped the disposable
+database. Artifacts: `/tmp/hirz-cards-cli-final/report.json`, its signed exports,
+and `/tmp/hirz-cards-cli-final.log`. Ruff and strict mypy passed for the launcher;
+the repository format check reported 248 files already formatted.
+
+### First timing gate — scorecard query regression found
+
+Both latency jobs in run 36083666510 completed and failed their unchanged 250 ms
+warm p95 gate. Time-of-Day failed `audit-today` (365.248 ms), `audit-first-page`
+(357.719 ms), `audit-next-page` (344.567 ms), and pooled `get_action_audit`
+(350.914 ms). Hourly failed the same cases (405.250, 396.916, 391.157 ms) and
+pooled tool (392.541 ms). Each scenario's other 51 cases and 11 pooled tools
+passed. Full logs: `/tmp/hirz-item27-ci-latency-tod.log` and
+`/tmp/hirz-item27-ci-latency-hourly.log`. These are failures, not closure evidence.
+
+The scorecard aggregate joined every audit event before filtering the four count
+categories. A read-only diagnostic on retained disposable database
+`hirz_ha_smoke_c30887559bcf49e8b80215cf6240e6fa` (160,507 audit rows, 57,535 actions)
+compared the original query with an equivalent event predicate before the join.
+Both returned 210 autonomous, 211 asked, 211 blocked and 210 verified actions.
+Five warm samples had median 305.361 ms before and 29.278 ms after; PostgreSQL
+EXPLAIN ANALYZE reported 296.804 versus 28.264 ms and 144,844 versus 947 joined
+rows. This isolates the query regression; it is not the authenticated CI gate.
+Private diagnostic: `/tmp/hirz-item27-query-profile.json` and its runnable script
+`/tmp/hirz-profile-card-counts.py`. No database records were modified.
+
+The production query now excludes events that cannot contribute to any count
+before joining. Counts remain distinct and independent of pagination; no index,
+migration, cache, fixture reduction or timing-protocol change was introduced.
+Ruff and strict mypy passed. The PostgreSQL checks and a fresh CI dispatch are
+required before closure.
+
+### Query-fix checks and replacement CI dispatch
+
+Both PostgreSQL card tests passed in 5.16 seconds after the event filter. Commit
+`c221647eb275c71a096b941c74c69cde710f9f03` was pushed and
+[CI run 36088063349](https://github.com/BashaarJavaid/Hirz/actions/runs/36088063349)
+was dispatched with the unchanged five warmups, 100 measured calls per case and
+250 ms raw authenticated round-trip p95 threshold. Its redundant push-triggered
+run 36088063496 was cancelled before doing duplicate work. The prior failed
+measurements remain recorded above.
+
+The final-code standalone isolation smoke also passed: 177 checks, 20 concurrent
+rounds, ten symmetric-reference probes, and restart. Independently verified exports
+contained 333, 76 and 138 signed rows, all valid (547 total). Persisted counts were
+365 actions, 547 audit rows, two plans, 61 tool requests and two verification cases.
+`/tmp/hirz-item27-final-isolation/report.json` records the exact commit, empty
+tracked diff and runner hash; signed exports are retained beside it. The disposable
+database was dropped and development stayed unchanged. This run made no latency
+measurement or Bedrock call.
+
+The replacement run's independent add-on checker passed 117 checks, with zero
+failures, warnings or skips, eight manual checks, `complete: true`, and no missing
+evidence. Its tool smoke independently verified 628 signed rows. Installed-wheel
+and Docker resource checks passed for all five cards; the image also retained
+unprivileged UID 10001. Logs: `/tmp/hirz-item27-final-ci-conformance.log` and
+`/tmp/hirz-item27-final-ci-build.log`. These completed jobs do not substitute for
+the still-running authenticated timing gates.
+
+All ten normal jobs in the replacement run subsequently passed. Final-code Python
+results were 1,425 service-free tests in 220.81 seconds, 152 PostgreSQL integration
+tests in 327.12 seconds, and 93% combined coverage (870 missed of 12,476 statements).
+The real authenticated reference-host browser test passed in 3.4 seconds. Linux
+Chromium passed all 38 visual/behavior checks in 1.8 minutes against the unchanged
+author-approved baselines; its one live-test skip is intentional because that case
+runs in the preceding authenticated step. Complete log:
+`/tmp/hirz-item27-final-ci-python.log`. Both latency jobs remain active at this
+checkpoint; all other gates have passed on the query-fix commit.
+
+### Replacement timing results — audit fixed; one approval case still over budget
+
+Run 36088063349 completed with Time-of-Day passing and Hourly failing only
+`plan-approval`. Time-of-Day passed 54/54 cases and 12/12 pooled tools in 2,490.29
+seconds; highest case p95 was `plan-approval` at 203.968 ms, highest pooled-tool
+p95 was `get_household_plan` at 131.185 ms. Its repaired `audit-today`, first-page
+and next-page cases measured 54.414, 54.528 and 53.295 ms p95; pooled audit was
+64.407 ms. All 5,400 measured samples and two separate SDK reference cases remain
+in the unchanged protocol. Log and extracted, count-checked tables:
+`/tmp/hirz-item27-final-ci-latency-tod.log` and
+`/tmp/hirz-item27-final-ci-latency-tod-tables.json`.
+
+Hourly completed in 3,380.50 seconds and passed 53/54 cases and all twelve pooled
+tools. Its audit cases passed (today 62.725 ms; pooled tool 72.746 ms), but
+`plan-approval` reached 259.109 ms p95 (minimum 169.126, median 179.688, maximum
+296.018 ms), exceeding the unchanged 250 ms limit. Full log:
+`/tmp/hirz-item27-final-ci-latency-hourly.log`. Item 27 remains open.
+
+A real disposable Hourly approval profile found 141 canonical Actions in its
+157,007-byte response. Canonical digest work accounted for 73 ms of the profiled
+call, versus 9 ms in the presentation decorator itself. Profiling used the
+internal Pipeline with the CLI boundary and adds profiler overhead; it is not an
+authenticated latency result. Its database was dropped. Script, profile and log:
+`/tmp/hirz-profile-plan-approval.py`, `/tmp/hirz-item27-approval.prof`, and
+`/tmp/hirz-item27-approval-profile.log`.
+
+The author was asked whether successful queued plan approvals may render the
+existing neutral acknowledgement instead of resending the disabled plan card.
+The full plan read and timeline would remain available. No such behavior change
+has been implemented at this checkpoint, and the failed gate will not be rerun
+unchanged simply to seek a passing sample.
+
+### Approved neutral acknowledgement and regression checks
+
+The author chose “Use the neutral approval acknowledgement.” Queued plan consent
+now returns its existing headline and approved canonical Plan without resending
+presentation or Actions. Plan reads retain the full card and every action. This
+decision and the rejected disabled-card alternative are recorded in ADR-018.
+
+Both PostgreSQL card tests passed in 6.26 seconds, including the neutral result,
+exact durable retry equality and a subsequent complete plan read. The reference-host
+browser consent check passed in 5.0 seconds and verified the acknowledgement replaces
+the approval control. Strict app/browser TypeScript, mypy and Ruff passed. The
+approved fourteen baseline PNGs are unchanged. The full CI timing gate still needs
+to pass with this approved behavior.
+
+A second disposable Hourly approval produced a 16,064-byte response with zero
+redundantly returned Actions; digest work fell from 73 to 24 ms under the same
+profiler. The profiled call was 283.664 ms versus 364.618 ms previously, including
+CLI-boundary and profiler overhead; neither is a CI latency claim. The disposable
+database was dropped. Artifacts: `/tmp/hirz-item27-approval-after.prof`,
+`/tmp/hirz-item27-approval-after-profile.log`, and
+`/tmp/hirz-profile-plan-approval-after.py`.
+
+### Acknowledgement commit — final gate dispatch
+
+Commit `ae826712a7a5853d3c1dfa3f80c986231f054864` was pushed with the approved
+acknowledgement and dispatched as
+[CI run 36092777151](https://github.com/BashaarJavaid/Hirz/actions/runs/36092777151).
+The redundant push run 36092777394 was cancelled. The full regression suite and
+both unchanged timing scenarios run together; no failed timing sample is discarded.
+
+The standalone authenticated isolation smoke passed again on that exact commit
+with an empty tracked diff: 177 checks, 20 concurrent rounds and ten symmetric
+reference checks. Signed exports independently verified 333, 76 and 138 rows
+(547 total), all valid. Row counts remained 365 actions, 547 audit rows, two plans,
+61 tool requests and two verification cases. Private report and exports:
+`/tmp/hirz-item27-ack-isolation/`; log:
+`/tmp/hirz-item27-ack-isolation.log`. Its disposable database was dropped, development
+remained unchanged, and no Bedrock call or local latency measurement was made.
+
+The neutral acknowledgement also preserves “Close details” when consent was sent
+from fullscreen. The display-mode control now depends on the active fullscreen
+mode even after specialized content is replaced. The reference-host consent test
+opens fullscreen, approves the exact displayed version, checks the neutral headline,
+then closes details; it passed in 4.0 seconds. Strict TypeScript and all five Vite
+builds passed. This frontend-only correction changes no Python code, MCP inputs,
+receipts or latency harness, so the ongoing backend measurements remain applicable;
+a normal push CI run verifies the updated UI and packaging.
+
+### Final UI regression — all jobs pass
+
+[Run 36093204601](https://github.com/BashaarJavaid/Hirz/actions/runs/36093204601)
+passed all ten normal jobs on `c49c3e7b87aac42dac65fddbb09586da4038beb8`.
+Its Python code, scripts, lockfiles and workflow are unchanged from the ongoing
+latency run's `ae82671`; only the fullscreen exit control, its browser assertion
+and evidence documentation differ.
+
+- Python: 1,425 service-free tests in 137.26 seconds, 152 PostgreSQL integration
+  tests in 202.88 seconds, and 93% combined coverage (870 missed of 12,478).
+- Real authenticated reference-host browser: one passed in 2.5 seconds. Linux
+  Chromium: all 38 visual/behavior checks passed in 1.6 minutes, including the
+  fullscreen acknowledgement/exit flow, with the same fourteen approved PNGs.
+  The one intentionally skipped live case ran in the preceding authenticated step.
+- Independent checker: 117 PASS, zero FAIL/WARN/SKIP, eight MANUAL, complete with
+  no missing evidence; 628 signed audit rows independently valid.
+- Installed wheel and Docker: five packaged resources verified; image UID 10001.
+  Scenario and bounded HA demo restoration checks also passed.
+
+Metadata: `/tmp/hirz-item27-close-ci.json`; full logs:
+`/tmp/hirz-item27-close-ci-{python,build,conformance,scenarios}.log`.
+The manual run's ten normal jobs also passed. Its two authenticated latency jobs
+are still pending, so item 27 is not closed at this checkpoint.
+
+### Item 27 closure — 2026-09-24
+
+The full manual [CI run 36092777151](https://github.com/BashaarJavaid/Hirz/actions/runs/36092777151)
+passed all twelve jobs on `ae826712a7a5853d3c1dfa3f80c986231f054864`, including both
+required authenticated latency scenarios. The final frontend-only fullscreen exit
+fix passed all ten normal jobs on `c49c3e7` in
+[run 36093204601](https://github.com/BashaarJavaid/Hirz/actions/runs/36093204601);
+its Python implementation and timing harness are identical to the manual run.
+No additional timing rerun or discarded samples were needed after the approved
+neutral acknowledgement. Earlier failed measurements remain recorded above.
+
+| Scenario | Timing job | Test duration | Cases | Pooled tools | Highest case p95 | Highest pooled-tool p95 |
+|---|---|---:|---:|---:|---|---|
+| Time-of-Day | [107938503250](https://github.com/BashaarJavaid/Hirz/actions/runs/36092777151/job/107938503250) | 3,197.40 s | 54/54 | 12/12 | `objective-greenest`: 234.426 ms | `get_household_plan`: 149.040 ms |
+| Hourly | [107938503422](https://github.com/BashaarJavaid/Hirz/actions/runs/36092777151/job/107938503422) | 3,361.88 s | 54/54 | 12/12 | `objective-greenest`: 236.703 ms | `get_household_plan`: 160.532 ms |
+
+Each scenario uses five warmups and 100 measured calls per case: 5,400 raw
+JSON-RPC round-trip samples, plus separate 100-call SDK references for onboarding
+and context-all. Decoding/validation remains outside the raw gate; nearest-rank p95
+must be at most 250 ms for every case and pooled tool. These are Ubuntu 24.04 CI
+runner, loopback HTTP, disposable PostgreSQL and twin results, not AWS ingress,
+cold start, Alexa host overhead, real phone delivery or security execution.
+Individual maximum samples above 250 ms remain visible; none were discarded.
+
+The approved acknowledgement brought plan-approval p95 to 134.060 ms (Time-of-Day)
+and 140.816 ms (Hourly). Pooled audit p95 is 83.144 and 70.871 ms respectively.
+The two diagnosed regressions are resolved without a migration, dependency change,
+authorization bypass, fixture reduction or altered timing threshold.
+
+**Time-of-Day: pooled tools, raw round-trip milliseconds.**
+
+| Tool | n | Minimum | Median | p95 | Maximum | Gate |
+|---|---:|---:|---:|---:|---:|---|
+| `what_can_you_do` | 100 | 5.660 | 5.985 | 6.836 | 8.117 | PASS |
+| `get_household_context` | 200 | 13.977 | 15.174 | 17.478 | 21.897 | PASS |
+| `propose_household_rule` | 200 | 10.833 | 33.200 | 54.554 | 151.191 | PASS |
+| `get_household_plan` | 700 | 13.417 | 71.244 | 149.040 | 254.342 | PASS |
+| `explain_plan` | 400 | 38.973 | 40.924 | 47.142 | 152.031 | PASS |
+| `approve_action` | 700 | 31.752 | 34.924 | 121.489 | 237.039 | PASS |
+| `revise_household_plan` | 600 | 11.049 | 71.506 | 126.494 | 233.967 | PASS |
+| `execute_household_action` | 800 | 11.022 | 44.232 | 75.425 | 166.342 | PASS |
+| `evaluate_permission` | 100 | 22.976 | 24.336 | 28.268 | 34.456 | PASS |
+| `get_action_audit` | 400 | 24.122 | 57.480 | 83.144 | 141.912 | PASS |
+| `assess_request_risk` | 400 | 11.059 | 32.823 | 59.099 | 142.667 | PASS |
+| `verify_trusted_identity` | 800 | 11.029 | 13.800 | 73.809 | 165.502 | PASS |
+
+**Hourly: pooled tools, raw round-trip milliseconds.**
+
+| Tool | n | Minimum | Median | p95 | Maximum | Gate |
+|---|---:|---:|---:|---:|---:|---|
+| `what_can_you_do` | 100 | 5.561 | 5.876 | 6.799 | 7.664 | PASS |
+| `get_household_context` | 200 | 13.080 | 15.350 | 18.037 | 22.029 | PASS |
+| `propose_household_rule` | 200 | 10.263 | 31.537 | 59.577 | 68.401 | PASS |
+| `get_household_plan` | 700 | 12.442 | 74.347 | 160.532 | 264.349 | PASS |
+| `explain_plan` | 400 | 40.889 | 43.398 | 53.249 | 136.283 | PASS |
+| `approve_action` | 700 | 31.495 | 35.863 | 128.628 | 247.109 | PASS |
+| `revise_household_plan` | 600 | 10.284 | 70.553 | 140.567 | 226.320 | PASS |
+| `execute_household_action` | 800 | 10.723 | 45.258 | 78.254 | 140.982 | PASS |
+| `evaluate_permission` | 100 | 22.506 | 24.583 | 27.626 | 34.037 | PASS |
+| `get_action_audit` | 400 | 22.811 | 51.607 | 70.871 | 84.330 | PASS |
+| `assess_request_risk` | 400 | 10.167 | 31.928 | 55.316 | 70.285 | PASS |
+| `verify_trusted_identity` | 800 | 10.100 | 13.515 | 70.996 | 138.437 | PASS |
+
+Separate SDK references, excluded from the gate (100 raw and 100 SDK calls each):
+
+| Scenario / case | Raw median | Raw p95 | Raw max | SDK median | SDK p95 | SDK max |
+|---|---:|---:|---:|---:|---:|---:|
+| Time-of-Day / `onboarding` | 5.985 | 6.836 | 8.117 | 93.279 | 97.488 | 111.707 |
+| Time-of-Day / `context-all` | 15.508 | 17.478 | 19.736 | 107.251 | 113.764 | 119.361 |
+| Hourly / `onboarding` | 5.876 | 6.799 | 7.664 | 108.155 | 123.869 | 126.106 |
+| Hourly / `context-all` | 15.774 | 18.536 | 20.739 | 122.040 | 134.749 | 201.143 |
+
+Payload-free complete case/tool tables and count-checked extracts are retained at
+`/tmp/hirz-item27-ack-ci-latency-{tod,hourly}.log` and
+`/tmp/hirz-item27-ack-ci-latency-{tod,hourly}-tables.json`; run metadata is
+`/tmp/hirz-item27-ack-ci.json`. The existing workflow deliberately does not upload
+private raw timing arrays or household audit exports, so local retention of those
+CI artifacts is not claimed. Independently verified final-code local exports are
+retained in `/tmp/hirz-item27-ack-isolation/` as recorded above.
+
+All item 27 gates now pass: the unchanged v2.0.0 reference host and real OAuth
+relay; the author's fourteen approved Linux baselines and all 38 browser checks;
+Python, TypeScript and 93% combined coverage; independent add-on conformance;
+installed-wheel/Docker resources; authenticated isolation and both latency scenarios.
+The approved declaration-check exception and neutral acknowledgement are recorded
+in ADR-018. The earned Playwright/TypeScript friction entry is present; the two
+performance regressions were Hirz implementation issues, not third-party defects.
+
+**Item 27 is complete.** Bedrock remained off, the spending ledger was untouched,
+and development stayed on 0005 with migrations through 0013 manual. Real phone
+approvals, Ring and the simulator remain assigned to their existing roadmap items.
+No merge, deployment, AWS/Alexa latency or new security execution claim is made.
+
+Final record checks: `git diff --check` and `cmp AGENTS.md CLAUDE.md` passed;
+Current phase is 55 words; all approved PNGs are byte-identical to the initial
+baseline commit. `ruff format --check .` reported 248 files already formatted.
+The closure follow-up changes documentation only, after the verified implementation.
+
+## Phase 4 review batch 1 — 2026-09-24
+
+Four scoped mechanical fixes on `item-27-mcp-app-cards`; runtime speech and
+behavior, roadmap, instruction files, ADR-017, latency gates, and CI pins are
+unchanged. Local verification used Python 3.12.13, pytest 9.1.1, native Dogwood,
+disposable PostgreSQL databases, and Node 24.21.0. Bedrock stayed off; no live
+selection or budget-ledger changes. No merge or npm publication was performed.
+
+### A — Installer removal
+
+Deleted the untracked 60,021,653-byte `AWSCLIV2.pkg` and added `*.pkg` to
+`.gitignore`. `git status --short` after the changes showed:
+
+```text
+ M .gitignore
+ M ARCHITECTURE.md
+ M scripts/smoke_household_tools.py
+ M tests/conftest.py
+ M tests/integration/test_household_tools_database.py
+ M tests/unit/test_household_tools.py
+```
+
+Created an empty `AWSCLIV2.pkg`, ran `git check-ignore -q AWSCLIV2.pkg`, and
+removed the empty file in a `finally` block:
+
+```text
+git check-ignore -q AWSCLIV2.pkg: exit 0
+AWSCLIV2.pkg removed after empty-file ignore check
+```
+
+### B — Speech identifier coverage
+
+The shared `tests/conftest.py` helper checks headline, every detail, and every
+option against the exact case-insensitive hex/UUID pattern and both braces,
+reporting the complete speakable on failure. One unit test rejects a
+`uuid4().hex` headline and accepts “The car limit is 50 percent.” The smoke checks
+its shared success path, invalid-input result, and post-restart result; the
+integration file checks all 40 already-asserted result sites, including its
+previously inline audit result. No real result tripped the check.
+
+`uv run pytest tests/unit/test_household_tools.py` (exit 0):
+
+```text
+TOTAL                                     12478   9854    21%
+============================== 36 passed in 6.62s ==============================
+```
+
+This is targeted-test coverage, not a claim about combined project coverage.
+
+The exact requested command,
+`uv run pytest tests/integration/test_household_tools_database.py --no-cov`,
+**failed to run tests (exit 5)** because the repository's default `addopts`
+exclude integration tests:
+
+```text
+collected 9 items / 9 deselected / 0 selected
+============================ 9 deselected in 2.75s =============================
+```
+
+Explicit marker override:
+`uv run pytest tests/integration/test_household_tools_database.py -m integration --no-cov -x`
+(exit 0):
+
+```text
+============================== 9 passed in 19.57s ==============================
+```
+
+After adding the one remaining inline audit-result assertion, the same command
+passed on the final test file (exit 0):
+
+```text
+============================== 9 passed in 25.51s ==============================
+```
+
+Required startup prerequisite, with Node 24.21.0 on PATH:
+`pnpm --filter mcp-app build` (exit 0), built all five existing card bundles;
+Vite reported 154 transformed modules per card and builds of 189, 84, 83, 82,
+and 83 ms. Generated assets remain ignored.
+
+`HIRZ_LLM=off uv run --locked python scripts/smoke_household_tools.py --audit-output /tmp/hirz-phase4-batch1-20260924-audit.json`
+(exit 0):
+
+```text
+PASS SDK OAuth linking; twelve typed tools; scoped context
+PASS first plan prepared by separate worker; source=simulated
+PASS objective change survived worker restart; exact old consent refused
+PASS revision/approval race refused; separate worker restarted
+PASS profile device denial/execution verified; retry repeated no effects
+PASS proposal retries, ambiguity, advisory privacy, security and pause
+PASS read-only OAuth token refused act tool with HTTP 403
+PASS durable retry after MCP process restart
+{"household_tools": "PASS", "signed_rows": 611, "offline": "valid", "trusted_fingerprint": "385589f309b374189ea1b391f4a3ad193f3674cf7fb6e72e1a97caf76e21912b", "audit_export": "/tmp/hirz-phase4-batch1-20260924-audit.json", "development_database": "unchanged"}
+disposable_database=dropped; development_database=unchanged
+```
+
+### C — AWS budget versus measured local latency
+
+Kept every budget number unchanged; labeled that table unmeasured and added the
+two-row local-measurement table plus the Amazon-bound/local-proxy distinction.
+`grep -n 'not yet measured' ARCHITECTURE.md` (exit 0):
+
+```text
+1399:**AWS-path budget, not yet measured (item 38)**
+```
+
+A Python check extracted both new evidence links and compared each fragment with
+anchors generated from the existing verification-log headings (exit 0):
+
+```text
+PASS #closure--2026-09-24 -> ### Closure — 2026-09-24
+PASS #item-27-closure--2026-09-24 -> ### Item 27 closure — 2026-09-24
+```
+
+### D — Separate addon-check metadata commit
+
+Reviewed all four `src/` files and both `test/` files, plus the HTTP fixture:
+`parseArgs`, native `fetch`/streams, `Object.hasOwn`, Node's test/assert modules,
+filesystem/process APIs, and ES2023 syntax require no Node 24-only API. This was
+a source compatibility review; the executable checks below ran on Node 24.21.0,
+not Node 22. Updated `package.json` and its root lockfile metadata to `>=22`, and
+the README sentence to “Node 22 or later.” No dependency or package version
+changed; CI stays on Node 24.21.0.
+
+In `../addon-check`, with `/opt/homebrew/opt/node@24/bin` prepended to PATH:
+`npm ci && npm run lint && npm run typecheck && npm test` (exit 0):
+
+```text
+v24.21.0
+added 183 packages, and audited 184 packages in 3s
+64 packages are looking for funding
+found 0 vulnerabilities
+> addon-check@0.1.0 lint
+> eslint .
+> addon-check@0.1.0 typecheck
+> tsc --noEmit
+> addon-check@0.1.0 test
+> npm run build && node --test test/*.test.mjs
+> addon-check@0.1.0 build
+> tsc -p tsconfig.build.json
+ℹ tests 42
+ℹ suites 0
+ℹ pass 42
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 24467.968625
+```
+
+npm printed its ordinary update notice (11.19.0 → 12.1.0); no update was made.
+
+`gh repo edit BashaarJavaid/addon-check --description 'Black-box conformance checks for MCP add-on servers: transport, auth metadata, schemas, speech length and latency. Not Amazon certification.' --add-topic mcp --add-topic model-context-protocol --add-topic conformance --add-topic cli --add-topic typescript`
+exited 0 with no output.
+
+`gh repo view BashaarJavaid/addon-check --json description,repositoryTopics`
+(exit 0):
+
+```json
+{"description":"Black-box conformance checks for MCP add-on servers: transport, auth metadata, schemas, speech length and latency. Not Amazon certification.","repositoryTopics":[{"name":"cli"},{"name":"conformance"},{"name":"mcp"},{"name":"model-context-protocol"},{"name":"typescript"}]}
+```
+
+Created local review branch `phase4-review-batch1` and committed only README,
+manifest, and root lockfile metadata:
+
+```text
+[phase4-review-batch1 d43b76d] Allow Node 22 and later for addon-check
+ 3 files changed, 3 insertions(+), 3 deletions(-)
+d43b76d2f15f5436931c9803432f29317e13171d
+```
+
+`git status --short` in addon-check was empty. Hirz's tested checker pin remains
+`c8b65e0977204883d2ec23d5ac0f7a08300d021e`; neither repository's workflow changed.
+The addon-check commit remains local and unmerged; the About edit is live.
+
+### Scoped final checks
+
+`uv run ruff format tests/conftest.py tests/unit/test_household_tools.py tests/integration/test_household_tools_database.py scripts/smoke_household_tools.py`:
+`2 files reformatted, 2 files left unchanged` (exit 0).
+
+`uv run ruff check tests/conftest.py tests/unit/test_household_tools.py tests/integration/test_household_tools_database.py scripts/smoke_household_tools.py`:
+`All checks passed!` (exit 0).
+
+`uv run mypy scripts/smoke_household_tools.py`:
+`Success: no issues found in 1 source file` (exit 0).
+
+`git diff --check` passed without output. No third-party tool misbehaved, so no
+friction-log entry was earned. The integration deselection was existing project
+configuration, not a pytest defect.
+
+`uv run ruff format --check .`, after the evidence and changelog were written
+(exit 0):
+
+```text
+248 files already formatted
+```
+
+## Phase 4 review batch 2 — 2026-09-24
+
+Per-tool output schemas on `item-27-mcp-app-cards`, based on `ed61939`; tested
+implementation `8612f1129fbcd8ac95fc6609865689651802928d`, with the unknown-tool
+fallback correction in `51f192b948e2c201efe7223192ed798f471639e0`. Contract and final field
+table: [ADR-015 amendment](./adr/ADR-015-household-tools.md#per-tool-output-schemas--2026-09-24).
+
+Environment: macOS arm64, Python 3.12.13, Node 24.21.0, pinned native Dogwood,
+existing local PostgreSQL with disposable test databases; `UV_CACHE_DIR=/tmp/hirz-uv-cache`,
+`HIRZ_DOGWOOD="$PWD/.tools/dogwood"`, `HIRZ_LLM=off`, and
+`/opt/homebrew/opt/node@24/bin` prepended to PATH. Local-network checks ran outside
+the filesystem/network sandbox after loopback binding was denied. No development
+migration, Bedrock invocation or spending-ledger change. No canonical model,
+card Zod schema, independent checker/case, scope, speech, Pipeline or latency
+corpus changed. Private command logs and artifacts are retained under
+`/tmp/hirz-phase4-batch2/`.
+
+### Size gate and retained failures
+
+The task supplied **361,198 bytes** for the original twelve-tool discovery list;
+`Result.model_json_schema()` reproduced at **28,382 bytes**. The six-field
+serializer used by the new test measured **363,310 bytes** on the original
+`ed61939` implementation; that measurement difference is retained rather than
+claiming the supplied baseline was reproduced. The test includes `name`,
+`description`, `inputSchema`, `outputSchema`, `_meta`, and `annotations`, measured
+with ordinary `json.dumps(...).encode()`; no compact separators or field omissions
+were introduced to pass the gate.
+
+First attempt, before the title-omission decision:
+`uv run pytest tests/unit/test_household_tools.py tests/unit/test_mcp.py --no-cov -q`
+failed and work stopped at the requested gate:
+
+```text
+tools/list bytes=127788; largest tool bytes=19673
+E       assert 127788 < 120000
+1 failed, 112 passed in 2.87s
+```
+
+`uv run ruff format --check .` then reported `248 files already formatted`.
+After the author's continuation, the first service-free run failed:
+
+```text
+PermissionError: [Errno 1] error while attempting to bind on address ('127.0.0.1', 0): [errno 1] operation not permitted
+FAILED tests/unit/test_dev.py::test_websocket_token_contract[True]
+FAILED tests/unit/test_dev.py::test_websocket_token_contract[False]
+FAILED tests/unit/test_household_tools.py::test_published_schemas_omit_only_generated_titles
+3 failed, 1425 passed, 154 deselected in 199.88s (0:03:19)
+```
+
+The two WebSocket failures were sandbox denials. The schema comparison caught
+Pydantic enum metadata reintroducing titles after `enum_schema()`; removing titles
+at the generation hook after metadata fixed it. The first title-removal attempt
+printed **107,785 bytes**, largest **16,559**, but was not accepted because enum
+titles remained. Verification restarted at a after correction. Output title
+omission saves **18,611 bytes** and input title omission **1,628**; final size:
+
+```text
+tools/list bytes=107549; largest tool bytes=16516
+what_can_you_do bytes=1308
+get_household_context bytes=3536
+get_household_plan bytes=11445
+revise_household_plan bytes=10907
+explain_plan bytes=11013
+approve_action bytes=16516
+execute_household_action bytes=13653
+assess_request_risk bytes=6104
+verify_trusted_identity bytes=12250
+propose_household_rule bytes=1757
+evaluate_permission bytes=10159
+get_action_audit bytes=8877
+```
+
+Both limits remain strict: total < 120,000 bytes and each tool < 20,000 bytes.
+The title-only regression compares each input/output schema to its full original,
+retaining all other keys/values. Boundary tests verify shared failure/clarification
+shapes, full-default receipt replays, extra-field rejection and UNAVAILABLE
+without exposing the unexpected value.
+
+### Ordered local verification
+
+**a.** `uv run ruff check . && uv run mypy hirz/ scripts/ alembic/` (exit 0;
+`a-final.log`):
+
+```text
+All checks passed!
+Success: no issues found in 158 source files
+```
+
+**b.** `uv run pytest` (exit 0; `b-final.log`; size lines above print even with
+pytest capture enabled):
+
+```text
+TOTAL                                     12570   2836    77%
+=============== 1428 passed, 154 deselected in 202.30s (0:03:22) ===============
+```
+
+**c.** `uv run pytest -m integration --cov=hirz --cov-append && uv run --locked coverage report --fail-under=80`
+(exit 0; `c.log`):
+
+```text
+TOTAL                                     12570    875    93%
+=============== 152 passed, 1430 deselected in 300.78s (0:05:00) ===============
+TOTAL                                     12570    875    93%
+```
+
+**d.** `pnpm --filter mcp-app build && pnpm -r lint && pnpm -r typecheck && pnpm -r test`
+(exit 0; `d.log`):
+
+```text
+✓ built in 185ms
+✓ built in 101ms
+✓ built in 103ms
+✓ built in 83ms
+✓ built in 91ms
+apps/web lint: Done
+apps/mcp-app lint: Done
+apps/web typecheck: Done
+apps/mcp-app typecheck: Done
+apps/web test:  Test Files  1 passed (1)
+apps/web test:       Tests  1 passed (1)
+apps/web test:    Duration  115ms (transform 46%, import 27%, tests 17%, worker 10%)
+apps/mcp-app test:  Test Files  2 passed (2)
+apps/mcp-app test:       Tests  4 passed (4)
+apps/mcp-app test:    Duration  176ms (tests 34%, transform 31%, import 31%, worker 4%)
+```
+
+Before e, `docker compose -f compose.dev.yml up -d --no-deps --build --wait hirz`
+rebuilt/restarted only the local preview container (exit 0, healthy), so the SDK
+smoke exercised the new installed code. Postgres and HA stayed running; no
+migration was invoked. Build log: `preview-build.log`.
+
+**e.** `uv run --locked python scripts/smoke_mcp.py` (exit 0; `e.log`):
+
+```text
+protocol=2025-11-25; session_id=none
+tools=what_can_you_do
+{"speakable":{"headline":"Hirz helps families set rules for home automation, plan energy use, and check suspicious requests.","details":["This local preview only describes Hirz. Household tools are not connected yet."],"options":[]},"data":{"status":"ok","code":null,"available_tools":["what_can_you_do"]}}
+PASS initialize -> tools/list -> tools/call; structured output validated
+```
+
+**f.** `HIRZ_LLM=off uv run --locked python scripts/smoke_household_tools.py --audit-output /tmp/hirz-phase4-batch2/household-audit.json --conformance-cli ../addon-check/dist/cli.js`
+(exit 0; `f.log`):
+
+```text
+PASS SDK OAuth linking; twelve typed tools; scoped context
+PASS first plan prepared by separate worker; source=simulated
+PASS objective change survived worker restart; exact old consent refused
+PASS revision/approval race refused; separate worker restarted
+PASS profile device denial/execution verified; retry repeated no effects
+PASS proposal retries, ambiguity, advisory privacy, security and pause
+PASS read-only OAuth token refused act tool with HTTP 403
+PASS durable retry after MCP process restart
+CONFORMANCE {"status": "PASS", "complete": true, "counts": {"PASS": 117, "FAIL": 0, "WARN": 0, "SKIP": 0, "MANUAL": 8}, "timedTools": ["what_can_you_do", "get_household_context"], "missingEvidence": []}
+{"household_tools": "PASS", "signed_rows": 611, "offline": "valid", "trusted_fingerprint": "385589f309b374189ea1b391f4a3ad193f3674cf7fb6e72e1a97caf76e21912b", "audit_export": "/tmp/hirz-phase4-batch2/household-audit.json", "development_database": "unchanged"}
+disposable_database=dropped; development_database=unchanged
+```
+
+The local checker checkout is `d43b76d2f15f5436931c9803432f29317e13171d`, the
+item 25a checker plus batch 1's Node-engine/readme metadata commit; no checker
+source or case was changed. Its per-tool Ajv checks validated all twelve real
+structured results. The author clarified that the prompt's zero-MANUAL count
+was the pre-cards figure: the eight `ui.browser` notes are designed output for
+the eight card-bearing tools, matching [item 27's local evidence](#local-implementation-and-reviewed-visuals)
+and [closure](#item-27-closure--2026-09-24). The accepted gate is 117 PASS,
+0 FAIL/WARN/SKIP, complete=true, with these eight notes retained. Their message:
+`Review HTML rendering, CSP/permissions and display modes in the browser ui/initialize exchange`.
+
+Audit fingerprint:
+`385589f309b374189ea1b391f4a3ad193f3674cf7fb6e72e1a97caf76e21912b`.
+Export SHA-256:
+`4ac7afe2ec41ccb1122bb84b746495d2ceafe2b44d561af829d6b537eda34652`.
+The eight retained `ui.browser: MANUAL` notes name `get_household_context`,
+`get_household_plan`, `revise_household_plan`, `approve_action`,
+`execute_household_action`, `assess_request_risk`, `verify_trusted_identity`
+and `get_action_audit`, each with the message quoted above.
+
+The export contains 611 independently verified signed rows; it is private and
+not committed.
+
+**g.** `HIRZ_LLM=off uv run --locked python -m scripts.smoke_cards --artifacts-dir /tmp/hirz-phase4-batch2/cards`
+(exit 0; `g.log`):
+
+```text
+Scorecard window counts: {"counts":{"autonomous":0,"asked":0,"blocked":1,"verified":0}}
+Scorecard snapshot counts: {"autonomous": 0, "asked": 0, "blocked": 1, "verified": 0}
+disposable_database=dropped; development_database=unchanged
+```
+
+The private `cards/report.json` reports `status=passed` for approval, doorbell,
+plan, scorecard and verification fixtures. Its two exports contain 402 and 3
+signed rows, both `valid`, using the fingerprint above. Export SHA-256 values:
+`09718cfbd7e3bdb5295c9f99242070c6c6a306a118f19587778de5bf18fee98a` and
+`11db5e7e33f30feeede2adf4aef1a18fb015e3c251ec82351d7411eae45d9f01`.
+Browser coverage ran in CI, not in this local fixture command.
+
+### Ordinary CI and latency dispatches
+
+**h.** `git add hirz/mcp/contracts.py hirz/mcp/runtime.py hirz/mcp/server.py scripts/smoke_mcp.py tests/unit/test_household_tools.py tests/unit/test_mcp.py && git commit -m "Publish narrow per-tool MCP output schemas" && git push origin item-27-mcp-app-cards`
+(exit 0):
+
+```text
+[item-27-mcp-app-cards 8612f11] Publish narrow per-tool MCP output schemas
+ 6 files changed, 331 insertions(+), 28 deletions(-)
+To https://github.com/BashaarJavaid/Hirz.git
+   7d34cc9..8612f11  item-27-mcp-app-cards -> item-27-mcp-app-cards
+```
+
+[Ordinary CI run 36102120103](https://github.com/BashaarJavaid/Hirz/actions/runs/36102120103)
+completed `success` on the exact implementation SHA. All ten ordinary jobs passed;
+the latency job was skipped as designed on push. `gh run watch 36102120103 --interval 30 --exit-status`
+exited 0. CI's Python and browser summaries, from `h-python.log`:
+
+```text
+=============== 1428 passed, 154 deselected in 221.83s (0:03:41) ===============
+=============== 152 passed, 1430 deselected in 313.94s (0:05:13) ===============
+TOTAL                                     12570    870    93%
+  1 passed (4.0s)
+  38 passed (1.8m)
+```
+
+The last two lines are the unchanged reference host over real authenticated
+household calls and Linux Chromium baselines/behavior. CI's independent checker
+used its unchanged pin `c8b65e0977204883d2ec23d5ac0f7a08300d021e`:
+
+```text
+CONFORMANCE {"status": "PASS", "complete": true, "counts": {"PASS": 117, "FAIL": 0, "WARN": 0, "SKIP": 0, "MANUAL": 8}, "timedTools": ["what_can_you_do", "get_household_context"], "missingEvidence": []}
+{"household_tools": "PASS", "signed_rows": 628, "offline": "valid", "trusted_fingerprint": "9c1c4f96c7301831f77213f599965000350a851ac838b57ce121638167560db0", "audit_export": "/home/runner/work/_temp/conformance-audit.json", "development_database": "unchanged"}
+```
+
+**i.** After ordinary CI was green, `gh workflow run ci.yml --ref item-27-mcp-app-cards`
+was initially invoked once (exit 0), returning
+[run 36103760934](https://github.com/BashaarJavaid/Hirz/actions/runs/36103760934)
+on the same `8612f11` implementation. While it was running, review found that
+the new boundary lookup changed an unknown tool's existing REQUEST_REFUSED into
+UNAVAILABLE. The correction preserves REQUEST_REFUSED using the superset for
+unknown names; all twelve registered names still use their narrow classes.
+The author explicitly authorized retaining this in-flight run as a diagnostic
+on the superseded commit and dispatching exactly one replacement after ordinary
+CI passed on the corrected commit. No further dispatch is authorized, even on
+failure. No local full latency run, corpus edit, threshold change, sample discard
+or workflow retry was used.
+
+
+The superseded diagnostic completed `success` in both scenarios. Its tables are
+retained below; they are not the gate of record or the source of the SDK
+follow-up medians.
+
+**Superseded diagnostic — Time of Day.**
+
+```text
+======================== 1 passed in 3101.96s (0:51:41) ========================
+```
+
+| Name | n | Min | Median | p95 | Max | Gate | SDK n | SDK median | SDK p95 | SDK max |
+|---|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|
+| onboarding | 100 | 5.752 | 6.189 | 6.986 | 8.443 | PASS | 100 | 51.384 | 53.300 | 58.400 |
+| context-all | 100 | 55.150 | 56.748 | 58.664 | 61.650 | PASS | 100 | 73.941 | 77.327 | 86.797 |
+| context-people | 100 | 54.444 | 55.909 | 57.071 | 59.572 | PASS | — | — | — | — |
+| proposal-fresh | 100 | 89.748 | 93.896 | 103.721 | 109.078 | PASS | — | — | — | — |
+| proposal-retry | 100 | 51.090 | 52.169 | 55.191 | 56.467 | PASS | — | — | — | — |
+| plan-first | 100 | 88.238 | 92.966 | 104.215 | 189.289 | PASS | — | — | — | — |
+| plan-ready | 100 | 72.486 | 77.670 | 163.906 | 189.379 | PASS | — | — | — | — |
+| explain-summary | 100 | 42.605 | 45.241 | 134.305 | 142.860 | PASS | — | — | — | — |
+| explain-conflicts | 100 | 42.513 | 45.290 | 53.480 | 141.319 | PASS | — | — | — | — |
+| explain-goal | 100 | 42.553 | 45.436 | 58.693 | 135.240 | PASS | — | — | — | — |
+| explain-action | 100 | 43.311 | 45.851 | 50.620 | 127.553 | PASS | — | — | — | — |
+| plan-approval | 100 | 120.379 | 129.512 | 151.679 | 232.875 | PASS | — | — | — | — |
+| objective-most_comfortable | 100 | 129.892 | 138.202 | 228.660 | 258.707 | PASS | — | — | — | — |
+| stale-approval-most_comfortable | 100 | 33.403 | 36.838 | 42.971 | 51.644 | PASS | — | — | — | — |
+| objective-greenest | 100 | 137.793 | 147.416 | 189.339 | 256.351 | PASS | — | — | — | — |
+| stale-approval-greenest | 100 | 33.520 | 36.770 | 42.181 | 48.047 | PASS | — | — | — | — |
+| objective-cheapest | 100 | 134.361 | 142.397 | 186.537 | 243.553 | PASS | — | — | — | — |
+| stale-approval-cheapest | 100 | 33.884 | 36.068 | 40.614 | 44.879 | PASS | — | — | — | — |
+| revision-car | 100 | 127.563 | 137.488 | 153.354 | 173.667 | PASS | — | — | — | — |
+| revision-retry-car | 100 | 12.033 | 52.507 | 54.304 | 57.118 | PASS | — | — | — | — |
+| revision-dishwasher | 100 | 114.930 | 123.661 | 139.995 | 148.464 | PASS | — | — | — | — |
+| revision-retry-dishwasher | 100 | 11.936 | 52.721 | 53.694 | 55.016 | PASS | — | — | — | — |
+| revision-guest | 100 | 84.490 | 123.632 | 133.262 | 147.832 | PASS | — | — | — | — |
+| revision-retry-guest | 100 | 13.916 | 52.576 | 54.986 | 55.661 | PASS | — | — | — | — |
+| same-second-approval | 100 | 39.670 | 76.668 | 82.130 | 91.541 | PASS | — | — | — | — |
+| plan-cancel | 100 | 108.368 | 116.985 | 131.579 | 210.883 | PASS | — | — | — | — |
+| action-temperature | 100 | 49.540 | 88.520 | 93.062 | 103.989 | PASS | — | — | — | — |
+| action-door | 100 | 43.474 | 45.888 | 56.486 | 145.970 | PASS | — | — | — | — |
+| security-approval | 100 | 33.056 | 35.655 | 40.211 | 52.458 | PASS | — | — | — | — |
+| action-claimed-door | 100 | 43.263 | 46.490 | 50.358 | 56.701 | PASS | — | — | — | — |
+| action-ambiguous | 100 | 14.100 | 15.723 | 17.449 | 19.281 | PASS | — | — | — | — |
+| action-profile | 100 | 74.197 | 79.669 | 96.495 | 175.272 | PASS | — | — | — | — |
+| permission-preview | 100 | 23.856 | 25.757 | 28.078 | 32.535 | PASS | — | — | — | — |
+| light-fresh | 100 | 53.615 | 87.006 | 91.529 | 100.047 | PASS | — | — | — | — |
+| light-retry | 100 | 11.478 | 12.136 | 13.693 | 16.677 | PASS | — | — | — | — |
+| audit-today | 100 | 24.525 | 53.195 | 69.216 | 82.680 | PASS | — | — | — | — |
+| audit-last_night | 100 | 30.157 | 108.526 | 121.471 | 158.803 | PASS | — | — | — | — |
+| audit-first-page | 100 | 38.201 | 90.095 | 106.516 | 115.058 | PASS | — | — | — | — |
+| audit-next-page | 100 | 34.725 | 90.213 | 107.577 | 182.589 | PASS | — | — | — | — |
+| pause | 100 | 67.981 | 110.595 | 120.711 | 204.416 | PASS | — | — | — | — |
+| missing-input-request | 100 | 44.735 | 48.428 | 54.196 | 61.000 | PASS | — | — | — | — |
+| missing-input-failure | 100 | 13.181 | 14.391 | 17.185 | 18.477 | PASS | — | — | — | — |
+| risk-not_genuine | 100 | 49.832 | 52.274 | 64.581 | 70.077 | PASS | — | — | — | — |
+| risk-retry-not_genuine | 100 | 50.321 | 51.489 | 52.850 | 56.385 | PASS | — | — | — | — |
+| verify-start-not_genuine | 100 | 89.721 | 109.259 | 117.808 | 200.539 | PASS | — | — | — | — |
+| verify-retry-not_genuine | 100 | 10.944 | 11.689 | 13.055 | 99.872 | PASS | — | — | — | — |
+| verify-pending-not_genuine | 100 | 12.332 | 13.690 | 15.285 | 17.706 | PASS | — | — | — | — |
+| verify-not_genuine | 100 | 12.476 | 13.727 | 15.425 | 18.280 | PASS | — | — | — | — |
+| risk-no_answer | 100 | 50.671 | 53.176 | 60.729 | 147.044 | PASS | — | — | — | — |
+| risk-retry-no_answer | 100 | 50.130 | 51.703 | 53.192 | 56.384 | PASS | — | — | — | — |
+| verify-start-no_answer | 100 | 108.216 | 110.899 | 119.938 | 193.461 | PASS | — | — | — | — |
+| verify-retry-no_answer | 100 | 11.185 | 11.718 | 13.433 | 15.558 | PASS | — | — | — | — |
+| verify-pending-no_answer | 100 | 12.693 | 13.740 | 17.616 | 21.250 | PASS | — | — | — | — |
+| verify-no_answer | 100 | 12.476 | 13.812 | 16.004 | 19.613 | PASS | — | — | — | — |
+
+Per-tool aggregates:
+
+| Name | n | Min | Median | p95 | Max | Gate | SDK n | SDK median | SDK p95 | SDK max |
+|---|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|
+| what_can_you_do | 100 | 5.752 | 6.189 | 6.986 | 8.443 | PASS | — | — | — | — |
+| get_household_context | 200 | 54.444 | 56.275 | 58.339 | 61.650 | PASS | — | — | — | — |
+| propose_household_rule | 200 | 51.090 | 73.107 | 98.578 | 109.078 | PASS | — | — | — | — |
+| get_household_plan | 700 | 13.181 | 94.106 | 165.587 | 258.707 | PASS | — | — | — | — |
+| explain_plan | 400 | 42.513 | 45.427 | 56.985 | 142.860 | PASS | — | — | — | — |
+| approve_action | 700 | 33.056 | 39.417 | 133.108 | 232.875 | PASS | — | — | — | — |
+| revise_household_plan | 600 | 11.936 | 70.804 | 141.269 | 173.667 | PASS | — | — | — | — |
+| execute_household_action | 800 | 11.478 | 56.594 | 111.839 | 204.416 | PASS | — | — | — | — |
+| evaluate_permission | 100 | 23.856 | 25.757 | 28.078 | 32.535 | PASS | — | — | — | — |
+| get_action_audit | 400 | 24.525 | 82.265 | 118.347 | 182.589 | PASS | — | — | — | — |
+| assess_request_risk | 400 | 49.832 | 51.998 | 57.255 | 147.044 | PASS | — | — | — | — |
+| verify_trusted_identity | 800 | 10.944 | 13.759 | 112.345 | 200.539 | PASS | — | — | — | — |
+
+**Superseded diagnostic — Hourly.**
+
+```text
+======================== 1 passed in 3066.44s (0:51:06) ========================
+```
+
+| Name | n | Min | Median | p95 | Max | Gate | SDK n | SDK median | SDK p95 | SDK max |
+|---|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|
+| onboarding | 100 | 5.693 | 6.094 | 7.257 | 8.152 | PASS | 100 | 50.258 | 52.395 | 55.142 |
+| context-all | 100 | 54.089 | 55.896 | 58.758 | 140.166 | PASS | 100 | 71.418 | 73.340 | 76.718 |
+| context-people | 100 | 53.487 | 55.196 | 56.378 | 68.123 | PASS | — | — | — | — |
+| proposal-fresh | 100 | 87.866 | 91.936 | 99.059 | 170.097 | PASS | — | — | — | — |
+| proposal-retry | 100 | 50.099 | 51.876 | 53.378 | 55.928 | PASS | — | — | — | — |
+| plan-first | 100 | 86.320 | 91.007 | 102.986 | 185.976 | PASS | — | — | — | — |
+| plan-ready | 100 | 73.194 | 77.734 | 86.746 | 195.083 | PASS | — | — | — | — |
+| explain-summary | 100 | 43.504 | 45.972 | 54.856 | 174.910 | PASS | — | — | — | — |
+| explain-conflicts | 100 | 43.469 | 46.437 | 144.776 | 161.183 | PASS | — | — | — | — |
+| explain-goal | 100 | 43.643 | 46.238 | 54.216 | 155.226 | PASS | — | — | — | — |
+| explain-action | 100 | 44.283 | 46.650 | 57.966 | 154.324 | PASS | — | — | — | — |
+| plan-approval | 100 | 115.369 | 124.977 | 141.440 | 252.168 | PASS | — | — | — | — |
+| objective-most_comfortable | 100 | 122.252 | 131.704 | 168.806 | 249.440 | PASS | — | — | — | — |
+| stale-approval-most_comfortable | 100 | 31.993 | 35.157 | 41.782 | 143.089 | PASS | — | — | — | — |
+| objective-greenest | 100 | 133.435 | 140.850 | 173.390 | 254.418 | PASS | — | — | — | — |
+| stale-approval-greenest | 100 | 32.213 | 35.199 | 40.683 | 57.552 | PASS | — | — | — | — |
+| objective-cheapest | 100 | 119.374 | 128.249 | 165.061 | 246.959 | PASS | — | — | — | — |
+| stale-approval-cheapest | 100 | 31.934 | 34.945 | 39.655 | 68.537 | PASS | — | — | — | — |
+| revision-car | 100 | 120.361 | 127.659 | 152.485 | 243.038 | PASS | — | — | — | — |
+| revision-retry-car | 100 | 50.600 | 52.219 | 53.919 | 55.125 | PASS | — | — | — | — |
+| revision-dishwasher | 100 | 109.185 | 116.105 | 127.173 | 141.326 | PASS | — | — | — | — |
+| revision-retry-dishwasher | 100 | 50.954 | 52.170 | 53.768 | 55.912 | PASS | — | — | — | — |
+| revision-guest | 100 | 110.169 | 115.985 | 129.396 | 221.918 | PASS | — | — | — | — |
+| revision-retry-guest | 100 | 51.099 | 52.274 | 54.432 | 56.532 | PASS | — | — | — | — |
+| same-second-approval | 100 | 72.985 | 75.572 | 84.354 | 100.410 | PASS | — | — | — | — |
+| plan-cancel | 100 | 104.769 | 111.352 | 131.063 | 226.977 | PASS | — | — | — | — |
+| action-temperature | 100 | 52.779 | 86.440 | 91.527 | 99.060 | PASS | — | — | — | — |
+| action-door | 100 | 41.306 | 44.382 | 52.269 | 137.448 | PASS | — | — | — | — |
+| security-approval | 100 | 31.188 | 34.047 | 40.394 | 54.916 | PASS | — | — | — | — |
+| action-claimed-door | 100 | 41.165 | 44.270 | 53.484 | 142.492 | PASS | — | — | — | — |
+| action-ambiguous | 100 | 13.263 | 15.060 | 17.945 | 131.176 | PASS | — | — | — | — |
+| action-profile | 100 | 70.409 | 76.263 | 90.289 | 112.347 | PASS | — | — | — | — |
+| permission-preview | 100 | 22.215 | 24.497 | 29.970 | 74.504 | PASS | — | — | — | — |
+| light-fresh | 100 | 80.765 | 84.758 | 90.684 | 110.130 | PASS | — | — | — | — |
+| light-retry | 100 | 11.367 | 12.097 | 14.166 | 104.695 | PASS | — | — | — | — |
+| audit-today | 100 | 24.471 | 55.809 | 66.816 | 75.028 | PASS | — | — | — | — |
+| audit-last_night | 100 | 62.952 | 116.076 | 125.164 | 129.642 | PASS | — | — | — | — |
+| audit-first-page | 100 | 63.906 | 93.430 | 103.735 | 107.392 | PASS | — | — | — | — |
+| audit-next-page | 100 | 49.046 | 92.331 | 104.517 | 111.513 | PASS | — | — | — | — |
+| pause | 100 | 72.449 | 107.573 | 121.407 | 210.739 | PASS | — | — | — | — |
+| missing-input-request | 100 | 42.844 | 46.224 | 55.885 | 74.485 | PASS | — | — | — | — |
+| missing-input-failure | 100 | 12.560 | 13.934 | 15.613 | 106.088 | PASS | — | — | — | — |
+| risk-not_genuine | 100 | 53.180 | 93.304 | 96.613 | 132.018 | PASS | — | — | — | — |
+| risk-retry-not_genuine | 100 | 51.356 | 52.356 | 55.229 | 161.430 | PASS | — | — | — | — |
+| verify-start-not_genuine | 100 | 106.069 | 111.146 | 121.768 | 129.432 | PASS | — | — | — | — |
+| verify-retry-not_genuine | 100 | 11.788 | 52.136 | 52.684 | 54.346 | PASS | — | — | — | — |
+| verify-pending-not_genuine | 100 | 13.807 | 54.481 | 55.246 | 58.677 | PASS | — | — | — | — |
+| verify-not_genuine | 100 | 13.899 | 54.411 | 55.750 | 64.346 | PASS | — | — | — | — |
+| risk-no_answer | 100 | 54.917 | 92.472 | 97.695 | 110.542 | PASS | — | — | — | — |
+| risk-retry-no_answer | 100 | 50.386 | 51.795 | 54.947 | 61.987 | PASS | — | — | — | — |
+| verify-start-no_answer | 100 | 105.314 | 109.292 | 124.380 | 221.465 | PASS | — | — | — | — |
+| verify-retry-no_answer | 100 | 11.030 | 51.794 | 52.782 | 55.868 | PASS | — | — | — | — |
+| verify-pending-no_answer | 100 | 14.355 | 53.820 | 55.543 | 58.165 | PASS | — | — | — | — |
+| verify-no_answer | 100 | 13.713 | 53.913 | 54.817 | 57.808 | PASS | — | — | — | — |
+
+Per-tool aggregates:
+
+| Name | n | Min | Median | p95 | Max | Gate | SDK n | SDK median | SDK p95 | SDK max |
+|---|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|
+| what_can_you_do | 100 | 5.693 | 6.094 | 7.257 | 8.152 | PASS | — | — | — | — |
+| get_household_context | 200 | 53.487 | 55.563 | 57.891 | 140.166 | PASS | — | — | — | — |
+| propose_household_rule | 200 | 50.099 | 71.897 | 97.308 | 170.097 | PASS | — | — | — | — |
+| get_household_plan | 700 | 12.560 | 91.729 | 155.935 | 254.418 | PASS | — | — | — | — |
+| explain_plan | 400 | 43.469 | 46.237 | 65.939 | 174.910 | PASS | — | — | — | — |
+| approve_action | 700 | 31.188 | 37.490 | 129.666 | 252.168 | PASS | — | — | — | — |
+| revise_household_plan | 600 | 50.600 | 82.859 | 133.995 | 243.038 | PASS | — | — | — | — |
+| execute_household_action | 800 | 11.367 | 72.970 | 109.461 | 210.739 | PASS | — | — | — | — |
+| evaluate_permission | 100 | 22.215 | 24.497 | 29.970 | 74.504 | PASS | — | — | — | — |
+| get_action_audit | 400 | 24.471 | 87.460 | 119.108 | 129.642 | PASS | — | — | — | — |
+| assess_request_risk | 400 | 50.386 | 59.619 | 95.078 | 161.430 | PASS | — | — | — | — |
+| verify_trusted_identity | 800 | 11.030 | 54.276 | 113.424 | 221.465 | PASS | — | — | — | — |
+
+### Corrected commit and gate of record
+
+The boundary fallback correction in `51f192b948e2c201efe7223192ed798f471639e0`
+preserves the existing unknown-tool refusal. Its focused checks were
+`uv run ruff check . && uv run mypy hirz/ scripts/ alembic/` and
+`uv run pytest tests/unit/test_household_tools.py --no-cov -q` (exit 0):
+
+```text
+All checks passed!
+Success: no issues found in 158 source files
+....................................tools/list bytes=107549; largest tool bytes=16516
+38 passed in 2.58s
+```
+
+`git add hirz/mcp/runtime.py tests/unit/test_household_tools.py && git commit -m "Preserve unknown-tool refusal at the output boundary" && git push origin item-27-mcp-app-cards`
+completed successfully. [Corrected-commit ordinary CI 36107766665](https://github.com/BashaarJavaid/Hirz/actions/runs/36107766665)
+passed all ten ordinary jobs on this SHA; latency was skipped on push.
+`gh run watch 36107766665 --interval 30 --exit-status` exited 0.
+CI summary lines:
+
+```text
+TOTAL                                     12571   2825    78%
+=============== 1428 passed, 154 deselected in 173.12s (0:02:53) ===============
+TOTAL                                     12571    864    93%
+=============== 152 passed, 1430 deselected in 236.72s (0:03:56) ===============
+TOTAL                                     12571    864    93%
+  1 passed (2.4s)
+  38 passed (1.7m)
+CONFORMANCE {"status": "PASS", "complete": true, "counts": {"PASS": 117, "FAIL": 0, "WARN": 0, "SKIP": 0, "MANUAL": 8}, "timedTools": ["what_can_you_do", "get_household_context"], "missingEvidence": []}
+{"household_tools": "PASS", "signed_rows": 628, "offline": "valid", "trusted_fingerprint": "fd6e75d96798bcdf1aa2f2b0a1498ea7856da6647b2d3568f8bbd4c42880a0b4", "audit_export": "/home/runner/work/_temp/conformance-audit.json", "development_database": "unchanged"}
+```
+
+Only after this CI passed, the author-authorized replacement
+`gh workflow run ci.yml --ref item-27-mcp-app-cards` (exit 0) returned
+[final latency gate 36109337744](https://github.com/BashaarJavaid/Hirz/actions/runs/36109337744),
+confirmed on `51f192b948e2c201efe7223192ed798f471639e0`.
+
+The gate of record completed `success` in both scenarios.
+`gh run watch 36109337744 --interval 30 --exit-status` exited 0. All 54 cases
+and all twelve per-tool aggregates passed in each scenario at warm p95 ≤ 250 ms.
+The largest case p95 was 237.930 ms in Time of Day and 166.441 ms in Hourly.
+The raw HTTP timer, outside-timer SDK validation, byte-identity assertions,
+100 measured samples per case, corpus and threshold remain unchanged.
+The earlier successful run is diagnostic only; this corrected-commit run is
+the source of every after measurement below. No further dispatch was made.
+
+**Gate of record — Time of Day.**
+
+```text
+======================== 1 passed in 3196.72s (0:53:16) ========================
+```
+
+| Name | n | Min | Median | p95 | Max | Gate | SDK n | SDK median | SDK p95 | SDK max |
+|---|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|
+| onboarding | 100 | 5.666 | 6.289 | 7.994 | 10.927 | PASS | 100 | 51.711 | 54.713 | 56.587 |
+| context-all | 100 | 54.306 | 57.101 | 60.191 | 64.444 | PASS | 100 | 74.880 | 82.500 | 91.742 |
+| context-people | 100 | 53.159 | 56.329 | 61.172 | 66.337 | PASS | — | — | — | — |
+| proposal-fresh | 100 | 89.415 | 97.415 | 111.242 | 115.425 | PASS | — | — | — | — |
+| proposal-retry | 100 | 50.251 | 52.900 | 56.351 | 58.644 | PASS | — | — | — | — |
+| plan-first | 100 | 86.512 | 96.137 | 107.488 | 118.204 | PASS | — | — | — | — |
+| plan-ready | 100 | 71.663 | 79.813 | 105.740 | 206.086 | PASS | — | — | — | — |
+| explain-summary | 100 | 41.871 | 46.975 | 135.842 | 154.915 | PASS | — | — | — | — |
+| explain-conflicts | 100 | 41.869 | 46.557 | 59.318 | 158.218 | PASS | — | — | — | — |
+| explain-goal | 100 | 42.266 | 47.196 | 132.468 | 158.148 | PASS | — | — | — | — |
+| explain-action | 100 | 43.145 | 47.477 | 62.859 | 176.162 | PASS | — | — | — | — |
+| plan-approval | 100 | 119.095 | 134.567 | 211.652 | 265.661 | PASS | — | — | — | — |
+| objective-most_comfortable | 100 | 127.446 | 143.147 | 163.218 | 248.241 | PASS | — | — | — | — |
+| stale-approval-most_comfortable | 100 | 33.409 | 37.383 | 44.591 | 54.449 | PASS | — | — | — | — |
+| objective-greenest | 100 | 140.376 | 153.233 | 179.076 | 278.689 | PASS | — | — | — | — |
+| stale-approval-greenest | 100 | 34.147 | 37.957 | 43.125 | 52.799 | PASS | — | — | — | — |
+| objective-cheapest | 100 | 130.330 | 146.399 | 237.930 | 295.182 | PASS | — | — | — | — |
+| stale-approval-cheapest | 100 | 33.604 | 37.516 | 43.517 | 53.389 | PASS | — | — | — | — |
+| revision-car | 100 | 122.441 | 142.651 | 158.808 | 309.361 | PASS | — | — | — | — |
+| revision-retry-car | 100 | 13.443 | 53.255 | 56.419 | 62.427 | PASS | — | — | — | — |
+| revision-dishwasher | 100 | 94.092 | 127.580 | 143.251 | 161.479 | PASS | — | — | — | — |
+| revision-retry-dishwasher | 100 | 12.059 | 52.979 | 55.468 | 59.618 | PASS | — | — | — | — |
+| revision-guest | 100 | 81.931 | 126.471 | 147.622 | 165.507 | PASS | — | — | — | — |
+| revision-retry-guest | 100 | 13.186 | 53.265 | 56.785 | 61.675 | PASS | — | — | — | — |
+| same-second-approval | 100 | 37.958 | 78.049 | 86.507 | 96.291 | PASS | — | — | — | — |
+| plan-cancel | 100 | 107.459 | 120.068 | 139.293 | 243.157 | PASS | — | — | — | — |
+| action-temperature | 100 | 52.655 | 90.845 | 101.790 | 107.979 | PASS | — | — | — | — |
+| action-door | 100 | 42.626 | 48.152 | 58.127 | 68.998 | PASS | — | — | — | — |
+| security-approval | 100 | 32.665 | 36.684 | 44.143 | 49.971 | PASS | — | — | — | — |
+| action-claimed-door | 100 | 42.915 | 48.010 | 58.440 | 150.627 | PASS | — | — | — | — |
+| action-ambiguous | 100 | 13.635 | 16.446 | 20.745 | 22.383 | PASS | — | — | — | — |
+| action-profile | 100 | 72.097 | 83.948 | 97.810 | 108.503 | PASS | — | — | — | — |
+| permission-preview | 100 | 22.956 | 26.776 | 32.852 | 39.407 | PASS | — | — | — | — |
+| light-fresh | 100 | 82.913 | 89.205 | 99.452 | 109.355 | PASS | — | — | — | — |
+| light-retry | 100 | 11.300 | 12.501 | 18.144 | 51.626 | PASS | — | — | — | — |
+| audit-today | 100 | 25.137 | 57.176 | 72.788 | 156.911 | PASS | — | — | — | — |
+| audit-last_night | 100 | 25.581 | 86.817 | 127.631 | 138.925 | PASS | — | — | — | — |
+| audit-first-page | 100 | 25.489 | 90.512 | 110.303 | 117.439 | PASS | — | — | — | — |
+| audit-next-page | 100 | 30.243 | 92.074 | 112.065 | 126.581 | PASS | — | — | — | — |
+| pause | 100 | 69.239 | 112.455 | 127.050 | 135.629 | PASS | — | — | — | — |
+| missing-input-request | 100 | 46.213 | 51.972 | 63.967 | 68.308 | PASS | — | — | — | — |
+| missing-input-failure | 100 | 13.846 | 15.410 | 21.078 | 115.229 | PASS | — | — | — | — |
+| risk-not_genuine | 100 | 51.164 | 54.216 | 63.691 | 71.838 | PASS | — | — | — | — |
+| risk-retry-not_genuine | 100 | 50.789 | 51.946 | 54.580 | 56.670 | PASS | — | — | — | — |
+| verify-start-not_genuine | 100 | 74.674 | 112.026 | 128.445 | 194.187 | PASS | — | — | — | — |
+| verify-retry-not_genuine | 100 | 11.057 | 12.043 | 14.719 | 20.166 | PASS | — | — | — | — |
+| verify-pending-not_genuine | 100 | 12.955 | 14.069 | 17.402 | 19.503 | PASS | — | — | — | — |
+| verify-not_genuine | 100 | 12.911 | 14.115 | 17.875 | 98.716 | PASS | — | — | — | — |
+| risk-no_answer | 100 | 51.226 | 54.341 | 67.534 | 72.618 | PASS | — | — | — | — |
+| risk-retry-no_answer | 100 | 50.478 | 52.019 | 55.804 | 57.281 | PASS | — | — | — | — |
+| verify-start-no_answer | 100 | 107.261 | 111.820 | 122.477 | 210.544 | PASS | — | — | — | — |
+| verify-retry-no_answer | 100 | 11.194 | 11.978 | 14.572 | 17.322 | PASS | — | — | — | — |
+| verify-pending-no_answer | 100 | 12.621 | 14.041 | 16.236 | 20.174 | PASS | — | — | — | — |
+| verify-no_answer | 100 | 12.776 | 13.947 | 15.893 | 17.343 | PASS | — | — | — | — |
+
+Per-tool aggregates:
+
+| Name | n | Min | Median | p95 | Max | Gate | SDK n | SDK median | SDK p95 | SDK max |
+|---|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|
+| what_can_you_do | 100 | 5.666 | 6.289 | 7.994 | 10.927 | PASS | — | — | — | — |
+| get_household_context | 200 | 53.159 | 56.893 | 60.521 | 66.337 | PASS | — | — | — | — |
+| propose_household_rule | 200 | 50.251 | 74.030 | 107.650 | 115.425 | PASS | — | — | — | — |
+| get_household_plan | 700 | 13.846 | 96.949 | 167.083 | 295.182 | PASS | — | — | — | — |
+| explain_plan | 400 | 41.869 | 47.046 | 71.371 | 176.162 | PASS | — | — | — | — |
+| approve_action | 700 | 32.665 | 41.719 | 141.449 | 265.661 | PASS | — | — | — | — |
+| revise_household_plan | 600 | 12.059 | 72.179 | 151.201 | 309.361 | PASS | — | — | — | — |
+| execute_household_action | 800 | 11.300 | 69.396 | 113.708 | 150.627 | PASS | — | — | — | — |
+| evaluate_permission | 100 | 22.956 | 26.776 | 32.852 | 39.407 | PASS | — | — | — | — |
+| get_action_audit | 400 | 25.137 | 80.149 | 119.456 | 156.911 | PASS | — | — | — | — |
+| assess_request_risk | 400 | 50.478 | 52.810 | 61.945 | 72.618 | PASS | — | — | — | — |
+| verify_trusted_identity | 800 | 11.057 | 14.069 | 117.422 | 210.544 | PASS | — | — | — | — |
+
+**Gate of record — Hourly.**
+
+```text
+======================== 1 passed in 2900.89s (0:48:20) ========================
+```
+
+| Name | n | Min | Median | p95 | Max | Gate | SDK n | SDK median | SDK p95 | SDK max |
+|---|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|
+| onboarding | 100 | 5.297 | 5.644 | 6.280 | 7.573 | PASS | 100 | 50.080 | 51.752 | 58.428 |
+| context-all | 100 | 53.451 | 54.541 | 57.403 | 61.881 | PASS | 100 | 71.286 | 79.370 | 87.649 |
+| context-people | 100 | 52.470 | 53.541 | 57.790 | 62.275 | PASS | — | — | — | — |
+| proposal-fresh | 100 | 86.423 | 88.265 | 95.617 | 153.552 | PASS | — | — | — | — |
+| proposal-retry | 100 | 49.371 | 50.360 | 52.788 | 54.648 | PASS | — | — | — | — |
+| plan-first | 100 | 84.718 | 86.781 | 95.783 | 157.995 | PASS | — | — | — | — |
+| plan-ready | 100 | 71.384 | 73.051 | 88.763 | 163.575 | PASS | — | — | — | — |
+| explain-summary | 100 | 41.775 | 43.920 | 116.289 | 136.596 | PASS | — | — | — | — |
+| explain-conflicts | 100 | 42.188 | 43.685 | 110.100 | 130.173 | PASS | — | — | — | — |
+| explain-goal | 100 | 41.778 | 43.878 | 48.238 | 116.347 | PASS | — | — | — | — |
+| explain-action | 100 | 42.515 | 44.303 | 113.731 | 124.679 | PASS | — | — | — | — |
+| plan-approval | 100 | 111.989 | 115.504 | 160.153 | 204.754 | PASS | — | — | — | — |
+| objective-most_comfortable | 100 | 127.595 | 132.798 | 151.490 | 219.411 | PASS | — | — | — | — |
+| stale-approval-most_comfortable | 100 | 30.771 | 32.248 | 39.105 | 101.128 | PASS | — | — | — | — |
+| objective-greenest | 100 | 137.469 | 143.559 | 166.441 | 226.764 | PASS | — | — | — | — |
+| stale-approval-greenest | 100 | 30.398 | 32.262 | 37.010 | 44.278 | PASS | — | — | — | — |
+| objective-cheapest | 100 | 122.593 | 127.398 | 150.536 | 208.068 | PASS | — | — | — | — |
+| stale-approval-cheapest | 100 | 30.674 | 32.393 | 40.220 | 43.795 | PASS | — | — | — | — |
+| revision-car | 100 | 124.950 | 129.875 | 145.061 | 205.255 | PASS | — | — | — | — |
+| revision-retry-car | 100 | 12.422 | 50.770 | 52.971 | 54.738 | PASS | — | — | — | — |
+| revision-dishwasher | 100 | 68.992 | 110.992 | 121.280 | 127.153 | PASS | — | — | — | — |
+| revision-retry-dishwasher | 100 | 49.944 | 50.941 | 51.969 | 54.252 | PASS | — | — | — | — |
+| revision-guest | 100 | 107.764 | 111.159 | 124.608 | 187.697 | PASS | — | — | — | — |
+| revision-retry-guest | 100 | 11.222 | 50.910 | 53.280 | 55.029 | PASS | — | — | — | — |
+| same-second-approval | 100 | 34.295 | 72.564 | 75.295 | 82.756 | PASS | — | — | — | — |
+| plan-cancel | 100 | 108.308 | 112.217 | 127.245 | 137.196 | PASS | — | — | — | — |
+| action-temperature | 100 | 54.957 | 83.879 | 89.037 | 95.884 | PASS | — | — | — | — |
+| action-door | 100 | 39.348 | 41.520 | 50.807 | 115.333 | PASS | — | — | — | — |
+| security-approval | 100 | 30.608 | 31.978 | 37.801 | 40.949 | PASS | — | — | — | — |
+| action-claimed-door | 100 | 39.605 | 41.707 | 48.562 | 53.577 | PASS | — | — | — | — |
+| action-ambiguous | 100 | 12.722 | 13.492 | 17.897 | 84.980 | PASS | — | — | — | — |
+| action-profile | 100 | 69.150 | 72.231 | 82.406 | 91.546 | PASS | — | — | — | — |
+| permission-preview | 100 | 21.506 | 22.622 | 27.616 | 32.494 | PASS | — | — | — | — |
+| light-fresh | 100 | 49.919 | 81.815 | 89.996 | 95.982 | PASS | — | — | — | — |
+| light-retry | 100 | 10.785 | 11.238 | 12.732 | 50.463 | PASS | — | — | — | — |
+| audit-today | 100 | 21.314 | 45.569 | 62.249 | 85.333 | PASS | — | — | — | — |
+| audit-last_night | 100 | 39.244 | 97.952 | 107.705 | 109.304 | PASS | — | — | — | — |
+| audit-first-page | 100 | 44.724 | 84.581 | 97.172 | 101.934 | PASS | — | — | — | — |
+| audit-next-page | 100 | 21.401 | 83.133 | 96.996 | 103.084 | PASS | — | — | — | — |
+| pause | 100 | 62.401 | 103.385 | 110.596 | 117.776 | PASS | — | — | — | — |
+| missing-input-request | 100 | 41.565 | 42.837 | 47.232 | 136.358 | PASS | — | — | — | — |
+| missing-input-failure | 100 | 11.783 | 12.418 | 15.165 | 16.877 | PASS | — | — | — | — |
+| risk-not_genuine | 100 | 45.733 | 47.035 | 53.546 | 63.021 | PASS | — | — | — | — |
+| risk-retry-not_genuine | 100 | 49.432 | 50.305 | 53.946 | 55.055 | PASS | — | — | — | — |
+| verify-start-not_genuine | 100 | 100.051 | 102.331 | 110.084 | 181.524 | PASS | — | — | — | — |
+| verify-retry-not_genuine | 100 | 9.646 | 10.442 | 13.080 | 15.141 | PASS | — | — | — | — |
+| verify-pending-not_genuine | 100 | 11.296 | 11.877 | 14.036 | 17.612 | PASS | — | — | — | — |
+| verify-not_genuine | 100 | 11.036 | 11.721 | 13.858 | 19.266 | PASS | — | — | — | — |
+| risk-no_answer | 100 | 45.636 | 46.923 | 56.614 | 138.002 | PASS | — | — | — | — |
+| risk-retry-no_answer | 100 | 49.579 | 50.251 | 52.357 | 53.519 | PASS | — | — | — | — |
+| verify-start-no_answer | 100 | 100.802 | 102.259 | 115.019 | 123.846 | PASS | — | — | — | — |
+| verify-retry-no_answer | 100 | 9.873 | 10.466 | 13.157 | 14.661 | PASS | — | — | — | — |
+| verify-pending-no_answer | 100 | 11.273 | 11.835 | 13.847 | 16.528 | PASS | — | — | — | — |
+| verify-no_answer | 100 | 11.099 | 11.540 | 14.101 | 16.410 | PASS | — | — | — | — |
+
+Per-tool aggregates:
+
+| Name | n | Min | Median | p95 | Max | Gate | SDK n | SDK median | SDK p95 | SDK max |
+|---|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|
+| what_can_you_do | 100 | 5.297 | 5.644 | 6.280 | 7.573 | PASS | — | — | — | — |
+| get_household_context | 200 | 52.470 | 54.215 | 57.790 | 62.275 | PASS | — | — | — | — |
+| propose_household_rule | 200 | 49.371 | 70.535 | 90.725 | 153.552 | PASS | — | — | — | — |
+| get_household_plan | 700 | 11.783 | 87.273 | 151.244 | 226.764 | PASS | — | — | — | — |
+| explain_plan | 400 | 41.775 | 43.975 | 112.754 | 136.596 | PASS | — | — | — | — |
+| approve_action | 700 | 30.398 | 34.742 | 119.787 | 204.754 | PASS | — | — | — | — |
+| revise_household_plan | 600 | 11.222 | 62.011 | 134.141 | 205.255 | PASS | — | — | — | — |
+| execute_household_action | 800 | 10.785 | 58.679 | 103.969 | 117.776 | PASS | — | — | — | — |
+| evaluate_permission | 100 | 21.506 | 22.622 | 27.616 | 32.494 | PASS | — | — | — | — |
+| get_action_audit | 400 | 21.314 | 78.104 | 105.637 | 109.304 | PASS | — | — | — | — |
+| assess_request_risk | 400 | 45.636 | 49.818 | 53.546 | 138.002 | PASS | — | — | — | — |
+| verify_trusted_identity | 800 | 9.646 | 11.821 | 103.885 | 181.524 | PASS | — | — | — | — |
+
+### SDK-reference before/after
+
+Milliseconds; 100 SDK calls per row. Before is item 27
+[run 36092777151](https://github.com/BashaarJavaid/Hirz/actions/runs/36092777151),
+after is the corrected-commit [gate of record 36109337744](https://github.com/BashaarJavaid/Hirz/actions/runs/36109337744).
+These are client SDK round trips, including validation, distinct from the raw
+server-round-trip gate. Values are copied from the payload-free step summaries.
+
+| Scenario | Case | Before SDK median | After SDK median | Before SDK p95 | After SDK p95 | Before SDK max | After SDK max |
+|---|---|---:|---:|---:|---:|---:|---:|
+| Time of Day | onboarding | 93.279 | 51.711 | 97.488 | 54.713 | 111.707 | 56.587 |
+| Time of Day | context-all | 107.251 | 74.880 | 113.764 | 82.500 | 119.361 | 91.742 |
+| Hourly | onboarding | 108.155 | 50.080 | 123.869 | 51.752 | 126.106 | 58.428 |
+| Hourly | context-all | 122.040 | 71.286 | 134.749 | 79.370 | 201.143 | 87.649 |
+
+### Final record checks
+
+Only the six requested record files changed after the corrected-commit gates.
+`git diff --check` exited 0. The final requested check,
+`uv run ruff format --check .`, exited 0:
+
+```text
+248 files already formatted
+```
+
+The earlier size and service-free failures are retained above as failures.
+The eight designed browser MANUAL notes remain recorded. No additional
+third-party friction entry was earned; the existing item 26b SDK entry carries
+the measured follow-up. No merge was performed.

@@ -1,0 +1,332 @@
+{
+  "plan": {
+    "plan_id": "scheduling-fixture",
+    "household_id": "536fa8ee-854e-56ca-8c5d-5ba418e710a0",
+    "version": 1,
+    "supersedes": null,
+    "horizon": {
+      "start": "2026-10-13T22:29:30Z",
+      "end": "2026-10-13T22:35:00Z",
+      "slot_minutes": 15
+    },
+    "goals": [
+      "Synthetic consent fixture"
+    ],
+    "constraints": [],
+    "actions": [
+      "scheduling-future",
+      "scheduling-expired"
+    ],
+    "summary": {
+      "estimated_savings_usd": null,
+      "peak_kwh_avoided": null,
+      "grid_kwh": 0.0,
+      "solar_kwh": 0.0,
+      "exported_kwh": 0.0,
+      "electricity_usd": 1.0,
+      "wear_usd": 0.0,
+      "comfort_violations_minutes": 0.0
+    },
+    "alternatives": [],
+    "explain": {
+      "facts": [],
+      "considered": [],
+      "rejected": []
+    },
+    "speakable": {
+      "headline": "Synthetic test plan"
+    },
+    "status": "proposed",
+    "method": "greedy",
+    "optimality_gap": null,
+    "comparison_validity": {
+      "valid": false,
+      "reasons": [
+        "Synthetic test fixture"
+      ]
+    }
+  },
+  "actions": [
+    {
+      "action_id": "scheduling-future",
+      "class": "environment.lights",
+      "target": {
+        "adapter": "twin",
+        "entity": "light.living_room",
+        "zone": null
+      },
+      "params": {
+        "on": true
+      },
+      "requested_by": {
+        "member_id": null,
+        "role": "unknown",
+        "surface": "app",
+        "speaker": null,
+        "claimed_author": null
+      },
+      "reason": "Explicit disposable executor smoke",
+      "plan_id": "scheduling-fixture",
+      "scheduled_for": "2026-10-13T22:30:30Z",
+      "expected_effect": {
+        "entity": "light.living_room",
+        "attr": "on",
+        "value": true,
+        "by": "2026-10-13T22:32:00Z"
+      },
+      "content_hash": "sha256:230876169643237cbf3379600b0b7fdc2249cd58f0559878612510aad7b91718"
+    },
+    {
+      "action_id": "scheduling-expired",
+      "class": "environment.lights",
+      "target": {
+        "adapter": "twin",
+        "entity": "light.living_room",
+        "zone": null
+      },
+      "params": {
+        "on": true
+      },
+      "requested_by": {
+        "member_id": null,
+        "role": "unknown",
+        "surface": "app",
+        "speaker": null,
+        "claimed_author": null
+      },
+      "reason": "Explicit disposable executor smoke",
+      "plan_id": "scheduling-fixture",
+      "scheduled_for": "2026-10-13T22:29:30Z",
+      "expected_effect": {
+        "entity": "light.living_room",
+        "attr": "on",
+        "value": true,
+        "by": "2026-10-13T22:30:00Z"
+      },
+      "content_hash": "sha256:d8a97e602638dcb6a115fa3e257d6b9b7f3ceb25131d9cd2e6970074fde44b86"
+    }
+  ],
+  "rows": [
+    {
+      "household_id": "536fa8ee-854e-56ca-8c5d-5ba418e710a0",
+      "action_id": "scheduling-expired",
+      "proposal": {
+        "class": "environment.lights",
+        "params": {
+          "on": true
+        },
+        "reason": "Explicit disposable executor smoke",
+        "target": {
+          "zone": null,
+          "entity": "light.living_room",
+          "adapter": "twin"
+        },
+        "plan_id": "scheduling-fixture",
+        "action_id": "scheduling-expired",
+        "content_hash": "sha256:d8a97e602638dcb6a115fa3e257d6b9b7f3ceb25131d9cd2e6970074fde44b86",
+        "requested_by": {
+          "role": "owner",
+          "speaker": null,
+          "surface": "scheduler",
+          "member_id": "69d25700-88b6-5453-aa67-22707233460f",
+          "claimed_author": null
+        },
+        "scheduled_for": "2026-10-13T22:29:30Z",
+        "expected_effect": {
+          "by": "2026-10-13T22:30:00Z",
+          "attr": "on",
+          "value": true,
+          "entity": "light.living_room"
+        }
+      },
+      "principal": {
+        "sub": "malik",
+        "surface": "scheduler",
+        "provider": "demo",
+        "claimed_role": null
+      },
+      "cost": null,
+      "grant_seq": null,
+      "execution_attempt_seq": null,
+      "lifecycle": null,
+      "due_at": null,
+      "execution_status": "skipped",
+      "lifecycle_seq": 11
+    },
+    {
+      "household_id": "536fa8ee-854e-56ca-8c5d-5ba418e710a0",
+      "action_id": "scheduling-future",
+      "proposal": {
+        "class": "environment.lights",
+        "params": {
+          "on": true
+        },
+        "reason": "Explicit disposable executor smoke",
+        "target": {
+          "zone": null,
+          "entity": "light.living_room",
+          "adapter": "twin"
+        },
+        "plan_id": "scheduling-fixture",
+        "action_id": "scheduling-future",
+        "content_hash": "sha256:230876169643237cbf3379600b0b7fdc2249cd58f0559878612510aad7b91718",
+        "requested_by": {
+          "role": "owner",
+          "speaker": null,
+          "surface": "scheduler",
+          "member_id": "69d25700-88b6-5453-aa67-22707233460f",
+          "claimed_author": null
+        },
+        "scheduled_for": "2026-10-13T22:30:30Z",
+        "expected_effect": {
+          "by": "2026-10-13T22:32:00Z",
+          "attr": "on",
+          "value": true,
+          "entity": "light.living_room"
+        }
+      },
+      "principal": {
+        "sub": "malik",
+        "surface": "scheduler",
+        "provider": "demo",
+        "claimed_role": null
+      },
+      "cost": null,
+      "grant_seq": null,
+      "execution_attempt_seq": null,
+      "lifecycle": {
+        "retry": 0,
+        "decision": {
+          "risk": {
+            "band": "low",
+            "factors": [],
+            "base_band": "low"
+          },
+          "budget": null,
+          "status": "executing",
+          "explain": {
+            "facts": [],
+            "rejected": [],
+            "considered": []
+          },
+          "approval": null,
+          "audit_id": null,
+          "boundary": {
+            "roles": {
+              "owner": true
+            },
+            "engine": "dogwood-local",
+            "reason": "Both evaluators must permit",
+            "result": "allow",
+            "context_hash": "sha256:d1eddfb56ea4744f504140c2cd2908fbbc9679761333d229a81b848bebb829e6"
+          },
+          "decision": "execute",
+          "action_id": "scheduling-future",
+          "narration": {
+            "version": "explainer-1",
+            "model_id": null,
+            "provider": "template",
+            "input_hash": "5fc46b17d3f78e55faaca353dc603a3caa3a3cc91b695ac43d1265d15eb4e15c",
+            "screen_summary": "Your request is queued. Simulated data. Current household rules and conditions apply.",
+            "fallback_reason": null
+          },
+          "speakable": {
+            "details": [
+              "Simulated data.",
+              "Current household rules and conditions apply."
+            ],
+            "options": [
+              "Review"
+            ],
+            "headline": "Your request is queued."
+          },
+          "event_type": "EXECUTE",
+          "constitution": {
+            "mode": "auto",
+            "rule": "governance.approve_plan",
+            "version": 7,
+            "conditions_met": true
+          }
+        },
+        "member_id": "69d25700-88b6-5453-aa67-22707233460f",
+        "approval_id": null
+      },
+      "due_at": "2026-10-13T22:30:30.000000Z",
+      "execution_status": "held",
+      "lifecycle_seq": 13
+    }
+  ],
+  "events": [
+    {
+      "seq": 10,
+      "created_at": "2026-10-13T22:30:00.000000Z",
+      "event_type": "SCHEDULED",
+      "payload": {
+        "status": "scheduled",
+        "decision": {
+          "risk": {
+            "band": "low",
+            "factors": [],
+            "base_band": "low"
+          },
+          "budget": null,
+          "status": "executing",
+          "explain": {
+            "facts": [],
+            "rejected": [],
+            "considered": []
+          },
+          "approval": null,
+          "audit_id": null,
+          "boundary": {
+            "roles": {
+              "owner": true
+            },
+            "engine": "dogwood-local",
+            "reason": "Both evaluators must permit",
+            "result": "allow",
+            "context_hash": "sha256:d1eddfb56ea4744f504140c2cd2908fbbc9679761333d229a81b848bebb829e6"
+          },
+          "decision": "execute",
+          "action_id": "scheduling-future",
+          "narration": {
+            "version": "explainer-1",
+            "model_id": null,
+            "provider": "template",
+            "input_hash": "5fc46b17d3f78e55faaca353dc603a3caa3a3cc91b695ac43d1265d15eb4e15c",
+            "screen_summary": "Your request is queued. Simulated data. Current household rules and conditions apply.",
+            "fallback_reason": null
+          },
+          "speakable": {
+            "details": [
+              "Simulated data.",
+              "Current household rules and conditions apply."
+            ],
+            "options": [
+              "Review"
+            ],
+            "headline": "Your request is queued."
+          },
+          "event_type": "EXECUTE",
+          "constitution": {
+            "mode": "auto",
+            "rule": "governance.approve_plan",
+            "version": 7,
+            "conditions_met": true
+          }
+        },
+        "action_id": "scheduling-future"
+      }
+    },
+    {
+      "seq": 11,
+      "created_at": "2026-10-13T22:30:00.000000Z",
+      "event_type": "EXECUTION_CANCELLED",
+      "payload": {
+        "reason": "expired before consent",
+        "status": "skipped",
+        "action_id": "scheduling-expired"
+      }
+    }
+  ]
+}

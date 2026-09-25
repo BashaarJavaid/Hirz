@@ -27,3 +27,7 @@
 **Access.** The MCP Toolkit is "available to select partners only" (Alexa+ docs, checked 2026-09-16). The author asked the organizers on the hackathon forum whether participants can get toolkit or simulator access; the organizers confirmed on 2026-09-17 that no participant access exists and that a self-built simulator is an accepted path (`docs/friction-log.md` entry 1). This closes the question this ADR was written under uncertainty of, without changing the decision above.
 
 **Consequences:** The simulator must be honest (banner, transcript, badges) and must enforce Alexa+'s voice-only and option-count rules so the preview is faithful. `HIRZ_LLM=off` swaps the emulator for a scripted host so CI and credential-less judges can run the demo.
+
+## Household tools amendment — 2026-09-23
+
+The local authenticated server now registers twelve household tools with structured native-rendering data and no UI resources. A pinned Strands headless host consumes actual tools/list, keeps conversation context and requires explicit confirmation for commitments. The $1-capped live selection gate remains distinct from deterministic SDK execution. Full contract and rejected alternatives: [ADR-015](./ADR-015-household-tools.md).

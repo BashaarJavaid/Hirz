@@ -1,0 +1,22 @@
+--- a/dogwood-language/src/api.rs
++++ b/dogwood-language/src/api.rs
+@@ -337,7 +337,7 @@
+ /// halves. This is the internal payload of the public
+ /// [`LoweredPolicySet`](crate::policy_set::LoweredPolicySet) — every field is
+ /// crate-private, reached only through `LoweredPolicySet`'s accessors.
+-#[derive(Debug)]
++#[derive(Debug, Clone)]
+ pub(crate) struct Lowered {
+     /// The lowered Cedar policies (one static policy per Dogwood rule).
+     pub policies: CedarPolicySet,
+--- a/dogwood-language/src/policy_set.rs
++++ b/dogwood-language/src/policy_set.rs
+@@ -419,7 +419,7 @@
+ /// equality — equating compiled Cedar artifacts would freeze the internal
+ /// representation as a stability contract, and a `cedar_policy::Schema` has no
+ /// `PartialEq` of its own anyway).
+-#[derive(Debug)]
++#[derive(Debug, Clone)]
+ pub struct LoweredPolicySet {
+     lowered: Lowered,
+ }

@@ -6,7 +6,29 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-09-24: Add five authenticated local MCP App cards, deterministic presentation and retained-evidence scorecards, packaged static resources, and reference-host browser checks; close item 27 after author-approved visuals and passing packaging, conformance, isolation and authenticated CI latency gates ([ADR-018](./docs/adr/ADR-018-mcp-app-cards.md), [evidence](./docs/verification-log.md#item-27--2026-09-24)).
+
+- 2026-09-24: Close item 26b after author review of the CI runner’s local authenticated MCP raw JSON-RPC round-trip gate; require manual latency dispatch before relevant item closures and submission, with AWS ingress, cold start and Alexa host overhead remaining item 38 ([closure](./docs/verification-log.md#closure--2026-09-24), [ADR-017](./docs/adr/ADR-017-tool-latency-and-isolation.md#closure-amendment--2026-09-24)).
+
+- 2026-09-24: Measure authenticated server round trips with separate SDK references and byte-identity checks; both scenarios passed the single [CI latency run](https://github.com/BashaarJavaid/Hirz/actions/runs/36059341623), with item 26b still Deferred pending author review ([ADR amendment](./docs/adr/ADR-017-tool-latency-and-isolation.md#server-round-trip-amendment--2026-09-24), [evidence and tables](./docs/verification-log.md#completed-ci-measurements--both-scenarios-pass-author-review-pending)).
+
+- 2026-09-24: Raise benchmark harness keep-alive, measure the SDK client floor, and defer approved-plan scheduling to the worker while preserving signed per-action events; item 26b remains Deferred after the complete single local gate failed ([ADR amendment](./docs/adr/ADR-017-tool-latency-and-isolation.md#scheduling-and-harness-amendment--2026-09-24), [evidence](./docs/verification-log.md#scheduling-and-harness--2026-09-24)).
+
+- 2026-09-24: Bound verified-control and active-plan reads with migration 0013, and close withdrawn/expired constraints into audited graph history; retain item 26b as Deferred after an interrupted single latency measurement ([ADR amendment](./docs/adr/ADR-017-tool-latency-and-isolation.md#bounded-reads-amendment--2026-09-24), [evidence](./docs/verification-log.md#item-26b--2026-09-24)).
+
+- 2026-09-24: Close item 26 isolation and defer item 26b latency until after submission, preserving the gate on manual dispatch only ([ADR amendment](./docs/adr/ADR-017-tool-latency-and-isolation.md#deferral-amendment--2026-09-24), [evidence](./docs/verification-log.md#deferral-checkpoint--2026-09-24), [CI](https://github.com/BashaarJavaid/Hirz/actions/runs/36021610833)).
+
+- 2026-09-23: Add authenticated tool latency and concurrent household-isolation gates, signed per-action batching, transaction-scoped JSON snapshot reuse, combined budget/audit reads, budget-query indexes (migration 0012) and a private native helper that reuses compiled policies with fresh replay history; pause item 26 as partial after local/CI latency failures, retaining experiments and remaining work in the [handoff](./docs/verification-log.md#paused-handoff--2026-09-23) ([ADR-017](./docs/adr/ADR-017-tool-latency-and-isolation.md)).
+
+- 2026-09-23: Publish [addon-check v0.1.0](https://www.npmjs.com/package/addon-check/v/0.1.0) and replace the conformance CI placeholder with full-SHA-pinned twelve-tool checks after restart, retaining Hirz-specific validators and signed audit verification ([ADR-016](./docs/adr/ADR-016-add-on-conformance-checker.md), [evidence](./docs/verification-log.md#item-25a--2026-09-23)).
+
 ### Changed
+
+- 2026-09-24: Publish strict per-tool MCP output schemas and omit generated schema titles, preserving canonical objects and validating every response at the boundary ([ADR-015 amendment](./docs/adr/ADR-015-household-tools.md#per-tool-output-schemas--2026-09-24), [verification](./docs/verification-log.md#phase-4-review-batch-2--2026-09-24)).
+
+- 2026-09-23: Complete the approved twelve-tool household scope with durable retries, simulated trust, per-device profiles, deterministic objectives and a confirmation-gated host; clarify approval argument combinations and verify all 31 live selection cases within the approved $2 ceiling. Later UI/app/trust integrations retain their assigned roadmap items ([ADR-015](./docs/adr/ADR-015-household-tools.md), [evidence](./docs/verification-log.md#item-25-completion-within-approved-scope--2026-09-23)).
+
+- 2026-09-23: Add simulated local OAuth consent, SDK PKCE linking, resource-bound JWTs, scope enforcement and current household/member resolution while preserving anonymous onboarding; verify SDK/browser flows and add OAuth smoke to CI ([ADR-014](./docs/adr/ADR-014-local-oauth.md), [item 24 evidence](./docs/verification-log.md#item-24--2026-09-23)).
 
 - 2026-09-22: Remove solver-known refresh triggers, preserve freshness across verified dispatches, explain plan-authority denials, and recover expired openings while retaining consent ([C2 verification](./docs/verification-log.md#phase-3-review-batch-c2--2026-09-22)).
 - 2026-09-22: Make plan freshness change-based while preserving observation polling and staleness limits ([ADR amendment](./docs/adr/ADR-005-deterministic-planner.md#change-based-freshness--2026-09-22-author-approved), [partial Batch C verification](./docs/verification-log.md#phase-3-review-batch-c--2026-09-22)).
@@ -32,6 +54,11 @@ All notable changes are documented here. The format follows
 - 2026-09-21: Record [terminal HA dispatch attempts and fresh-action retries](./docs/adr/ADR-006-twin-first-adapters.md#terminal-ha-dispatch-attempts--2026-09-21-author-approved) and the Phase 2 review's [Phase 3 carry-overs and ordered-plug follow-up](./ROADMAP.md).
 
 ### Fixed
+
+- 2026-09-24: Add shared test/smoke checks for identifiers and braces in speech, and distinguish the unmeasured AWS latency budget from local CI results ([evidence](./docs/verification-log.md#phase-4-review-batch-1--2026-09-24)).
+- 2026-09-24: Set the separate addon-check repository's Node requirement to 22 or later and update its GitHub About metadata; retain the tested CI pin and published version ([evidence](./docs/verification-log.md#phase-4-review-batch-1--2026-09-24)).
+
+- 2026-09-23: Update the CI fresh-wheel catalog assertion for item 25's four added governance classes ([verification](./docs/verification-log.md#item-25-ci-catalog-count-fix--2026-09-23)).
 
 - 2026-09-22: Let the live HA scenario smoke answer quiet-hour approval requests explicitly before the bounded lamp operation ([verification](./docs/verification-log.md#ha-smoke-explicit-consent-fix--2026-09-22), [ADR amendment](./docs/adr/ADR-006-twin-first-adapters.md#ha-smoke-quiet-hours-consent--2026-09-22)).
 
@@ -80,6 +107,11 @@ All notable changes are documented here. The format follows
   to include item 9's pause/resume actions; [verification](./docs/verification-log.md#item-9-ci-build-check--2026-09-18).
 
 ### Added
+
+- 2026-09-23: Add the local stateless JSON MCP endpoint and typed generic onboarding tool,
+  with fixed loopback guards and real SDK/Inspector checks; OAuth and household
+  tools remain later work ([ADR-013](./docs/adr/ADR-013-mcp-transport.md),
+  [item 23 evidence](./docs/verification-log.md#item-23--2026-09-23)).
 
 - 2026-09-20: Item 16 offline scenario runner, explicit twin fixtures, scripted
   deferred tool traces, simulated recorded-policy patches, observation assertions

@@ -14,6 +14,16 @@ from hirz.twin.physics import EV, Appliance, Battery, ThermalZone
 ENERGY_TOL = 1e-6
 TEMP_TOL = 1e-4
 Strategy = Literal["milp", "timer", "immediate", "greedy"]
+Objective = Literal["cheapest", "greenest", "most_comfortable"]
+OBJECTIVE_GOALS = {
+    "cheapest": ("minimize_cost_and_wear", "minimize_degree_hours"),
+    "greenest": (
+        "minimize_grid_import",
+        "minimize_degree_hours",
+        "minimize_cost_and_wear",
+    ),
+    "most_comfortable": ("minimize_degree_hours", "minimize_cost_and_wear"),
+}
 
 
 def boundaries(start: datetime, end: datetime | None = None) -> tuple[datetime, ...]:
@@ -129,6 +139,7 @@ class MemberConstraint(Model):
 
 class PlannerInput(Model):
     household_id: UUID
+    objective: Objective | None = Field(default=None, exclude_if=lambda v: v is None)
     requester: Requester
     slots: tuple[Slot, ...] = Field(min_length=1)
     ev: EV | None

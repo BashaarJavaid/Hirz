@@ -9,7 +9,7 @@ import pytest
 from test_database import connect, scratch_database  # noqa: F401
 from test_executor_database import environment
 
-from hirz.executor.plans import PlanService, get
+from hirz.executor.plans import PlanService, get, schedule_approved
 from hirz.executor.refresh import job
 from hirz.executor.refresh_worker import RefreshWorker
 from hirz.executor.runtime import RuntimeInputs
@@ -269,6 +269,7 @@ def test_fingerprint_change_holds_work_and_refresh_inherits_consent(scratch_data
                 assert (
                     await service.approve(result.plan.plan_id, PRINCIPAL)
                 ).decision == "execute"
+                await schedule_approved(p)
                 w.clock.jump(w.clock() + timedelta(seconds=1))
                 member = next(
                     i for i, m in w.members.items() if m.display_name == "Malik"
@@ -482,10 +483,7 @@ def test_manual_hold_first_sample_renewal_release_and_expiry(scratch_database):
                 )
                 assert release.decision.decision == "execute"
                 async with c.begin():
-                    assert all(
-                        x.get("withdrawn_at") is not None
-                        for x in (await p.snapshot(w.clock())).data["constraints"]
-                    )
+                    assert not (await p.snapshot(w.clock())).data["constraints"]
             finally:
                 await r.close()
 
@@ -890,14 +888,24 @@ def test_late_consent_skips_missed_opening_and_refreshes_with_one_consent(
                 ).decision == "execute"
                 async with c.begin():
                     original = await get(p, result.plan.plan_id)
+                    assert original["document"]["status"] == "approved"
+                await e.sweep()
+                async with c.begin():
+                    original = await get(p, result.plan.plan_id)
                     current = await job(p, original)
                     assert current["state"] == "queued" and not current["explicit"]
                     assert current["reasons"] == [
                         "consent arrived after scheduled changes"
                     ]
-                    assert (await row(p, first.action_id))[
-                        "execution_status"
-                    ] == "skipped"
+                    skipped_action = await row(p, first.action_id)
+                    assert skipped_action["execution_status"] == "skipped"
+                    assert skipped_action["lifecycle"] is None
+                    assert await c.scalar(
+                        sa.select(db.actions.c.lifecycle.is_(None)).where(
+                            p.scope(db.actions),
+                            db.actions.c.action_id == first.action_id,
+                        )
+                    )  # JSON recordset null must remain SQL NULL.
                     assert not await applied_controls(p, original)
                 await RefreshWorker(p, r, world=w).batch()
                 async with c.begin():

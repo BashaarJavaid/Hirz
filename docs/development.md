@@ -99,7 +99,8 @@ policy activation, auth, and signed audit behavior remain later items.
 Install Rust 1.98.1 with Cargo and a native linker (Apple command-line tools on
 macOS; the normal build toolchain on Linux). The build uses the pinned upstream
 revision and checked-in dependency lock, needs network access, and writes only a
-local binary. No Python bindings or daemon are required.
+local reference CLI and its private MCP helper. No Python bindings or network
+daemon are required; standalone constitution commands use the reference CLI.
 
 ```sh
 uv sync --locked
@@ -121,7 +122,7 @@ nonzero. None of these commands requires `.env`, a database, credentials or AWS.
 Local engine checks do not establish AWS conformance or authenticate approvals.
 
 The container's Rust build stage checks out the same source revision and uses
-`scripts/dogwood.Cargo.lock`. Only its native binary reaches the final Python
+`scripts/dogwood.Cargo.lock`. Only the two native binaries reach the final Python
 image; Cargo stays in the builder, and runtime UID remains 10001. Python wheels
 carry the class catalog and situation corpus. CI requires native local checks in
 `cedar-conform`; AWS comparison remains item 37.
@@ -968,3 +969,438 @@ public MCP/authentication claim is included.
 For machine-readable results, use `--output <new-file>` or the retained
 `report.json`: native solver diagnostics can also appear on stdout
 ([recorded friction](./friction-log.md)).
+
+## Item 23: local MCP transport
+
+The existing `hirz.api.app:app` entrypoint serves `/mcp` and liveness-only `/health`.
+Only `what_can_you_do` is registered. Its typed structured result includes the
+existing `Speakable` and explicitly says household tools are not connected.
+There is no household data in this local preview. Authenticated startup is
+documented under item 24 below; supplied credentials in this preview return 503. Exact limits, allowed headers, and the GET 405 decision are in
+[ADR-013](./adr/ADR-013-mcp-transport.md#local-boundary).
+
+Use Node 24 for Inspector. With locked Python dependencies installed, start the
+standalone server (stop it before starting Compose on the same port):
+
+```sh
+uv run --locked uvicorn hirz.api.app:app --host 127.0.0.1 --port 8000
+```
+
+In another terminal:
+
+```sh
+uv run --locked python scripts/smoke_mcp.py
+```
+
+The smoke runs `initialize → tools/list → tools/call` using the official SDK,
+asserts protocol `2025-11-25` and no session ID, validates the structured result,
+and prints it with a PASS summary (failure exits nonzero). `--url` supports a
+separate test app's allocated loopback port; changing only Uvicorn's port does not
+change the fixed production allowlist. Tests use `create_app(port=allocated_port)`.
+
+For the existing initialized Compose stack:
+
+```sh
+docker compose -f compose.dev.yml up -d --build --wait --wait-timeout 180
+uv run --locked python scripts/smoke_mcp.py
+```
+
+This check requires no development-database migration, seeding or action. The CI
+Python test job runs the same smoke immediately after server startup.
+
+Inspector 2.7.0 uses `--transport http` and `--server-url`. Isolate its state without
+changing HOME, and keep authentication enabled:
+
+```sh
+inspector_dir=$(mktemp -d)
+chmod 700 "$inspector_dir"
+export MCP_STORAGE_DIR="$inspector_dir/storage"
+export MCP_CATALOG_PATH="$inspector_dir/catalog.json"
+export MCP_CLIENT_CONFIG_PATH="$inspector_dir/client.json"
+export MCP_INSPECTOR_OAUTH_STATE_PATH="$inspector_dir/oauth.json"
+export MCP_INSPECTOR_LOG_DIR="$inspector_dir/logs"
+export MCP_INSPECTOR_SECRET_STORE=memory
+export MCP_AUTO_OPEN_ENABLED=false
+unset DANGEROUSLY_OMIT_AUTH
+pnpm dlx @modelcontextprotocol/inspector@2.7.0 --web
+```
+
+Open the launch URL containing the generated local token; do not save the token in
+repository evidence. Add a Streamable HTTP server with URL
+`http://127.0.0.1:8000/mcp`, connect, list Tools, select `what_can_you_do`, and run it
+with no inputs. Record the displayed structured result. The web launcher rejects
+an ad-hoc server URL combined with `MCP_CATALOG_PATH`, so enter the URL in the UI.
+The browser uses Inspector's authenticated backend; no CORS is needed on Hirz.
+
+For CLI checks, use the same temporary state paths, but unset the catalog variable
+for the ad-hoc target (the CLI does not need a catalog):
+
+```sh
+unset MCP_CATALOG_PATH
+pnpm dlx @modelcontextprotocol/inspector@2.7.0 --cli --transport http \
+  --server-url http://127.0.0.1:8000/mcp --method initialize --format json
+pnpm dlx @modelcontextprotocol/inspector@2.7.0 --cli --transport http \
+  --server-url http://127.0.0.1:8000/mcp --method tools/list --format json
+pnpm dlx @modelcontextprotocol/inspector@2.7.0 --cli --transport http \
+  --server-url http://127.0.0.1:8000/mcp --method tools/call \
+  --tool-name what_can_you_do --tool-args-json '{}' --format json
+```
+
+Stop Inspector with Ctrl-C and remove only the temporary directory created above
+when finished. Inspector is not a project dependency. Focused checks:
+`uv run --locked pytest tests/unit/test_mcp.py --no-cov`; full Python coverage uses
+the service-free, integration-with-append, then 80 percent report sequence in
+`AGENTS.md`. UI verification and all completion evidence are tracked in the
+[item 23 log](./verification-log.md#item-23--2026-09-23).
+
+## Item 24: local OAuth
+
+The Compose entrypoint remains the generic preview. To run authenticated local
+MCP, use three terminals from the checkout root (port 8000 must be free):
+
+```sh
+uv run --locked python scripts/dev_oauth.py init
+uv run --locked python scripts/dev_oauth.py serve
+```
+
+```sh
+uv run --locked uvicorn --factory hirz.api.app:create_local_oauth_app \
+  --host 127.0.0.1 --port 8000 --no-access-log
+```
+
+`init` creates only a missing, separate RSA-2048 dev OAuth key in the regular,
+nonsymlink `0600` `.env`. It preserves unrelated entries, refuses malformed or
+empty existing keys, and never uses/replaces the audit key. `serve` never creates
+a key. Keep access logging disabled: authorization URLs and callbacks contain
+short-lived grant material. This is a **simulated login**, never proof of a real
+person's identity. Its choices come from the canonical seeds; selecting one does
+not seed the database or create a link. Normal startup registers no household
+or diagnostic tool. No migration or development seed is needed for this item.
+
+The only client is `hirz-dev-sdk`, public (`token_endpoint_auth_method=none`), with
+callback `http://127.0.0.1:8765/callback`. Preload that static client information
+in SDK token storage, then use its OAuthClientProvider. Request canonical resource
+`http://127.0.0.1:8000/mcp`, an exact callback, S256, and supported scopes. An omitted
+scope requests `hirz:read`; Approve grants exactly the displayed scopes. Deny
+returns `access_denied`. No dynamic registration or revocation endpoint exists.
+See [ADR-014](./adr/ADR-014-local-oauth.md) for lifetimes, request limits, rotation,
+key-cache behavior and the approved in-memory dev-state exception.
+
+For a reproducible full SDK flow, run:
+
+```sh
+uv run --locked python scripts/smoke_oauth.py
+uv run --locked python scripts/smoke_oauth.py --browser
+```
+
+The smoke allocates loopback ports and a uniquely named disposable database,
+explicitly migrates/seeds only that database, and starts separate issuer and MCP
+processes with ephemeral signing material. A third listener receives SDK callbacks.
+It preloads static registration, then lets the SDK discover PRM/issuer metadata,
+generate PKCE, receive consent, exchange the code, call its test-only `oauth_probe`
+and refresh automatically. Mom links to both homes with different roles. The smoke
+also denies consent, checks a wrong audience returns 401, and compares the complete
+seeded graph/policy/history plus empty audit/action tables after the requests.
+It prints only redacted identities/status, never codes, tokens or keys. Successful
+runs drop their database; failures retain the uniquely named database using the
+existing disposable-database procedure. Development is untouched.
+
+`--browser` prints a local callback-harness root URL. Open it to reach the SDK's
+live consent page; select **Mom — Malik's home**, check the displayed scopes, and
+Approve. The page shows callback completion and the terminal reports SDK success.
+The second household links automatically; when the terminal requests Deny, reopen
+the same root URL and click Deny. The callback page reports no access was granted.
+The ordinary smoke drives these same HTML forms with HTTP for CI. Browser checks
+must actually run before claiming visual verification.
+
+Anonymous Inspector regression continues to use the item 23 commands above;
+Inspector OAuth registration is deferred. Supplied credentials in generic-preview
+mode return 503. Authenticated mode returns 401 with the root PRM challenge for
+invalid/missing required credentials; valid insufficient scopes return 403 with
+`insufficient_scope`. Unmapped/child members get generic onboarding only, with
+403 for protected calls. Required keys or database unavailable returns 503.
+Anonymous generic onboarding does not require either dependency.
+
+Focused checks:
+
+```sh
+uv run --locked pytest tests/unit/test_oauth.py tests/unit/test_mcp.py --no-cov
+uv run --locked pytest tests/integration/test_oauth_database.py -m integration --no-cov
+```
+
+Use the ordinary service-free/integration/combined-coverage sequence for the full
+suite. The Python CI job runs `smoke_oauth.py`; remote CI and production linking
+are not implied by local success.
+
+
+## Item 25 local household tools
+
+The implemented contract and boundaries are in [ADR-015](./adr/ADR-015-household-tools.md)
+and [the tool catalog](./tool-catalog.md). Migrations `0010_household_tools` and
+`0011_planning_objective` are explicit; startup never migrates. Development remains on `0005_execution_attempt`.
+Use a disposable database for item 25 verification, not the development database.
+The existing authenticated factory requires the local audit signing key and native
+Dogwood: policy validation/compilation happens at startup, and a changed stored
+policy requires restart. OAuth issuance remains a separate local process.
+
+```sh
+export HIRZ_DOGWOOD="$PWD/.tools/dogwood"
+uv run --locked python scripts/smoke_household_tools.py --audit-output /tmp/household-audit.json
+```
+
+Choose an unused output path. The script creates two disposable twin households,
+starts separate OAuth/MCP processes, uses SDK PKCE and real tools/list/tools/call,
+starts and restarts the worker, tests durable objective changes and fresh consent,
+checks configured profiles per device, tests a same-second revision/approval refusal,
+restarts MCP for a durable retry, and independently verifies a signed audit export.
+The smoke extends its temporary evening fixture to 08:00 because the original
+scenario ends at 07:00; it does not alter the main scenario. Success drops its
+scratch database; failures retain it for diagnosis. Audit files are private.
+Initial explicitly labeled verified-channel fixtures are permitted only during
+that disposable bootstrap; all later case changes require Pipeline decisions.
+
+For manual first-plan work, configure `HIRZ_TWIN_SCENARIO` with explicit scenario
+inputs covering the requested horizon and run the existing `hirz worker` command.
+Tonight/overnight/tomorrow_morning end at the next household-local 08:00; next_24h
+needs a full 24 hours of configured inputs. Missing coverage fails; no fabricated
+plan substitutes for missing inputs. The worker continues bounded device endings
+while preparation/refresh runs. Security and real contact delivery remain unavailable.
+
+For household profiles, export `HIRZ_PROFILES_FILE` to an explicitly authored YAML
+file before starting authenticated MCP. Its shape is `households` → household UUID
+→ profile name → `settings` list. Names are `recovery_morning`, `guests_arriving`,
+`night` and `away`. Each of 1–20 entries has `action` (`set_temperature`,
+`turn_on_light` or `turn_off_light`) and `room`; only temperature settings also
+require `temperature_f` (66–76). No profiles or device settings are installed by
+default. Configuration is validated at startup and changes require restart;
+approvals already issued retain their frozen settings. The smoke writes its own
+explicit temporary twin configuration. Every device is separately checked and
+may need approval or be blocked; later automation may change an immediate setting.
+
+`get_household_plan` accepts `objective` plus `request_id`; use `cheapest`,
+`most_comfortable` or `greenest`. The worker computes the approved priorities from
+existing explicit inputs. Greenest reduces grid electricity, without an emissions
+claim. A changed objective holds the old plan and requires fresh consent for its
+replacement; reads preserve the choice and fixed horizon.
+
+The reusable host is `hirz.host.headless.HeadlessHost` (Strands pinned at 1.57.0).
+Its turn method preserves conversation context, discovers actual MCP tools and
+holds a proposed commitment until `confirm(approved=True)` is explicitly called.
+Selection tests use that host with tool execution canceled; SDK smoke proves execution.
+To rerun the verified live selection gate, provide working US Bedrock credentials/model
+access and append `--live-selection --budget-ledger /tmp/household-bedrock-budget.json`
+to the smoke command. Reuse the **same budget file across retries**; never reset it
+to bypass the author-approved aggregate $2.00 ceiling. Check current pricing before
+any later invocation. The ledger reserves native-counted input and maximum output
+cost before each wire attempt, including retries, with no heuristic fallback.
+Missing credentials/counting support, exhaustion or any wrong selection keeps the
+gate pending. The adjacent `.selection.json` records outcomes and actual token
+usage; retain or move an existing report before rerunning (the report refuses overwrite).
+Use `AWS_PROFILE=hirz` for the supplied profile. The runtime counter requires
+the foundation model ID without `us.`, while Converse requires the US inference
+profile; both have now succeeded. The separate Mantle denial does not block this
+route. AWS enables model subscriptions on first use; there need not be an
+"enable access" button, and pre-invocation agreement status alone does not prove
+runtime access is blocked. Retain the existing ledger across diagnostic probes
+and full runs. See the
+[ADR amendment](./adr/ADR-015-household-tools.md#accesscounting-amendment--2026-09-23).
+
+```sh
+uv run --locked pytest --tb=short
+uv run --locked pytest -m integration --cov=hirz --cov-append --tb=short
+uv run --locked coverage report --fail-under=80
+uv run --locked ruff check .
+uv run --locked mypy hirz/ scripts/ alembic/
+uv run --locked ruff format --check .
+```
+
+The first suite includes native local policy conformance when Dogwood is configured.
+If sandbox cache access fails, set `UV_CACHE_DIR=/tmp/hirz-uv-cache`; local PostgreSQL
+and loopback process verification require local network access. Item 26 latency and
+full isolation gates remain separate. Retained run evidence is in the verification log.
+
+## Independent add-on checks (item 25a)
+
+The [addon-check repository](https://github.com/BashaarJavaid/addon-check) is a
+separate Node 24/TypeScript checkout; its README owns the generic CLI contract,
+synthetic fixtures and publication procedure. [ADR-016](./adr/ADR-016-add-on-conformance-checker.md)
+records the scope and Amazon/MCP authentication distinction. Passing scoped checks
+is not Amazon certification.
+
+Build its locked dependencies (`npm ci && npm run build` in that checkout), then
+run from Hirz with Node 24 on PATH and native Dogwood configured:
+
+```sh
+HIRZ_LLM=off uv run --locked python scripts/smoke_household_tools.py \
+  --audit-output /private/tmp/hirz-conformance-audit-NEW.json \
+  --conformance-cli ../addon-check/dist/cli.js
+```
+
+The audit and adjacent `.conformance.json` report paths must both be new. The smoke
+creates disposable households, performs existing SDK/worker/restart assertions,
+then invokes the built checker with `--require-complete`. Explicit cases cover all
+twelve tools and reuse durable request IDs. Only context/onboarding are timed;
+context gets missing/malformed-token probes. Cases are transient and private,
+the bearer is a subprocess environment variable, and the report has no payloads.
+The smoke independently verifies its signed audit export after the checker returns.
+The developer database is neither migrated nor reset. Do not add live selection
+or reset the retained Bedrock budget ledger for this gate. A failure retains its
+disposable database according to the existing smoke procedure.
+
+The conformance CI job uses the same path with a full checker commit SHA, Node 24,
+npm's lockfile and native Dogwood. It initializes and cleans up only its runner's
+Compose project. The checker measures two tools; the full tool latency/isolation
+suite remains item 26. See the [evidence log](./verification-log.md#item-25a--2026-09-23)
+for publication state and actual runs.
+
+## Authenticated tool budget and isolation (item 26)
+
+Item 26 isolation and item 26b latency are complete following author review on
+2026-09-24 ([closure](./verification-log.md#closure--2026-09-24)). Both scenarios
+pass the raw authenticated JSON-RPC `tools/call` round-trip gate for the local
+authenticated MCP surface on the Linux CI runner, with SDK references reported
+separately; AWS ingress, cold start and Alexa host overhead remain item 38.
+Linux CI is the gate of record; local runs are diagnostic because macOS with
+PostgreSQL inside Docker Desktop produces multi-second disk outliers.
+
+Latency jobs stay on `workflow_dispatch`; pushes and pull requests run ordinary
+CI, including isolation. **Dispatch CI once before closing any roadmap item that
+changes the pipeline, tools, executor, refresh or storage, and once before
+submission; record each run in the evidence log.** Open the repository's
+**Actions → CI → Run workflow**, select the branch, and click **Run workflow**.
+This runs both latency matrix jobs alongside the ordinary jobs. See the
+[closure amendment](./adr/ADR-017-tool-latency-and-isolation.md#closure-amendment--2026-09-24).
+
+To compare a private local `report.json` with a CI run's payload-free timing
+summary, first match the commit, scenario and measurement protocol; distinguish
+raw round-trip gate values from the separate SDK references. Compare the same
+case and pooled-tool rows, sample counts, minimum, median, nearest-rank p95 and
+maximum, retaining every sample and the unchanged 250 ms threshold. Record the
+platform/PostgreSQL environment and CI run link beside the comparison in the
+evidence log; an SDK-timed historical run is not directly comparable to the raw
+server protocol. Private local reports remain private; CI does not upload raw
+household reports. The retained same-commit `0dc1ccf` Time-of-Day comparison had
+three failing cases on CI versus 14 locally ([evidence](./verification-log.md#full-gate-results-for-0dc1ccf--2026-09-23)).
+
+[ADR-017](./adr/ADR-017-tool-latency-and-isolation.md) owns the approved protocol.
+Use the existing local PostgreSQL service, `.env` and native Dogwood. The runner
+creates disposable databases and starts loopback OAuth/MCP and separate worker
+processes. Bedrock stays off; development migrations remain manual.
+
+The benchmark's disposable databases explicitly migrate through
+`0012_budget_indexes`. It adds grant-reference and budget-ledger indexes only;
+rollback to 0011 removes those indexes without erasing evidence. Startup never
+migrates, and this task leaves the development database on 0005.
+
+Rebuild with `scripts/build_dogwood.py` before this gate: MCP requires the private
+`dogwood-helper` beside the configured `HIRZ_DOGWOOD` executable (the same path
+with `-helper` appended). Startup prepares its policies; shutdown kills/reaps it.
+A helper failure requires restarting MCP; it never falls back to cached decisions
+or the one-shot CLI. The build retains the unmodified CLI for native equivalence
+checks, then applies the reviewed two-line Clone patch for the helper. Both use
+the existing pinned Rust/Cargo dependency versions.
+
+```sh
+HIRZ_LLM=off HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run --locked python scripts/smoke_tool_budget.py \
+  --mode all --artifacts-dir /private/tmp/hirz-tool-budget-NEW
+uv run --locked pytest tests/latency -m latency --no-cov -s
+uv run --locked pytest tests/integration/test_mcp_isolation.py -m integration --no-cov
+```
+
+The CLI requires a new artifact directory; `--mode latency` or `--mode isolation`
+runs one gate separately. `all` is the default. Run latency without competing test
+or benchmark processes. The explicit `latency` marker excludes it from the normal
+suite and coverage; never omit `--no-cov` from a timing run. Set
+`HIRZ_BUDGET_ARTIFACTS` to a new parent directory to retain pytest reports in one
+subdirectory per energy scenario. CI sets `HIRZ_BUDGET_SCENARIO` to select one of
+`demo-evening` or `demo-evening-hourly` in each isolated 75-minute matrix job;
+the default pytest invocation and CLI still cover both.
+
+Private mode-0600 reports and signed audit exports live in a mode-0700 directory.
+The report retains all raw samples, per-case/per-tool summaries, local interaction
+and startup observations, software/platform information and row counts. Partial
+samples survive an assertion failure. Failed disposable databases remain available
+for diagnosis; successful runs drop only their disposable databases. Never upload
+these household reports or exports as public CI artifacts. The dedicated CI job
+publishes a payload-free timing summary and cleans up its own services.
+
+The parents fixture remains unchanged in capability. The additional explicitly
+labeled disposable home copy exists only for symmetric foreign plan, constraint
+and approval probes. All runtime records use Pipeline. These gates concern local
+authenticated tools and simulated devices; AWS cold start, production linking,
+Alexa voice latency and real phone/security execution remain separate work.
+
+## Item 27: MCP App cards
+
+Use Node 24 and the locked workspace. Build cards before authenticated local startup
+or Python distribution builds:
+
+```sh
+pnpm install --frozen-lockfile
+pnpm --filter mcp-app build
+uv build
+```
+
+The five generated files in `hirz/mcp/ui/` are ignored and included in the wheel/sdist.
+Authenticated startup fails on missing/incomplete assets; generic onboarding has no
+asset prerequisite. Docker builds them in its Node stage. Static resource reads are
+anonymous and carry no household state. Tool calls retain OAuth and existing scopes.
+No migration is added. Keep the development database unchanged for card verification.
+
+Optional `HIRZ_CARD_EVIDENCE_FILE` is a startup YAML file with explicit household
+mappings. Use the real retained file hash and the reviewed household/profile choice:
+
+```yaml
+households:
+  "<household UUID>":
+    results_file: /absolute/path/to/scripts/backtest-data/results.json
+    sha256: "<sha256 of that exact file>"
+    profile: comed_time_of_day
+    household_variant: solar_battery_ev
+    wear_per_internal_kwh: 0.01
+```
+
+This example is a schema illustration, not an inferred mapping for a household.
+Missing, invalid or mismatched mappings yield unavailable extrapolation. Files are
+loaded once; restart after a reviewed change. The card labels plan estimates and
+backtest extrapolation separately and retains negative values.
+
+For browser checks, check out upstream ext-apps v2.0.0 at commit
+`352f6ced4d80772e92b4e7a311854481a8d65b04` in `.tools/ext-apps-v2` (or set
+`HIRZ_REFERENCE_HOST` to that checkout). The builder verifies its commit and refuses
+renderer/bridge modifications. No upstream source changes are needed:
+
+```sh
+pnpm --filter mcp-app exec node reference-host.mjs
+HIRZ_LLM=off uv run --locked python -m scripts.smoke_cards --artifacts-dir /tmp/new-card-fixtures
+HIRZ_CARD_FIXTURES=/tmp/new-card-fixtures/fixtures.json pnpm --filter mcp-app test:browser
+```
+
+The scorecard screenshot selects one actual denied action for stable counts;
+whole-window count semantics remain covered by PostgreSQL tests. The fixture smoke
+uses disposable twin households, records all runtime changes
+through Pipeline, and independently verifies private audit exports. Its fixtures
+confer no security authority. For a real authenticated reference-host browser call,
+install the pinned Playwright Chromium and run:
+
+```sh
+pnpm --filter mcp-app exec playwright install chromium
+HIRZ_LLM=off uv run --locked python -m scripts.smoke_cards --artifacts-dir /tmp/new-card-live --browser-test
+```
+
+The optional `--serve` relay binds loopback 8082, accepts only the test origin
+`http://localhost:8080`, holds OAuth tokens server-side and fixes the household in
+`/home/mcp` or `/parents/mcp`. The unchanged host runs on 8080 with its sandbox on
+8081. Production guards are unchanged. Stop the owned processes after manual use.
+
+Generate/review baselines only in the pinned Linux Playwright image used by CI:
+`mcr.microsoft.com/playwright:v1.57.0-noble@sha256:3bed4b1a12f2338642f3d8cba28e291deef3c66bd4a964bbeb3e57bbff511dbd`.
+Mount the checkout at `/work` and the private fixture directory read-only at
+`/fixtures`; run from `/work/apps/mcp-app` with `HIRZ_CARD_FIXTURES=/fixtures/fixtures.json`
+and `CI=1`, using `node node_modules/@playwright/test/cli.js test`. Add
+`--update-snapshots` only for an intentional, reviewed visual change. The fourteen
+committed PNGs contain labeled synthetic data, not credentials or private case IDs.
+Retain private fixture/audit artifacts locally; CI publishes only payload-free
+summaries. The [item 27 closure](./verification-log.md#item-27-closure--2026-09-24)
+records the approved screenshots and passing gates. Future relevant changes follow
+the authenticated CI dispatch requirement in the item 26 procedure above.

@@ -1,14 +1,17 @@
 """Internal deterministic pipeline and local single-attempt HA execution claims."""
 
+import json
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from decimal import Decimal
+from functools import lru_cache
 from typing import Any, cast
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
+import rfc8785
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncConnection
 
@@ -20,6 +23,7 @@ from hirz.constitution.conditions import PolicyFacts
 from hirz.constitution.evaluator import RuleOutcome, resolve
 from hirz.constitution.schema import Constitution
 from hirz.explainer.core import decision_context, prepared
+from hirz.graph.accounts import resolve_member
 from hirz.graph.context import ContextSnapshot, validate_snapshot
 from hirz.graph.models import Household, now, utc
 from hirz.graph.repository import GraphRepository, snapshot_sql
@@ -45,6 +49,21 @@ from hirz.risk import RiskBand
 from hirz.risk.engine import RiskFacts, score
 
 log = logging.getLogger(__name__)
+
+
+@lru_cache
+def _bundle_fingerprint(
+    policy: str, compiled: str, schema: str, manifest: bytes
+) -> str:
+    """Memoize only immutable input values; every changed value gets rehashed."""
+    return digest(
+        {
+            "policy": json.loads(policy),
+            "compiled": compiled,
+            "schema": schema,
+            "manifest": json.loads(manifest),
+        }
+    )
 
 
 @dataclass(frozen=True)
@@ -77,13 +96,11 @@ class PolicyBundle:
 
     def policy(self) -> Constitution:
         policy = Constitution.model_validate_json(self.policy_json)
-        if self.fingerprint != digest(
-            {
-                "policy": policy.model_dump(mode="json"),
-                "compiled": self.compiled.policy,
-                "schema": self.compiled.schema,
-                "manifest": self.compiled.manifest,
-            }
+        if self.fingerprint != _bundle_fingerprint(
+            policy.model_dump_json(),
+            self.compiled.policy,
+            self.compiled.schema,
+            rfc8785.dumps(wire(self.compiled.manifest)),
         ):
             raise PipelineError("Policy bundle changed after validation")
         return policy
@@ -153,11 +170,25 @@ class Pipeline:
         self._observation_world: Any = None
         self._refresh_command: dict[str, Any] | None = None
         self._memory_turn: Any = None
+        self._household_command: dict[str, Any] | None = None
+        self._snapshot: tuple[int, datetime, ContextSnapshot, str] | None = None
+        self._members: tuple[int, dict[tuple[str, str, str], Requester]] | None = None
+        self._refresh_fingerprint: tuple[int, str, dict[str, Any]] | None = None
 
     def scope(self, table: sa.Table) -> sa.ColumnElement[bool]:
         return table.c.household_id == self.household_id
 
     async def snapshot(self, at: datetime) -> ContextSnapshot:
+        cached = self._snapshot
+        if (
+            self.repo._at is not None
+            and cached
+            and cached[0] == self.repo._revision
+            and at >= cached[1]
+        ):
+            return cached[2].model_copy(
+                update={"as_of": at, "read_at": at, "data": json.loads(cached[3])}
+            )
         row = (
             (
                 await self.connection.execute(
@@ -170,7 +201,7 @@ class Pipeline:
         )
         if row is None:
             raise PipelineError("Household unavailable")
-        return ContextSnapshot(
+        snapshot = ContextSnapshot(
             household_id=self.household_id,
             scope="all",
             as_of=at,
@@ -180,34 +211,33 @@ class Pipeline:
             policy_status="unvalidated",
             data=validate_snapshot(row["data"], self.household_id, at),
         )
+        if self.repo._at is not None:
+            self._snapshot = (
+                self.repo._revision,
+                at,
+                snapshot.model_copy(update={"data": {}}),
+                json.dumps(snapshot.data),
+            )
+        return snapshot
 
     async def requester(self, principal: Principal) -> Requester:
-        row = (
-            await self.connection.execute(
-                sa.select(db.members.c.id, db.members.c.role)
-                .join(
-                    db.member_accounts,
-                    sa.and_(
-                        db.members.c.household_id == db.member_accounts.c.household_id,
-                        db.members.c.id == db.member_accounts.c.member_id,
-                    ),
-                )
-                .where(
-                    self.scope(db.members),
-                    db.member_accounts.c.provider == principal.provider,
-                    db.member_accounts.c.sub == principal.sub,
-                )
+        if self.repo._at is None:
+            return await resolve_member(self.connection, self.household_id, principal)
+        if self._members is None or self._members[0] != self.repo._revision:
+            self._members = (self.repo._revision, {})
+        members = self._members[1]
+        key = (principal.provider, principal.sub, principal.surface)
+        if key not in members:
+            members[key] = await resolve_member(
+                self.connection, self.household_id, principal
             )
-        ).one_or_none()
-        return Requester(
-            member_id=str(row.id) if row else None,
-            role=cast(Role, row.role) if row else "unknown",
-            surface=principal.surface,
-        )
+        return members[key].model_copy(deep=True)
 
     async def usage(self, name: str, local_date: str) -> Decimal:
-        budget = db.audit_log.c.payload["budget"]
-        used = await self.connection.scalar(
+        # Fixed JSON paths stay literal so prepared generic plans can use the
+        # expression indexes. Account, action class and date remain parameters.
+        budget = db.audit_log.c.payload[sa.literal("budget", literal_execute=True)]
+        used = (
             sa.select(
                 sa.func.coalesce(
                     sa.func.sum(budget["reserved"].astext.cast(sa.Numeric)), 0
@@ -222,24 +252,27 @@ class Pipeline:
             )
             .where(
                 self.scope(db.audit_log),
-                budget["class"].astext == name,
-                budget["local_date"].astext == local_date,
+                budget[sa.literal("class", literal_execute=True)].astext == name,
+                budget[sa.literal("local_date", literal_execute=True)].astext
+                == local_date,
             )
         )
         payload = db.audit_log.c.payload
-        adjustments = await self.connection.scalar(
-            sa.select(
-                sa.func.coalesce(
-                    sa.func.sum(payload["delta"].astext.cast(sa.Numeric)), 0
-                )
-            ).where(
-                self.scope(db.audit_log),
-                db.audit_log.c.event_type == EventType.RESERVATION_ADJUSTED,
-                payload["class"].astext == name,
-                payload["local_date"].astext == local_date,
-            )
+        adjustments = sa.select(
+            sa.func.coalesce(sa.func.sum(payload["delta"].astext.cast(sa.Numeric)), 0)
+        ).where(
+            self.scope(db.audit_log),
+            db.audit_log.c.event_type == EventType.RESERVATION_ADJUSTED,
+            payload[sa.literal("class", literal_execute=True)].astext == name,
+            payload[sa.literal("local_date", literal_execute=True)].astext
+            == local_date,
         )
-        return cast(Decimal, used) + cast(Decimal, adjustments)
+        return cast(
+            Decimal,
+            await self.connection.scalar(
+                sa.select(used.scalar_subquery() + adjustments.scalar_subquery())
+            ),
+        )
 
     async def assess(
         self,
@@ -306,6 +339,14 @@ class Pipeline:
                 await prepare_memory(self, action, principal)
             except ValueError:
                 return ev
+        from hirz.mcp.persistence import CLASSES as tool_classes
+        from hirz.mcp.persistence import prepare as prepare_tool
+
+        if action.action_class in tool_classes:
+            try:
+                await prepare_tool(self, action, principal)
+            except ValueError:
+                return ev
         from hirz.executor.plans import guarded, prepare_mutation
 
         try:
@@ -340,7 +381,12 @@ class Pipeline:
             policy.role_mode(action.action_class, role) == "never" for role in roles
         ):
             return ev
-        snapshot = snapshot or await self.snapshot(at)
+        snapshot = snapshot or await self.snapshot(min(at, self.clock()))
+        if at > self.clock():
+            # Known schedules remain usable; today's readings are not future facts.
+            snapshot = snapshot.model_copy(
+                update={"as_of": at, "data": snapshot.data | {"observations": []}}
+            )
         local_date = at.astimezone(
             ZoneInfo(str(snapshot.data["households"][0]["timezone"]))
         ).date()
@@ -1172,6 +1218,11 @@ class Pipeline:
         )
         if approval:
             await self.status(approval, "redeemed")
+        from hirz.mcp.persistence import CLASSES as tool_classes
+        from hirz.mcp.persistence import commit as commit_tool
+
+        if action.action_class in tool_classes:
+            await commit_tool(self, ev.action, ev.decision, principal)
         from hirz.executor.plans import commit_mutation, guarded
 
         if action.action_class in guarded:
@@ -1459,158 +1510,7 @@ class Pipeline:
             raise PipelineError("Pipeline requires an idle connection")
         try:
             async with self.repo.write(self.clock):
-                at = utc(self.clock())
-                approval = await self.approval(approval_id)
-                if approval is None:
-                    policy = self.bundle.policy()
-                    ev = Evaluation(
-                        Decision(
-                            decision="deny",
-                            event_type=EventType.DENY_APPROVAL_MISMATCH,
-                            action_id="unknown",
-                            constitution=ConstitutionEvidence(
-                                version=policy.version,
-                                rule="unknown",
-                                mode="never",
-                                conditions_met=False,
-                            ),
-                        ),
-                        cast(Action, None),
-                        (),
-                        None,
-                        {},
-                    )
-                    return await self.record(ev, at)
-                stored = (
-                    (
-                        await self.connection.execute(
-                            sa.select(db.actions).where(
-                                self.scope(db.actions),
-                                db.actions.c.action_id == approval["action_id"],
-                            )
-                        )
-                    )
-                    .mappings()
-                    .one()
-                )
-                action = ingest(Action.model_validate(stored["proposal"]))
-                # Ordinary votes check eligibility/channels; bound visitor votes also
-                # re-evaluate live facts using the approval's original press.
-                policy = self.bundle.policy()
-                requester = await self.requester(
-                    Principal.model_validate(stored["principal"])
-                )
-                outcome = resolve(
-                    policy,
-                    action.model_copy(update={"requested_by": requester}),
-                    PolicyFacts(policy.household, at, {}),
-                )
-                ev = Evaluation(
-                    Decision(
-                        decision="ask",
-                        event_type=EventType.ASK_CONSTITUTION,
-                        action_id=action.action_id,
-                        constitution=ConstitutionEvidence(
-                            version=policy.version,
-                            rule=action.action_class,
-                            mode=outcome.effective_mode,
-                            conditions_met=False,
-                        ),
-                    ),
-                    action,
-                    (outcome,),
-                    None,
-                    {},
-                )
-                if bound_press := approval["binding"].get("doorbell"):
-                    ev = await self.assess(
-                        action,
-                        Principal.model_validate(stored["principal"]),
-                        Decimal(stored["cost"]) if stored["cost"] is not None else None,
-                        (),
-                        at,
-                        bound_press=bound_press,
-                    )
-                    if ev.outcomes:
-                        outcome = ev.outcomes[0]
-                member = await self.requester(principal)
-                event = EventType.APPROVED if approved else EventType.REJECTED
-                if approval["status"] == "redeemed":
-                    event = EventType.DENY_APPROVAL_USED
-                elif at >= approval["expires_at"] or approval["status"] == "expired":
-                    await self.status(approval, "expired")
-                    event = EventType.DENY_APPROVAL_EXPIRED
-                elif bound_press and ev.decision.decision == "deny":
-                    event = ev.decision.event_type
-                elif (
-                    approval["status"] == "rejected"
-                    or member.role not in outcome.approval.approver_roles
-                    or not self.channel_allowed(principal, ev)
-                ):
-                    event = EventType.DENY_APPROVAL_UNAUTHORIZED
-                else:
-                    existing = await self.connection.scalar(
-                        sa.select(db.approval_votes.c.approved).where(
-                            self.scope(db.approval_votes),
-                            db.approval_votes.c.approval_id == approval_id,
-                            db.approval_votes.c.member_id
-                            == UUID(cast(str, member.member_id)),
-                        )
-                    )
-                    if existing is None:
-                        await self.connection.execute(
-                            db.approval_votes.insert().values(
-                                household_id=self.household_id,
-                                approval_id=approval_id,
-                                member_id=UUID(cast(str, member.member_id)),
-                                approved=approved,
-                                principal=principal.model_dump(mode="json"),
-                                created_at=at,
-                            )
-                        )
-                        await self.audit.append(
-                            self.connection,
-                            self.household_id,
-                            at,
-                            event,
-                            {
-                                "approval_id": approval_id,
-                                "member_id": member.member_id,
-                                "action_hash": action.content_hash,
-                                "approved": approved,
-                                "surface": principal.surface,
-                                "passkey_verified": principal.passkey_verified,
-                                "verified_action_hash": principal.verified_action_hash,
-                            },
-                        )
-                        satisfied, _ = await self.eligible_votes(approval, ev)
-                        await self.status(
-                            approval,
-                            "rejected"
-                            if not approved
-                            else "approved"
-                            if satisfied
-                            else "pending",
-                        )
-                    else:
-                        approved = existing
-                        event = EventType.APPROVED if approved else EventType.REJECTED
-                ev.decision = ev.decision.model_copy(
-                    update={
-                        "approval": ApprovalEvidence(
-                            approval_id=approval_id,
-                            quorum=outcome.approval.quorum,
-                            expires_at=approval["expires_at"],
-                        )
-                    }
-                )
-                # A vote is not an execution authorization.
-                ev = result(ev, event)
-                if event in {EventType.APPROVED, EventType.REJECTED}:
-                    ev.decision = ev.decision.model_copy(
-                        update={"decision": "ask" if approved else "deny"}
-                    )
-                return await self.record(ev, at)
+                return await self.vote_locked(approval_id, principal, approved=approved)
         except Exception as exc:
             # A failed COMMIT hook/connection can leave a physical transaction open
             # after SQLAlchemy has closed its transaction object. Discard it.
@@ -1626,3 +1526,160 @@ class Pipeline:
             raise PipelineError(
                 "Pipeline transaction failed; no authorization returned"
             ) from None
+
+    async def vote_locked(
+        self, approval_id: str, principal: Principal, *, approved: bool
+    ) -> Decision:
+        if self.repo._at is None or type(approved) is not bool:
+            raise PipelineError(
+                "An owned Pipeline transaction and Boolean vote are required"
+            )
+        at = utc(self.clock())
+        approval = await self.approval(approval_id)
+        if approval is None:
+            policy = self.bundle.policy()
+            ev = Evaluation(
+                Decision(
+                    decision="deny",
+                    event_type=EventType.DENY_APPROVAL_MISMATCH,
+                    action_id="unknown",
+                    constitution=ConstitutionEvidence(
+                        version=policy.version,
+                        rule="unknown",
+                        mode="never",
+                        conditions_met=False,
+                    ),
+                ),
+                cast(Action, None),
+                (),
+                None,
+                {},
+            )
+            return await self.record(ev, at)
+        stored = (
+            (
+                await self.connection.execute(
+                    sa.select(db.actions).where(
+                        self.scope(db.actions),
+                        db.actions.c.action_id == approval["action_id"],
+                    )
+                )
+            )
+            .mappings()
+            .one()
+        )
+        action = ingest(Action.model_validate(stored["proposal"]))
+        # Ordinary votes check eligibility/channels; bound visitor votes also
+        # re-evaluate live facts using the approval's original press.
+        policy = self.bundle.policy()
+        requester = await self.requester(Principal.model_validate(stored["principal"]))
+        outcome = resolve(
+            policy,
+            action.model_copy(update={"requested_by": requester}),
+            PolicyFacts(policy.household, at, {}),
+        )
+        ev = Evaluation(
+            Decision(
+                decision="ask",
+                event_type=EventType.ASK_CONSTITUTION,
+                action_id=action.action_id,
+                constitution=ConstitutionEvidence(
+                    version=policy.version,
+                    rule=action.action_class,
+                    mode=outcome.effective_mode,
+                    conditions_met=False,
+                ),
+            ),
+            action,
+            (outcome,),
+            None,
+            {},
+        )
+        if bound_press := approval["binding"].get("doorbell"):
+            ev = await self.assess(
+                action,
+                Principal.model_validate(stored["principal"]),
+                Decimal(stored["cost"]) if stored["cost"] is not None else None,
+                (),
+                at,
+                bound_press=bound_press,
+            )
+            if ev.outcomes:
+                outcome = ev.outcomes[0]
+        member = await self.requester(principal)
+        event = EventType.APPROVED if approved else EventType.REJECTED
+        if approval["status"] == "redeemed":
+            event = EventType.DENY_APPROVAL_USED
+        elif at >= approval["expires_at"] or approval["status"] == "expired":
+            await self.status(approval, "expired")
+            event = EventType.DENY_APPROVAL_EXPIRED
+        elif bound_press and ev.decision.decision == "deny":
+            event = ev.decision.event_type
+        elif (
+            approval["status"] == "rejected"
+            or member.role not in outcome.approval.approver_roles
+            or not self.channel_allowed(principal, ev)
+        ):
+            event = EventType.DENY_APPROVAL_UNAUTHORIZED
+        else:
+            existing = await self.connection.scalar(
+                sa.select(db.approval_votes.c.approved).where(
+                    self.scope(db.approval_votes),
+                    db.approval_votes.c.approval_id == approval_id,
+                    db.approval_votes.c.member_id == UUID(cast(str, member.member_id)),
+                )
+            )
+            if existing is None:
+                await self.connection.execute(
+                    db.approval_votes.insert().values(
+                        household_id=self.household_id,
+                        approval_id=approval_id,
+                        member_id=UUID(cast(str, member.member_id)),
+                        approved=approved,
+                        principal=principal.model_dump(mode="json"),
+                        created_at=at,
+                    )
+                )
+                await self.audit.append(
+                    self.connection,
+                    self.household_id,
+                    at,
+                    event,
+                    {
+                        "approval_id": approval_id,
+                        "member_id": member.member_id,
+                        "action_hash": action.content_hash,
+                        "approved": approved,
+                        "surface": principal.surface,
+                        "passkey_verified": principal.passkey_verified,
+                        "verified_action_hash": principal.verified_action_hash,
+                    },
+                )
+                satisfied, _ = await self.eligible_votes(approval, ev)
+                await self.status(
+                    approval,
+                    "rejected"
+                    if not approved
+                    else "approved"
+                    if satisfied
+                    else "pending",
+                )
+            else:
+                approved = existing
+                event = EventType.APPROVED if approved else EventType.REJECTED
+        ev.decision = ev.decision.model_copy(
+            update={
+                "approval": ApprovalEvidence(
+                    approval_id=approval_id,
+                    quorum=outcome.approval.quorum,
+                    expires_at=approval["expires_at"],
+                )
+            }
+        )
+        # A vote is not an execution authorization.
+        ev = result(ev, event)
+        if event in {EventType.APPROVED, EventType.REJECTED}:
+            ev.decision = ev.decision.model_copy(
+                update={"decision": "ask" if approved else "deny"}
+            )
+        return await self.record(ev, at)

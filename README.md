@@ -207,7 +207,7 @@ graph TD
 | Storage | PostgreSQL 16 (household graph, constitution versions, plans, approvals, audit chain) + AgentCore Memory (conversational, preference extraction) | Relational integrity for a hash chain; graph as tables + JSONB ([ADR-002](./docs/adr/ADR-002-postgres-over-dynamodb.md)) |
 | Surfaces | React + TypeScript: MCP App cards (`@modelcontextprotocol/ext-apps`, plain CSS carrying Amazon's design tokens), companion app and simulator (Tailwind + shadcn/ui) | The MCP Apps SDK and the Alexa tooling are TypeScript ([ADR-001](./docs/adr/ADR-001-python-core-typescript-surfaces.md)); the cards follow Amazon's add-on design guide verbatim ([`docs/design.md`](./docs/design.md)) |
 | Home agent | Hirz Link: a small Python process beside Home Assistant, outbound-only, executes only KMS-signed commands | The Home Assistant token never leaves the house, no tunnel, and a bypass in Hirz's own processes has nothing to act with ([ADR-009](./docs/adr/ADR-009-signed-commands-home-agent.md)) |
-| Open source | A separate repository: an add-on conformance checker (CLI, black-box against any MCP server) and the simulator's generic host harness | Add-on developer access is limited to select partners, so builders test against emulated hosts; the checker tells any of them in one command whether a server meets Amazon's published contract. Hirz's simulator is built on the published harness and its CI runs the checker |
+| Open source | [addon-check](https://github.com/BashaarJavaid/addon-check): an independent MCP checker; simulator host harness remains item 29a | Explicit cases produce scoped protocol, schema, authentication and speech evidence without claiming Amazon certification; Hirz CI runs the checker ([ADR-016](./docs/adr/ADR-016-add-on-conformance-checker.md)) |
 | Alexa+ | MCP 2025-11-25, Streamable HTTP, OAuth 2.1 + PKCE S256, Protected Resource Metadata, MCP Apps for visuals | The add-on contract, verbatim ([ADR-007](./docs/adr/ADR-007-alexa-surface-strategy.md)) |
 | AWS | AgentCore Runtime, Gateway, Policy, Memory, Identity; Bedrock (Claude Haiku 4.5 / Sonnet 5; the emulator runs Haiku 4.5 by default with Nova Lite selectable); EventBridge Scheduler + Lambda; KMS (command signing); S3 Object Lock (audit anchors); CDK (TypeScript) | AWS runs Hirz's agentic state and enforcement, not just its hosting ([ADR-008](./docs/adr/ADR-008-agentcore-topology.md)) |
 | Twin | Physics-lite models with a simulated clock and a YAML scenario DSL | Everything is demonstrable end to end with no hardware, and every scenario is an integration test ([ADR-006](./docs/adr/ADR-006-twin-first-adapters.md)) |
@@ -283,6 +283,7 @@ From the repository root:
 ```bash
 uv sync --locked
 pnpm install --frozen-lockfile
+pnpm --filter mcp-app build
 # First build/export the pinned Dogwood CLI (docs/development.md, item 7).
 uv run pytest
 uv run ruff check .
@@ -295,8 +296,7 @@ uv build
 ```
 
 Default Python tests cover package metadata, liveness, bootstrap credential/protocol
-handling, key recovery, and doctor output/failures. Each TypeScript workspace tests
-its empty module import. Python enforces **80% line coverage over `hirz/`**; scaffold
+handling, key recovery, and doctor output/failures. The TypeScript workspaces run their service-free unit tests. Python enforces **80% line coverage over `hirz/`**; scaffold
 coverage alone is not evidence of policy enforcement or device behavior. No cloud credentials,
 Docker services, or browser are needed for default tests; the WebSocket test binds
 a temporary local port. Live database tests are selected explicitly below.
@@ -312,9 +312,10 @@ The Python test job initializes an isolated Compose stack and runs migrations,
 tests. Generated credentials stay in the runner's ignored `.env`; cleanup removes
 only that run's containers, volumes, and credentials.
 
-All eleven architecture job IDs are present. Scenarios, add-on conformance,
-latency, Cedar conformance, and release are **successful placeholders** with
-explicit deferral messages in their logs and job summaries. Browser tests and
+All eleven architecture job IDs are present. Scenarios and local Cedar checks run;
+add-on conformance runs the pinned [addon-check](https://github.com/BashaarJavaid/addon-check)
+against disposable households ([procedure](./docs/development.md#independent-add-on-checks-item-25a)).
+Latency and release remain **successful placeholders** with explicit deferrals. Browser tests and
 frontend bundles are also deferred. No AWS secrets or publication are involved.
 There are no cross-run dependency/Docker caches or artifact uploads.
 

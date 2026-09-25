@@ -366,3 +366,11 @@ permission before dispatch and owns the preauthorized ending. Planned responses
 continue through PlanService. Rejected removing quiet hours, weakening freshness,
 forcing daytime for a live adapter, or treating a matching final lamp state as
 proof of a toggle. Both ordered VERIFIED rows remain required.
+
+## Household tools amendment — 2026-09-23
+
+The author approved initial, explicitly labeled verified-channel fixtures only for disposable twin database bootstrap. Subsequent verification transitions require Pipeline decisions, and worker-only simulated replies or expiry use existing twin scripts. No real contact delivery is claimed. Full contract and rejected alternatives: [ADR-015](./ADR-015-household-tools.md).
+
+### Profiles/objectives follow-up — 2026-09-23
+
+Explicit household profiles expand only to existing thermostat and light actions. Each action passes Pipeline and worker checks independently; missing observations still fail closed. Startup configuration grants no device authority, and no new adapter or inferred household preset is introduced. Exact contract and rejected alternatives: [ADR-015](./ADR-015-household-tools.md#completion-scope-amendment--2026-09-23-author-approved).

@@ -322,3 +322,329 @@ returned the completed job's diagnostics through the documented
 [job-log endpoint](https://docs.github.com/en/rest/actions/workflow-jobs#download-job-logs-for-a-workflow-run).
 Feature request: let `gh run view --job --log` retrieve a completed job without
 waiting for the whole run. This was a CLI limitation, not a failed Actions service.
+
+## Item 23 local transport and Inspector — 2026-09-23
+
+- **Tool/task:** MCP Python SDK 1.30.0, implement stateless JSON without persistent
+  event streams. **Steps/expected:** inspect the documented
+  [stateless JSON setup](https://py.sdk.modelcontextprotocol.io/v1/server/#streamable-http-transport).
+  **Actual:** the pinned `_handle_get_request` still creates an SSE response even
+  when `json_response=True`; no exception is emitted. **Severity:** Minor.
+  **Workaround:** the author explicitly approved a GET `/mcp` 405 guard; other
+  protocol handling remains in the SDK. **Suggestion:** document GET streaming
+  separately from JSON POST responses and offer an explicit disable switch.
+- **Tool/task:** Inspector 2.7.0, start an isolated authenticated UI.
+  **Steps/expected:** set `MCP_CATALOG_PATH` to a temporary catalog and pass
+  `--transport http --server-url http://127.0.0.1:8000/mcp`.
+  **Actual:** `Error: --catalog cannot be combined with an ad-hoc server URL/command.`
+  **Severity:** Minor. **Workaround:** launch only the isolated catalog and enter
+  the server URL in the UI. **Suggestion:** name the environment variable in the
+  error when no `--catalog` flag was supplied. Reference:
+  [Inspector environment variables](https://github.com/modelcontextprotocol/inspector/blob/2.7.0/docs/environment-variables.md).
+- **Tool/task:** browser connection for Inspector UI verification.
+  **Actual:** `No browser is available` and an empty browser list, including after
+  the author enabled the connection and requested a retry. **Severity:** Minor.
+  **Workaround:** the author explicitly authorized a temporary standalone Playwright
+  browser. Its sandboxed Chrome launch exited with `signal=SIGABRT`; the same
+  temporary browser was launched with authorized sandbox escalation. Reference:
+  [Playwright browser launch](https://playwright.dev/docs/api/class-browsertype#browser-type-launch).
+  These are local tooling restrictions, not an Inspector or MCP failure.
+
+The uv cache, Docker socket and loopback-binding restrictions from entry 6 also
+recurred. Initial focused tests reported `2 failed, 92 passed` because the two
+existing WebSocket checks could not bind `127.0.0.1`; the full service-free rerun
+with authorized loopback access passed. No upstream defect is claimed for these
+repeated sandbox restrictions.
+
+Inspector UI follow-up (2026-09-23, **Minor**): installed Chrome reported
+`97.0.4692.71` and rendered the main content beneath the header/footer; Playwright
+reported `TimeoutError: locator.click: Timeout 30000ms exceeded.` with the header
+intercepting pointer events. Using Playwright 1.63.0's bundled Chromium
+153.0.8010.12 restored the layout. The connection switch's styled track also
+intercepted pointer clicks, so keyboard focus + Space connected normally. The
+browser-control process needed loopback access outside the sandbox after
+`WebSocket error: connect EPERM 127.0.0.1:63888 - Local (0.0.0.0:0)`.
+Reference: [Playwright browser compatibility](https://playwright.dev/docs/browsers).
+Suggestion: show a browser compatibility warning for unsupported browser engines.
+No Hirz code or security rule was changed to work around these UI/environment issues.
+
+## Item 24 local OAuth — 2026-09-23
+
+- **Tool/task:** MCP Python SDK 1.30.0, bind local authorization-code/refresh
+  exchange to the canonical MCP resource. **Steps/expected:** inspected the
+  installed [token handler](https://github.com/modelcontextprotocol/python-sdk/blob/v1.30.0/src/mcp/server/auth/handlers/token.py)
+  against [RFC 8707](https://www.rfc-editor.org/rfc/rfc8707.html).
+  **Actual:** the handler parses `resource` but does not compare it with the
+  grant; its `TokenErrorCode` omits `invalid_target`. No upstream exception was
+  emitted; this is a provider integration gap, not a claim that the SDK promises
+  automatic resource enforcement. **Severity:** Minor. **Workaround:** validate
+  resource before the SDK handler and return `invalid_target`; regression tests
+  verify omitted/wrong code-exchange resources are rejected before issuing tokens.
+  **Suggestion:** pass requested resource to provider exchange methods or document
+  the required HTTP-boundary adaptation alongside the provider protocol.
+- **Tool/task:** browser-plugin consent-page and Inspector verification.
+  **Steps/expected:** initialized the installed browser runtime, selected the local
+  harness URL, read its bootstrap troubleshooting guide and listed browsers;
+  retried after the author enabled the connection. **Actual:** both attempts
+  returned `No browser is available`; discovery returned `[]`. **Severity:** Minor.
+  **Workaround:** the author approved temporary standalone Playwright; Chromium
+  153.0.8010.12 completed the SDK consent and callback checks.
+  **Suggestion:** distinguish disconnected browser integration from disabled
+  integration and expose recovery status. This repeats the item 23 local browser
+  limitation; [Playwright browser launch](https://playwright.dev/docs/api/class-browsertype#browser-type-launch)
+  is the proposed fallback reference, not evidence of a Playwright defect.
+
+The entry 6 uv-cache restriction recurred during `uv lock --offline`:
+`failed to open file /Users/bashaarjavaid/.cache/uv/sdists-v9/.git: Operation not permitted (os error 1)`.
+Authorized escalation resolved it without a dependency change beyond the approved
+PyJWT direct pin. No new upstream defect is claimed.
+
+Item 25 follow-up to entry 6 (2026-09-23): the existing sandbox uv-cache
+restriction recurred (`failed to open file /Users/bashaarjavaid/.cache/uv/sdists-v9/.git: Operation not permitted (os error 1)`).
+`UV_CACHE_DIR=/tmp/hirz-uv-cache` resolved it. A service-free suite rerun also hit
+`PermissionError: [Errno 1] error while attempting to bind on address ('127.0.0.1', 0): [errno 1] operation not permitted`
+in the two WebSocket contract tests; authorized loopback access is required.
+These are sandbox restrictions, not new upstream defects. Reference:
+[uv cache configuration](https://docs.astral.sh/uv/concepts/cache/).
+The Bedrock selection attempt lacked local credentials (`NoCredentialsError`)
+and stopped before inference; this is a pending access gate, not an SDK defect.
+
+## Item 25 Bedrock token counting and model access — 2026-09-23
+
+- **Tool/task:** Bedrock runtime CountTokens for the pinned US Haiku 4.5 host.
+  **Steps/expected:** authenticate with the supplied `hirz` profile and count a
+  one-message request before reserving any inference spend.
+  **Actual:** `ValidationException: The provided model doesn't support counting tokens.`
+  **Severity:** Blocker. **Workaround:** none verified; fail closed before inference.
+  AWS's [counting guide](https://docs.aws.amazon.com/bedrock/latest/userguide/count-tokens.html)
+  documents a separate Mantle Anthropic counter for cross-region-only models.
+  A SigV4-signed request there returned HTTP 403 `permission_error`:
+  `anthropic.claude-haiku-4-5 is not available for this account. You can explore other available models on Amazon Bedrock. For additional access options, contact AWS Sales at https://aws.amazon.com/contact-us/sales-support/`
+  **Suggestion:** expose counting support and endpoint requirements in model
+  discovery, with actionable agreement/access status in counting errors.
+- **Access diagnosis:** the use-case form exists; the model availability API
+  reports authorization, entitlement and region available, but agreement
+  `NOT_AVAILABLE`. No agreement was created or inference invoked. The
+  [access procedure](https://docs.aws.amazon.com/bedrock/latest/userguide/model-access.html)
+  requires provider terms for model use. These observations do not prove that
+  accepting an agreement alone resolves the separate Mantle denial.
+
+Follow-up on 2026-09-23: the user requested a retry after the setup wait. The US
+inference profile still failed CountTokens, but the underlying foundation model
+ID succeeded (24 counted tokens). The host had passed the inference profile to
+both APIs; that was our integration mistake. CountTokens now uses the foundation
+model ID, while Converse retains the US profile. A bounded Converse probe then
+succeeded (8 input, 16 output tokens) without manual account changes. Mantle's
+model metadata still reports an account restriction, with compatible retention
+settings, so that separate denial is not evidence of runtime unavailability.
+Our earlier suggestion to find an "enable access" button was misleading under
+AWS's current automatic first-invocation subscription procedure.
+
+## Item 25 interrupted Bedrock selection run — 2026-09-23
+
+- **Tool/task:** Bedrock-backed Strands host, complete 31-case live selection gate.
+  **Steps/expected:** run `smoke_household_tools.py --live-selection` with working
+  `hirz` credentials and the retained budget ledger; collect all selections.
+  **Actual:** after 16 passing selections, the retained error was
+  `LIVE_GATE_PENDING InternalServerException`. The harness retained the exception
+  class only, so no endpoint-specific message or request ID is claimed.
+  **Severity:** Minor. **Workaround:** retain the interrupted report and budget
+  history, then retry the full gate within the approved ceiling; no partial-run
+  result substitutes for a complete passing gate.
+  **Reference:** [Bedrock Converse error contract](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_Converse.html).
+  This is a transient service error documented by the API, not evidence of an
+  incorrect API contract. **Suggestion:** structured SDK diagnostics should make
+  request IDs easy to retain without logging prompts, credentials or tool data.
+
+Follow-up: the complete retry passed all 31 selections within the same $2 ledger;
+the interrupted report and reservations remain retained. See the [completion evidence](./verification-log.md#item-25-completion-within-approved-scope--2026-09-23).
+
+## Item 25 CI fix verification: local uv cache — 2026-09-23
+
+- **Tool/task:** [uv pip install](https://docs.astral.sh/uv/reference/cli/#uv-pip-install),
+  install the built wheel into a disposable environment for the CI smoke check.
+  **Expected:** install dependencies and run the packaged catalog assertion.
+  **Actual:** sandbox networking first returned ``Failed to fetch: `https://pypi.org/simple/pydantic/` ``
+  and `failed to lookup address information: nodename nor servname provided, or not known`.
+  After network escalation, the existing temporary cache returned
+  `error: Failed to install: pydantic-2.13.5-py3-none-any.whl (pydantic==2.13.5)` and
+  ``cause: failed to open file `/private/tmp/hirz-uv-cache/archive-v0/5nGQ-lFiHwIYjaeD/pydantic-2.13.5.dist-info/WHEEL`: No such file or directory (os error 2)``.
+  **Severity:** Minor. **Workaround:** rerun with a fresh disposable `UV_CACHE_DIR`;
+  installation and the exact CI smoke step passed. The cause of the missing cache
+  file was not established. **Suggestion:** identify incomplete cache entries and
+  offer a targeted refetch in installation diagnostics.
+
+## Item 25a: Amazon and MCP authentication guidance conflict — 2026-09-23
+
+- **Tool/task:** implement independent add-on checks using the
+  [Amazon authentication guidance](https://developer.amazon.com/docs/alexaplus/add-ons/mcp-toolkit-authentication.html)
+  and [MCP authorization specification](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization).
+  **Steps/expected:** read both current documents; expect consistent discovery guidance.
+  **Actual:** Amazon's “What isn't supported” list includes
+  “`WWW-Authenticate` headers in 401 responses”; MCP says
+  “MCP clients MUST be able to parse `WWW-Authenticate` headers”.
+  No runtime error is involved; these are the exact conflicting documentation excerpts.
+  **Severity:** Minor. **Workaround:** label the check as scoped MCP evidence,
+  document Amazon's differing guidance, preserve Hirz's existing authentication,
+  and make no Amazon certification claim ([ADR-016](./adr/ADR-016-add-on-conformance-checker.md)).
+  **Suggestion:** publish a reconciled discovery contract and explain whether the
+  restriction concerns the Alexa client or server behavior.
+
+## Item 25a: npm publishing authentication — 2026-09-23
+
+- **Tool/task:** npm CLI; publish the tested `addon-check@0.1.0` tarball after
+  interactive login, following the [publication procedure](https://docs.npmjs.com/cli/v11/commands/npm-publish/).
+  **Steps/expected:** verify `npm whoami`, confirm the name is absent, and run
+  `npm publish ./addon-check-0.1.0.tgz --access public`; expect an interactive
+  publishing authorization or publication.
+  **Actual:** `E403`, with exact message:
+  `403 Forbidden - PUT https://registry.npmjs.org/addon-check - Two-factor authentication or granular access token with bypass 2fa enabled is required to publish packages.`
+  **Severity:** Blocker at this attempt. **Workaround:** ask the author to complete
+  [npm's documented 2FA setup](https://docs.npmjs.com/configuring-two-factor-authentication/)
+  and publish the same tested artifact interactively; no credentials/OTP are copied
+  into chat and no account security setting is changed by the agent.
+  This is npm's documented account requirement, not an upstream defect.
+  **Suggestion:** after web login, show publishing readiness and a direct 2FA setup
+  link before a tarball upload is attempted.
+
+Follow-up: the author completed interactive publishing authentication and published
+the tested artifact; its registry checksum matched and both installed CLI fixture
+checks passed. See the [completion evidence](./verification-log.md#publication-and-completion).
+
+## Item 26: nested JSON index reflection — 2026-09-23
+
+- **Tool/task:** Alembic 1.20.0 / SQLAlchemy 2.0.54; compare a migrated PostgreSQL
+  schema with application metadata using
+  [Alembic schema comparison](https://alembic.sqlalchemy.org/en/latest/autogenerate.html#what-does-autogenerate-detect-and-what-does-it-not-detect).
+  **Steps/expected:** declare the nested JSON budget index, migrate a disposable
+  database, and run the existing schema-consistency check; expect no difference.
+  **Actual:** metadata rendered `((payload['budget']) ->> 'class')`, while
+  PostgreSQL reflected `(payload['budget'::text] ->> 'class'::text)`.
+  `compare_metadata` proposed `remove_index` and `add_index` for
+  `audit_budget_usage`; Hirz consequently raised the exact error
+  `Schema is inconsistent; restore the database before key setup.`
+  **Severity:** Minor. **Workaround:** declare the fixed nested index expressions
+  as SQL text matching the migration/reflection, retaining the full consistency
+  guard. Migration roundtrip and budget-equivalence checks then passed.
+  Alembic documents that autogeneration needs manual review; this is an observed
+  expression-normalization limitation, not a claim of perfect-detection support.
+  **Suggestion:** normalize redundant JSON-subscript parentheses before comparing
+  index expressions, or explain the differing normalized expressions in diagnostics.
+
+## Item 26: repeated native compilation in local replay — 2026-09-23
+
+- **Tool/task:** pinned Dogwood CLI
+  [`996d756d`, replay implementation](https://github.com/dogwood-policy/dogwood/blob/996d756de1013b7ae209a14f566a80375a59f2f0/dogwood-cli/src/ops.rs),
+  used for the local authenticated tool-latency gate. **Steps/expected:** authorize
+  successive requests under the same validated policy, within the project's
+  250 ms warm tool budget. **Actual:** each CLI replay creates a process and calls
+  `lower_internal` again. There is no persistent/prepared replay CLI option, and
+  `Authorizer::new` consumes a `LoweredPolicySet` that does not implement `Clone`.
+  No CLI error occurs; the observed problem is repeated work, with timing evidence
+  in [item 26 verification](./verification-log.md#approved-budget-indexes-and-terminal-plan-filtering--2026-09-23).
+  **Severity:** Major. **Workaround:** author-approved private helper and pinned
+  artifact-cloning patch, retaining the unmodified CLI as the equivalence reference;
+  implementation and verification are tracked in
+  [ADR-017](./adr/ADR-017-tool-latency-and-isolation.md#native-helper-amendment--2026-09-23).
+  **Suggestion:** expose reusable compiled artifacts with fresh authorizer history,
+  or a prepared replay mode, without requiring consumers to retain temporal state.
+
+
+## Item 26: latency measurement method unspecified — 2026-09-24
+
+- **Tool/task:** reconcile the partner-only
+  [MCP Toolkit quickstart, Performance](https://www.developer.amazon.com/docs/alexaplus/add-ons/mcp-toolkit-quickstart.html#performance)
+  with the [hackathon rules](https://amazonappdev2026.devpost.com/rules) for the
+  item 26 checkpoint. **Steps/expected:** read the Performance section and search
+  the rules for latency, performance, response time and 500; expect a defined
+  measurement method and a statement of hackathon applicability.
+  **Actual:** “Your MCP server must meet a round-trip query response latency of
+  less than 500 ms.” The section supplies no percentile, measurement point or
+  consequence, and the hackathon rules do not reference the requirement. No
+  runtime error occurred; this is documentation ambiguity.
+  **Severity:** Minor. **Workaround:** retain Hirz's explicitly defined local
+  proxy and distinguish it from submission requirements in the
+  [deferral amendment](./adr/ADR-017-tool-latency-and-isolation.md#deferral-amendment--2026-09-24);
+  participant toolkit access is already recorded in entry 1.
+  **Suggestion:** publish the measurement method (percentile, endpoints and
+  conditions), consequences, and whether it applies to hackathon submissions.
+
+## Item 26b: interrupted MCP latency measurement — 2026-09-24
+
+- **Tool/task:** MCP Python SDK 1.30.0
+  [Streamable HTTP client](https://github.com/modelcontextprotocol/python-sdk/blob/v1.30.0/src/mcp/client/streamable_http.py),
+  HTTPX 0.28.1 and the authenticated loopback latency measurement.
+  **Steps/expected:** run the unchanged Time-of-Day corpus once, with five warmups
+  and 100 measured calls per case. **Actual:** after 102 complete lifecycle rounds,
+  the next round stopped with `httpcore.ReadError`, propagated as `httpx.ReadError`
+  inside `ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)`;
+  pytest reported `1 failed in 2630.78s (0:43:50)`. The report retained 40 cases
+  with 97 or 98 samples each; the later cases, startup checks and full-run signed
+  exports were not reached. The retained exception does not establish whether
+  the server, socket, SDK or another local component caused the disconnect.
+  **Severity:** Major. **Workaround:** preserve the partial raw report and retained
+  disposable database, report incomplete evidence explicitly, and honor the
+  author's no-rerun instruction; no transport or corpus change was made.
+  **Suggestion:** retain the originating request context when a transport error
+  surfaces through task-group cleanup. Evidence and exact private artifact paths:
+  [item 26b](./verification-log.md#item-26b--2026-09-24).
+
+  **2026-09-24 diagnosis and harness follow-up:** the recorded failure occurred
+  while receiving headers for `get_household_plan` after the worker following
+  `stale-approval-cheapest` in round 103: the Uvicorn/httpcore keep-alive close
+  race, with Uvicorn's default five-second timeout inside the worker's two-to-seven
+  second client idle gap. The smoke harness now sets
+  [`timeout_keep_alive=120`](https://www.uvicorn.org/settings/#timeouts); runtime
+  server settings are unchanged. The prescribed pooled authenticated SDK probe
+  completed 200 six-second idle intervals before the change and 200 afterward,
+  with **0 failures before and 0 after**. Thus this probe did not reproduce the
+  race and does not independently prove that diagnosis; no failure was injected
+  and the client's pooling settings were unchanged. Private raw counts and logs
+  are retained under `/tmp/hirz-item26b-third-step/` and recorded in the evidence
+  follow-up.
+
+## Item 26b: SDK per-call schema validation — 2026-09-24
+
+- **Tool/task:** MCP Python SDK 1.30.0,
+  [`src/mcp/client/session.py:441`](https://github.com/modelcontextprotocol/python-sdk/blob/v1.30.0/src/mcp/client/session.py#L441),
+  `ClientSession._validate_tool_result` (starts at line 417).
+  **Steps/expected:** compare `await session.call_tool("what_can_you_do", {})`
+  with the identical authenticated raw JSON-RPC POST, expecting the measured
+  round trip to reflect server/transport work. **Actual:** the established floor
+  probe measured 58 ms versus 4 ms, a **54 ms** difference; each successful call
+  executes `validate(result.structuredContent, output_schema, registry=registry)`,
+  rechecking the schema against the metaschema and building a validator anew.
+  No exception or error text occurred; this is repeated client validation cost.
+  **Severity:** Minor. **Workaround:** time raw HTTP through receipt of the full
+  body, then retain SDK schema validation and the existing assertions outside the
+  timer, with separate SDK reference columns. **Suggestion:** cache a checked
+  validator per tool/output-schema version and invalidate it when the schema
+  changes. [Finding and measurement scope](./verification-log.md#scheduling-and-harness--2026-09-24),
+  [author's decision](./adr/ADR-017-tool-latency-and-isolation.md#server-round-trip-amendment--2026-09-24).
+
+  **2026-09-25 follow-up:** per-tool schemas reduce SDK-reference medians from
+  item 27 run 36092777151 to the corrected-commit [gate of record 36109337744](https://github.com/BashaarJavaid/Hirz/actions/runs/36109337744):
+  Time of Day onboarding **93.279 → 51.711 ms**, context **107.251 → 74.880 ms**;
+  Hourly onboarding **108.155 → 50.080 ms**, context **122.040 → 71.286 ms**.
+  Both scenarios pass the unchanged 250 ms raw round-trip gate; SDK validation
+  remains enabled ([full comparison and evidence](./verification-log.md#phase-4-review-batch-2--2026-09-24)).
+
+## Item 27: pinned Playwright declarations and TypeScript 6 — 2026-09-24
+
+- **Tool/task:** Playwright 1.57.0 [protocol declarations](https://github.com/microsoft/playwright/blob/v1.57.0/packages/playwright-core/types/protocol.d.ts)
+  under the repository's existing TypeScript 6.0.3 strict type-check.
+  **Steps/expected:** include the new browser tests and Playwright configuration
+  in `apps/mcp-app/tsconfig.json`, then run `pnpm --filter mcp-app typecheck`.
+  **Actual:** dependency declarations fail with `error TS1540: A 'namespace'
+  declaration should not be declared using the 'module' keyword. Please use the
+  'namespace' keyword instead.` The first location is `playwright-core/types/protocol.d.ts(3,15)`;
+  the compiler reports the same error for its other module declarations.
+  **Severity:** Minor. **Workaround:** requested the author's decision on a separate
+  strict browser-test config using `skipLibCheck`, retaining all dependency pins
+  and unchanged application type-checking; no substitution applied pending reply.
+  **Suggestion:** use namespace declarations compatible with TypeScript 6 in
+  generated protocol types. [Compiler option](https://www.typescriptlang.org/tsconfig/skipLibCheck.html).
+
+  **2026-09-24 author decision:** approved the separate strict browser-test config
+  with dependency declaration checking skipped. All pins and full application
+  type-checking remain unchanged; browser test source is still checked.

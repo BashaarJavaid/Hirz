@@ -5,8 +5,25 @@
   "license": "Apache-2.0",
   "type": "module",
   "scripts": {
+    "build": "node build.mjs",
     "lint": "eslint src",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.browser.json --noEmit",
+    "test": "vitest run src",
+    "test:browser": "playwright test"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/ext-apps": "2.0.0",
+    "@modelcontextprotocol/client": "2.0.0",
+    "@modelcontextprotocol/core": "2.0.0",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "zod": "4.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.2",
+    "@types/react-dom": "19.2.2",
+    "vite": "8.3.0",
+    "vite-plugin-singlefile": "2.3.3",
+    "@playwright/test": "1.57.0"
   }
 }
