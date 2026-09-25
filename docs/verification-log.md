@@ -7727,3 +7727,34 @@ in 1.9 minutes against the unchanged approved PNGs, including the new exact-quer
 pagination check (`/tmp/hirz-card-browser-scoped.log`). Strict TypeScript and mypy
 checks also passed. A push-triggered CI run verifies this harness correction while
 the original full latency measurements continue on the identical production code.
+
+### Corrected regression CI — all jobs pass
+
+[Run 36085932162](https://github.com/BashaarJavaid/Hirz/actions/runs/36085932162)
+on `cda873188313171ff135e6353c1f95341508d7d1` passed every applicable job. Python:
+1,425 service-free tests in 138.42 seconds, 152 integration tests in 205.83 seconds,
+and 93% combined coverage (870 missed of 12,476). The real authenticated browser
+relay passed in 3.8 seconds, and all 38 Linux browser checks passed in 1.6 minutes
+with every approved baseline unchanged. The standalone Linux invocation deliberately
+skips the live relay case because that case runs in the preceding authenticated step.
+Log: `/tmp/hirz-item27-ci-python-corrected.log`.
+
+The CI diagnostic explains why a whole-window screenshot was unstable: its window
+contained one autonomous and one verified action, versus zero of each in the local
+run. The selected actual denial consistently produced 0 autonomous, 0 asked,
+1 blocked and 0 verified through the server's action-specific query. These are
+observed results, not fixture-assigned counts. All whole-window integration assertions
+still ran. The authenticated latency run uses identical production logic; the only
+`hirz/` difference between its commit and this passing regression commit is a module
+docstring. Its two long-running measurement jobs remain pending at this checkpoint.
+
+### Standalone browser command verification
+
+The `--browser-test` launcher now supplies its own `HIRZ_CARD_LIVE=1` to the child
+process, so the documented option cannot silently skip the authenticated check.
+CI already supplied that flag explicitly. Running the option without a caller-set
+flag passed the real relay browser test in 3.9 seconds; the report independently
+verified 404 home and three parents signed rows, then dropped the disposable
+database. Artifacts: `/tmp/hirz-cards-cli-final/report.json`, its signed exports,
+and `/tmp/hirz-cards-cli-final.log`. Ruff and strict mypy passed for the launcher;
+the repository format check reported 248 files already formatted.

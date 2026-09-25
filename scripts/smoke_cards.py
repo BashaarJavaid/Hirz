@@ -8,6 +8,7 @@ import argparse
 import asyncio
 import json
 import logging
+import os
 from hashlib import sha256
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -173,7 +174,7 @@ async def run(output: Path, serve: bool, browser_test: bool = False) -> None:
                             ),
                             flush=True,
                         )
-                        # A worker can deny more than one simultaneous opening before
+                        # A worker can process different simultaneous openings before
                         # refresh holds the rest. Snapshot one actual denied action;
                         # whole-window count semantics are tested independently.
                         p = env.pipelines[0]
@@ -315,6 +316,7 @@ async def run(output: Path, serve: bool, browser_test: bool = False) -> None:
                                         "test",
                                         "tests/live.spec.ts",
                                         cwd="apps/mcp-app",
+                                        env={**os.environ, "HIRZ_CARD_LIVE": "1"},
                                     )
                                     assert await child.wait() == 0, (
                                         "Authenticated browser relay test failed"

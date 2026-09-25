@@ -1385,7 +1385,7 @@ install the pinned Playwright Chromium and run:
 
 ```sh
 pnpm --filter mcp-app exec playwright install chromium
-HIRZ_LLM=off HIRZ_CARD_LIVE=1 uv run --locked python -m scripts.smoke_cards --artifacts-dir /tmp/new-card-live --browser-test
+HIRZ_LLM=off uv run --locked python -m scripts.smoke_cards --artifacts-dir /tmp/new-card-live --browser-test
 ```
 
 The optional `--serve` relay binds loopback 8082, accepts only the test origin
