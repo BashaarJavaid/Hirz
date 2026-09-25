@@ -18,7 +18,14 @@ from hirz.constitution.boundary import Dogwood
 from hirz.constitution.schema import loads
 from hirz.graph.models import now
 from hirz.mcp.auth import identity_context
-from hirz.mcp.contracts import TOOLS, Result, input_schema, response
+from hirz.mcp.contracts import (
+    OUTPUTS,
+    TOOLS,
+    Result,
+    input_schema,
+    output_schema,
+    response,
+)
 from hirz.mcp.household import HouseholdTools
 from hirz.mcp.presentation import Annualized
 from hirz.mcp.profiles import Profiles
@@ -130,7 +137,7 @@ def register(server: HirzMCP, runtime: HouseholdRuntime) -> None:
                 name=name,
                 description=description,
                 inputSchema=input_schema(schema),
-                outputSchema=Result.model_json_schema(),
+                outputSchema=output_schema(OUTPUTS[name]),
                 _meta={"ui": {"resourceUri": f"ui://hirz/{CARD_TOOLS[name]}"}}
                 if name in CARD_TOOLS
                 else None,
@@ -188,12 +195,30 @@ def register(server: HirzMCP, runtime: HouseholdRuntime) -> None:
                 code="UNAVAILABLE",
             )
             error = True
+        try:
+            output = OUTPUTS[name].model_validate(
+                result.model_dump(exclude_unset=True, exclude_defaults=True)
+            )
+        except (ValidationError, KeyError) as exc:
+            log.error(
+                "household_tool_failed tool=%s error=%s", name, type(exc).__name__
+            )
+            result = response(
+                "Household tools are temporarily unavailable. Please try again later.",
+                status="failed",
+                code="UNAVAILABLE",
+            )
+            error = True
+            # Unknown tools have no declared output contract.
+            output = OUTPUTS.get(name, OUTPUTS["what_can_you_do"]).model_validate(
+                result.model_dump(exclude_unset=True, exclude_defaults=True)
+            )
         return types.CallToolResult(
             content=[
                 types.TextContent(
-                    type="text", text=result.model_dump_json(by_alias=True)
+                    type="text", text=output.model_dump_json(by_alias=True)
                 )
             ],
-            structuredContent=result.model_dump(mode="json", by_alias=True),
+            structuredContent=output.model_dump(mode="json", by_alias=True),
             isError=error,
         )

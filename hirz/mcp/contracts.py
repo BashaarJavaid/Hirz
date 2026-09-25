@@ -8,11 +8,20 @@ Structured content supports native rendering and optional MCP App presentation.
 from typing import Annotated, Any, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, model_validator
+from pydantic.json_schema import GenerateJsonSchema, JsonSchemaValue
+from pydantic_core import CoreSchema
 
 from hirz.explainer.models import Speakable
 from hirz.graph.context import ContextSnapshot
 from hirz.graph.models import Scope
-from hirz.mcp.presentation import Presentation
+from hirz.mcp.presentation import (
+    ApprovalCard,
+    DoorbellCard,
+    PlanCard,
+    Presentation,
+    Scorecard,
+    VerificationCard,
+)
 from hirz.mcp.profiles import ProfileName
 from hirz.pipeline.models import Action, Decision, Plan, VerificationCase
 from hirz.planner.models import Objective
@@ -67,8 +76,26 @@ FIELD_DESCRIPTIONS = {
 }
 
 
+class ToolSchema(GenerateJsonSchema):
+    """Publish constraints and descriptions without generated display titles."""
+
+    def field_title_should_be_set(self, schema: CoreSchema) -> bool:
+        return False
+
+    def generate_inner(self, schema: CoreSchema) -> JsonSchemaValue:
+        result = super().generate_inner(schema)
+        if schema["type"] in {"model", "enum"}:
+            # Enum metadata adds its title after enum_schema() returns.
+            self.resolve_ref_schema(result).pop("title", None)
+        return result
+
+
+def output_schema(model: type["ToolResult"]) -> dict[str, Any]:
+    return model.model_json_schema(schema_generator=ToolSchema)
+
+
 def input_schema(model: type["Input"]) -> dict[str, Any]:
-    schema = model.model_json_schema()
+    schema = model.model_json_schema(schema_generator=ToolSchema)
     for name, field in schema["properties"].items():
         field["description"] = FIELD_DESCRIPTIONS[name]
     if model is VerifyInput:
@@ -294,9 +321,7 @@ class AuditSummary(Input):
     action_id: str | None = None
 
 
-class Data(Input):
-    presentation: Presentation | None = None
-    actions: tuple[Action, ...] = ()
+class ToolData(Input):
     status: Literal[
         "ok",
         "clarification",
@@ -309,6 +334,11 @@ class Data(Input):
         "phone_required",
     ] = "ok"
     code: str | None = None
+
+
+class Data(ToolData):
+    presentation: Presentation | None = None
+    actions: tuple[Action, ...] = ()
     context: ContextSnapshot | None = None
     plan: Plan | None = None
     action: Action | None = None
@@ -326,6 +356,148 @@ class Data(Input):
 class Result(Input):
     speakable: Speakable
     data: Data
+
+
+class ToolResult(Input):
+    speakable: Speakable
+
+
+class WhatCanYouDoData(ToolData):
+    available_tools: tuple[str, ...] = ()
+
+
+class WhatCanYouDoResult(ToolResult):
+    data: WhatCanYouDoData
+
+
+class GetHouseholdContextData(ToolData):
+    context: ContextSnapshot | None = None
+    presentation: DoorbellCard | None = None
+
+
+class GetHouseholdContextResult(ToolResult):
+    data: GetHouseholdContextData
+
+
+class GetHouseholdPlanData(ToolData):
+    plan: Plan | None = None
+    actions: tuple[Action, ...] = ()
+    reference: str | None = None
+    presentation: PlanCard | None = None
+
+
+class GetHouseholdPlanResult(ToolResult):
+    data: GetHouseholdPlanData
+
+
+class ReviseHouseholdPlanData(ToolData):
+    decision: Decision | None = None
+    constraint_id: str | None = None
+
+
+class ReviseHouseholdPlanResult(ToolResult):
+    data: ReviseHouseholdPlanData
+
+
+class ExplainPlanData(ToolData):
+    plan: Plan | None = None
+    action: Action | None = None
+    actions: tuple[Action, ...] = ()
+    reference: str | None = None
+    presentation: PlanCard | None = None
+
+
+class ExplainPlanResult(ToolResult):
+    data: ExplainPlanData
+
+
+class ApproveActionData(ToolData):
+    decision: Decision | None = None
+    decisions: tuple[Decision, ...] = ()
+    plan: Plan | None = None
+    action: Action | None = None
+    source: Literal["real", "real API, demo devices", "twin"] | None = None
+    presentation: ApprovalCard | None = None
+
+
+class ApproveActionResult(ToolResult):
+    data: ApproveActionData
+
+
+class ExecuteHouseholdActionData(ToolData):
+    decision: Decision | None = None
+    decisions: tuple[Decision, ...] = ()
+    action: Action | None = None
+    source: Literal["real", "real API, demo devices", "twin"] | None = None
+    presentation: ApprovalCard | None = None
+
+
+class ExecuteHouseholdActionResult(ToolResult):
+    data: ExecuteHouseholdActionData
+
+
+class AssessRequestRiskData(ToolData):
+    case: VerificationCase | None = None
+    presentation: VerificationCard | None = None
+
+
+class AssessRequestRiskResult(ToolResult):
+    data: AssessRequestRiskData
+
+
+class VerifyTrustedIdentityData(ToolData):
+    case: VerificationCase | None = None
+    decision: Decision | None = None
+    source: Literal["real", "real API, demo devices", "twin"] | None = None
+    presentation: VerificationCard | None = None
+
+
+class VerifyTrustedIdentityResult(ToolResult):
+    data: VerifyTrustedIdentityData
+
+
+class ProposeHouseholdRuleData(ToolData):
+    reference: str | None = None
+
+
+class ProposeHouseholdRuleResult(ToolResult):
+    data: ProposeHouseholdRuleData
+
+
+class EvaluatePermissionData(ToolData):
+    decision: Decision | None = None
+    decisions: tuple[Decision, ...] = ()
+
+
+class EvaluatePermissionResult(ToolResult):
+    data: EvaluatePermissionData
+
+
+class GetActionAuditData(ToolData):
+    audit: tuple[AuditSummary, ...] = ()
+    cursor: str | None = None
+    plan: Plan | None = None
+    presentation: Scorecard | None = None
+
+
+class GetActionAuditResult(ToolResult):
+    data: GetActionAuditData
+
+
+OUTPUTS: dict[str, type[ToolResult]] = {
+    "what_can_you_do": WhatCanYouDoResult,
+    "get_household_context": GetHouseholdContextResult,
+    "get_household_plan": GetHouseholdPlanResult,
+    "revise_household_plan": ReviseHouseholdPlanResult,
+    "explain_plan": ExplainPlanResult,
+    "approve_action": ApproveActionResult,
+    "execute_household_action": ExecuteHouseholdActionResult,
+    "assess_request_risk": AssessRequestRiskResult,
+    "verify_trusted_identity": VerifyTrustedIdentityResult,
+    "propose_household_rule": ProposeHouseholdRuleResult,
+    "evaluate_permission": EvaluatePermissionResult,
+    "get_action_audit": GetActionAuditResult,
+}
 
 
 def response(

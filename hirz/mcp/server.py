@@ -1,27 +1,18 @@
 """The onboarding-only public surface; household tools follow authentication."""
 
-from typing import Any, Literal
+from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
-from pydantic import BaseModel
 
 from hirz.explainer.models import Speakable
+from hirz.mcp.contracts import WhatCanYouDoData, WhatCanYouDoResult
 from hirz.mcp.transport import MAX_BODY_BYTES
 
 
-class Capabilities(BaseModel):
-    available_tools: tuple[Literal["what_can_you_do"], ...]
-
-
-class Onboarding(BaseModel):
-    speakable: Speakable
-    data: Capabilities
-
-
-async def what_can_you_do() -> Onboarding:
+async def what_can_you_do() -> WhatCanYouDoResult:
     """Describe Hirz and the capabilities available in this local preview."""
-    return Onboarding(
+    return WhatCanYouDoResult(
         speakable=Speakable(
             headline="Hirz helps families set rules for home automation, plan energy use, and check suspicious requests.",
             details=(
@@ -29,7 +20,7 @@ async def what_can_you_do() -> Onboarding:
             ),
             options=(),
         ),
-        data=Capabilities(available_tools=("what_can_you_do",)),
+        data=WhatCanYouDoData(available_tools=("what_can_you_do",)),
     )
 
 
