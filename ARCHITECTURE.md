@@ -1396,7 +1396,7 @@ submission; record each run in the evidence log
 ([ADR-017](./docs/adr/ADR-017-tool-latency-and-isolation.md#closure-amendment--2026-09-24),
 [evidence](./docs/verification-log.md#closure--2026-09-24)).
 
-Target-state budget per tool call on the AWS path; `tests/latency` is the local proxy:
+**AWS-path budget, not yet measured (item 38)**
 
 | Stage | Budget |
 |---|---|
@@ -1407,6 +1407,15 @@ Target-state budget per tool call on the AWS path; `tests/latency` is the local 
 | Writing the action as `scheduled` for the worker (act tools) | 10 ms |
 | Serialization + response | 10 ms |
 | **Total, warm p95** | **≤ 190 ms** (headroom for the host's own overhead) |
+
+**Measured, local CI runner, raw JSON-RPC round trip, no TLS**
+
+| Gate | Highest case p95 |
+|---|---|
+| [Item 26b](./docs/verification-log.md#closure--2026-09-24) | Time-of-Day: 203.753 ms; Hourly: 215.672 ms |
+| [After item 27](./docs/verification-log.md#item-27-closure--2026-09-24) | 236.703 ms |
+
+Amazon's published bound is 500 ms round trip; the 250 ms local gate is Hirz's own proxy.
 
 Things that never run inside a tool call: the MILP planner, Bedrock calls, the Gateway call (stage 7 runs in the worker at execution time, §5.6), adapter network calls to third parties (state is read from `observations`, refreshed by the worker's polls and Hirz Link's observation stream), and Cedar compilation. `tests/latency/test_tool_budget.py` fails the manual latency job if any tool's warm p95 over the scenario corpus exceeds 250 ms locally.
 

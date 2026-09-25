@@ -53,6 +53,9 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- 2026-09-24: Add shared test/smoke checks for identifiers and braces in speech, and distinguish the unmeasured AWS latency budget from local CI results ([evidence](./docs/verification-log.md#phase-4-review-batch-1--2026-09-24)).
+- 2026-09-24: Set the separate addon-check repository's Node requirement to 22 or later and update its GitHub About metadata; retain the tested CI pin and published version ([evidence](./docs/verification-log.md#phase-4-review-batch-1--2026-09-24)).
+
 - 2026-09-23: Update the CI fresh-wheel catalog assertion for item 25's four added governance classes ([verification](./docs/verification-log.md#item-25-ci-catalog-count-fix--2026-09-23)).
 
 - 2026-09-22: Let the live HA scenario smoke answer quiet-hour approval requests explicitly before the bounded lamp operation ([verification](./docs/verification-log.md#ha-smoke-explicit-consent-fix--2026-09-22), [ADR amendment](./docs/adr/ADR-006-twin-first-adapters.md#ha-smoke-quiet-hours-consent--2026-09-22)).

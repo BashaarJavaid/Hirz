@@ -55,6 +55,7 @@ from hirz.twin.disposable import disposable
 from hirz.twin.execution import bootstrap
 from hirz.twin.scenario import LoadedScenario
 from scripts.smoke_oauth import Login, Storage, process
+from tests.conftest import assert_no_identifiers
 
 
 class FullLogin(Login):
@@ -318,9 +319,11 @@ async def smoke(
                                             authProbe=name == "get_household_context",
                                         ),
                                     )
-                                    return Result.model_validate(
+                                    answer = Result.model_validate(
                                         result.structuredContent
                                     )
+                                    assert_no_identifiers(answer.speakable)
+                                    return answer
 
                                 await call("what_can_you_do", {})
                                 context = await call(
@@ -381,12 +384,11 @@ async def smoke(
                                     },
                                 )
                                 assert invalid.isError
-                                assert (
-                                    Result.model_validate(
-                                        invalid.structuredContent
-                                    ).data.code
-                                    == "INVALID_INPUT"
+                                invalid_answer = Result.model_validate(
+                                    invalid.structuredContent
                                 )
+                                assert_no_identifiers(invalid_answer.speakable)
+                                assert invalid_answer.data.code == "INVALID_INPUT"
                                 await call(
                                     "evaluate_permission",
                                     {
@@ -662,10 +664,11 @@ async def smoke(
                                 result = await session.call_tool(
                                     "propose_household_rule", proposal
                                 )
-                                assert (
-                                    Result.model_validate(result.structuredContent)
-                                    == recorded
+                                retried = Result.model_validate(
+                                    result.structuredContent
                                 )
+                                assert_no_identifiers(retried.speakable)
+                                assert retried == recorded
                     print("PASS durable retry after MCP process restart", flush=True)
                     if conformance_cli:
                         assert set(conformance_cases) == set(TOOLS)

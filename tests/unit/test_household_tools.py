@@ -1,6 +1,7 @@
 """Public contract validation and household-local reporting boundaries."""
 
 from datetime import UTC, datetime
+from uuid import uuid4
 
 import pytest
 from pydantic import ValidationError
@@ -14,9 +15,17 @@ from hirz.mcp.contracts import (
     PermissionInput,
     RevisionInput,
     input_schema,
+    response,
 )
 from hirz.mcp.household import audit_window, horizon_end
 from hirz.risk import CONSUMER_ACTIONS
+from tests.conftest import assert_no_identifiers
+
+
+def test_speech_identifier_check():
+    with pytest.raises(AssertionError):
+        assert_no_identifiers(response(f"The plan is {uuid4().hex}.").speakable)
+    assert_no_identifiers(response("The car limit is 50 percent.").speakable)
 
 
 def test_every_tool_has_flat_strict_consumer_inputs():

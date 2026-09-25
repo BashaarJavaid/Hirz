@@ -8024,3 +8024,199 @@ Final record checks: `git diff --check` and `cmp AGENTS.md CLAUDE.md` passed;
 Current phase is 55 words; all approved PNGs are byte-identical to the initial
 baseline commit. `ruff format --check .` reported 248 files already formatted.
 The closure follow-up changes documentation only, after the verified implementation.
+
+## Phase 4 review batch 1 — 2026-09-24
+
+Four scoped mechanical fixes on `item-27-mcp-app-cards`; runtime speech and
+behavior, roadmap, instruction files, ADR-017, latency gates, and CI pins are
+unchanged. Local verification used Python 3.12.13, pytest 9.1.1, native Dogwood,
+disposable PostgreSQL databases, and Node 24.21.0. Bedrock stayed off; no live
+selection or budget-ledger changes. No merge or npm publication was performed.
+
+### A — Installer removal
+
+Deleted the untracked 60,021,653-byte `AWSCLIV2.pkg` and added `*.pkg` to
+`.gitignore`. `git status --short` after the changes showed:
+
+```text
+ M .gitignore
+ M ARCHITECTURE.md
+ M scripts/smoke_household_tools.py
+ M tests/conftest.py
+ M tests/integration/test_household_tools_database.py
+ M tests/unit/test_household_tools.py
+```
+
+Created an empty `AWSCLIV2.pkg`, ran `git check-ignore -q AWSCLIV2.pkg`, and
+removed the empty file in a `finally` block:
+
+```text
+git check-ignore -q AWSCLIV2.pkg: exit 0
+AWSCLIV2.pkg removed after empty-file ignore check
+```
+
+### B — Speech identifier coverage
+
+The shared `tests/conftest.py` helper checks headline, every detail, and every
+option against the exact case-insensitive hex/UUID pattern and both braces,
+reporting the complete speakable on failure. One unit test rejects a
+`uuid4().hex` headline and accepts “The car limit is 50 percent.” The smoke checks
+its shared success path, invalid-input result, and post-restart result; the
+integration file checks all 40 already-asserted result sites, including its
+previously inline audit result. No real result tripped the check.
+
+`uv run pytest tests/unit/test_household_tools.py` (exit 0):
+
+```text
+TOTAL                                     12478   9854    21%
+============================== 36 passed in 6.62s ==============================
+```
+
+This is targeted-test coverage, not a claim about combined project coverage.
+
+The exact requested command,
+`uv run pytest tests/integration/test_household_tools_database.py --no-cov`,
+**failed to run tests (exit 5)** because the repository's default `addopts`
+exclude integration tests:
+
+```text
+collected 9 items / 9 deselected / 0 selected
+============================ 9 deselected in 2.75s =============================
+```
+
+Explicit marker override:
+`uv run pytest tests/integration/test_household_tools_database.py -m integration --no-cov -x`
+(exit 0):
+
+```text
+============================== 9 passed in 19.57s ==============================
+```
+
+After adding the one remaining inline audit-result assertion, the same command
+passed on the final test file (exit 0):
+
+```text
+============================== 9 passed in 25.51s ==============================
+```
+
+Required startup prerequisite, with Node 24.21.0 on PATH:
+`pnpm --filter mcp-app build` (exit 0), built all five existing card bundles;
+Vite reported 154 transformed modules per card and builds of 189, 84, 83, 82,
+and 83 ms. Generated assets remain ignored.
+
+`HIRZ_LLM=off uv run --locked python scripts/smoke_household_tools.py --audit-output /tmp/hirz-phase4-batch1-20260924-audit.json`
+(exit 0):
+
+```text
+PASS SDK OAuth linking; twelve typed tools; scoped context
+PASS first plan prepared by separate worker; source=simulated
+PASS objective change survived worker restart; exact old consent refused
+PASS revision/approval race refused; separate worker restarted
+PASS profile device denial/execution verified; retry repeated no effects
+PASS proposal retries, ambiguity, advisory privacy, security and pause
+PASS read-only OAuth token refused act tool with HTTP 403
+PASS durable retry after MCP process restart
+{"household_tools": "PASS", "signed_rows": 611, "offline": "valid", "trusted_fingerprint": "385589f309b374189ea1b391f4a3ad193f3674cf7fb6e72e1a97caf76e21912b", "audit_export": "/tmp/hirz-phase4-batch1-20260924-audit.json", "development_database": "unchanged"}
+disposable_database=dropped; development_database=unchanged
+```
+
+### C — AWS budget versus measured local latency
+
+Kept every budget number unchanged; labeled that table unmeasured and added the
+two-row local-measurement table plus the Amazon-bound/local-proxy distinction.
+`grep -n 'not yet measured' ARCHITECTURE.md` (exit 0):
+
+```text
+1399:**AWS-path budget, not yet measured (item 38)**
+```
+
+A Python check extracted both new evidence links and compared each fragment with
+anchors generated from the existing verification-log headings (exit 0):
+
+```text
+PASS #closure--2026-09-24 -> ### Closure — 2026-09-24
+PASS #item-27-closure--2026-09-24 -> ### Item 27 closure — 2026-09-24
+```
+
+### D — Separate addon-check metadata commit
+
+Reviewed all four `src/` files and both `test/` files, plus the HTTP fixture:
+`parseArgs`, native `fetch`/streams, `Object.hasOwn`, Node's test/assert modules,
+filesystem/process APIs, and ES2023 syntax require no Node 24-only API. This was
+a source compatibility review; the executable checks below ran on Node 24.21.0,
+not Node 22. Updated `package.json` and its root lockfile metadata to `>=22`, and
+the README sentence to “Node 22 or later.” No dependency or package version
+changed; CI stays on Node 24.21.0.
+
+In `../addon-check`, with `/opt/homebrew/opt/node@24/bin` prepended to PATH:
+`npm ci && npm run lint && npm run typecheck && npm test` (exit 0):
+
+```text
+v24.21.0
+added 183 packages, and audited 184 packages in 3s
+64 packages are looking for funding
+found 0 vulnerabilities
+> addon-check@0.1.0 lint
+> eslint .
+> addon-check@0.1.0 typecheck
+> tsc --noEmit
+> addon-check@0.1.0 test
+> npm run build && node --test test/*.test.mjs
+> addon-check@0.1.0 build
+> tsc -p tsconfig.build.json
+ℹ tests 42
+ℹ suites 0
+ℹ pass 42
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 24467.968625
+```
+
+npm printed its ordinary update notice (11.19.0 → 12.1.0); no update was made.
+
+`gh repo edit BashaarJavaid/addon-check --description 'Black-box conformance checks for MCP add-on servers: transport, auth metadata, schemas, speech length and latency. Not Amazon certification.' --add-topic mcp --add-topic model-context-protocol --add-topic conformance --add-topic cli --add-topic typescript`
+exited 0 with no output.
+
+`gh repo view BashaarJavaid/addon-check --json description,repositoryTopics`
+(exit 0):
+
+```json
+{"description":"Black-box conformance checks for MCP add-on servers: transport, auth metadata, schemas, speech length and latency. Not Amazon certification.","repositoryTopics":[{"name":"cli"},{"name":"conformance"},{"name":"mcp"},{"name":"model-context-protocol"},{"name":"typescript"}]}
+```
+
+Created local review branch `phase4-review-batch1` and committed only README,
+manifest, and root lockfile metadata:
+
+```text
+[phase4-review-batch1 d43b76d] Allow Node 22 and later for addon-check
+ 3 files changed, 3 insertions(+), 3 deletions(-)
+d43b76d2f15f5436931c9803432f29317e13171d
+```
+
+`git status --short` in addon-check was empty. Hirz's tested checker pin remains
+`c8b65e0977204883d2ec23d5ac0f7a08300d021e`; neither repository's workflow changed.
+The addon-check commit remains local and unmerged; the About edit is live.
+
+### Scoped final checks
+
+`uv run ruff format tests/conftest.py tests/unit/test_household_tools.py tests/integration/test_household_tools_database.py scripts/smoke_household_tools.py`:
+`2 files reformatted, 2 files left unchanged` (exit 0).
+
+`uv run ruff check tests/conftest.py tests/unit/test_household_tools.py tests/integration/test_household_tools_database.py scripts/smoke_household_tools.py`:
+`All checks passed!` (exit 0).
+
+`uv run mypy scripts/smoke_household_tools.py`:
+`Success: no issues found in 1 source file` (exit 0).
+
+`git diff --check` passed without output. No third-party tool misbehaved, so no
+friction-log entry was earned. The integration deselection was existing project
+configuration, not a pytest defect.
+
+`uv run ruff format --check .`, after the evidence and changelog were written
+(exit 0):
+
+```text
+248 files already formatted
+```
