@@ -7663,3 +7663,21 @@ attempt was stopped. The final harness uses Playwright `setFixedTime` for stable
 Date values while leaving transport and polling timers running; polling checks
 advance the fixed date and wait their real interval. This changes test scheduling
 only, not the upstream bridge, card behavior or approved baselines.
+
+### Final local safety checks and first CI dispatch
+
+The corrected fixed-Date browser run passed **36/36** in 2.5 minutes without
+updating any approved baseline (`/tmp/hirz-card-browser-fixed.log`). This adds
+unsupported fullscreen, 30-second preparation termination, hidden/error polling,
+one outstanding request, replaced-content late-response refusal, duplicate-click
+refusal and light/dark contrast checks. Strict app and browser-source type-checks,
+workspace unit tests (four card, one web), Ruff and formatting passed.
+
+After explicit author approval to upload the task branch, commit `800bd89` was
+pushed to `item-27-mcp-app-cards` and CI run
+[36083436840](https://github.com/BashaarJavaid/Hirz/actions/runs/36083436840)
+was dispatched. A subsequent final review tightened the unknown observed-lock
+case to suppress the request control both server-side and in the card; its four
+unit tests passed in 2.59 seconds. The initial dispatch is superseded for closure
+by a run including that guard; its latency jobs were still building native Dogwood
+at the last check, and no completed measurement from it is claimed.

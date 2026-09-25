@@ -270,3 +270,11 @@ for (const theme of ["light", "dark"]) test(`${theme} text and button contrast`,
     expect((values[0] + .05) / (values[1] + .05)).toBeGreaterThanOrEqual(4.5);
   }
 });
+
+test("unknown observed lock state disables unlock even with contradictory eligibility", async ({ page }) => {
+  const initial = structuredClone(fixtures.results.doorbell);
+  initial.data.presentation.lock_state = "unknown";
+  const { frame } = await mount(page, "doorbell", "light", () => initial, initial);
+  await expect(frame.getByText("Lock state unavailable")).toBeVisible();
+  await expect(frame.getByRole("button", { name: "Request 10-minute unlock" })).toHaveCount(0);
+});

@@ -101,6 +101,9 @@ def test_doorbell_freshness_sources_and_schedule_do_not_identify_visitors():
     assert doorbell(snap).snapshot is None and doorbell(snap).source == "live"
     lock["state"]["locked"] = False
     assert doorbell(snap).lock_state == "unlocked"
+    lock["state"]["locked"] = None
+    assert doorbell(snap).lock_state == "unknown" and not doorbell(snap).can_request
+    lock["state"]["locked"] = False
     lock["observed_at"] = (AT - timedelta(seconds=61)).isoformat()
     assert doorbell(snap).lock_state == "unknown" and not doorbell(snap).can_request
     bell["state"]["last_press_at"] = (AT - timedelta(seconds=61)).isoformat()

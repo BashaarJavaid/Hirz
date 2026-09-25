@@ -137,7 +137,7 @@ def doorbell(snapshot: ContextSnapshot) -> DoorbellCard | None:
         else "unlocked"
         if locked is False
         else "unknown",
-        can_request=bool(lock) and len(locks) == 1,
+        can_request=bool(lock) and isinstance(locked, bool) and len(locks) == 1,
         room=str(locks[0]["name"]) if len(locks) == 1 else None,
     )
 
