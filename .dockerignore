@@ -4,6 +4,16 @@
 !uv.lock
 !README.md
 !LICENSE
+!build_backend.py
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!tsconfig.json
+!apps/
+!apps/web/
+!apps/web/package.json
+!apps/mcp-app/
+!apps/mcp-app/**
 !scripts/
 !scripts/dogwood.Cargo.lock
 !scripts/dogwood-clone.patch
@@ -12,3 +22,7 @@
 !hirz/**
 **/__pycache__/
 **/*.pyc
+**/node_modules/
+apps/mcp-app/test-results/
+apps/mcp-app/tests/
+hirz/mcp/ui/

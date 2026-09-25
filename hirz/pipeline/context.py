@@ -30,6 +30,10 @@ class NewerDoorbellPress(ContextError):
     pass
 
 
+def active_doorbell_press(press: datetime | None, at: datetime) -> bool:
+    return press is not None and 0 <= (at - press).total_seconds() <= 60
+
+
 def quiet_hours(policy: Constitution, name: str, at: datetime) -> bool:
     for period in policy.quiet_hours:
         if name not in period.affects and name.split(".")[1] not in period.affects:
@@ -232,7 +236,8 @@ def extract(
             if press is not None and press > bound_at:
                 raise NewerDoorbellPress("a newer doorbell press")
             press_binding = bound_press
-        elif press is not None and 0 <= (at - press).total_seconds() <= 60:
+        elif active_doorbell_press(press, at):
+            assert press is not None
             press_binding = {
                 "asset_id": bells[0],
                 "last_press_at": press_text,

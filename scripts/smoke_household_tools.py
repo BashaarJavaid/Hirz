@@ -44,6 +44,7 @@ from hirz.executor.observations import ingest
 from hirz.graph.seeds import load_seeds, read_seed
 from hirz.local import read_env, signing_key
 from hirz.mcp.auth import SCOPES, KeyCache
+from hirz.mcp.card_evidence import load as load_card_evidence
 from hirz.mcp.contracts import TOOLS, Result
 from hirz.mcp.dev_oauth import registered_client
 from hirz.mcp.profiles import load as load_profiles
@@ -71,6 +72,9 @@ def serve(listener: socket.socket, config: dict[str, Any]) -> None:
         AuditWriter(signing_key(read_env(Path(".env")))),
         clock=lambda: datetime.fromisoformat(Path(config["clock_file"]).read_text()),
         profiles=load_profiles(Path(config["profiles"])),
+        card_evidence=load_card_evidence(
+            Path(config["card_evidence"]) if config.get("card_evidence") else None
+        ),
     )
     app = create_app(
         port=listener.getsockname()[1],

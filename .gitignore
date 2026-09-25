@@ -25,3 +25,6 @@ tests/benchmarks/reports/
 
 .tools/
 .hypothesis/
+hirz/mcp/ui/
+apps/mcp-app/test-results/
+apps/mcp-app/playwright-report/

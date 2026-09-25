@@ -131,7 +131,7 @@ All cards follow `docs/design.md`: Amazon's published design tokens verbatim, a 
 | `ui://hirz/plan-card` | `get_household_plan`, `revise_household_plan` | inline, fullscreen | Inline: dollars saved tonight, three rows, Approve. Fullscreen: the timeline, all actions, alternatives. Buttons call `approve_action` / `revise_household_plan` through the host bridge |
 | `ui://hirz/approval-card` | `approve_action`, `execute_household_action` (when ASK) | inline | One action, its rule, its band, Approve / Deny (for `security.*` classes the card says the approval is on the phone and shows no Approve button) |
 | `ui://hirz/verification-card` | `assess_request_risk`, `verify_trusted_identity` | inline | One headline, up to three signals, verification status (`pending` → result; the card re-calls `verify_trusted_identity` through the host bridge while pending, so the screen updates without anyone asking) |
-| `ui://hirz/doorbell-card` | `get_household_context` (scope `environment` or `security`) when a visitor context is active | inline | Snapshot, schedule context worded as context ("Mom is expected now", never "Mom is at the door"), unlock request button (pipeline-gated) |
+| `ui://hirz/doorbell-card` | `get_household_context` (scope `environment`) when a visitor context is active | inline | Snapshot, schedule context worded as context ("Mom is expected now", never "Mom is at the door"), unlock request button (pipeline-gated) |
 | `ui://hirz/scorecard` | `get_action_audit` | inline, fullscreen | Inline: dollars saved, annualized figure, peak kWh avoided. Fullscreen: counts and the decision list |
 
 All cards are built with `@modelcontextprotocol/ext-apps`, render in the host's sandboxed iframe, and call tools only through the host bridge so every action still passes the pipeline. Cards are optional overlays; the `speakable` block carries every critical fact.
@@ -190,3 +190,28 @@ Unmapped/child tokens can use generic onboarding but receive 403 for protected
 calls. Required keys/database unavailable gives 503. Policy denials remain tool
 results. Full household tools/isolation and Inspector OAuth registration remain
 later work; [ADR-014](./adr/ADR-014-local-oauth.md) records the exact local contract.
+
+## Card result fields and estimates (item 27)
+
+Authenticated startup registers the five resources above with MIME
+`text/html;profile=mcp-app` and tool `_meta.ui.resourceUri`. Static templates are
+anonymous and contain no household data or evidence configuration. Tool reads and
+mutations retain their existing scopes. Resources bundle all assets and declare
+empty external network/resource destinations. Modes are declared by the SDK during
+`ui/initialize`; only plan and scorecard offer customer-operated fullscreen.
+
+`Result.data.presentation` is optional and discriminated by `kind` (`plan`,
+`approval`, `verification`, `doorbell`, `scorecard`). Its labels, source, timestamps
+and control eligibility are deterministic server output. `data.actions` contains
+canonical Actions for the plan timeline, without a second action shape. Every
+result retains complete `speakable`. Missing specialized content renders neutrally.
+
+`get_action_audit` selects the most recently created eligible plan overlapping its
+window, excluding superseded, abandoned and refreshing plans; action queries use
+that action's plan. The displayed horizon is exact, overlapping estimates are not
+summed, and invalid comparisons are unavailable. Separate backtest extrapolation
+requires the explicit startup evidence mapping described in
+[development](./development.md#item-27-mcp-app-cards). Negative figures are preserved.
+Counts independently deduplicate device action IDs for autonomous execution,
+ASK, DENY and VERIFIED read-back. Categories can overlap; previews, bookkeeping
+and private contact cases are excluded. Pagination changes only the decision list.

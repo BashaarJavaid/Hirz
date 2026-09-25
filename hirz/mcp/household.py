@@ -43,6 +43,7 @@ from hirz.mcp.contracts import (
     response,
 )
 from hirz.mcp.persistence import command
+from hirz.mcp.presentation import Annualized
 from hirz.mcp.profiles import Profile, ProfileName
 from hirz.pipeline.hashing import action_hash, digest
 from hirz.pipeline.models import (
@@ -124,10 +125,12 @@ class HouseholdTools:
         *,
         policy_hash: str | None = None,
         profiles: dict[ProfileName, Profile] | None = None,
+        card_evidence: "Annualized | None" = None,
     ):
         self.p, self.principal = pipeline, principal
         self.policy_hash = policy_hash
         self.profiles = profiles or {}
+        self.card_evidence = card_evidence
 
     async def call(self, name: str, arguments: dict[str, Any]) -> Result:
         schema = TOOLS[name][0]
@@ -192,6 +195,9 @@ class HouseholdTools:
             snapshot = await p.snapshot(p.clock())
             try:
                 answer = await self.dispatch(name, args, snapshot)
+                from hirz.mcp.card_data import decorate
+
+                answer = await decorate(p, answer, snapshot, self.card_evidence)
             except Clarification as exc:
                 return response(
                     "Please clarify this household request.",
@@ -1156,8 +1162,15 @@ class HouseholdTools:
             if len(rows) > args.limit
             else None
         )
+        from hirz.mcp.card_data import scorecard
+
+        card, estimate = await scorecard(
+            p, start, end, args.action_id, self.card_evidence
+        )
         return response(
             "Here are the most recent household activity summaries.",
             audit=items,
             cursor=token,
+            presentation=card,
+            plan=estimate,
         )

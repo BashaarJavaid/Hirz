@@ -7594,3 +7594,64 @@ prior verification text is preserved, item 26 and `THREAT_MODEL.md` are unchange
 and `CLAUDE.md` and `AGENTS.md` are byte-identical. The closure commit changed
 only eight documentation files (128 insertions, 41 deletions); this follow-up
 only appends evidence. The same four final checks are repeated after this entry.
+
+## Item 27 — 2026-09-24
+
+### Local implementation and reviewed visuals
+
+Approved scope: [ADR-018](./adr/ADR-018-mcp-app-cards.md). The author reviewed and
+approved all fourteen initial Linux Chromium baselines on 2026-09-24. The gallery
+is `apps/mcp-app/tests/baselines/README.md`. The separate browser-test declaration
+exception was also explicitly approved; application TypeScript checks and all
+pins remain unchanged.
+
+Environment: macOS, Python 3.12.13, Node 24.21.0, pnpm 12.4.2, pinned native Dogwood,
+existing PostgreSQL with uniquely named disposable twin databases. Bedrock stayed
+off, the existing spending ledger was not changed, and development migrations
+were not applied. Generated HTML assets are ignored; the fourteen PNGs contain
+explicitly labeled synthetic household content.
+
+Completed local checks at this checkpoint:
+
+- Service-free pytest: 1,425 passed in 315.39 seconds. Full PostgreSQL integration
+  run: 151 passed in 850.70 seconds. `coverage report --fail-under=80` reports
+  12,476 statements, 876 missed, 93% combined coverage.
+- New card evidence/resource/freshness tests plus database-backed estimate selection:
+  six passed in 54.18 seconds (`/tmp/hirz-card-data.log`). Persisted changes use
+  Pipeline; checks include negative/mismatched retained evidence, anonymous static
+  resources, stale/mixed-source observations, independent pagination counts,
+  newest overlapping plan, action-specific selection, cancellation exclusion,
+  foreign references and independently verified audit history.
+- Independent add-on checker: 117 PASS, 0 FAIL, 0 WARN, 0 SKIP, 8 MANUAL;
+  complete=true, with 611 signed rows independently verified. Private artifacts:
+  `/tmp/hirz-item27-conformance-audit.json` and its `.conformance.json` report.
+  Only onboarding/context are timed by that checker; this does not replace the
+  authenticated CI latency/isolation gate.
+- First complete browser run: 30 passed in 4.7 minutes in the pinned Linux
+  Playwright 1.57.0 image, including fourteen snapshots, exact consent arguments,
+  approve/deny, retry-key identity, car-limit revision, all terminal verification
+  statuses, expiry without fabricated replies, malformed results, source/lock
+  observation behavior, keyboard controls, reduced motion, density and 1280×800.
+  Private fixture source: `/tmp/hirz-cards-05/fixtures.json`; log:
+  `/tmp/hirz-card-browser.log`.
+- Unchanged v2.0.0 reference host over the real local OAuth relay: one browser
+  test passed in 19.9 seconds; foreign Origin rejected, environment context read,
+  unlock request reports unavailable phone approval, observed lock remains locked.
+  `/tmp/hirz-cards-07/report.json` records 404 home and three parents signed rows,
+  both independently valid. The disposable database was dropped; development was
+  unchanged. Earlier failed harness runs are retained under `/tmp/hirz-cards-05`
+  and `/tmp/hirz-cards-06`; neither is claimed as passing.
+- `uv build` produced wheel/sdist containing five complete resources. A fresh
+  install at `/tmp/hirz-item27-wheel-final`, invoked from `/tmp`, imported the
+  installed package and checked all five resources. The first Docker image also
+  checked five resources and existing unprivileged UID 10001; a final rebuild is
+  in progress after the last source changes.
+- Ruff lint/format passed; mypy reported no issues in 158 source files.
+
+An expanded 36-case browser run exposed uncontrolled real-time advancement of
+fixture clocks under a slower shared-machine run. It was stopped rather than
+accepted. The harness now explicitly pauses fixture time and advances it only in
+polling tests; approved image baselines remain unchanged. The expanded run, final
+packaging regression and required CI gates are still pending at this checkpoint.
+No item closure, AWS/host latency, real phone delivery, Ring integration or security
+execution is claimed here.

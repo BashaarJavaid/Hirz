@@ -12,6 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field, StrictBool, model_validator
 from hirz.explainer.models import Speakable
 from hirz.graph.context import ContextSnapshot
 from hirz.graph.models import Scope
+from hirz.mcp.presentation import Presentation
 from hirz.mcp.profiles import ProfileName
 from hirz.pipeline.models import Action, Decision, Plan, VerificationCase
 from hirz.planner.models import Objective
@@ -294,6 +295,8 @@ class AuditSummary(Input):
 
 
 class Data(Input):
+    presentation: Presentation | None = None
+    actions: tuple[Action, ...] = ()
     status: Literal[
         "ok",
         "clarification",

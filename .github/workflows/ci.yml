@@ -55,6 +55,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: ./.github/actions/build-cards
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
           version: "0.12.15"
@@ -84,6 +85,28 @@ jobs:
         run: uv run --locked pytest -m integration --cov=hirz --cov-append
       - name: 80 percent combined coverage gate
         run: uv run --locked coverage report --fail-under=80
+      - name: Check out unchanged MCP Apps reference host
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: modelcontextprotocol/ext-apps
+          ref: 352f6ced4d80772e92b4e7a311854481a8d65b04 # v2.0.0
+          path: .tools/ext-apps-v2
+          persist-credentials: false
+      - name: Authenticated card fixtures and verified audit exports
+        run: uv run --locked python -m scripts.smoke_cards --artifacts-dir "$RUNNER_TEMP/card-fixtures"
+      - name: Build unchanged reference renderer and bridge
+        run: pnpm --filter mcp-app exec node reference-host.mjs
+      - name: Install pinned Chromium for the authenticated relay
+        run: pnpm --filter mcp-app exec playwright install --with-deps chromium
+      - name: Reference host over real authenticated household calls
+        run: HIRZ_CARD_LIVE=1 uv run --locked python -m scripts.smoke_cards --artifacts-dir "$RUNNER_TEMP/card-live" --browser-test
+      - name: Linux Chromium card baselines and behavior
+        run: >-
+          docker run --rm --ipc=host
+          -v "$PWD:/work" -v "$RUNNER_TEMP/card-fixtures:/fixtures:ro"
+          -w /work/apps/mcp-app -e HIRZ_CARD_FIXTURES=/fixtures/fixtures.json -e CI=1
+          mcr.microsoft.com/playwright:v1.57.0-noble@sha256:3bed4b1a12f2338642f3d8cba28e291deef3c66bd4a964bbeb3e57bbff511dbd
+          node node_modules/@playwright/test/cli.js test
       - name: Service status on failure (no configuration or raw logs)
         if: failure()
         run: >-
@@ -186,7 +209,7 @@ jobs:
       - run: pnpm -r test
       - name: Browser coverage awaits Phase 5
         run: |
-          echo 'DEFERRED: No Playwright, companion, simulator, or voice-only checks ran. Phase 5 adds these surfaces and browser tests.' | tee -a "$GITHUB_STEP_SUMMARY"
+          echo 'MCP card browser checks run with the Python integration fixtures; companion and simulator checks remain Phase 5.' | tee -a "$GITHUB_STEP_SUMMARY"
 
   conformance:
     runs-on: ubuntu-24.04
@@ -198,6 +221,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: ./.github/actions/build-cards
       - name: Check out reviewed independent checker
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -270,6 +294,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: ./.github/actions/build-cards
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
           version: "0.12.15"
@@ -356,6 +381,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: ./.github/actions/build-cards
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
           version: "0.12.15"
@@ -371,13 +397,13 @@ jobs:
           cd "$RUNNER_TEMP"
           ./wheel-smoke/bin/python -c 'import hirz; from importlib.metadata import version; print("PASS installed hirz", version("hirz"))'
           ./wheel-smoke/bin/python -c 'from hirz.risk import CLASSES; from hirz.constitution.preview import SITUATIONS; assert len(CLASSES) == len(SITUATIONS) == 36; print("PASS packaged catalogs: 36 classes, 36 situation groups")'
+          ./wheel-smoke/bin/python -c 'from hirz.mcp.cards import assets; assert len(assets()) == 5; print("PASS five packaged cards")'
           ./wheel-smoke/bin/hirz --help
       - run: docker build --tag hirz-ci:check .
       - name: Container runs as the existing unprivileged user
         run: docker run --rm --entrypoint python hirz-ci:check -c 'import os; assert os.getuid() == 10001; print("PASS container UID", os.getuid())'
-      - name: Frontend bundles await Phase 5
-        run: |
-          echo 'DEFERRED: No MCP App or companion bundle was built. Phase 5 adds the frontend build scripts.' | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Packaged card resources in container
+        run: docker run --rm --entrypoint python hirz-ci:check -c 'from hirz.mcp.cards import assets; assert len(assets()) == 5; print("PASS five packaged cards")'
 
   release:
     runs-on: ubuntu-24.04

@@ -20,6 +20,7 @@ from hirz.graph.models import now
 from hirz.mcp.auth import identity_context
 from hirz.mcp.contracts import TOOLS, Result, input_schema, response
 from hirz.mcp.household import HouseholdTools
+from hirz.mcp.presentation import Annualized
 from hirz.mcp.profiles import Profiles
 from hirz.mcp.server import HirzMCP
 from hirz.pipeline.audit import AuditWriter
@@ -36,9 +37,11 @@ class HouseholdRuntime:
         *,
         clock: Callable[..., Any] = now,
         profiles: Profiles | None = None,
+        card_evidence: dict[UUID, Annualized] | None = None,
     ):
         self.engine, self.audit, self.clock = engine, audit, clock
         self.profiles = profiles or Profiles()
+        self.card_evidence = card_evidence or {}
         self.boundary = Dogwood()
         self.bundles: dict[UUID, tuple[PolicyBundle, str]] = {}
 
@@ -105,12 +108,17 @@ class HouseholdRuntime:
                 identity.principal,
                 policy_hash=fingerprint,
                 profiles=self.profiles.households.get(identity.household_id, {}),
+                card_evidence=self.card_evidence.get(identity.household_id),
             ).call(name, arguments)
 
 
 def register(server: HirzMCP, runtime: HouseholdRuntime) -> None:
+    from hirz.mcp.cards import TOOLS as CARD_TOOLS
+    from hirz.mcp.cards import register as register_cards
+
     if not server.authentication:
         raise ValueError("Household tools require OAuth")
+    register_cards(server)
     for name, (_, scope, _) in TOOLS.items():
         if scope:
             server.tool_scopes[name] = "hirz:" + scope
@@ -123,6 +131,9 @@ def register(server: HirzMCP, runtime: HouseholdRuntime) -> None:
                 description=description,
                 inputSchema=input_schema(schema),
                 outputSchema=Result.model_json_schema(),
+                _meta={"ui": {"resourceUri": f"ui://hirz/{CARD_TOOLS[name]}"}}
+                if name in CARD_TOOLS
+                else None,
                 annotations=types.ToolAnnotations(
                     readOnlyHint=name
                     in {

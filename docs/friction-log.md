@@ -621,3 +621,23 @@ checks passed. See the [completion evidence](./verification-log.md#publication-a
   validator per tool/output-schema version and invalidate it when the schema
   changes. [Finding and measurement scope](./verification-log.md#scheduling-and-harness--2026-09-24),
   [author's decision](./adr/ADR-017-tool-latency-and-isolation.md#server-round-trip-amendment--2026-09-24).
+
+## Item 27: pinned Playwright declarations and TypeScript 6 — 2026-09-24
+
+- **Tool/task:** Playwright 1.57.0 [protocol declarations](https://github.com/microsoft/playwright/blob/v1.57.0/packages/playwright-core/types/protocol.d.ts)
+  under the repository's existing TypeScript 6.0.3 strict type-check.
+  **Steps/expected:** include the new browser tests and Playwright configuration
+  in `apps/mcp-app/tsconfig.json`, then run `pnpm --filter mcp-app typecheck`.
+  **Actual:** dependency declarations fail with `error TS1540: A 'namespace'
+  declaration should not be declared using the 'module' keyword. Please use the
+  'namespace' keyword instead.` The first location is `playwright-core/types/protocol.d.ts(3,15)`;
+  the compiler reports the same error for its other module declarations.
+  **Severity:** Minor. **Workaround:** requested the author's decision on a separate
+  strict browser-test config using `skipLibCheck`, retaining all dependency pins
+  and unchanged application type-checking; no substitution applied pending reply.
+  **Suggestion:** use namespace declarations compatible with TypeScript 6 in
+  generated protocol types. [Compiler option](https://www.typescriptlang.org/tsconfig/skipLibCheck.html).
+
+  **2026-09-24 author decision:** approved the separate strict browser-test config
+  with dependency declaration checking skipped. All pins and full application
+  type-checking remain unchanged; browser test source is still checked.
