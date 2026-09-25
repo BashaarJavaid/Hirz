@@ -1149,6 +1149,7 @@ the generic app above retains anonymous onboarding only. Identity comes from
 OAuth's request context and current member lookup. Tool schemas and exact inputs
 are in [the catalog](./docs/tool-catalog.md); [ADR-015](./docs/adr/ADR-015-household-tools.md)
 records the approved local contract.
+Each tool publishes a narrow output schema without generated titles and validates the runtime superset at the response boundary, including receipt replays ([ADR-015 amendment](./docs/adr/ADR-015-household-tools.md#per-tool-output-schemas--2026-09-24)).
 
 Startup validates/compiles policy bundles. Calls check the current bundle under
 the household lock, reuse Pipeline and Coordinator for synchronous bookkeeping,
@@ -1164,7 +1165,7 @@ ConstraintSpec values and invalidates plans atomically. Exact-version consent
 refuses refreshing plans; cancellation preserves existing bounded endings. Voice
 security approvals remain unresolved. Simulated trust replies and two-minute
 expiry are worker-only Pipeline transitions. Delayed results require another call.
-Outputs support speech and native rendering without invented UI resources.
+Outputs retain complete speech alongside optional card presentation.
 Configured profiles freeze explicit light/thermostat settings and check every device
 through Pipeline; missing configurations are unavailable. Explicit objective tilts
 persist through first-plan requests or refresh inputs, invalidate old consent and
@@ -1174,10 +1175,25 @@ require approval of the replacement. Configuration and exact priority orders:
 The reusable headless Strands host consumes actual tools/list, maintains context,
 injects retry keys and holds commitments for explicit confirmation. Its live
 selection gate retains its ledger under the author-approved $2 ceiling; missing
-access or incorrect selections leave the gate pending. Cards belong to item 27;
+access or incorrect selections leave the gate pending. Cards are implemented in item 27;
 drafting/activation and phone approvals to 28; elicitation and the full simulator
 to 29; real contact checks and further trust methods to 31; organization verification
 to 33. Item 26 owns the full latency/isolation gate.
+
+**Local cards (item 27).** Five static self-contained React resources use the
+MCP Apps 2.0.0 bridge. Authenticated startup requires all five built assets;
+generic onboarding startup is unchanged. Static reads need no OAuth because
+resources contain no household records, credentials or configured evidence. Tools
+retain scope enforcement, privacy boundaries and Pipeline decisions. Optional
+discriminated presentation fields and canonical Actions add deterministic labels,
+control eligibility and timeline data without a migration. Evidence files are
+hash-checked at startup; counts and plan selection read existing records, never
+invoke a solver, model or external network. The server remains authoritative for
+approval and mutations. The reference-host test relay holds disposable tokens
+server-side and does not change production Origin/Host guards. Detailed behavior:
+[design](./docs/design.md#9-implemented-local-cards-item-27),
+[catalog](./docs/tool-catalog.md#card-result-fields-and-estimates-item-27),
+[ADR-018](./docs/adr/ADR-018-mcp-app-cards.md).
 
 **Target surface after item 23 (not all implemented):**
 
@@ -1185,7 +1201,7 @@ to 33. Item 26 owns the full latency/isolation gate.
 - **Auth.** Bearer JWT from the household's authorization server (Cognito in AWS, a local dev issuer otherwise). `401` with `WWW-Authenticate: Bearer resource_metadata=...` when missing or invalid; PRM document at `/.well-known/oauth-protected-resource` listing the authorization server and scopes (`hirz:read`, `hirz:plan`, `hirz:act`, `hirz:verify`). Token `sub` → member (§7). Guest experience for unlinked users: `what_can_you_do` and a generic capability summary only.
 - **Tool surface.** Twelve tools in five groups (context, planning, action, trust, governance), deliberately few so the orchestrator picks reliably, fully specified in [`docs/tool-catalog.md`](./docs/tool-catalog.md). Design rules from Alexa+'s functional requirements are enforced by a schema test: every tool has a complete `inputSchema` with synonyms in parameter descriptions, every tool is invocable, outputs conform to `outputSchema`, errors are MCP tool-execution errors with consumer-language messages, and every output carries a `speakable` block.
 - **Visuals.** MCP Apps (`ui://hirz/...` resources) for the plan card, approval card, verification card, doorbell card, and daily scorecard, built with `@modelcontextprotocol/ext-apps` to the spec in `docs/design.md`: Amazon's published tokens verbatim, a 768×480 base canvas, one job per card, light and dark. Cards are overlays: the `speakable` block always carries the critical information so voice-only devices are complete.
-- **Modality.** Amazon's display modes, verbatim: voice-only is the always-on baseline (every output is voice-complete); tools with a card declare inline and, for dense content, fullscreen, entered through a control the customer operates; outputs stay clean enough for Alexa's hydrated rendering when no UI is sent. The earlier custom `presentation` hint is now only the simulator's device switch.
+- **Modality.** Amazon's display modes, verbatim: voice-only is the always-on baseline (every output is voice-complete); tools with a card declare inline and, for dense content, fullscreen, entered through a control the customer operates; outputs stay clean enough for Alexa's hydrated rendering when no UI is sent. Optional `data.presentation` supplies deterministic card content, independently of display mode.
 - **Multi-turn.** Plan and verification objects have stable ids; follow-ups ("make it 50", "verify it") resolve through short-term memory keyed by session.
 - **Tasks.** Long operations that cannot be precomputed (a fresh full re-plan on demand) use the 2025-11-25 experimental tasks utility where the host supports it and the "refreshing" pattern otherwise.
 
@@ -1381,7 +1397,7 @@ submission; record each run in the evidence log
 ([ADR-017](./docs/adr/ADR-017-tool-latency-and-isolation.md#closure-amendment--2026-09-24),
 [evidence](./docs/verification-log.md#closure--2026-09-24)).
 
-Target-state budget per tool call on the AWS path; `tests/latency` is the local proxy:
+**AWS-path budget, not yet measured (item 38)**
 
 | Stage | Budget |
 |---|---|
@@ -1392,6 +1408,15 @@ Target-state budget per tool call on the AWS path; `tests/latency` is the local 
 | Writing the action as `scheduled` for the worker (act tools) | 10 ms |
 | Serialization + response | 10 ms |
 | **Total, warm p95** | **≤ 190 ms** (headroom for the host's own overhead) |
+
+**Measured, local CI runner, raw JSON-RPC round trip, no TLS**
+
+| Gate | Highest case p95 |
+|---|---|
+| [Item 26b](./docs/verification-log.md#closure--2026-09-24) | Time-of-Day: 203.753 ms; Hourly: 215.672 ms |
+| [After item 27](./docs/verification-log.md#item-27-closure--2026-09-24) | 236.703 ms |
+
+Amazon's published bound is 500 ms round trip; the 250 ms local gate is Hirz's own proxy.
 
 Things that never run inside a tool call: the MILP planner, Bedrock calls, the Gateway call (stage 7 runs in the worker at execution time, §5.6), adapter network calls to third parties (state is read from `observations`, refreshed by the worker's polls and Hirz Link's observation stream), and Cedar compilation. `tests/latency/test_tool_budget.py` fails the manual latency job if any tool's warm p95 over the scenario corpus exceeds 250 ms locally.
 

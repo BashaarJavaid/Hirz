@@ -1329,3 +1329,78 @@ labeled disposable home copy exists only for symmetric foreign plan, constraint
 and approval probes. All runtime records use Pipeline. These gates concern local
 authenticated tools and simulated devices; AWS cold start, production linking,
 Alexa voice latency and real phone/security execution remain separate work.
+
+## Item 27: MCP App cards
+
+Use Node 24 and the locked workspace. Build cards before authenticated local startup
+or Python distribution builds:
+
+```sh
+pnpm install --frozen-lockfile
+pnpm --filter mcp-app build
+uv build
+```
+
+The five generated files in `hirz/mcp/ui/` are ignored and included in the wheel/sdist.
+Authenticated startup fails on missing/incomplete assets; generic onboarding has no
+asset prerequisite. Docker builds them in its Node stage. Static resource reads are
+anonymous and carry no household state. Tool calls retain OAuth and existing scopes.
+No migration is added. Keep the development database unchanged for card verification.
+
+Optional `HIRZ_CARD_EVIDENCE_FILE` is a startup YAML file with explicit household
+mappings. Use the real retained file hash and the reviewed household/profile choice:
+
+```yaml
+households:
+  "<household UUID>":
+    results_file: /absolute/path/to/scripts/backtest-data/results.json
+    sha256: "<sha256 of that exact file>"
+    profile: comed_time_of_day
+    household_variant: solar_battery_ev
+    wear_per_internal_kwh: 0.01
+```
+
+This example is a schema illustration, not an inferred mapping for a household.
+Missing, invalid or mismatched mappings yield unavailable extrapolation. Files are
+loaded once; restart after a reviewed change. The card labels plan estimates and
+backtest extrapolation separately and retains negative values.
+
+For browser checks, check out upstream ext-apps v2.0.0 at commit
+`352f6ced4d80772e92b4e7a311854481a8d65b04` in `.tools/ext-apps-v2` (or set
+`HIRZ_REFERENCE_HOST` to that checkout). The builder verifies its commit and refuses
+renderer/bridge modifications. No upstream source changes are needed:
+
+```sh
+pnpm --filter mcp-app exec node reference-host.mjs
+HIRZ_LLM=off uv run --locked python -m scripts.smoke_cards --artifacts-dir /tmp/new-card-fixtures
+HIRZ_CARD_FIXTURES=/tmp/new-card-fixtures/fixtures.json pnpm --filter mcp-app test:browser
+```
+
+The scorecard screenshot selects one actual denied action for stable counts;
+whole-window count semantics remain covered by PostgreSQL tests. The fixture smoke
+uses disposable twin households, records all runtime changes
+through Pipeline, and independently verifies private audit exports. Its fixtures
+confer no security authority. For a real authenticated reference-host browser call,
+install the pinned Playwright Chromium and run:
+
+```sh
+pnpm --filter mcp-app exec playwright install chromium
+HIRZ_LLM=off uv run --locked python -m scripts.smoke_cards --artifacts-dir /tmp/new-card-live --browser-test
+```
+
+The optional `--serve` relay binds loopback 8082, accepts only the test origin
+`http://localhost:8080`, holds OAuth tokens server-side and fixes the household in
+`/home/mcp` or `/parents/mcp`. The unchanged host runs on 8080 with its sandbox on
+8081. Production guards are unchanged. Stop the owned processes after manual use.
+
+Generate/review baselines only in the pinned Linux Playwright image used by CI:
+`mcr.microsoft.com/playwright:v1.57.0-noble@sha256:3bed4b1a12f2338642f3d8cba28e291deef3c66bd4a964bbeb3e57bbff511dbd`.
+Mount the checkout at `/work` and the private fixture directory read-only at
+`/fixtures`; run from `/work/apps/mcp-app` with `HIRZ_CARD_FIXTURES=/fixtures/fixtures.json`
+and `CI=1`, using `node node_modules/@playwright/test/cli.js test`. Add
+`--update-snapshots` only for an intentional, reviewed visual change. The fourteen
+committed PNGs contain labeled synthetic data, not credentials or private case IDs.
+Retain private fixture/audit artifacts locally; CI publishes only payload-free
+summaries. The [item 27 closure](./verification-log.md#item-27-closure--2026-09-24)
+records the approved screenshots and passing gates. Future relevant changes follow
+the authenticated CI dispatch requirement in the item 26 procedure above.

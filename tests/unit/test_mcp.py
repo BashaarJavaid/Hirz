@@ -12,7 +12,8 @@ from mcp.client.streamable_http import streamable_http_client
 from starlette.types import Message, Receive, Scope, Send
 
 from hirz.api.app import create_app
-from hirz.mcp.server import Onboarding, what_can_you_do
+from hirz.mcp.contracts import WhatCanYouDoResult
+from hirz.mcp.server import what_can_you_do
 from hirz.mcp.transport import MAX_BODY_BYTES, MCPGuard, local_security
 
 URL = "http://localhost:8000"
@@ -58,7 +59,7 @@ def test_client_sdk_and_independent_lifecycles() -> None:
                                     Draft202012Validator(tool.outputSchema).validate(
                                         result.structuredContent
                                     )
-                                    value = Onboarding.model_validate(
+                                    value = WhatCanYouDoResult.model_validate(
                                         result.structuredContent
                                     )
                                     assert value == await what_can_you_do()
@@ -320,7 +321,7 @@ def test_json_depth_and_strings(container: str, depth: int) -> None:
 def test_invalid_body_through_endpoint(
     body: bytes, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    async def forbidden() -> Onboarding:
+    async def forbidden() -> WhatCanYouDoResult:
         pytest.fail("Invalid body dispatched a tool")
 
     monkeypatch.setattr("hirz.mcp.server.what_can_you_do", forbidden)

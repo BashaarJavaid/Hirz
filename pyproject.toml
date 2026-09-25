@@ -29,10 +29,12 @@ hirz = "hirz.cli:main"
 
 [build-system]
 requires = ["uv_build==0.12.15"]
-build-backend = "uv_build"
+build-backend = "build_backend"
+backend-path = ["."]
 
 [tool.uv.build-backend]
 module-root = ""
+source-include = ["build_backend.py", "hirz/mcp/ui/*.html"]
 
 [tool.ruff]
 target-version = "py312"

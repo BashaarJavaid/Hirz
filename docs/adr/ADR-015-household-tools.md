@@ -214,3 +214,65 @@ A targeted diagnostic alone never satisfies the full live gate.
 
 The full 31-case live gate subsequently passed; retained failures, tokens, budget
 and signed-audit evidence are recorded in the [completion entry](../verification-log.md#item-25-completion-within-approved-scope--2026-09-23). Later-item boundaries above remain unchanged.
+
+### Per-tool output schemas — 2026-09-24
+
+Publish one strict result envelope per tool. `Result` and `Data` remain the
+runtime/test/smoke/budget superset; canonical Action, Decision, Plan, AuditEvent
+and VerificationCase shapes remain unchanged. Anonymous and authenticated
+onboarding use the same `WhatCanYouDoResult`, with `tuple[str, ...]` for
+`available_tools`. Each envelope and its data reject extra fields, and every
+one accepts shared clarification/failure responses with status/code and speakable
+options.
+
+Every data shape includes `status` and `code`; the remaining fields are:
+
+| Tool | Data fields beyond status/code |
+|---|---|
+| `what_can_you_do` | `available_tools` |
+| `get_household_context` | `context`, `presentation: DoorbellCard` |
+| `get_household_plan` | `plan`, `actions`, `reference`, `presentation: PlanCard` |
+| `revise_household_plan` | `decision`, `constraint_id` |
+| `explain_plan` | `plan`, `action`, `actions`, `reference`, `presentation: PlanCard` |
+| `approve_action` | `decision`, `decisions`, `plan`, `action`, `source`, `presentation: ApprovalCard` |
+| `execute_household_action` | `decision`, `decisions`, `action`, `source`, `presentation: ApprovalCard` |
+| `assess_request_risk` | `case`, `presentation: VerificationCard` |
+| `verify_trusted_identity` | `case`, `decision`, `source`, `presentation: VerificationCard` |
+| `propose_household_rule` | `reference` |
+| `evaluate_permission` | `decision`, `decisions` |
+| `get_action_audit` | `audit`, `cursor`, `plan`, `presentation: Scorecard` |
+
+The starting table required no changes after tracing every reachable response in
+`household.py`, `trust.py` and `card_data.decorate()`. Plan decoration supplies
+`actions`; queued plan consent returns before plan-card decoration. Revision
+bookkeeping has an internal auto/deny governance rule, and permission previews
+persist no action for approval-card lookup. Audit supplies its scorecard before
+shared decoration.
+
+Runtime services continue building the superset. At `runtime.py`'s `call_tool`
+boundary, dump with unset/default fields excluded and validate against the tool's
+narrow class; durable receipt replays take the same path. An unexpected populated
+field is a server bug: log only tool name and exception class, then return the
+existing UNAVAILABLE error result, never silently discard the field. `list_tools`
+publishes that same narrow class's JSON Schema. Unknown tool names retain the
+existing REQUEST_REFUSED result.
+
+Generated titles are omitted from published input/output schemas because descriptions carry their meaning and titles add no host behavior, taking the reported discovery baseline from **361,198 → 127,788 with narrow titled schemas → 107,549 bytes** (largest tool **16,516 bytes**).
+The [Pydantic schema generator hooks](https://docs.pydantic.dev/latest/api/json_schema/#pydantic.json_schema.GenerateJsonSchema)
+suppress automatic field titles and remove model/enum titles during generation,
+after metadata application, with no recursive publication-time pruning. A unit
+check compares every generated input/output schema with its original except for
+titles, retaining all definitions, references, enum/const/default values,
+descriptions and constraints. The unit size gate remains strictly below 120,000
+bytes total and 20,000 per tool, using the same unminified six-field serializer.
+The corrected-commit [latency gate](https://github.com/BashaarJavaid/Hirz/actions/runs/36109337744)
+passed both scenarios at 250 ms; the earlier run on the superseded commit is
+diagnostic only. Measurement details and SDK/Ajv/browser/CI results are in the
+[batch evidence](../verification-log.md#phase-4-review-batch-2--2026-09-24).
+
+Rejected alternatives: pruning the superset schema at list time leaves no typed
+runtime boundary and can misdescribe results; keeping one schema duplicates
+unrelated canonical objects across every tool and retains client validation cost;
+a generic `Result[T]` adds indirection for twelve fixed public envelopes. No
+canonical object, card Zod contract, checker/case, dependency, migration, tool,
+speech, scope, Pipeline path or latency corpus changes.

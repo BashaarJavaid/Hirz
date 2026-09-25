@@ -1,6 +1,7 @@
 """Public contract validation and household-local reporting boundaries."""
 
 from datetime import UTC, datetime
+from uuid import uuid4
 
 import pytest
 from pydantic import ValidationError
@@ -14,9 +15,17 @@ from hirz.mcp.contracts import (
     PermissionInput,
     RevisionInput,
     input_schema,
+    response,
 )
 from hirz.mcp.household import audit_window, horizon_end
 from hirz.risk import CONSUMER_ACTIONS
+from tests.conftest import assert_no_identifiers
+
+
+def test_speech_identifier_check():
+    with pytest.raises(AssertionError):
+        assert_no_identifiers(response(f"The plan is {uuid4().hex}.").speakable)
+    assert_no_identifiers(response("The car limit is 50 percent.").speakable)
 
 
 def test_every_tool_has_flat_strict_consumer_inputs():
@@ -324,3 +333,125 @@ def test_host_keeps_usage_snapshot_for_each_reported_turn():
     usage["inputTokens"] = 30
     assert first["usage"]["inputTokens"] == 10
     assert host.turn("Again")["usage"]["inputTokens"] == 30
+
+
+def test_tools_list_size_and_narrow_output_boundary(capsys, caplog):
+    import asyncio
+    import json
+    from unittest.mock import AsyncMock
+
+    from mcp import types
+
+    from hirz.mcp.contracts import OUTPUTS, Result, WhatCanYouDoResult, output_schema
+    from hirz.mcp.runtime import register
+    from hirz.mcp.server import create_server, what_can_you_do
+    from hirz.mcp.transport import local_security
+
+    async def run():
+        server = create_server(local_security(8000), authentication=True)
+        runtime = AsyncMock()
+        register(server, runtime)
+        handlers = server._mcp_server.request_handlers
+        listed = await handlers[types.ListToolsRequest](
+            types.ListToolsRequest(method="tools/list")
+        )
+        rows = [
+            tool.model_dump(
+                mode="json",
+                by_alias=True,
+                include={
+                    "name",
+                    "description",
+                    "inputSchema",
+                    "outputSchema",
+                    "meta",
+                    "annotations",
+                },
+            )
+            for tool in listed.root.tools
+        ]
+        sizes = {row["name"]: len(json.dumps(row).encode()) for row in rows}
+        total = len(json.dumps(rows).encode())
+        with capsys.disabled():
+            print(f"tools/list bytes={total}; largest tool bytes={max(sizes.values())}")
+            for name, size in sizes.items():
+                print(f"{name} bytes={size}")
+        assert set(sizes) == set(TOOLS) == set(OUTPUTS)
+        assert total < 120_000
+        assert all(size < 20_000 for size in sizes.values())
+        assert next(row for row in rows if row["name"] == "what_can_you_do")[
+            "outputSchema"
+        ] == output_schema(WhatCanYouDoResult)
+        assert isinstance(await what_can_you_do(), WhatCanYouDoResult)
+
+        async def call(name, result):
+            runtime.call.return_value = result
+            value = await handlers[types.CallToolRequest](
+                types.CallToolRequest(
+                    method="tools/call",
+                    params=types.CallToolRequestParams(name=name, arguments={}),
+                )
+            )
+            return value.root
+
+        unknown = await call("unknown_tool", response("Unused."))
+        assert unknown.isError
+        assert unknown.structuredContent == response(
+            "That request could not be accepted. Check its references and try again.",
+            status="failed",
+            code="REQUEST_REFUSED",
+        ).model_dump(mode="json", by_alias=True)
+
+        for name, schema in OUTPUTS.items():
+            for status in ("clarification", "failed"):
+                result = response(
+                    "Please check your request.",
+                    status=status,
+                    code="CHECK",
+                    options=("Try again",),
+                )
+                # A persisted receipt has every superset default explicitly set.
+                replay = Result.model_validate(result.model_dump(mode="json"))
+                for candidate in (result, replay):
+                    value = await call(name, candidate)
+                    assert not value.isError
+                    parsed = schema.model_validate(value.structuredContent)
+                    assert parsed.speakable == result.speakable
+                    assert parsed.data.status == status
+                    assert json.loads(value.content[0].text) == value.structuredContent
+                with pytest.raises(ValidationError):
+                    schema.model_validate(
+                        {**value.structuredContent, "unexpected": True}
+                    )
+                with pytest.raises(ValidationError):
+                    schema.model_validate(
+                        {**value.structuredContent, "data": {"unexpected": True}}
+                    )
+            invalid = response(
+                "Please check your request.", available_tools=("secret",)
+            )
+            if name == "what_can_you_do":
+                invalid = response("Please check your request.", reference="secret")
+            value = await call(name, invalid)
+            assert value.isError
+            assert value.structuredContent["data"]["code"] == "UNAVAILABLE"
+            assert "secret" not in json.dumps(value.structuredContent)
+            assert f"tool={name} error=ValidationError" in caplog.text
+
+    asyncio.run(run())
+
+
+def test_published_schemas_omit_only_generated_titles():
+    from hirz.mcp.contracts import OUTPUTS, ToolSchema
+
+    def without_titles(value):
+        if isinstance(value, dict):
+            return {k: without_titles(v) for k, v in value.items() if k != "title"}
+        if isinstance(value, list):
+            return [without_titles(v) for v in value]
+        return value
+
+    for model in (*OUTPUTS.values(), *(row[0] for row in TOOLS.values())):
+        assert model.model_json_schema(schema_generator=ToolSchema) == without_titles(
+            model.model_json_schema()
+        )

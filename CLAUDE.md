@@ -122,18 +122,19 @@ The verified toolchain and scaffold setup are in `README.md`; use Node 24.
 - `uv run pytest` — service-free tests with coverage; `uv run pytest -m integration --cov=hirz --cov-append` — live PostgreSQL tests in uniquely named disposable databases, appending coverage; `uv run --locked coverage report --fail-under=80` — 80 percent over service-free and integration tests combined (run those three commands in order); `uv run pytest -m integration --no-cov` — standalone integration checks without coverage; `uv run pytest tests/latency -m latency --no-cov` — budget; CI workflow_dispatch only, required before pipeline/tools/executor/refresh/storage item closure and submission (record each run; docs/development.md); `uv run pytest tests/cedar_conformance` — YAML/native Dogwood agreement; AWS comparison remains item 37.
 - `uv run ruff check . && uv run ruff format --check . && uv run mypy hirz/ scripts/ alembic/`.
 - `uv run --locked python scripts/smoke_household_tools.py --audit-output <new-file> --conformance-cli ../addon-check/dist/cli.js` — independent twelve-tool checks with `--require-complete` after restart; private cases, environment token and signed audit verification. Build the separate Node 24 checker first; only onboarding/context are timed. Procedure: `docs/development.md`.
+- `pnpm --filter mcp-app build` is required before authenticated MCP startup and Python packaging. `HIRZ_LLM=off uv run --locked python -m scripts.smoke_cards --artifacts-dir <new-dir> [--browser-test]` produces labeled twin fixtures and independently verified audit exports; browser mode uses the pinned reference host and a token-holding loopback relay. Setup and evidence mapping: `docs/development.md`.
 - `pnpm -r lint && pnpm -r typecheck && pnpm -r test`; `pnpm --filter web dev` (companion pages + simulator route), `pnpm --filter mcp-app build`.
 - `cd infra/cdk && pnpm cdk deploy` / `pnpm cdk destroy` — the AWS stack for the judging window.
 - `HIRZ_LLM=off|bedrock`, `HIRZ_ADAPTERS=devices:ha,ev:twin,energy:real,...` — runtime configuration.
 
 ## Current phase
 
-**Phase 4 is complete through 26b; item 27 is next.** The CI runner's local
-authenticated MCP gate measures raw authenticated JSON-RPC round trips; AWS
-ingress, cold start and Alexa host overhead remain item 38
-([closure](./docs/verification-log.md#closure--2026-09-24)). Development stays on
-0005; migrations through 0013 remain manual. Keep Bedrock off and the $2 ledger
-preserved. Real phone/security execution remains unverified.
+**Phase 4 is complete through item 27; Phase 5 item 28 is next.** The five MCP
+cards pass reviewed browser, packaging, conformance and authenticated CI gates
+([evidence](./docs/verification-log.md#item-27-closure--2026-09-24)). Development stays
+on 0005; migrations through 0013 remain manual. Keep Bedrock off and the $2 ledger
+preserved. AWS/Alexa host overhead remains item 38; real phone/security execution
+remains unverified.
 
 ---
 

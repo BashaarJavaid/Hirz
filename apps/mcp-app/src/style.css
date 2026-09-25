@@ -1,0 +1,50 @@
+/* Amazon tokens: https://developer.amazon.com/docs/alexaplus/add-ons/mcp-addon-visual-foundations.html */
+:root {
+  font-family: system-ui, sans-serif; color: #14181E; background: #FFFFFF;
+  --display1: 48px; --display2: 40px; --display3: 32px; --display4: 28px; --display5: 24px;
+  --headline1: 20px; --headline2: 18px; --body1: 16px; --body2: 14px; --body3: 12px; --label1: 10px; --label2: 8px;
+  --space1: 2px; --space2: 6px; --space3: 8px; --space4: 12px; --space5: 16px; --space6: 20px; --space7: 24px;
+  --radius1: 4px; --radius2: 8px; --radius3: 12px; --radius4: 16px; --circle: 9999px;
+  --icon1: 16px; --icon2: 20px; --icon3: 24px;
+  --canvas: #FFFFFF; --nested: #FAF9FB; --ink: #14181E; --primary: #2D415E; --scale: 1;
+}
+:root[data-theme="dark"] { --canvas: #14181E; --nested: #1B2028; --ink: #FFFFFF; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--canvas); color: var(--ink); }
+.canvas { width: 768px; height: 480px; padding: var(--space7); transform: scale(var(--scale)); transform-origin: top left; display: flex; flex-direction: column; gap: var(--space4); overflow: hidden; }
+header { display: flex; align-items: center; gap: var(--space4); min-height: 48px; }
+.wordmark { font-size: var(--display4); font-weight: 750; letter-spacing: -.05em; }
+.badge { border: 1px solid currentColor; border-radius: var(--circle); padding: 4px 10px; font-size: var(--body3); }
+.expand { margin-left: auto; }
+.content { flex: 1; min-height: 0; overflow: hidden; }
+.fullscreen .content { overflow-y: auto; padding-right: var(--space3); }
+h1 { font-size: var(--display3); line-height: 1.15; font-weight: 650; margin: 0 0 var(--space5); }
+h2 { font-size: var(--display5); margin: var(--space6) 0 var(--space3); }
+p { margin: 0 0 var(--space4); font-size: var(--body1); line-height: 1.4; }
+.figure { font-size: var(--display1); margin-bottom: var(--space2); font-variant-numeric: tabular-nums; }
+.eyebrow { font-size: var(--headline1); margin-bottom: var(--space2); }
+.caption { font-size: var(--body2); }
+.rows { list-style: none; margin: var(--space4) 0; padding: 0; display: grid; gap: var(--space3); }
+.rows li { font-size: var(--headline1); padding: var(--space3) var(--space4); background: var(--nested); border-radius: var(--radius4); line-height: 1.25; }
+footer { display: flex; gap: var(--space4); align-items: center; min-height: 48px; }
+button, input { font: inherit; min-height: 48px; padding: 10px 20px; border: 1px solid currentColor; border-radius: var(--radius3); background: transparent; color: inherit; }
+button { cursor: pointer; }
+button.primary { background: var(--primary); border-color: var(--primary); color: white; }
+button:disabled { opacity: .5; cursor: default; }
+:focus-visible { outline: 3px solid currentColor; outline-offset: 3px; }
+.primary:focus-visible { outline-color: var(--ink); }
+.ev-bar { height: 6px; border-radius: var(--circle); background: var(--nested); overflow: hidden; }
+.ev-bar span { height: 100%; display: block; background: var(--ink); transition: width 200ms ease-out; }
+.verification-result { transition: opacity 200ms ease-out; font-size: var(--headline1); }
+@starting-style { .verification-result { opacity: 0; } }
+.door { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space6); }
+.door img { width: 100%; border-radius: var(--radius4); }
+.lock span { display: inline-block; width: 12px; height: 12px; margin-right: 12px; border: 2px solid currentColor; border-radius: 50%; transform: translateX(0); transition: transform 200ms ease-out; }
+.lock[data-state="unlocked"] span { transform: translateX(4px); }
+.annual { padding: var(--space4); background: var(--nested); border-radius: var(--radius4); margin-bottom: var(--space4); }
+.annual p { margin: 0; font-size: var(--body2); }
+.annual strong { font-size: var(--display4); font-variant-numeric: tabular-nums; }
+.hash { overflow-wrap: anywhere; }
+form { display: flex; gap: var(--space4); flex-wrap: wrap; align-items: center; margin: var(--space5) 0; }
+input { width: 100px; }
+@media (prefers-reduced-motion: reduce) { .ev-bar span, .verification-result, .lock span { transition: none; } }

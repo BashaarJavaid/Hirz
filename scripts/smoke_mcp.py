@@ -6,7 +6,7 @@ import asyncio
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
-from hirz.mcp.server import Onboarding
+from hirz.mcp.contracts import WhatCanYouDoResult
 
 
 async def smoke(url: str) -> None:
@@ -19,7 +19,7 @@ async def smoke(url: str) -> None:
             assert [tool.name for tool in listed.tools] == ["what_can_you_do"]
             result = await session.call_tool("what_can_you_do", {})
             assert not result.isError
-            validated = Onboarding.model_validate(result.structuredContent)
+            validated = WhatCanYouDoResult.model_validate(result.structuredContent)
             assert validated.data.available_tools == ("what_can_you_do",)
             print(f"protocol={initialized.protocolVersion}; session_id=none")
             print("tools=what_can_you_do")

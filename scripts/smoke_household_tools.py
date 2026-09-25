@@ -44,6 +44,7 @@ from hirz.executor.observations import ingest
 from hirz.graph.seeds import load_seeds, read_seed
 from hirz.local import read_env, signing_key
 from hirz.mcp.auth import SCOPES, KeyCache
+from hirz.mcp.card_evidence import load as load_card_evidence
 from hirz.mcp.contracts import TOOLS, Result
 from hirz.mcp.dev_oauth import registered_client
 from hirz.mcp.profiles import load as load_profiles
@@ -54,6 +55,7 @@ from hirz.twin.disposable import disposable
 from hirz.twin.execution import bootstrap
 from hirz.twin.scenario import LoadedScenario
 from scripts.smoke_oauth import Login, Storage, process
+from tests.conftest import assert_no_identifiers
 
 
 class FullLogin(Login):
@@ -71,6 +73,9 @@ def serve(listener: socket.socket, config: dict[str, Any]) -> None:
         AuditWriter(signing_key(read_env(Path(".env")))),
         clock=lambda: datetime.fromisoformat(Path(config["clock_file"]).read_text()),
         profiles=load_profiles(Path(config["profiles"])),
+        card_evidence=load_card_evidence(
+            Path(config["card_evidence"]) if config.get("card_evidence") else None
+        ),
     )
     app = create_app(
         port=listener.getsockname()[1],
@@ -314,9 +319,11 @@ async def smoke(
                                             authProbe=name == "get_household_context",
                                         ),
                                     )
-                                    return Result.model_validate(
+                                    answer = Result.model_validate(
                                         result.structuredContent
                                     )
+                                    assert_no_identifiers(answer.speakable)
+                                    return answer
 
                                 await call("what_can_you_do", {})
                                 context = await call(
@@ -377,12 +384,11 @@ async def smoke(
                                     },
                                 )
                                 assert invalid.isError
-                                assert (
-                                    Result.model_validate(
-                                        invalid.structuredContent
-                                    ).data.code
-                                    == "INVALID_INPUT"
+                                invalid_answer = Result.model_validate(
+                                    invalid.structuredContent
                                 )
+                                assert_no_identifiers(invalid_answer.speakable)
+                                assert invalid_answer.data.code == "INVALID_INPUT"
                                 await call(
                                     "evaluate_permission",
                                     {
@@ -658,10 +664,11 @@ async def smoke(
                                 result = await session.call_tool(
                                     "propose_household_rule", proposal
                                 )
-                                assert (
-                                    Result.model_validate(result.structuredContent)
-                                    == recorded
+                                retried = Result.model_validate(
+                                    result.structuredContent
                                 )
+                                assert_no_identifiers(retried.speakable)
+                                assert retried == recorded
                     print("PASS durable retry after MCP process restart", flush=True)
                     if conformance_cli:
                         assert set(conformance_cases) == set(TOOLS)

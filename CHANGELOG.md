@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-09-24: Add five authenticated local MCP App cards, deterministic presentation and retained-evidence scorecards, packaged static resources, and reference-host browser checks; close item 27 after author-approved visuals and passing packaging, conformance, isolation and authenticated CI latency gates ([ADR-018](./docs/adr/ADR-018-mcp-app-cards.md), [evidence](./docs/verification-log.md#item-27--2026-09-24)).
+
 - 2026-09-24: Close item 26b after author review of the CI runner’s local authenticated MCP raw JSON-RPC round-trip gate; require manual latency dispatch before relevant item closures and submission, with AWS ingress, cold start and Alexa host overhead remaining item 38 ([closure](./docs/verification-log.md#closure--2026-09-24), [ADR-017](./docs/adr/ADR-017-tool-latency-and-isolation.md#closure-amendment--2026-09-24)).
 
 - 2026-09-24: Measure authenticated server round trips with separate SDK references and byte-identity checks; both scenarios passed the single [CI latency run](https://github.com/BashaarJavaid/Hirz/actions/runs/36059341623), with item 26b still Deferred pending author review ([ADR amendment](./docs/adr/ADR-017-tool-latency-and-isolation.md#server-round-trip-amendment--2026-09-24), [evidence and tables](./docs/verification-log.md#completed-ci-measurements--both-scenarios-pass-author-review-pending)).
@@ -21,6 +23,8 @@ All notable changes are documented here. The format follows
 - 2026-09-23: Publish [addon-check v0.1.0](https://www.npmjs.com/package/addon-check/v/0.1.0) and replace the conformance CI placeholder with full-SHA-pinned twelve-tool checks after restart, retaining Hirz-specific validators and signed audit verification ([ADR-016](./docs/adr/ADR-016-add-on-conformance-checker.md), [evidence](./docs/verification-log.md#item-25a--2026-09-23)).
 
 ### Changed
+
+- 2026-09-24: Publish strict per-tool MCP output schemas and omit generated schema titles, preserving canonical objects and validating every response at the boundary ([ADR-015 amendment](./docs/adr/ADR-015-household-tools.md#per-tool-output-schemas--2026-09-24), [verification](./docs/verification-log.md#phase-4-review-batch-2--2026-09-24)).
 
 - 2026-09-23: Complete the approved twelve-tool household scope with durable retries, simulated trust, per-device profiles, deterministic objectives and a confirmation-gated host; clarify approval argument combinations and verify all 31 live selection cases within the approved $2 ceiling. Later UI/app/trust integrations retain their assigned roadmap items ([ADR-015](./docs/adr/ADR-015-household-tools.md), [evidence](./docs/verification-log.md#item-25-completion-within-approved-scope--2026-09-23)).
 
@@ -50,6 +54,9 @@ All notable changes are documented here. The format follows
 - 2026-09-21: Record [terminal HA dispatch attempts and fresh-action retries](./docs/adr/ADR-006-twin-first-adapters.md#terminal-ha-dispatch-attempts--2026-09-21-author-approved) and the Phase 2 review's [Phase 3 carry-overs and ordered-plug follow-up](./ROADMAP.md).
 
 ### Fixed
+
+- 2026-09-24: Add shared test/smoke checks for identifiers and braces in speech, and distinguish the unmeasured AWS latency budget from local CI results ([evidence](./docs/verification-log.md#phase-4-review-batch-1--2026-09-24)).
+- 2026-09-24: Set the separate addon-check repository's Node requirement to 22 or later and update its GitHub About metadata; retain the tested CI pin and published version ([evidence](./docs/verification-log.md#phase-4-review-batch-1--2026-09-24)).
 
 - 2026-09-23: Update the CI fresh-wheel catalog assertion for item 25's four added governance classes ([verification](./docs/verification-log.md#item-25-ci-catalog-count-fix--2026-09-23)).
 

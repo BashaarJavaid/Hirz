@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from hirz.db import database_url
 from hirz.local import read_env, signing_key
 from hirz.mcp.auth import SCOPES, KeyCache, OAuthGate
+from hirz.mcp.card_evidence import load as load_card_evidence
 from hirz.mcp.profiles import load as load_profiles
 from hirz.mcp.runtime import HouseholdRuntime
 from hirz.mcp.runtime import register as register_household
@@ -94,6 +95,11 @@ def create_local_oauth_app() -> FastAPI:
         household=HouseholdRuntime(
             engine,
             AuditWriter(signing_key(read_env(Path(".env")))),
+            card_evidence=load_card_evidence(
+                Path(os.environ["HIRZ_CARD_EVIDENCE_FILE"])
+                if os.environ.get("HIRZ_CARD_EVIDENCE_FILE")
+                else None
+            ),
             profiles=load_profiles(
                 Path(os.environ["HIRZ_PROFILES_FILE"])
                 if os.environ.get("HIRZ_PROFILES_FILE")

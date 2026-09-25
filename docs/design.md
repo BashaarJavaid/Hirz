@@ -2,13 +2,13 @@
 
 Design is a quarter of the hackathon score and, in a video-judged event, it means exactly what is on screen: the cards on the Echo Show, the phone screens, the simulator frame, and the spoken lines. This file is the spec for all four. It follows Amazon's add-on design guide verbatim, because the project's convention is "real API contracts, verbatim" and the design guide is part of the contract.
 
-Sources (fetched 2026-09-16; re-read when the cards are built, and cite the page in the code): [visual foundations](https://developer.amazon.com/docs/alexaplus/add-ons/mcp-addon-visual-foundations.html), [display modes](https://developer.amazon.com/docs/alexaplus/add-ons/mcp-addon-display-modes.html), and the guide's other pages linked from the [MCP Toolkit overview](https://developer.amazon.com/docs/alexaplus/add-ons/mcp-toolkit-overview.html) (layout and rendering, components and patterns, brand expression, accessibility, tools/schema/data design).
+Sources (checked 2026-09-24): [visual foundations](https://developer.amazon.com/docs/alexaplus/add-ons/mcp-addon-visual-foundations.html), [display modes](https://developer.amazon.com/docs/alexaplus/add-ons/mcp-addon-display-modes.html), and the guide's other pages linked from the [MCP Toolkit overview](https://developer.amazon.com/docs/alexaplus/add-ons/mcp-toolkit-overview.html) (layout and rendering, components and patterns, brand expression, accessibility, tools/schema/data design).
 
 ---
 
 ## 1. Tokens (Amazon's, verbatim)
 
-Defined once as CSS custom properties in `apps/mcp-app` and used by every card. No component library inside the cards: they load in a sandboxed iframe, so the bundle stays small and dependency-free.
+Defined once as CSS custom properties in `apps/mcp-app` and used by every card. No component library inside the cards: they load in a sandboxed iframe, so the bundle stays self-contained.
 
 | Token group | Values |
 |---|---|
@@ -28,7 +28,7 @@ Principles taken from the guide: reduced content density (fewer metadata fields,
 - **Inline** is the default for a card: it complements the spoken reply.
 - **Fullscreen** is for dense content (the plan timeline, the decision list). It is entered through a control the customer operates, never spontaneously.
 - **Hydrated**: when no UI payload is sent, Alexa renders the data natively, so `data` stays clean.
-- Views declare supported modes in `ui/initialize` through `appCapabilities.availableDisplayModes`; hosts provide their available modes in host context ([MCP Apps specification](https://github.com/modelcontextprotocol/ext-apps/blob/main/specification/2026-01-26/apps.mdx), checked 2026-09-23). These are browser exchanges, not tool metadata. The old custom `presentation` hint survives only as the simulator's Echo Show / Echo Dot switch.
+- Views declare supported modes in `ui/initialize` through `appCapabilities.availableDisplayModes`; hosts provide their available modes in host context ([MCP Apps specification](https://github.com/modelcontextprotocol/ext-apps/blob/v2.0.0/specification/2026-01-26/apps.mdx), checked 2026-09-24). These are browser exchanges, not tool metadata. The optional `data.presentation` discriminant supplies deterministic card content; it does not choose display modes.
 
 ## 3. Card rules
 
@@ -48,7 +48,7 @@ These appear on camera, so they are designed by hand. Every other companion page
 | 1 | Plan card | Echo Show | Dollars saved tonight (Display size); three rows (battery through the peak, pre-warm for Mom, car after 9); Approve | Timeline, all actions, alternatives, the annualized figure |
 | 2 | Verification card | Echo Show | One headline ("This looks like a scam. Don't send anything yet."); up to three signals; status chip (*checking with Malik* → *Malik says it wasn't him*; also *Malik hasn't answered*) | none |
 | 3 | Doorbell card | Echo Show | Snapshot; one context line ("Nobody is expected right now" / "A vehicle arrived at 6:58. Mom is expected at 7:00"); request-unlock button; for `security.*` the approval state reads *approve on your phone* and there is no Approve button | none |
-| 4 | Scorecard | Echo Show | Dollars saved, annualized figure, peak kWh avoided | Counts (autonomous, asked, blocked, verified) and the decision list |
+| 4 | Scorecard | Echo Show | Labeled plan estimate with exact horizon, separate backtest annualized extrapolation, estimated peak reduction | Counts (autonomous, asked, blocked, verified) and the decision list |
 | 5 | Rule diff and Activate | Phone | The English sentence; up to three derived situation lines ("Unexpected visitor: ask on phone → never"; "Expected arrival: still asks on your phone"); one caveat line ("Hirz does not identify the visitor"); a collapsed line with the compiled Cedar; Activate (passkey). The situation lines are computed by evaluation, never written by a model (`docs/constitution.md` §3) | n/a |
 | 6 | Check-in | Phone | "Your mom is checking it's really you. Did you just call her from another number asking for $500?"; three buttons: **No, that wasn't me** / **Yes, that was me** / **I'll call her** | n/a |
 | 7 | Unlock approval | Phone | The snapshot; "Someone is at the front door. Mom is expected now. Unlock for 10 minutes?" (the schedule is context, never the visitor's identity); the rule and band in one line; Approve (passkey) / Deny | n/a |
@@ -72,3 +72,36 @@ Conversation design is design. `speakable.headline` is about 20 words or fewer a
 - Contrast and focus order checked on the seven screens; every action can be started by voice, and the two that cannot be finished by voice (a security approval, a rule activation) finish on phone screens held to the same bar (`ARCHITECTURE.md` §5.14).
 - Hallway tests of screens 5, 6, and 7 with people who did not build them (`ROADMAP.md` item 40a): can they say what the rule will do, what Malik is being asked, and that the schedule is not the visitor's identity?
 - The three hand-designed phone screens match this spec (`ROADMAP.md` item 28).
+
+## 9. Implemented local cards (item 27)
+
+[ADR-018](./adr/ADR-018-mcp-app-cards.md) records the approved scope and rejected
+alternatives. The approval card supplements the seven camera screens: one action,
+its rule and risk band, primary Approve and secondary Deny for eligible non-security
+pending approvals. Security results explain that phone approval is unavailable.
+Neutral tool results show their consumer headline without unrelated controls.
+
+Plan rows prioritize battery, comfort and car. Fullscreen exposes every action,
+alternatives, cited extrapolation, Skip tonight and a native numeric car charge-limit
+form. Approval binds the displayed plan/version, then shows the neutral acknowledgement
+“Your approved plan is being queued.” Reading the plan again restores its full card.
+Verification shows the server's
+headline, up to three signals and every terminal status; a single eligible saved
+contact enables “Check with [contact]” for that displayed request. Genuine never
+means advice to pay. Door cards show only observation-driven lock changes and use
+the bundled SVG only for twin snapshots; real snapshots are unavailable until an
+adapter supplies them. Schedule context does not identify a visitor.
+
+The canvas has 24px padding, 16px corners, 48px headline figures, 20px main rows,
+48px control targets, bottom actions and coherent root scaling. Text is #14181E
+in light mode and white in dark mode; primary buttons are #2D415E with white text.
+Only EV-bar width, verification-result opacity and lock-indicator position transition,
+at 200ms ease-out, with reduced motion disabling all three.
+
+Preparation polls every second for 30 seconds; pending verification polls every
+two seconds until server expiry; visible door cards poll every two seconds. There
+is at most one outstanding call. Hidden cards pause; errors and teardown stop
+polling. Manual retry preserves the gesture's request ID. Stale, malformed and
+failed data disable affected actions; late replies to replaced content are ignored.
+Linux Chromium baselines comprise ten inline light/dark images and four plan/scorecard
+fullscreen images, plus a 1280×800 scaling check. Initial images require author review.

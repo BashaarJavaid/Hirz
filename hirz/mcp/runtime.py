@@ -18,8 +18,16 @@ from hirz.constitution.boundary import Dogwood
 from hirz.constitution.schema import loads
 from hirz.graph.models import now
 from hirz.mcp.auth import identity_context
-from hirz.mcp.contracts import TOOLS, Result, input_schema, response
+from hirz.mcp.contracts import (
+    OUTPUTS,
+    TOOLS,
+    Result,
+    input_schema,
+    output_schema,
+    response,
+)
 from hirz.mcp.household import HouseholdTools
+from hirz.mcp.presentation import Annualized
 from hirz.mcp.profiles import Profiles
 from hirz.mcp.server import HirzMCP
 from hirz.pipeline.audit import AuditWriter
@@ -36,9 +44,11 @@ class HouseholdRuntime:
         *,
         clock: Callable[..., Any] = now,
         profiles: Profiles | None = None,
+        card_evidence: dict[UUID, Annualized] | None = None,
     ):
         self.engine, self.audit, self.clock = engine, audit, clock
         self.profiles = profiles or Profiles()
+        self.card_evidence = card_evidence or {}
         self.boundary = Dogwood()
         self.bundles: dict[UUID, tuple[PolicyBundle, str]] = {}
 
@@ -105,12 +115,17 @@ class HouseholdRuntime:
                 identity.principal,
                 policy_hash=fingerprint,
                 profiles=self.profiles.households.get(identity.household_id, {}),
+                card_evidence=self.card_evidence.get(identity.household_id),
             ).call(name, arguments)
 
 
 def register(server: HirzMCP, runtime: HouseholdRuntime) -> None:
+    from hirz.mcp.cards import TOOLS as CARD_TOOLS
+    from hirz.mcp.cards import register as register_cards
+
     if not server.authentication:
         raise ValueError("Household tools require OAuth")
+    register_cards(server)
     for name, (_, scope, _) in TOOLS.items():
         if scope:
             server.tool_scopes[name] = "hirz:" + scope
@@ -122,7 +137,10 @@ def register(server: HirzMCP, runtime: HouseholdRuntime) -> None:
                 name=name,
                 description=description,
                 inputSchema=input_schema(schema),
-                outputSchema=Result.model_json_schema(),
+                outputSchema=output_schema(OUTPUTS[name]),
+                _meta={"ui": {"resourceUri": f"ui://hirz/{CARD_TOOLS[name]}"}}
+                if name in CARD_TOOLS
+                else None,
                 annotations=types.ToolAnnotations(
                     readOnlyHint=name
                     in {
@@ -177,12 +195,30 @@ def register(server: HirzMCP, runtime: HouseholdRuntime) -> None:
                 code="UNAVAILABLE",
             )
             error = True
+        output_model = OUTPUTS.get(name, Result)
+        try:
+            output = output_model.model_validate(
+                result.model_dump(exclude_unset=True, exclude_defaults=True)
+            )
+        except ValidationError as exc:
+            log.error(
+                "household_tool_failed tool=%s error=%s", name, type(exc).__name__
+            )
+            result = response(
+                "Household tools are temporarily unavailable. Please try again later.",
+                status="failed",
+                code="UNAVAILABLE",
+            )
+            error = True
+            output = output_model.model_validate(
+                result.model_dump(exclude_unset=True, exclude_defaults=True)
+            )
         return types.CallToolResult(
             content=[
                 types.TextContent(
-                    type="text", text=result.model_dump_json(by_alias=True)
+                    type="text", text=output.model_dump_json(by_alias=True)
                 )
             ],
-            structuredContent=result.model_dump(mode="json", by_alias=True),
+            structuredContent=output.model_dump(mode="json", by_alias=True),
             isError=error,
         )
