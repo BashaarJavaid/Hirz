@@ -394,6 +394,14 @@ def test_tools_list_size_and_narrow_output_boundary(capsys, caplog):
             )
             return value.root
 
+        unknown = await call("unknown_tool", response("Unused."))
+        assert unknown.isError
+        assert unknown.structuredContent == response(
+            "That request could not be accepted. Check its references and try again.",
+            status="failed",
+            code="REQUEST_REFUSED",
+        ).model_dump(mode="json", by_alias=True)
+
         for name, schema in OUTPUTS.items():
             for status in ("clarification", "failed"):
                 result = response(

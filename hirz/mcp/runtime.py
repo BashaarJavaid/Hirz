@@ -195,11 +195,12 @@ def register(server: HirzMCP, runtime: HouseholdRuntime) -> None:
                 code="UNAVAILABLE",
             )
             error = True
+        output_model = OUTPUTS.get(name, Result)
         try:
-            output = OUTPUTS[name].model_validate(
+            output = output_model.model_validate(
                 result.model_dump(exclude_unset=True, exclude_defaults=True)
             )
-        except (ValidationError, KeyError) as exc:
+        except ValidationError as exc:
             log.error(
                 "household_tool_failed tool=%s error=%s", name, type(exc).__name__
             )
@@ -209,8 +210,7 @@ def register(server: HirzMCP, runtime: HouseholdRuntime) -> None:
                 code="UNAVAILABLE",
             )
             error = True
-            # Unknown tools have no declared output contract.
-            output = OUTPUTS.get(name, OUTPUTS["what_can_you_do"]).model_validate(
+            output = output_model.model_validate(
                 result.model_dump(exclude_unset=True, exclude_defaults=True)
             )
         return types.CallToolResult(
