@@ -7,10 +7,16 @@ const fixtures = JSON.parse(readFileSync(process.env.HIRZ_CARD_FIXTURES!, "utf8"
 const tools: Record<string, string> = { plan: "get_household_plan", approval: "execute_household_action", verification: "assess_request_risk", doorbell: "get_household_context", scorecard: "get_action_audit" };
 type Request = { name: string; arguments: Record<string, unknown> };
 
+// Freeze Date while leaving the unchanged host SDK's transport timers running.
+async function advance(page: Page, milliseconds: number) {
+  const at = await page.evaluate(() => Date.now());
+  await page.clock.setFixedTime(new Date(at + milliseconds));
+  await page.waitForTimeout(milliseconds);
+}
+
 async function mount(page: Page, kind: string, theme = "light", respond?: (request: Request) => unknown, initial = fixtures.results[kind]) {
   await page.emulateMedia({ colorScheme: theme as "light" | "dark" });
-  await page.clock.install({ time: new Date(fixtures.at) });
-  await page.clock.pauseAt(new Date(Date.parse(fixtures.at) + 100));
+  await page.clock.setFixedTime(new Date(fixtures.at));
   const calls: Request[] = [];
   await page.route("http://127.0.0.1:8082/mcp", async route => {
     if (route.request().method() === "GET") return route.fulfill({ status: 405 });
@@ -78,7 +84,7 @@ test("door state changes only on a later observation", async ({ page }) => {
   await frame.getByRole("button", { name: "Request 10-minute unlock" }).click();
   await expect(frame.getByText("Observed: locked")).toBeVisible();
   await expect(frame.getByText("Phone approval is unavailable.")).toBeVisible();
-  await page.clock.runFor(2200);
+  await advance(page, 2200);
   await expect(frame.getByText("Observed: unlocked")).toBeVisible();
   expect(calls.filter(c => c.name === "execute_household_action")).toHaveLength(1);
 });
@@ -138,7 +144,7 @@ test("numeric car limit records a revision then polls", async ({ page }) => {
   await expect.poll(() => calls.length).toBe(2);
   expect(calls[1].arguments.percent).toBe(50);
   expect(calls[1].arguments.change).toBe("car_limit");
-  await page.clock.runFor(1100);
+  await advance(page, 1100);
   await expect.poll(() => calls.length).toBeGreaterThanOrEqual(3);
   expect(calls[2].name).toBe("get_household_plan");
 });
@@ -160,10 +166,10 @@ for (const status of ["genuine", "not_genuine", "will_call", "no_answer"]) test(
   terminal.data.case.verification.status = status;
   terminal.speakable.headline = status === "genuine" ? "Talk to the contact using their saved number." : "Contact the person through a channel you trust.";
   const { frame, calls } = await mount(page, "verification", "light", () => terminal, initial);
-  await page.clock.runFor(2100);
+  await advance(page, 2100);
   await expect(frame.getByRole("status")).toHaveText(status.replaceAll("_", " "));
   const stopped = calls.length;
-  await page.clock.runFor(5000);
+  await advance(page, 5000);
   expect(calls.length).toBe(stopped);
   await expect(frame.getByText(/send money|pay now/i)).toHaveCount(0);
 });
@@ -171,11 +177,11 @@ for (const status of ["genuine", "not_genuine", "will_call", "no_answer"]) test(
 test("pending expiry does not invent a reply", async ({ page }) => {
   const initial = pending();
   const { frame, calls } = await mount(page, "verification", "light", () => initial, initial);
-  await page.clock.fastForward(121000);
+  await page.clock.setFixedTime(new Date(Date.parse(fixtures.at) + 121000));
   await expect(frame.getByRole("status")).toHaveText("pending");
   await expect(frame.getByRole("button", { name: "Refresh", exact: true })).toBeVisible();
   const stopped = calls.length;
-  await page.clock.runFor(5000);
+  await advance(page, 5000);
   expect(calls.length).toBe(stopped);
 });
 
@@ -210,12 +216,12 @@ test("unsupported fullscreen is not offered", async ({ page }) => {
 test("preparation polling stops at thirty seconds with manual refresh", async ({ page }) => {
   const preparing = { speakable: { headline: "Preparing your plan.", details: [], options: [] }, data: { status: "preparing" } };
   const { frame, calls } = await mount(page, "plan", "light", () => preparing, preparing);
-  await page.clock.runFor(1100);
+  await advance(page, 1100);
   await expect.poll(() => calls.length).toBe(2);
-  await page.clock.fastForward(30000);
+  await page.clock.setFixedTime(new Date(Date.parse(fixtures.at) + 31000));
   await expect(frame.getByRole("button", { name: "Refresh", exact: true })).toBeVisible();
   const stopped = calls.length;
-  await page.clock.runFor(3000);
+  await advance(page, 3000);
   expect(calls.length).toBe(stopped);
 });
 
@@ -224,16 +230,16 @@ test("one outstanding poll pauses while hidden and stops on error", async ({ pag
   const response = new Promise(resolve => { finish = resolve; });
   const { frame, calls } = await mount(page, "doorbell", "light", () => response);
   await frame.locator("main").evaluate(() => Object.defineProperty(document, "hidden", { configurable: true, value: true }));
-  await page.clock.runFor(5000);
+  await advance(page, 5000);
   expect(calls.length).toBe(1);
   await frame.locator("main").evaluate(() => Object.defineProperty(document, "hidden", { configurable: true, value: false }));
-  await page.clock.runFor(2100);
+  await advance(page, 2100);
   await expect.poll(() => calls.length).toBe(2);
-  await page.clock.runFor(6000);
+  await advance(page, 6000);
   expect(calls.length).toBe(2);
   finish(new Error("Unavailable"));
   await expect(frame.getByRole("alert")).toBeVisible();
-  await page.clock.runFor(6000);
+  await advance(page, 6000);
   expect(calls.length).toBe(2);
 });
 

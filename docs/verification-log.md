@@ -7655,3 +7655,11 @@ polling tests; approved image baselines remain unchanged. The expanded run, fina
 packaging regression and required CI gates are still pending at this checkpoint.
 No item closure, AWS/host latency, real phone delivery, Ring integration or security
 execution is claimed here.
+
+### Browser clock correction
+
+Pausing every timer also paused the reference SDK's transport scheduling, so that
+attempt was stopped. The final harness uses Playwright `setFixedTime` for stable
+Date values while leaving transport and polling timers running; polling checks
+advance the fixed date and wait their real interval. This changes test scheduling
+only, not the upstream bridge, card behavior or approved baselines.
