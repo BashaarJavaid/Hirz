@@ -7785,3 +7785,94 @@ before joining. Counts remain distinct and independent of pagination; no index,
 migration, cache, fixture reduction or timing-protocol change was introduced.
 Ruff and strict mypy passed. The PostgreSQL checks and a fresh CI dispatch are
 required before closure.
+
+### Query-fix checks and replacement CI dispatch
+
+Both PostgreSQL card tests passed in 5.16 seconds after the event filter. Commit
+`c221647eb275c71a096b941c74c69cde710f9f03` was pushed and
+[CI run 36088063349](https://github.com/BashaarJavaid/Hirz/actions/runs/36088063349)
+was dispatched with the unchanged five warmups, 100 measured calls per case and
+250 ms raw authenticated round-trip p95 threshold. Its redundant push-triggered
+run 36088063496 was cancelled before doing duplicate work. The prior failed
+measurements remain recorded above.
+
+The final-code standalone isolation smoke also passed: 177 checks, 20 concurrent
+rounds, ten symmetric-reference probes, and restart. Independently verified exports
+contained 333, 76 and 138 signed rows, all valid (547 total). Persisted counts were
+365 actions, 547 audit rows, two plans, 61 tool requests and two verification cases.
+`/tmp/hirz-item27-final-isolation/report.json` records the exact commit, empty
+tracked diff and runner hash; signed exports are retained beside it. The disposable
+database was dropped and development stayed unchanged. This run made no latency
+measurement or Bedrock call.
+
+The replacement run's independent add-on checker passed 117 checks, with zero
+failures, warnings or skips, eight manual checks, `complete: true`, and no missing
+evidence. Its tool smoke independently verified 628 signed rows. Installed-wheel
+and Docker resource checks passed for all five cards; the image also retained
+unprivileged UID 10001. Logs: `/tmp/hirz-item27-final-ci-conformance.log` and
+`/tmp/hirz-item27-final-ci-build.log`. These completed jobs do not substitute for
+the still-running authenticated timing gates.
+
+All ten normal jobs in the replacement run subsequently passed. Final-code Python
+results were 1,425 service-free tests in 220.81 seconds, 152 PostgreSQL integration
+tests in 327.12 seconds, and 93% combined coverage (870 missed of 12,476 statements).
+The real authenticated reference-host browser test passed in 3.4 seconds. Linux
+Chromium passed all 38 visual/behavior checks in 1.8 minutes against the unchanged
+author-approved baselines; its one live-test skip is intentional because that case
+runs in the preceding authenticated step. Complete log:
+`/tmp/hirz-item27-final-ci-python.log`. Both latency jobs remain active at this
+checkpoint; all other gates have passed on the query-fix commit.
+
+### Replacement timing results — audit fixed; one approval case still over budget
+
+Run 36088063349 completed with Time-of-Day passing and Hourly failing only
+`plan-approval`. Time-of-Day passed 54/54 cases and 12/12 pooled tools in 2,490.29
+seconds; highest case p95 was `plan-approval` at 203.968 ms, highest pooled-tool
+p95 was `get_household_plan` at 131.185 ms. Its repaired `audit-today`, first-page
+and next-page cases measured 54.414, 54.528 and 53.295 ms p95; pooled audit was
+64.407 ms. All 5,400 measured samples and two separate SDK reference cases remain
+in the unchanged protocol. Log and extracted, count-checked tables:
+`/tmp/hirz-item27-final-ci-latency-tod.log` and
+`/tmp/hirz-item27-final-ci-latency-tod-tables.json`.
+
+Hourly completed in 3,380.50 seconds and passed 53/54 cases and all twelve pooled
+tools. Its audit cases passed (today 62.725 ms; pooled tool 72.746 ms), but
+`plan-approval` reached 259.109 ms p95 (minimum 169.126, median 179.688, maximum
+296.018 ms), exceeding the unchanged 250 ms limit. Full log:
+`/tmp/hirz-item27-final-ci-latency-hourly.log`. Item 27 remains open.
+
+A real disposable Hourly approval profile found 141 canonical Actions in its
+157,007-byte response. Canonical digest work accounted for 73 ms of the profiled
+call, versus 9 ms in the presentation decorator itself. Profiling used the
+internal Pipeline with the CLI boundary and adds profiler overhead; it is not an
+authenticated latency result. Its database was dropped. Script, profile and log:
+`/tmp/hirz-profile-plan-approval.py`, `/tmp/hirz-item27-approval.prof`, and
+`/tmp/hirz-item27-approval-profile.log`.
+
+The author was asked whether successful queued plan approvals may render the
+existing neutral acknowledgement instead of resending the disabled plan card.
+The full plan read and timeline would remain available. No such behavior change
+has been implemented at this checkpoint, and the failed gate will not be rerun
+unchanged simply to seek a passing sample.
+
+### Approved neutral acknowledgement and regression checks
+
+The author chose “Use the neutral approval acknowledgement.” Queued plan consent
+now returns its existing headline and approved canonical Plan without resending
+presentation or Actions. Plan reads retain the full card and every action. This
+decision and the rejected disabled-card alternative are recorded in ADR-018.
+
+Both PostgreSQL card tests passed in 6.26 seconds, including the neutral result,
+exact durable retry equality and a subsequent complete plan read. The reference-host
+browser consent check passed in 5.0 seconds and verified the acknowledgement replaces
+the approval control. Strict app/browser TypeScript, mypy and Ruff passed. The
+approved fourteen baseline PNGs are unchanged. The full CI timing gate still needs
+to pass with this approved behavior.
+
+A second disposable Hourly approval produced a 16,064-byte response with zero
+redundantly returned Actions; digest work fell from 73 to 24 ms under the same
+profiler. The profiled call was 283.664 ms versus 364.618 ms previously, including
+CLI-boundary and profiler overhead; neither is a CI latency claim. The disposable
+database was dropped. Artifacts: `/tmp/hirz-item27-approval-after.prof`,
+`/tmp/hirz-item27-approval-after-profile.log`, and
+`/tmp/hirz-profile-plan-approval-after.py`.

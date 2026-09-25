@@ -27,15 +27,20 @@ def test_plan_details_scorecard_pagination_and_foreign_action(scratch_database):
                 assert len(plan.data.actions) == len(result.plan.actions)
                 assert len(plan.data.presentation.rows) <= 3
                 assert plan.data.presentation.can_approve
-                await tools.call(
-                    "approve_action",
-                    dict(
-                        plan_id=result.plan.plan_id,
-                        version=result.plan.version,
-                        approved=True,
-                        request_id="card-plan",
-                    ),
+                consent = dict(
+                    plan_id=result.plan.plan_id,
+                    version=result.plan.version,
+                    approved=True,
+                    request_id="card-plan",
                 )
+                approved = await tools.call("approve_action", consent)
+                assert approved.data.status == "queued"
+                assert approved.data.presentation is None
+                assert approved.data.actions == ()
+                assert await tools.call("approve_action", consent) == approved
+                reread = await tools.call("get_household_plan", {})
+                assert reread.data.presentation.kind == "plan"
+                assert len(reread.data.actions) == len(result.plan.actions)
                 await executor.sweep()
                 score = await tools.call("get_action_audit", {"limit": 1})
                 assert score.data.presentation.kind == "scorecard"

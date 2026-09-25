@@ -262,6 +262,8 @@ async def decorate(
     if data.presentation is not None:
         return answer
     if data.plan:
+        if data.status == "queued":
+            return answer  # Consent acknowledgement; a plan read supplies its timeline.
         plan = data.plan
         rows = (
             (

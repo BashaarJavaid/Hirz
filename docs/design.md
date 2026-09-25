@@ -83,7 +83,9 @@ Neutral tool results show their consumer headline without unrelated controls.
 
 Plan rows prioritize battery, comfort and car. Fullscreen exposes every action,
 alternatives, cited extrapolation, Skip tonight and a native numeric car charge-limit
-form. Approval binds the displayed plan/version. Verification shows the server's
+form. Approval binds the displayed plan/version, then shows the neutral acknowledgement
+“Your approved plan is being queued.” Reading the plan again restores its full card.
+Verification shows the server's
 headline, up to three signals and every terminal status; a single eligible saved
 contact enables “Check with [contact]” for that displayed request. Genuine never
 means advice to pay. Door cards show only observation-driven lock changes and use

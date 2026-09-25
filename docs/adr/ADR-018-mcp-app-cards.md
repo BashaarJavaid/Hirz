@@ -94,3 +94,14 @@ type-checking retains declaration checks; browser test source remains strict.
 Upgrading Playwright or weakening application checks was rejected. The fourteen
 initial Linux Chromium visual baselines were reviewed and approved by the author
 on 2026-09-24. [Friction](../friction-log.md#item-27-pinned-playwright-declarations-and-typescript-6--2026-09-24).
+
+## Queued plan acknowledgement amendment — 2026-09-24
+
+The author approved a neutral acknowledgement after successful plan consent:
+“Your approved plan is being queued.” That result retains the approved canonical
+Plan and exact durable receipt, but does not resend card presentation or canonical
+Actions. A subsequent plan read still returns the complete card and timeline.
+Resending a disabled plan card was rejected: the additional Actions substantially
+increased receipt-hashing work and the Hourly approval case exceeded its unchanged
+250 ms p95 gate. Approval checks, audit binding, request retries and the timing
+protocol remain unchanged. Verification is recorded in the item 27 evidence entry.

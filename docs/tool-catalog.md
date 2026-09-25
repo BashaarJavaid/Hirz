@@ -205,6 +205,9 @@ empty external network/resource destinations. Modes are declared by the SDK duri
 and control eligibility are deterministic server output. `data.actions` contains
 canonical Actions for the plan timeline, without a second action shape. Every
 result retains complete `speakable`. Missing specialized content renders neutrally.
+Successful queued plan consent returns its neutral acknowledgement and approved
+Plan, without presentation or Actions; `get_household_plan` still returns the full
+card and timeline. Its durable retry returns the same acknowledgement.
 
 `get_action_audit` selects the most recently created eligible plan overlapping its
 window, excluding superseded, abandoned and refreshing plans; action queries use
