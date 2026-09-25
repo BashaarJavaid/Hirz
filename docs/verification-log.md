@@ -7758,3 +7758,30 @@ verified 404 home and three parents signed rows, then dropped the disposable
 database. Artifacts: `/tmp/hirz-cards-cli-final/report.json`, its signed exports,
 and `/tmp/hirz-cards-cli-final.log`. Ruff and strict mypy passed for the launcher;
 the repository format check reported 248 files already formatted.
+
+### First timing gate — scorecard query regression found
+
+Both latency jobs in run 36083666510 completed and failed their unchanged 250 ms
+warm p95 gate. Time-of-Day failed `audit-today` (365.248 ms), `audit-first-page`
+(357.719 ms), `audit-next-page` (344.567 ms), and pooled `get_action_audit`
+(350.914 ms). Hourly failed the same cases (405.250, 396.916, 391.157 ms) and
+pooled tool (392.541 ms). Each scenario's other 51 cases and 11 pooled tools
+passed. Full logs: `/tmp/hirz-item27-ci-latency-tod.log` and
+`/tmp/hirz-item27-ci-latency-hourly.log`. These are failures, not closure evidence.
+
+The scorecard aggregate joined every audit event before filtering the four count
+categories. A read-only diagnostic on retained disposable database
+`hirz_ha_smoke_c30887559bcf49e8b80215cf6240e6fa` (160,507 audit rows, 57,535 actions)
+compared the original query with an equivalent event predicate before the join.
+Both returned 210 autonomous, 211 asked, 211 blocked and 210 verified actions.
+Five warm samples had median 305.361 ms before and 29.278 ms after; PostgreSQL
+EXPLAIN ANALYZE reported 296.804 versus 28.264 ms and 144,844 versus 947 joined
+rows. This isolates the query regression; it is not the authenticated CI gate.
+Private diagnostic: `/tmp/hirz-item27-query-profile.json` and its runnable script
+`/tmp/hirz-profile-card-counts.py`. No database records were modified.
+
+The production query now excludes events that cannot contribute to any count
+before joining. Counts remain distinct and independent of pagination; no index,
+migration, cache, fixture reduction or timing-protocol change was introduced.
+Ruff and strict mypy passed. The PostgreSQL checks and a fresh CI dispatch are
+required before closure.

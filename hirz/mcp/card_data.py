@@ -187,7 +187,16 @@ async def scorecard(
                 db.actions.c.action_id == db.audit_log.c.payload["action_id"].astext,
             ),
         )
-        .where(p.scope(db.audit_log), device)
+        .where(
+            p.scope(db.audit_log),
+            device,
+            # Discard bookkeeping before joining; none can contribute to a count.
+            sa.or_(
+                event.in_(("EXECUTED", "VERIFIED")),
+                categories["asked"],
+                categories["blocked"],
+            ),
+        )
     )
     query = (
         query.where(db.actions.c.action_id == action_id)
