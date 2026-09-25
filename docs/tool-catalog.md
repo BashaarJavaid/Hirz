@@ -38,7 +38,8 @@ local 08:00; next_24h ends 24 hours after creation. Existing horizons stay fixed
 
 Inputs reject unknown fields, irrelevant parameters and invalid combinations.
 Text is bounded to 2,000 characters, names/references to 200, request keys to 128.
-Every result has typed speakable/data. Speech has at most 20 headline words, two
+Each tool returns its own strict typed `speakable`/`data` envelope, with only the
+data fields that tool can return ([per-tool schemas](./adr/ADR-015-household-tools.md#per-tool-output-schemas--2026-09-24)). Speech has at most 20 headline words, two
 headline sentences, three details, five options and fewer than 75 total words.
 Clarifications are typed results; validation errors set MCP isError and a machine
 code. OAuth retains HTTP 401/403/503. Request receipts survive restart and bind the

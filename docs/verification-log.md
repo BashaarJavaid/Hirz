@@ -8220,3 +8220,646 @@ configuration, not a pytest defect.
 ```text
 248 files already formatted
 ```
+
+## Phase 4 review batch 2 — 2026-09-24
+
+Per-tool output schemas on `item-27-mcp-app-cards`, based on `ed61939`; tested
+implementation `8612f1129fbcd8ac95fc6609865689651802928d`, with the unknown-tool
+fallback correction in `51f192b948e2c201efe7223192ed798f471639e0`. Contract and final field
+table: [ADR-015 amendment](./adr/ADR-015-household-tools.md#per-tool-output-schemas--2026-09-24).
+
+Environment: macOS arm64, Python 3.12.13, Node 24.21.0, pinned native Dogwood,
+existing local PostgreSQL with disposable test databases; `UV_CACHE_DIR=/tmp/hirz-uv-cache`,
+`HIRZ_DOGWOOD="$PWD/.tools/dogwood"`, `HIRZ_LLM=off`, and
+`/opt/homebrew/opt/node@24/bin` prepended to PATH. Local-network checks ran outside
+the filesystem/network sandbox after loopback binding was denied. No development
+migration, Bedrock invocation or spending-ledger change. No canonical model,
+card Zod schema, independent checker/case, scope, speech, Pipeline or latency
+corpus changed. Private command logs and artifacts are retained under
+`/tmp/hirz-phase4-batch2/`.
+
+### Size gate and retained failures
+
+The task supplied **361,198 bytes** for the original twelve-tool discovery list;
+`Result.model_json_schema()` reproduced at **28,382 bytes**. The six-field
+serializer used by the new test measured **363,310 bytes** on the original
+`ed61939` implementation; that measurement difference is retained rather than
+claiming the supplied baseline was reproduced. The test includes `name`,
+`description`, `inputSchema`, `outputSchema`, `_meta`, and `annotations`, measured
+with ordinary `json.dumps(...).encode()`; no compact separators or field omissions
+were introduced to pass the gate.
+
+First attempt, before the title-omission decision:
+`uv run pytest tests/unit/test_household_tools.py tests/unit/test_mcp.py --no-cov -q`
+failed and work stopped at the requested gate:
+
+```text
+tools/list bytes=127788; largest tool bytes=19673
+E       assert 127788 < 120000
+1 failed, 112 passed in 2.87s
+```
+
+`uv run ruff format --check .` then reported `248 files already formatted`.
+After the author's continuation, the first service-free run failed:
+
+```text
+PermissionError: [Errno 1] error while attempting to bind on address ('127.0.0.1', 0): [errno 1] operation not permitted
+FAILED tests/unit/test_dev.py::test_websocket_token_contract[True]
+FAILED tests/unit/test_dev.py::test_websocket_token_contract[False]
+FAILED tests/unit/test_household_tools.py::test_published_schemas_omit_only_generated_titles
+3 failed, 1425 passed, 154 deselected in 199.88s (0:03:19)
+```
+
+The two WebSocket failures were sandbox denials. The schema comparison caught
+Pydantic enum metadata reintroducing titles after `enum_schema()`; removing titles
+at the generation hook after metadata fixed it. The first title-removal attempt
+printed **107,785 bytes**, largest **16,559**, but was not accepted because enum
+titles remained. Verification restarted at a after correction. Output title
+omission saves **18,611 bytes** and input title omission **1,628**; final size:
+
+```text
+tools/list bytes=107549; largest tool bytes=16516
+what_can_you_do bytes=1308
+get_household_context bytes=3536
+get_household_plan bytes=11445
+revise_household_plan bytes=10907
+explain_plan bytes=11013
+approve_action bytes=16516
+execute_household_action bytes=13653
+assess_request_risk bytes=6104
+verify_trusted_identity bytes=12250
+propose_household_rule bytes=1757
+evaluate_permission bytes=10159
+get_action_audit bytes=8877
+```
+
+Both limits remain strict: total < 120,000 bytes and each tool < 20,000 bytes.
+The title-only regression compares each input/output schema to its full original,
+retaining all other keys/values. Boundary tests verify shared failure/clarification
+shapes, full-default receipt replays, extra-field rejection and UNAVAILABLE
+without exposing the unexpected value.
+
+### Ordered local verification
+
+**a.** `uv run ruff check . && uv run mypy hirz/ scripts/ alembic/` (exit 0;
+`a-final.log`):
+
+```text
+All checks passed!
+Success: no issues found in 158 source files
+```
+
+**b.** `uv run pytest` (exit 0; `b-final.log`; size lines above print even with
+pytest capture enabled):
+
+```text
+TOTAL                                     12570   2836    77%
+=============== 1428 passed, 154 deselected in 202.30s (0:03:22) ===============
+```
+
+**c.** `uv run pytest -m integration --cov=hirz --cov-append && uv run --locked coverage report --fail-under=80`
+(exit 0; `c.log`):
+
+```text
+TOTAL                                     12570    875    93%
+=============== 152 passed, 1430 deselected in 300.78s (0:05:00) ===============
+TOTAL                                     12570    875    93%
+```
+
+**d.** `pnpm --filter mcp-app build && pnpm -r lint && pnpm -r typecheck && pnpm -r test`
+(exit 0; `d.log`):
+
+```text
+✓ built in 185ms
+✓ built in 101ms
+✓ built in 103ms
+✓ built in 83ms
+✓ built in 91ms
+apps/web lint: Done
+apps/mcp-app lint: Done
+apps/web typecheck: Done
+apps/mcp-app typecheck: Done
+apps/web test:  Test Files  1 passed (1)
+apps/web test:       Tests  1 passed (1)
+apps/web test:    Duration  115ms (transform 46%, import 27%, tests 17%, worker 10%)
+apps/mcp-app test:  Test Files  2 passed (2)
+apps/mcp-app test:       Tests  4 passed (4)
+apps/mcp-app test:    Duration  176ms (tests 34%, transform 31%, import 31%, worker 4%)
+```
+
+Before e, `docker compose -f compose.dev.yml up -d --no-deps --build --wait hirz`
+rebuilt/restarted only the local preview container (exit 0, healthy), so the SDK
+smoke exercised the new installed code. Postgres and HA stayed running; no
+migration was invoked. Build log: `preview-build.log`.
+
+**e.** `uv run --locked python scripts/smoke_mcp.py` (exit 0; `e.log`):
+
+```text
+protocol=2025-11-25; session_id=none
+tools=what_can_you_do
+{"speakable":{"headline":"Hirz helps families set rules for home automation, plan energy use, and check suspicious requests.","details":["This local preview only describes Hirz. Household tools are not connected yet."],"options":[]},"data":{"status":"ok","code":null,"available_tools":["what_can_you_do"]}}
+PASS initialize -> tools/list -> tools/call; structured output validated
+```
+
+**f.** `HIRZ_LLM=off uv run --locked python scripts/smoke_household_tools.py --audit-output /tmp/hirz-phase4-batch2/household-audit.json --conformance-cli ../addon-check/dist/cli.js`
+(exit 0; `f.log`):
+
+```text
+PASS SDK OAuth linking; twelve typed tools; scoped context
+PASS first plan prepared by separate worker; source=simulated
+PASS objective change survived worker restart; exact old consent refused
+PASS revision/approval race refused; separate worker restarted
+PASS profile device denial/execution verified; retry repeated no effects
+PASS proposal retries, ambiguity, advisory privacy, security and pause
+PASS read-only OAuth token refused act tool with HTTP 403
+PASS durable retry after MCP process restart
+CONFORMANCE {"status": "PASS", "complete": true, "counts": {"PASS": 117, "FAIL": 0, "WARN": 0, "SKIP": 0, "MANUAL": 8}, "timedTools": ["what_can_you_do", "get_household_context"], "missingEvidence": []}
+{"household_tools": "PASS", "signed_rows": 611, "offline": "valid", "trusted_fingerprint": "385589f309b374189ea1b391f4a3ad193f3674cf7fb6e72e1a97caf76e21912b", "audit_export": "/tmp/hirz-phase4-batch2/household-audit.json", "development_database": "unchanged"}
+disposable_database=dropped; development_database=unchanged
+```
+
+The local checker checkout is `d43b76d2f15f5436931c9803432f29317e13171d`, the
+item 25a checker plus batch 1's Node-engine/readme metadata commit; no checker
+source or case was changed. Its per-tool Ajv checks validated all twelve real
+structured results. The author clarified that the prompt's zero-MANUAL count
+was the pre-cards figure: the eight `ui.browser` notes are designed output for
+the eight card-bearing tools, matching [item 27's local evidence](#local-implementation-and-reviewed-visuals)
+and [closure](#item-27-closure--2026-09-24). The accepted gate is 117 PASS,
+0 FAIL/WARN/SKIP, complete=true, with these eight notes retained. Their message:
+`Review HTML rendering, CSP/permissions and display modes in the browser ui/initialize exchange`.
+
+Audit fingerprint:
+`385589f309b374189ea1b391f4a3ad193f3674cf7fb6e72e1a97caf76e21912b`.
+Export SHA-256:
+`4ac7afe2ec41ccb1122bb84b746495d2ceafe2b44d561af829d6b537eda34652`.
+The eight retained `ui.browser: MANUAL` notes name `get_household_context`,
+`get_household_plan`, `revise_household_plan`, `approve_action`,
+`execute_household_action`, `assess_request_risk`, `verify_trusted_identity`
+and `get_action_audit`, each with the message quoted above.
+
+The export contains 611 independently verified signed rows; it is private and
+not committed.
+
+**g.** `HIRZ_LLM=off uv run --locked python -m scripts.smoke_cards --artifacts-dir /tmp/hirz-phase4-batch2/cards`
+(exit 0; `g.log`):
+
+```text
+Scorecard window counts: {"counts":{"autonomous":0,"asked":0,"blocked":1,"verified":0}}
+Scorecard snapshot counts: {"autonomous": 0, "asked": 0, "blocked": 1, "verified": 0}
+disposable_database=dropped; development_database=unchanged
+```
+
+The private `cards/report.json` reports `status=passed` for approval, doorbell,
+plan, scorecard and verification fixtures. Its two exports contain 402 and 3
+signed rows, both `valid`, using the fingerprint above. Export SHA-256 values:
+`09718cfbd7e3bdb5295c9f99242070c6c6a306a118f19587778de5bf18fee98a` and
+`11db5e7e33f30feeede2adf4aef1a18fb015e3c251ec82351d7411eae45d9f01`.
+Browser coverage ran in CI, not in this local fixture command.
+
+### Ordinary CI and latency dispatches
+
+**h.** `git add hirz/mcp/contracts.py hirz/mcp/runtime.py hirz/mcp/server.py scripts/smoke_mcp.py tests/unit/test_household_tools.py tests/unit/test_mcp.py && git commit -m "Publish narrow per-tool MCP output schemas" && git push origin item-27-mcp-app-cards`
+(exit 0):
+
+```text
+[item-27-mcp-app-cards 8612f11] Publish narrow per-tool MCP output schemas
+ 6 files changed, 331 insertions(+), 28 deletions(-)
+To https://github.com/BashaarJavaid/Hirz.git
+   7d34cc9..8612f11  item-27-mcp-app-cards -> item-27-mcp-app-cards
+```
+
+[Ordinary CI run 36102120103](https://github.com/BashaarJavaid/Hirz/actions/runs/36102120103)
+completed `success` on the exact implementation SHA. All ten ordinary jobs passed;
+the latency job was skipped as designed on push. `gh run watch 36102120103 --interval 30 --exit-status`
+exited 0. CI's Python and browser summaries, from `h-python.log`:
+
+```text
+=============== 1428 passed, 154 deselected in 221.83s (0:03:41) ===============
+=============== 152 passed, 1430 deselected in 313.94s (0:05:13) ===============
+TOTAL                                     12570    870    93%
+  1 passed (4.0s)
+  38 passed (1.8m)
+```
+
+The last two lines are the unchanged reference host over real authenticated
+household calls and Linux Chromium baselines/behavior. CI's independent checker
+used its unchanged pin `c8b65e0977204883d2ec23d5ac0f7a08300d021e`:
+
+```text
+CONFORMANCE {"status": "PASS", "complete": true, "counts": {"PASS": 117, "FAIL": 0, "WARN": 0, "SKIP": 0, "MANUAL": 8}, "timedTools": ["what_can_you_do", "get_household_context"], "missingEvidence": []}
+{"household_tools": "PASS", "signed_rows": 628, "offline": "valid", "trusted_fingerprint": "9c1c4f96c7301831f77213f599965000350a851ac838b57ce121638167560db0", "audit_export": "/home/runner/work/_temp/conformance-audit.json", "development_database": "unchanged"}
+```
+
+**i.** After ordinary CI was green, `gh workflow run ci.yml --ref item-27-mcp-app-cards`
+was initially invoked once (exit 0), returning
+[run 36103760934](https://github.com/BashaarJavaid/Hirz/actions/runs/36103760934)
+on the same `8612f11` implementation. While it was running, review found that
+the new boundary lookup changed an unknown tool's existing REQUEST_REFUSED into
+UNAVAILABLE. The correction preserves REQUEST_REFUSED using the superset for
+unknown names; all twelve registered names still use their narrow classes.
+The author explicitly authorized retaining this in-flight run as a diagnostic
+on the superseded commit and dispatching exactly one replacement after ordinary
+CI passed on the corrected commit. No further dispatch is authorized, even on
+failure. No local full latency run, corpus edit, threshold change, sample discard
+or workflow retry was used.
+
+
+The superseded diagnostic completed `success` in both scenarios. Its tables are
+retained below; they are not the gate of record or the source of the SDK
+follow-up medians.
+
+**Superseded diagnostic — Time of Day.**
+
+```text
+======================== 1 passed in 3101.96s (0:51:41) ========================
+```
+
+| Name | n | Min | Median | p95 | Max | Gate | SDK n | SDK median | SDK p95 | SDK max |
+|---|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|
+| onboarding | 100 | 5.752 | 6.189 | 6.986 | 8.443 | PASS | 100 | 51.384 | 53.300 | 58.400 |
+| context-all | 100 | 55.150 | 56.748 | 58.664 | 61.650 | PASS | 100 | 73.941 | 77.327 | 86.797 |
+| context-people | 100 | 54.444 | 55.909 | 57.071 | 59.572 | PASS | — | — | — | — |
+| proposal-fresh | 100 | 89.748 | 93.896 | 103.721 | 109.078 | PASS | — | — | — | — |
+| proposal-retry | 100 | 51.090 | 52.169 | 55.191 | 56.467 | PASS | — | — | — | — |
+| plan-first | 100 | 88.238 | 92.966 | 104.215 | 189.289 | PASS | — | — | — | — |
+| plan-ready | 100 | 72.486 | 77.670 | 163.906 | 189.379 | PASS | — | — | — | — |
+| explain-summary | 100 | 42.605 | 45.241 | 134.305 | 142.860 | PASS | — | — | — | — |
+| explain-conflicts | 100 | 42.513 | 45.290 | 53.480 | 141.319 | PASS | — | — | — | — |
+| explain-goal | 100 | 42.553 | 45.436 | 58.693 | 135.240 | PASS | — | — | — | — |
+| explain-action | 100 | 43.311 | 45.851 | 50.620 | 127.553 | PASS | — | — | — | — |
+| plan-approval | 100 | 120.379 | 129.512 | 151.679 | 232.875 | PASS | — | — | — | — |
+| objective-most_comfortable | 100 | 129.892 | 138.202 | 228.660 | 258.707 | PASS | — | — | — | — |
+| stale-approval-most_comfortable | 100 | 33.403 | 36.838 | 42.971 | 51.644 | PASS | — | — | — | — |
+| objective-greenest | 100 | 137.793 | 147.416 | 189.339 | 256.351 | PASS | — | — | — | — |
+| stale-approval-greenest | 100 | 33.520 | 36.770 | 42.181 | 48.047 | PASS | — | — | — | — |
+| objective-cheapest | 100 | 134.361 | 142.397 | 186.537 | 243.553 | PASS | — | — | — | — |
+| stale-approval-cheapest | 100 | 33.884 | 36.068 | 40.614 | 44.879 | PASS | — | — | — | — |
+| revision-car | 100 | 127.563 | 137.488 | 153.354 | 173.667 | PASS | — | — | — | — |
+| revision-retry-car | 100 | 12.033 | 52.507 | 54.304 | 57.118 | PASS | — | — | — | — |
+| revision-dishwasher | 100 | 114.930 | 123.661 | 139.995 | 148.464 | PASS | — | — | — | — |
+| revision-retry-dishwasher | 100 | 11.936 | 52.721 | 53.694 | 55.016 | PASS | — | — | — | — |
+| revision-guest | 100 | 84.490 | 123.632 | 133.262 | 147.832 | PASS | — | — | — | — |
+| revision-retry-guest | 100 | 13.916 | 52.576 | 54.986 | 55.661 | PASS | — | — | — | — |
+| same-second-approval | 100 | 39.670 | 76.668 | 82.130 | 91.541 | PASS | — | — | — | — |
+| plan-cancel | 100 | 108.368 | 116.985 | 131.579 | 210.883 | PASS | — | — | — | — |
+| action-temperature | 100 | 49.540 | 88.520 | 93.062 | 103.989 | PASS | — | — | — | — |
+| action-door | 100 | 43.474 | 45.888 | 56.486 | 145.970 | PASS | — | — | — | — |
+| security-approval | 100 | 33.056 | 35.655 | 40.211 | 52.458 | PASS | — | — | — | — |
+| action-claimed-door | 100 | 43.263 | 46.490 | 50.358 | 56.701 | PASS | — | — | — | — |
+| action-ambiguous | 100 | 14.100 | 15.723 | 17.449 | 19.281 | PASS | — | — | — | — |
+| action-profile | 100 | 74.197 | 79.669 | 96.495 | 175.272 | PASS | — | — | — | — |
+| permission-preview | 100 | 23.856 | 25.757 | 28.078 | 32.535 | PASS | — | — | — | — |
+| light-fresh | 100 | 53.615 | 87.006 | 91.529 | 100.047 | PASS | — | — | — | — |
+| light-retry | 100 | 11.478 | 12.136 | 13.693 | 16.677 | PASS | — | — | — | — |
+| audit-today | 100 | 24.525 | 53.195 | 69.216 | 82.680 | PASS | — | — | — | — |
+| audit-last_night | 100 | 30.157 | 108.526 | 121.471 | 158.803 | PASS | — | — | — | — |
+| audit-first-page | 100 | 38.201 | 90.095 | 106.516 | 115.058 | PASS | — | — | — | — |
+| audit-next-page | 100 | 34.725 | 90.213 | 107.577 | 182.589 | PASS | — | — | — | — |
+| pause | 100 | 67.981 | 110.595 | 120.711 | 204.416 | PASS | — | — | — | — |
+| missing-input-request | 100 | 44.735 | 48.428 | 54.196 | 61.000 | PASS | — | — | — | — |
+| missing-input-failure | 100 | 13.181 | 14.391 | 17.185 | 18.477 | PASS | — | — | — | — |
+| risk-not_genuine | 100 | 49.832 | 52.274 | 64.581 | 70.077 | PASS | — | — | — | — |
+| risk-retry-not_genuine | 100 | 50.321 | 51.489 | 52.850 | 56.385 | PASS | — | — | — | — |
+| verify-start-not_genuine | 100 | 89.721 | 109.259 | 117.808 | 200.539 | PASS | — | — | — | — |
+| verify-retry-not_genuine | 100 | 10.944 | 11.689 | 13.055 | 99.872 | PASS | — | — | — | — |
+| verify-pending-not_genuine | 100 | 12.332 | 13.690 | 15.285 | 17.706 | PASS | — | — | — | — |
+| verify-not_genuine | 100 | 12.476 | 13.727 | 15.425 | 18.280 | PASS | — | — | — | — |
+| risk-no_answer | 100 | 50.671 | 53.176 | 60.729 | 147.044 | PASS | — | — | — | — |
+| risk-retry-no_answer | 100 | 50.130 | 51.703 | 53.192 | 56.384 | PASS | — | — | — | — |
+| verify-start-no_answer | 100 | 108.216 | 110.899 | 119.938 | 193.461 | PASS | — | — | — | — |
+| verify-retry-no_answer | 100 | 11.185 | 11.718 | 13.433 | 15.558 | PASS | — | — | — | — |
+| verify-pending-no_answer | 100 | 12.693 | 13.740 | 17.616 | 21.250 | PASS | — | — | — | — |
+| verify-no_answer | 100 | 12.476 | 13.812 | 16.004 | 19.613 | PASS | — | — | — | — |
+
+Per-tool aggregates:
+
+| Name | n | Min | Median | p95 | Max | Gate | SDK n | SDK median | SDK p95 | SDK max |
+|---|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|
+| what_can_you_do | 100 | 5.752 | 6.189 | 6.986 | 8.443 | PASS | — | — | — | — |
+| get_household_context | 200 | 54.444 | 56.275 | 58.339 | 61.650 | PASS | — | — | — | — |
+| propose_household_rule | 200 | 51.090 | 73.107 | 98.578 | 109.078 | PASS | — | — | — | — |
+| get_household_plan | 700 | 13.181 | 94.106 | 165.587 | 258.707 | PASS | — | — | — | — |
+| explain_plan | 400 | 42.513 | 45.427 | 56.985 | 142.860 | PASS | — | — | — | — |
+| approve_action | 700 | 33.056 | 39.417 | 133.108 | 232.875 | PASS | — | — | — | — |
+| revise_household_plan | 600 | 11.936 | 70.804 | 141.269 | 173.667 | PASS | — | — | — | — |
+| execute_household_action | 800 | 11.478 | 56.594 | 111.839 | 204.416 | PASS | — | — | — | — |
+| evaluate_permission | 100 | 23.856 | 25.757 | 28.078 | 32.535 | PASS | — | — | — | — |
+| get_action_audit | 400 | 24.525 | 82.265 | 118.347 | 182.589 | PASS | — | — | — | — |
+| assess_request_risk | 400 | 49.832 | 51.998 | 57.255 | 147.044 | PASS | — | — | — | — |
+| verify_trusted_identity | 800 | 10.944 | 13.759 | 112.345 | 200.539 | PASS | — | — | — | — |
+
+**Superseded diagnostic — Hourly.**
+
+```text
+======================== 1 passed in 3066.44s (0:51:06) ========================
+```
+
+| Name | n | Min | Median | p95 | Max | Gate | SDK n | SDK median | SDK p95 | SDK max |
+|---|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|
+| onboarding | 100 | 5.693 | 6.094 | 7.257 | 8.152 | PASS | 100 | 50.258 | 52.395 | 55.142 |
+| context-all | 100 | 54.089 | 55.896 | 58.758 | 140.166 | PASS | 100 | 71.418 | 73.340 | 76.718 |
+| context-people | 100 | 53.487 | 55.196 | 56.378 | 68.123 | PASS | — | — | — | — |
+| proposal-fresh | 100 | 87.866 | 91.936 | 99.059 | 170.097 | PASS | — | — | — | — |
+| proposal-retry | 100 | 50.099 | 51.876 | 53.378 | 55.928 | PASS | — | — | — | — |
+| plan-first | 100 | 86.320 | 91.007 | 102.986 | 185.976 | PASS | — | — | — | — |
+| plan-ready | 100 | 73.194 | 77.734 | 86.746 | 195.083 | PASS | — | — | — | — |
+| explain-summary | 100 | 43.504 | 45.972 | 54.856 | 174.910 | PASS | — | — | — | — |
+| explain-conflicts | 100 | 43.469 | 46.437 | 144.776 | 161.183 | PASS | — | — | — | — |
+| explain-goal | 100 | 43.643 | 46.238 | 54.216 | 155.226 | PASS | — | — | — | — |
+| explain-action | 100 | 44.283 | 46.650 | 57.966 | 154.324 | PASS | — | — | — | — |
+| plan-approval | 100 | 115.369 | 124.977 | 141.440 | 252.168 | PASS | — | — | — | — |
+| objective-most_comfortable | 100 | 122.252 | 131.704 | 168.806 | 249.440 | PASS | — | — | — | — |
+| stale-approval-most_comfortable | 100 | 31.993 | 35.157 | 41.782 | 143.089 | PASS | — | — | — | — |
+| objective-greenest | 100 | 133.435 | 140.850 | 173.390 | 254.418 | PASS | — | — | — | — |
+| stale-approval-greenest | 100 | 32.213 | 35.199 | 40.683 | 57.552 | PASS | — | — | — | — |
+| objective-cheapest | 100 | 119.374 | 128.249 | 165.061 | 246.959 | PASS | — | — | — | — |
+| stale-approval-cheapest | 100 | 31.934 | 34.945 | 39.655 | 68.537 | PASS | — | — | — | — |
+| revision-car | 100 | 120.361 | 127.659 | 152.485 | 243.038 | PASS | — | — | — | — |
+| revision-retry-car | 100 | 50.600 | 52.219 | 53.919 | 55.125 | PASS | — | — | — | — |
+| revision-dishwasher | 100 | 109.185 | 116.105 | 127.173 | 141.326 | PASS | — | — | — | — |
+| revision-retry-dishwasher | 100 | 50.954 | 52.170 | 53.768 | 55.912 | PASS | — | — | — | — |
+| revision-guest | 100 | 110.169 | 115.985 | 129.396 | 221.918 | PASS | — | — | — | — |
+| revision-retry-guest | 100 | 51.099 | 52.274 | 54.432 | 56.532 | PASS | — | — | — | — |
+| same-second-approval | 100 | 72.985 | 75.572 | 84.354 | 100.410 | PASS | — | — | — | — |
+| plan-cancel | 100 | 104.769 | 111.352 | 131.063 | 226.977 | PASS | — | — | — | — |
+| action-temperature | 100 | 52.779 | 86.440 | 91.527 | 99.060 | PASS | — | — | — | — |
+| action-door | 100 | 41.306 | 44.382 | 52.269 | 137.448 | PASS | — | — | — | — |
+| security-approval | 100 | 31.188 | 34.047 | 40.394 | 54.916 | PASS | — | — | — | — |
+| action-claimed-door | 100 | 41.165 | 44.270 | 53.484 | 142.492 | PASS | — | — | — | — |
+| action-ambiguous | 100 | 13.263 | 15.060 | 17.945 | 131.176 | PASS | — | — | — | — |
+| action-profile | 100 | 70.409 | 76.263 | 90.289 | 112.347 | PASS | — | — | — | — |
+| permission-preview | 100 | 22.215 | 24.497 | 29.970 | 74.504 | PASS | — | — | — | — |
+| light-fresh | 100 | 80.765 | 84.758 | 90.684 | 110.130 | PASS | — | — | — | — |
+| light-retry | 100 | 11.367 | 12.097 | 14.166 | 104.695 | PASS | — | — | — | — |
+| audit-today | 100 | 24.471 | 55.809 | 66.816 | 75.028 | PASS | — | — | — | — |
+| audit-last_night | 100 | 62.952 | 116.076 | 125.164 | 129.642 | PASS | — | — | — | — |
+| audit-first-page | 100 | 63.906 | 93.430 | 103.735 | 107.392 | PASS | — | — | — | — |
+| audit-next-page | 100 | 49.046 | 92.331 | 104.517 | 111.513 | PASS | — | — | — | — |
+| pause | 100 | 72.449 | 107.573 | 121.407 | 210.739 | PASS | — | — | — | — |
+| missing-input-request | 100 | 42.844 | 46.224 | 55.885 | 74.485 | PASS | — | — | — | — |
+| missing-input-failure | 100 | 12.560 | 13.934 | 15.613 | 106.088 | PASS | — | — | — | — |
+| risk-not_genuine | 100 | 53.180 | 93.304 | 96.613 | 132.018 | PASS | — | — | — | — |
+| risk-retry-not_genuine | 100 | 51.356 | 52.356 | 55.229 | 161.430 | PASS | — | — | — | — |
+| verify-start-not_genuine | 100 | 106.069 | 111.146 | 121.768 | 129.432 | PASS | — | — | — | — |
+| verify-retry-not_genuine | 100 | 11.788 | 52.136 | 52.684 | 54.346 | PASS | — | — | — | — |
+| verify-pending-not_genuine | 100 | 13.807 | 54.481 | 55.246 | 58.677 | PASS | — | — | — | — |
+| verify-not_genuine | 100 | 13.899 | 54.411 | 55.750 | 64.346 | PASS | — | — | — | — |
+| risk-no_answer | 100 | 54.917 | 92.472 | 97.695 | 110.542 | PASS | — | — | — | — |
+| risk-retry-no_answer | 100 | 50.386 | 51.795 | 54.947 | 61.987 | PASS | — | — | — | — |
+| verify-start-no_answer | 100 | 105.314 | 109.292 | 124.380 | 221.465 | PASS | — | — | — | — |
+| verify-retry-no_answer | 100 | 11.030 | 51.794 | 52.782 | 55.868 | PASS | — | — | — | — |
+| verify-pending-no_answer | 100 | 14.355 | 53.820 | 55.543 | 58.165 | PASS | — | — | — | — |
+| verify-no_answer | 100 | 13.713 | 53.913 | 54.817 | 57.808 | PASS | — | — | — | — |
+
+Per-tool aggregates:
+
+| Name | n | Min | Median | p95 | Max | Gate | SDK n | SDK median | SDK p95 | SDK max |
+|---|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|
+| what_can_you_do | 100 | 5.693 | 6.094 | 7.257 | 8.152 | PASS | — | — | — | — |
+| get_household_context | 200 | 53.487 | 55.563 | 57.891 | 140.166 | PASS | — | — | — | — |
+| propose_household_rule | 200 | 50.099 | 71.897 | 97.308 | 170.097 | PASS | — | — | — | — |
+| get_household_plan | 700 | 12.560 | 91.729 | 155.935 | 254.418 | PASS | — | — | — | — |
+| explain_plan | 400 | 43.469 | 46.237 | 65.939 | 174.910 | PASS | — | — | — | — |
+| approve_action | 700 | 31.188 | 37.490 | 129.666 | 252.168 | PASS | — | — | — | — |
+| revise_household_plan | 600 | 50.600 | 82.859 | 133.995 | 243.038 | PASS | — | — | — | — |
+| execute_household_action | 800 | 11.367 | 72.970 | 109.461 | 210.739 | PASS | — | — | — | — |
+| evaluate_permission | 100 | 22.215 | 24.497 | 29.970 | 74.504 | PASS | — | — | — | — |
+| get_action_audit | 400 | 24.471 | 87.460 | 119.108 | 129.642 | PASS | — | — | — | — |
+| assess_request_risk | 400 | 50.386 | 59.619 | 95.078 | 161.430 | PASS | — | — | — | — |
+| verify_trusted_identity | 800 | 11.030 | 54.276 | 113.424 | 221.465 | PASS | — | — | — | — |
+
+### Corrected commit and gate of record
+
+The boundary fallback correction in `51f192b948e2c201efe7223192ed798f471639e0`
+preserves the existing unknown-tool refusal. Its focused checks were
+`uv run ruff check . && uv run mypy hirz/ scripts/ alembic/` and
+`uv run pytest tests/unit/test_household_tools.py --no-cov -q` (exit 0):
+
+```text
+All checks passed!
+Success: no issues found in 158 source files
+....................................tools/list bytes=107549; largest tool bytes=16516
+38 passed in 2.58s
+```
+
+`git add hirz/mcp/runtime.py tests/unit/test_household_tools.py && git commit -m "Preserve unknown-tool refusal at the output boundary" && git push origin item-27-mcp-app-cards`
+completed successfully. [Corrected-commit ordinary CI 36107766665](https://github.com/BashaarJavaid/Hirz/actions/runs/36107766665)
+passed all ten ordinary jobs on this SHA; latency was skipped on push.
+`gh run watch 36107766665 --interval 30 --exit-status` exited 0.
+CI summary lines:
+
+```text
+TOTAL                                     12571   2825    78%
+=============== 1428 passed, 154 deselected in 173.12s (0:02:53) ===============
+TOTAL                                     12571    864    93%
+=============== 152 passed, 1430 deselected in 236.72s (0:03:56) ===============
+TOTAL                                     12571    864    93%
+  1 passed (2.4s)
+  38 passed (1.7m)
+CONFORMANCE {"status": "PASS", "complete": true, "counts": {"PASS": 117, "FAIL": 0, "WARN": 0, "SKIP": 0, "MANUAL": 8}, "timedTools": ["what_can_you_do", "get_household_context"], "missingEvidence": []}
+{"household_tools": "PASS", "signed_rows": 628, "offline": "valid", "trusted_fingerprint": "fd6e75d96798bcdf1aa2f2b0a1498ea7856da6647b2d3568f8bbd4c42880a0b4", "audit_export": "/home/runner/work/_temp/conformance-audit.json", "development_database": "unchanged"}
+```
+
+Only after this CI passed, the author-authorized replacement
+`gh workflow run ci.yml --ref item-27-mcp-app-cards` (exit 0) returned
+[final latency gate 36109337744](https://github.com/BashaarJavaid/Hirz/actions/runs/36109337744),
+confirmed on `51f192b948e2c201efe7223192ed798f471639e0`.
+
+The gate of record completed `success` in both scenarios.
+`gh run watch 36109337744 --interval 30 --exit-status` exited 0. All 54 cases
+and all twelve per-tool aggregates passed in each scenario at warm p95 ≤ 250 ms.
+The largest case p95 was 237.930 ms in Time of Day and 166.441 ms in Hourly.
+The raw HTTP timer, outside-timer SDK validation, byte-identity assertions,
+100 measured samples per case, corpus and threshold remain unchanged.
+The earlier successful run is diagnostic only; this corrected-commit run is
+the source of every after measurement below. No further dispatch was made.
+
+**Gate of record — Time of Day.**
+
+```text
+======================== 1 passed in 3196.72s (0:53:16) ========================
+```
+
+| Name | n | Min | Median | p95 | Max | Gate | SDK n | SDK median | SDK p95 | SDK max |
+|---|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|
+| onboarding | 100 | 5.666 | 6.289 | 7.994 | 10.927 | PASS | 100 | 51.711 | 54.713 | 56.587 |
+| context-all | 100 | 54.306 | 57.101 | 60.191 | 64.444 | PASS | 100 | 74.880 | 82.500 | 91.742 |
+| context-people | 100 | 53.159 | 56.329 | 61.172 | 66.337 | PASS | — | — | — | — |
+| proposal-fresh | 100 | 89.415 | 97.415 | 111.242 | 115.425 | PASS | — | — | — | — |
+| proposal-retry | 100 | 50.251 | 52.900 | 56.351 | 58.644 | PASS | — | — | — | — |
+| plan-first | 100 | 86.512 | 96.137 | 107.488 | 118.204 | PASS | — | — | — | — |
+| plan-ready | 100 | 71.663 | 79.813 | 105.740 | 206.086 | PASS | — | — | — | — |
+| explain-summary | 100 | 41.871 | 46.975 | 135.842 | 154.915 | PASS | — | — | — | — |
+| explain-conflicts | 100 | 41.869 | 46.557 | 59.318 | 158.218 | PASS | — | — | — | — |
+| explain-goal | 100 | 42.266 | 47.196 | 132.468 | 158.148 | PASS | — | — | — | — |
+| explain-action | 100 | 43.145 | 47.477 | 62.859 | 176.162 | PASS | — | — | — | — |
+| plan-approval | 100 | 119.095 | 134.567 | 211.652 | 265.661 | PASS | — | — | — | — |
+| objective-most_comfortable | 100 | 127.446 | 143.147 | 163.218 | 248.241 | PASS | — | — | — | — |
+| stale-approval-most_comfortable | 100 | 33.409 | 37.383 | 44.591 | 54.449 | PASS | — | — | — | — |
+| objective-greenest | 100 | 140.376 | 153.233 | 179.076 | 278.689 | PASS | — | — | — | — |
+| stale-approval-greenest | 100 | 34.147 | 37.957 | 43.125 | 52.799 | PASS | — | — | — | — |
+| objective-cheapest | 100 | 130.330 | 146.399 | 237.930 | 295.182 | PASS | — | — | — | — |
+| stale-approval-cheapest | 100 | 33.604 | 37.516 | 43.517 | 53.389 | PASS | — | — | — | — |
+| revision-car | 100 | 122.441 | 142.651 | 158.808 | 309.361 | PASS | — | — | — | — |
+| revision-retry-car | 100 | 13.443 | 53.255 | 56.419 | 62.427 | PASS | — | — | — | — |
+| revision-dishwasher | 100 | 94.092 | 127.580 | 143.251 | 161.479 | PASS | — | — | — | — |
+| revision-retry-dishwasher | 100 | 12.059 | 52.979 | 55.468 | 59.618 | PASS | — | — | — | — |
+| revision-guest | 100 | 81.931 | 126.471 | 147.622 | 165.507 | PASS | — | — | — | — |
+| revision-retry-guest | 100 | 13.186 | 53.265 | 56.785 | 61.675 | PASS | — | — | — | — |
+| same-second-approval | 100 | 37.958 | 78.049 | 86.507 | 96.291 | PASS | — | — | — | — |
+| plan-cancel | 100 | 107.459 | 120.068 | 139.293 | 243.157 | PASS | — | — | — | — |
+| action-temperature | 100 | 52.655 | 90.845 | 101.790 | 107.979 | PASS | — | — | — | — |
+| action-door | 100 | 42.626 | 48.152 | 58.127 | 68.998 | PASS | — | — | — | — |
+| security-approval | 100 | 32.665 | 36.684 | 44.143 | 49.971 | PASS | — | — | — | — |
+| action-claimed-door | 100 | 42.915 | 48.010 | 58.440 | 150.627 | PASS | — | — | — | — |
+| action-ambiguous | 100 | 13.635 | 16.446 | 20.745 | 22.383 | PASS | — | — | — | — |
+| action-profile | 100 | 72.097 | 83.948 | 97.810 | 108.503 | PASS | — | — | — | — |
+| permission-preview | 100 | 22.956 | 26.776 | 32.852 | 39.407 | PASS | — | — | — | — |
+| light-fresh | 100 | 82.913 | 89.205 | 99.452 | 109.355 | PASS | — | — | — | — |
+| light-retry | 100 | 11.300 | 12.501 | 18.144 | 51.626 | PASS | — | — | — | — |
+| audit-today | 100 | 25.137 | 57.176 | 72.788 | 156.911 | PASS | — | — | — | — |
+| audit-last_night | 100 | 25.581 | 86.817 | 127.631 | 138.925 | PASS | — | — | — | — |
+| audit-first-page | 100 | 25.489 | 90.512 | 110.303 | 117.439 | PASS | — | — | — | — |
+| audit-next-page | 100 | 30.243 | 92.074 | 112.065 | 126.581 | PASS | — | — | — | — |
+| pause | 100 | 69.239 | 112.455 | 127.050 | 135.629 | PASS | — | — | — | — |
+| missing-input-request | 100 | 46.213 | 51.972 | 63.967 | 68.308 | PASS | — | — | — | — |
+| missing-input-failure | 100 | 13.846 | 15.410 | 21.078 | 115.229 | PASS | — | — | — | — |
+| risk-not_genuine | 100 | 51.164 | 54.216 | 63.691 | 71.838 | PASS | — | — | — | — |
+| risk-retry-not_genuine | 100 | 50.789 | 51.946 | 54.580 | 56.670 | PASS | — | — | — | — |
+| verify-start-not_genuine | 100 | 74.674 | 112.026 | 128.445 | 194.187 | PASS | — | — | — | — |
+| verify-retry-not_genuine | 100 | 11.057 | 12.043 | 14.719 | 20.166 | PASS | — | — | — | — |
+| verify-pending-not_genuine | 100 | 12.955 | 14.069 | 17.402 | 19.503 | PASS | — | — | — | — |
+| verify-not_genuine | 100 | 12.911 | 14.115 | 17.875 | 98.716 | PASS | — | — | — | — |
+| risk-no_answer | 100 | 51.226 | 54.341 | 67.534 | 72.618 | PASS | — | — | — | — |
+| risk-retry-no_answer | 100 | 50.478 | 52.019 | 55.804 | 57.281 | PASS | — | — | — | — |
+| verify-start-no_answer | 100 | 107.261 | 111.820 | 122.477 | 210.544 | PASS | — | — | — | — |
+| verify-retry-no_answer | 100 | 11.194 | 11.978 | 14.572 | 17.322 | PASS | — | — | — | — |
+| verify-pending-no_answer | 100 | 12.621 | 14.041 | 16.236 | 20.174 | PASS | — | — | — | — |
+| verify-no_answer | 100 | 12.776 | 13.947 | 15.893 | 17.343 | PASS | — | — | — | — |
+
+Per-tool aggregates:
+
+| Name | n | Min | Median | p95 | Max | Gate | SDK n | SDK median | SDK p95 | SDK max |
+|---|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|
+| what_can_you_do | 100 | 5.666 | 6.289 | 7.994 | 10.927 | PASS | — | — | — | — |
+| get_household_context | 200 | 53.159 | 56.893 | 60.521 | 66.337 | PASS | — | — | — | — |
+| propose_household_rule | 200 | 50.251 | 74.030 | 107.650 | 115.425 | PASS | — | — | — | — |
+| get_household_plan | 700 | 13.846 | 96.949 | 167.083 | 295.182 | PASS | — | — | — | — |
+| explain_plan | 400 | 41.869 | 47.046 | 71.371 | 176.162 | PASS | — | — | — | — |
+| approve_action | 700 | 32.665 | 41.719 | 141.449 | 265.661 | PASS | — | — | — | — |
+| revise_household_plan | 600 | 12.059 | 72.179 | 151.201 | 309.361 | PASS | — | — | — | — |
+| execute_household_action | 800 | 11.300 | 69.396 | 113.708 | 150.627 | PASS | — | — | — | — |
+| evaluate_permission | 100 | 22.956 | 26.776 | 32.852 | 39.407 | PASS | — | — | — | — |
+| get_action_audit | 400 | 25.137 | 80.149 | 119.456 | 156.911 | PASS | — | — | — | — |
+| assess_request_risk | 400 | 50.478 | 52.810 | 61.945 | 72.618 | PASS | — | — | — | — |
+| verify_trusted_identity | 800 | 11.057 | 14.069 | 117.422 | 210.544 | PASS | — | — | — | — |
+
+**Gate of record — Hourly.**
+
+```text
+======================== 1 passed in 2900.89s (0:48:20) ========================
+```
+
+| Name | n | Min | Median | p95 | Max | Gate | SDK n | SDK median | SDK p95 | SDK max |
+|---|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|
+| onboarding | 100 | 5.297 | 5.644 | 6.280 | 7.573 | PASS | 100 | 50.080 | 51.752 | 58.428 |
+| context-all | 100 | 53.451 | 54.541 | 57.403 | 61.881 | PASS | 100 | 71.286 | 79.370 | 87.649 |
+| context-people | 100 | 52.470 | 53.541 | 57.790 | 62.275 | PASS | — | — | — | — |
+| proposal-fresh | 100 | 86.423 | 88.265 | 95.617 | 153.552 | PASS | — | — | — | — |
+| proposal-retry | 100 | 49.371 | 50.360 | 52.788 | 54.648 | PASS | — | — | — | — |
+| plan-first | 100 | 84.718 | 86.781 | 95.783 | 157.995 | PASS | — | — | — | — |
+| plan-ready | 100 | 71.384 | 73.051 | 88.763 | 163.575 | PASS | — | — | — | — |
+| explain-summary | 100 | 41.775 | 43.920 | 116.289 | 136.596 | PASS | — | — | — | — |
+| explain-conflicts | 100 | 42.188 | 43.685 | 110.100 | 130.173 | PASS | — | — | — | — |
+| explain-goal | 100 | 41.778 | 43.878 | 48.238 | 116.347 | PASS | — | — | — | — |
+| explain-action | 100 | 42.515 | 44.303 | 113.731 | 124.679 | PASS | — | — | — | — |
+| plan-approval | 100 | 111.989 | 115.504 | 160.153 | 204.754 | PASS | — | — | — | — |
+| objective-most_comfortable | 100 | 127.595 | 132.798 | 151.490 | 219.411 | PASS | — | — | — | — |
+| stale-approval-most_comfortable | 100 | 30.771 | 32.248 | 39.105 | 101.128 | PASS | — | — | — | — |
+| objective-greenest | 100 | 137.469 | 143.559 | 166.441 | 226.764 | PASS | — | — | — | — |
+| stale-approval-greenest | 100 | 30.398 | 32.262 | 37.010 | 44.278 | PASS | — | — | — | — |
+| objective-cheapest | 100 | 122.593 | 127.398 | 150.536 | 208.068 | PASS | — | — | — | — |
+| stale-approval-cheapest | 100 | 30.674 | 32.393 | 40.220 | 43.795 | PASS | — | — | — | — |
+| revision-car | 100 | 124.950 | 129.875 | 145.061 | 205.255 | PASS | — | — | — | — |
+| revision-retry-car | 100 | 12.422 | 50.770 | 52.971 | 54.738 | PASS | — | — | — | — |
+| revision-dishwasher | 100 | 68.992 | 110.992 | 121.280 | 127.153 | PASS | — | — | — | — |
+| revision-retry-dishwasher | 100 | 49.944 | 50.941 | 51.969 | 54.252 | PASS | — | — | — | — |
+| revision-guest | 100 | 107.764 | 111.159 | 124.608 | 187.697 | PASS | — | — | — | — |
+| revision-retry-guest | 100 | 11.222 | 50.910 | 53.280 | 55.029 | PASS | — | — | — | — |
+| same-second-approval | 100 | 34.295 | 72.564 | 75.295 | 82.756 | PASS | — | — | — | — |
+| plan-cancel | 100 | 108.308 | 112.217 | 127.245 | 137.196 | PASS | — | — | — | — |
+| action-temperature | 100 | 54.957 | 83.879 | 89.037 | 95.884 | PASS | — | — | — | — |
+| action-door | 100 | 39.348 | 41.520 | 50.807 | 115.333 | PASS | — | — | — | — |
+| security-approval | 100 | 30.608 | 31.978 | 37.801 | 40.949 | PASS | — | — | — | — |
+| action-claimed-door | 100 | 39.605 | 41.707 | 48.562 | 53.577 | PASS | — | — | — | — |
+| action-ambiguous | 100 | 12.722 | 13.492 | 17.897 | 84.980 | PASS | — | — | — | — |
+| action-profile | 100 | 69.150 | 72.231 | 82.406 | 91.546 | PASS | — | — | — | — |
+| permission-preview | 100 | 21.506 | 22.622 | 27.616 | 32.494 | PASS | — | — | — | — |
+| light-fresh | 100 | 49.919 | 81.815 | 89.996 | 95.982 | PASS | — | — | — | — |
+| light-retry | 100 | 10.785 | 11.238 | 12.732 | 50.463 | PASS | — | — | — | — |
+| audit-today | 100 | 21.314 | 45.569 | 62.249 | 85.333 | PASS | — | — | — | — |
+| audit-last_night | 100 | 39.244 | 97.952 | 107.705 | 109.304 | PASS | — | — | — | — |
+| audit-first-page | 100 | 44.724 | 84.581 | 97.172 | 101.934 | PASS | — | — | — | — |
+| audit-next-page | 100 | 21.401 | 83.133 | 96.996 | 103.084 | PASS | — | — | — | — |
+| pause | 100 | 62.401 | 103.385 | 110.596 | 117.776 | PASS | — | — | — | — |
+| missing-input-request | 100 | 41.565 | 42.837 | 47.232 | 136.358 | PASS | — | — | — | — |
+| missing-input-failure | 100 | 11.783 | 12.418 | 15.165 | 16.877 | PASS | — | — | — | — |
+| risk-not_genuine | 100 | 45.733 | 47.035 | 53.546 | 63.021 | PASS | — | — | — | — |
+| risk-retry-not_genuine | 100 | 49.432 | 50.305 | 53.946 | 55.055 | PASS | — | — | — | — |
+| verify-start-not_genuine | 100 | 100.051 | 102.331 | 110.084 | 181.524 | PASS | — | — | — | — |
+| verify-retry-not_genuine | 100 | 9.646 | 10.442 | 13.080 | 15.141 | PASS | — | — | — | — |
+| verify-pending-not_genuine | 100 | 11.296 | 11.877 | 14.036 | 17.612 | PASS | — | — | — | — |
+| verify-not_genuine | 100 | 11.036 | 11.721 | 13.858 | 19.266 | PASS | — | — | — | — |
+| risk-no_answer | 100 | 45.636 | 46.923 | 56.614 | 138.002 | PASS | — | — | — | — |
+| risk-retry-no_answer | 100 | 49.579 | 50.251 | 52.357 | 53.519 | PASS | — | — | — | — |
+| verify-start-no_answer | 100 | 100.802 | 102.259 | 115.019 | 123.846 | PASS | — | — | — | — |
+| verify-retry-no_answer | 100 | 9.873 | 10.466 | 13.157 | 14.661 | PASS | — | — | — | — |
+| verify-pending-no_answer | 100 | 11.273 | 11.835 | 13.847 | 16.528 | PASS | — | — | — | — |
+| verify-no_answer | 100 | 11.099 | 11.540 | 14.101 | 16.410 | PASS | — | — | — | — |
+
+Per-tool aggregates:
+
+| Name | n | Min | Median | p95 | Max | Gate | SDK n | SDK median | SDK p95 | SDK max |
+|---|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|
+| what_can_you_do | 100 | 5.297 | 5.644 | 6.280 | 7.573 | PASS | — | — | — | — |
+| get_household_context | 200 | 52.470 | 54.215 | 57.790 | 62.275 | PASS | — | — | — | — |
+| propose_household_rule | 200 | 49.371 | 70.535 | 90.725 | 153.552 | PASS | — | — | — | — |
+| get_household_plan | 700 | 11.783 | 87.273 | 151.244 | 226.764 | PASS | — | — | — | — |
+| explain_plan | 400 | 41.775 | 43.975 | 112.754 | 136.596 | PASS | — | — | — | — |
+| approve_action | 700 | 30.398 | 34.742 | 119.787 | 204.754 | PASS | — | — | — | — |
+| revise_household_plan | 600 | 11.222 | 62.011 | 134.141 | 205.255 | PASS | — | — | — | — |
+| execute_household_action | 800 | 10.785 | 58.679 | 103.969 | 117.776 | PASS | — | — | — | — |
+| evaluate_permission | 100 | 21.506 | 22.622 | 27.616 | 32.494 | PASS | — | — | — | — |
+| get_action_audit | 400 | 21.314 | 78.104 | 105.637 | 109.304 | PASS | — | — | — | — |
+| assess_request_risk | 400 | 45.636 | 49.818 | 53.546 | 138.002 | PASS | — | — | — | — |
+| verify_trusted_identity | 800 | 9.646 | 11.821 | 103.885 | 181.524 | PASS | — | — | — | — |
+
+### SDK-reference before/after
+
+Milliseconds; 100 SDK calls per row. Before is item 27
+[run 36092777151](https://github.com/BashaarJavaid/Hirz/actions/runs/36092777151),
+after is the corrected-commit [gate of record 36109337744](https://github.com/BashaarJavaid/Hirz/actions/runs/36109337744).
+These are client SDK round trips, including validation, distinct from the raw
+server-round-trip gate. Values are copied from the payload-free step summaries.
+
+| Scenario | Case | Before SDK median | After SDK median | Before SDK p95 | After SDK p95 | Before SDK max | After SDK max |
+|---|---|---:|---:|---:|---:|---:|---:|
+| Time of Day | onboarding | 93.279 | 51.711 | 97.488 | 54.713 | 111.707 | 56.587 |
+| Time of Day | context-all | 107.251 | 74.880 | 113.764 | 82.500 | 119.361 | 91.742 |
+| Hourly | onboarding | 108.155 | 50.080 | 123.869 | 51.752 | 126.106 | 58.428 |
+| Hourly | context-all | 122.040 | 71.286 | 134.749 | 79.370 | 201.143 | 87.649 |
+
+### Final record checks
+
+Only the six requested record files changed after the corrected-commit gates.
+`git diff --check` exited 0. The final requested check,
+`uv run ruff format --check .`, exited 0:
+
+```text
+248 files already formatted
+```
+
+The earlier size and service-free failures are retained above as failures.
+The eight designed browser MANUAL notes remain recorded. No additional
+third-party friction entry was earned; the existing item 26b SDK entry carries
+the measured follow-up. No merge was performed.

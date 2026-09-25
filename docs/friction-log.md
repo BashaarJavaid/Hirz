@@ -622,6 +622,13 @@ checks passed. See the [completion evidence](./verification-log.md#publication-a
   changes. [Finding and measurement scope](./verification-log.md#scheduling-and-harness--2026-09-24),
   [author's decision](./adr/ADR-017-tool-latency-and-isolation.md#server-round-trip-amendment--2026-09-24).
 
+  **2026-09-25 follow-up:** per-tool schemas reduce SDK-reference medians from
+  item 27 run 36092777151 to the corrected-commit [gate of record 36109337744](https://github.com/BashaarJavaid/Hirz/actions/runs/36109337744):
+  Time of Day onboarding **93.279 → 51.711 ms**, context **107.251 → 74.880 ms**;
+  Hourly onboarding **108.155 → 50.080 ms**, context **122.040 → 71.286 ms**.
+  Both scenarios pass the unchanged 250 ms raw round-trip gate; SDK validation
+  remains enabled ([full comparison and evidence](./verification-log.md#phase-4-review-batch-2--2026-09-24)).
+
 ## Item 27: pinned Playwright declarations and TypeScript 6 — 2026-09-24
 
 - **Tool/task:** Playwright 1.57.0 [protocol declarations](https://github.com/microsoft/playwright/blob/v1.57.0/packages/playwright-core/types/protocol.d.ts)

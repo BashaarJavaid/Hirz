@@ -1149,6 +1149,7 @@ the generic app above retains anonymous onboarding only. Identity comes from
 OAuth's request context and current member lookup. Tool schemas and exact inputs
 are in [the catalog](./docs/tool-catalog.md); [ADR-015](./docs/adr/ADR-015-household-tools.md)
 records the approved local contract.
+Each tool publishes a narrow output schema without generated titles and validates the runtime superset at the response boundary, including receipt replays ([ADR-015 amendment](./docs/adr/ADR-015-household-tools.md#per-tool-output-schemas--2026-09-24)).
 
 Startup validates/compiles policy bundles. Calls check the current bundle under
 the household lock, reuse Pipeline and Coordinator for synchronous bookkeeping,
