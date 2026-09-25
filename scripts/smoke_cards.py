@@ -14,6 +14,7 @@ from tempfile import TemporaryDirectory
 from typing import Any
 
 import httpx
+import sqlalchemy as sa
 import uvicorn
 import yaml
 from starlette.applications import Starlette
@@ -21,6 +22,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 from starlette.routing import Route
 
+from hirz import db
 from hirz.executor.local import compose
 from hirz.executor.observations import ingest
 from hirz.local import read_env
@@ -109,6 +111,7 @@ async def run(output: Path, serve: bool, browser_test: bool = False) -> None:
                 )
                 env.config["card_evidence"] = str(evidence_path)
                 fixtures: dict[str, Any] = {}
+                inputs: dict[str, Any] = {}
                 async with env.servers(), mcp_process(env.listeners[1], env.config):
                     async with httpx.AsyncClient(trust_env=False) as anonymous:
                         for name in (
@@ -140,6 +143,7 @@ async def run(output: Path, serve: bool, browser_test: bool = False) -> None:
                         async def call(
                             client: Client, name: str, **args: Any
                         ) -> Result:
+                            inputs[name] = args
                             answer = await client.session.call_tool(name, args)
                             assert not answer.isError, (name, answer.structuredContent)
                             return Result.model_validate(answer.structuredContent)
@@ -160,9 +164,47 @@ async def run(output: Path, serve: bool, browser_test: bool = False) -> None:
                             request_id="card-consent",
                         )
                         await env.run_worker()
+                        window = await call(home, "get_action_audit")
+                        assert window.data.presentation
+                        print(
+                            "Scorecard window counts: "
+                            + window.data.presentation.model_dump_json(
+                                include={"counts"}
+                            ),
+                            flush=True,
+                        )
+                        # A worker can deny more than one simultaneous opening before
+                        # refresh holds the rest. Snapshot one actual denied action;
+                        # whole-window count semantics are tested independently.
+                        p = env.pipelines[0]
+                        async with connection.begin():
+                            denied_id = await connection.scalar(
+                                sa.select(db.audit_log.c.payload["action_id"].astext)
+                                .where(
+                                    p.scope(db.audit_log),
+                                    db.audit_log.c.event_type.startswith(
+                                        "DENY_", autoescape=True
+                                    ),
+                                    db.audit_log.c.payload["action_id"].astext.in_(
+                                        plan.data.plan.actions
+                                    ),
+                                )
+                                .order_by(db.audit_log.c.seq)
+                                .limit(1)
+                            )
+                        assert denied_id, (
+                            "Fixture requires an actual denied device action"
+                        )
                         fixtures["scorecard"] = (
-                            await call(home, "get_action_audit")
+                            await call(home, "get_action_audit", action_id=denied_id)
                         ).model_dump(mode="json", by_alias=True)
+                        print(
+                            "Scorecard snapshot counts: "
+                            + json.dumps(
+                                fixtures["scorecard"]["data"]["presentation"]["counts"]
+                            ),
+                            flush=True,
+                        )
                         p = env.pipelines[0]
                         env.loaded.world.doorbell_event(
                             "doorbell.front_door", p.clock(), "press", None
@@ -219,6 +261,16 @@ async def run(output: Path, serve: bool, browser_test: bool = False) -> None:
                             label="Explicit disposable twin card fixtures; no security authority",
                             at=p.clock().isoformat(),
                             results=fixtures,
+                            inputs={
+                                kind: inputs[tool]
+                                for kind, tool in {
+                                    "plan": "get_household_plan",
+                                    "approval": "execute_household_action",
+                                    "verification": "assess_request_risk",
+                                    "doorbell": "get_household_context",
+                                    "scorecard": "get_action_audit",
+                                }.items()
+                            },
                             tools=[
                                 dict(
                                     name=name,

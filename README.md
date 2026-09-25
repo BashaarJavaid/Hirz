@@ -283,6 +283,7 @@ From the repository root:
 ```bash
 uv sync --locked
 pnpm install --frozen-lockfile
+pnpm --filter mcp-app build
 # First build/export the pinned Dogwood CLI (docs/development.md, item 7).
 uv run pytest
 uv run ruff check .
@@ -295,8 +296,7 @@ uv build
 ```
 
 Default Python tests cover package metadata, liveness, bootstrap credential/protocol
-handling, key recovery, and doctor output/failures. Each TypeScript workspace tests
-its empty module import. Python enforces **80% line coverage over `hirz/`**; scaffold
+handling, key recovery, and doctor output/failures. The TypeScript workspaces run their service-free unit tests. Python enforces **80% line coverage over `hirz/`**; scaffold
 coverage alone is not evidence of policy enforcement or device behavior. No cloud credentials,
 Docker services, or browser are needed for default tests; the WebSocket test binds
 a temporary local port. Live database tests are selected explicitly below.

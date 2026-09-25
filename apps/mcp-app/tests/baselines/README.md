@@ -4,7 +4,7 @@ Author approved all fourteen initial baselines on 2026-09-24.
 
 Linux Chromium 1.57.0, 768×480. These are labeled disposable twin fixtures.
 Fullscreen images show the opening viewport; timeline, alternatives, provenance and decisions scroll within the card.
-Figures come from the authenticated fixture run and retained backtest mapping.
+Figures come from the authenticated fixture run and retained backtest mapping. The scorecard fixture selects one existing audited denial; whole-window counts are verified separately.
 
 ## approval dark inline
 

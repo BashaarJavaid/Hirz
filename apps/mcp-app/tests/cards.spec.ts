@@ -37,7 +37,13 @@ async function mount(page: Page, kind: string, theme = "light", respond?: (reque
     if (request.id === undefined) return route.fulfill({ status: 202, body: "" });
     await route.fulfill({ contentType: "application/json", body: JSON.stringify({ jsonrpc: "2.0", id: request.id, result }) });
   });
-  await page.goto(`http://localhost:8080/?tool=${tools[kind]}&call=true`);
+  await page.goto(`http://localhost:8080/?tool=${tools[kind]}`);
+  await expect(page.getByRole("combobox", { name: "Tool", exact: true })).toHaveValue(tools[kind]);
+  const properties = fixtures.tools.find((tool: { name: string }) => tool.name === tools[kind]).inputSchema.properties;
+  const defaultField = Object.entries<{ default?: unknown }>(properties).find(entry => Object.hasOwn(entry[1], "default"))?.[0];
+  await expect(page.getByRole("textbox", { name: "Input" })).toHaveValue(defaultField ? new RegExp(defaultField) : "{}");
+  await page.getByRole("textbox", { name: "Input" }).fill(JSON.stringify(fixtures.inputs?.[kind] ?? {}));
+  await page.getByRole("button", { name: "Call Tool", exact: true }).click();
   const frame = page.frameLocator("iframe").frameLocator("iframe");
   await expect(frame.getByRole("main")).toBeVisible();
   await expect.poll(async () => await frame.getByRole("alert").count() > 0 || await frame.locator("h1").textContent() !== "Waiting for household information").toBe(true);
@@ -277,4 +283,14 @@ test("unknown observed lock state disables unlock even with contradictory eligib
   const { frame } = await mount(page, "doorbell", "light", () => initial, initial);
   await expect(frame.getByText("Lock state unavailable")).toBeVisible();
   await expect(frame.getByRole("button", { name: "Request 10-minute unlock" })).toHaveCount(0);
+});
+
+test("scorecard pagination preserves the selected query", async ({ page }) => {
+  const initial = structuredClone(fixtures.results.scorecard);
+  initial.data.cursor = "opaque-next-page";
+  const { frame, calls } = await mount(page, "scorecard", "light", () => fixtures.results.scorecard, initial);
+  await frame.getByRole("button", { name: "Open details" }).click();
+  await frame.getByRole("button", { name: "Next page" }).click();
+  await expect.poll(() => calls.length).toBe(2);
+  expect(calls[1].arguments).toEqual({ ...(fixtures.inputs?.scorecard ?? {}), cursor: "opaque-next-page" });
 });

@@ -1376,7 +1376,9 @@ HIRZ_LLM=off uv run --locked python -m scripts.smoke_cards --artifacts-dir /tmp/
 HIRZ_CARD_FIXTURES=/tmp/new-card-fixtures/fixtures.json pnpm --filter mcp-app test:browser
 ```
 
-The fixture smoke uses disposable twin households, records all runtime changes
+The scorecard screenshot selects one actual denied action for stable counts;
+whole-window count semantics remain covered by PostgreSQL tests. The fixture smoke
+uses disposable twin households, records all runtime changes
 through Pipeline, and independently verifies private audit exports. Its fixtures
 confer no security authority. For a real authenticated reference-host browser call,
 install the pinned Playwright Chromium and run:

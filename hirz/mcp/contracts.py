@@ -2,7 +2,7 @@
 
 https://developer.amazon.com/docs/alexaplus/add-ons/mcp-addon-tools-schema-data-design.html
 https://developer.amazon.com/docs/alexaplus/add-ons/mcp-addon-display-modes.html
-Structured content supports native rendering; this preview advertises no UI resource.
+Structured content supports native rendering and optional MCP App presentation.
 """
 
 from typing import Annotated, Any, Literal, Self

@@ -7681,3 +7681,49 @@ case to suppress the request control both server-side and in the card; its four
 unit tests passed in 2.59 seconds. The initial dispatch is superseded for closure
 by a run including that guard; its latency jobs were still building native Dogwood
 at the last check, and no completed measurement from it is claimed.
+
+### Final local artifacts
+
+The additional unknown-state browser check passed (one test, 8.4 seconds), for
+37 passing browser checks across the complete suite and final targeted addition.
+The final authenticated relay run passed in 4.9 seconds and also anonymously read
+all five static resources from the authenticated startup. It independently verified
+404 home and three parents signed rows, then dropped its disposable database.
+Private artifacts: `/tmp/hirz-cards-final/{fixtures,report}.json` and its signed
+exports; execution log `/tmp/hirz-cards-final.log`.
+
+The final wheel was rebuilt and reinstalled into `/tmp/hirz-item27-wheel-final`;
+invocation from `/tmp` checked the installed (site-packages) module and all five
+complete resources. The local Docker rebuild checked UID 10001 and five packaged
+resources; exact final-commit Docker verification is also part of CI run
+[36083666510](https://github.com/BashaarJavaid/Hirz/actions/runs/36083666510)
+on `b45796f615bd7932219816eb7506c434bbea7e75`. Its duplicate push-triggered run
+36083667025 was explicitly cancelled to avoid redundant work; the manual dispatch
+includes every normal job plus both required latency/isolation scenarios.
+
+### CI browser discrepancy and scoped fixture correction
+
+Run 36083666510 passed service-free pytest (1,425 in 218.09 seconds), integration
+pytest (152 in 305.82 seconds), 93% combined coverage (870 missed of 12,476), and
+the authenticated browser relay (one in 2.9 seconds). Its Linux browser step passed
+35 checks and failed only the two scorecard fullscreen comparisons: 63 pixels in
+light mode and 65 in dark mode differed. The full job log is retained at
+`/tmp/hirz-item27-ci-python.log`; that browser gate is not claimed as passing.
+
+The scorecard fixture now queries one existing Pipeline-denied device action from
+the prepared plan, rather than depending on how many simultaneous openings the
+worker evaluated before refresh held the rest. It derives the displayed count
+through the real `get_action_audit(action_id=...)` tool and preserves the approved
+images, money figures and exact pixel tolerances. Whole-window counts and pagination
+remain covered by PostgreSQL tests. Fixture generation prints only whole-window
+counts for diagnosis and captures the exact initial arguments for the unchanged
+reference host; browser pagination also checks that its selected query survives.
+No production behavior is changed by this correction. The latency/isolation jobs
+on the same production code continue uninterrupted.
+
+The scoped fixture run independently verified 402 home and three parents signed
+rows (`/tmp/hirz-cards-scoped/report.json`). All **38 Linux browser checks passed**
+in 1.9 minutes against the unchanged approved PNGs, including the new exact-query
+pagination check (`/tmp/hirz-card-browser-scoped.log`). Strict TypeScript and mypy
+checks also passed. A push-triggered CI run verifies this harness correction while
+the original full latency measurements continue on the identical production code.
