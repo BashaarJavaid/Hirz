@@ -7876,3 +7876,29 @@ CLI-boundary and profiler overhead; neither is a CI latency claim. The disposabl
 database was dropped. Artifacts: `/tmp/hirz-item27-approval-after.prof`,
 `/tmp/hirz-item27-approval-after-profile.log`, and
 `/tmp/hirz-profile-plan-approval-after.py`.
+
+### Acknowledgement commit — final gate dispatch
+
+Commit `ae826712a7a5853d3c1dfa3f80c986231f054864` was pushed with the approved
+acknowledgement and dispatched as
+[CI run 36092777151](https://github.com/BashaarJavaid/Hirz/actions/runs/36092777151).
+The redundant push run 36092777394 was cancelled. The full regression suite and
+both unchanged timing scenarios run together; no failed timing sample is discarded.
+
+The standalone authenticated isolation smoke passed again on that exact commit
+with an empty tracked diff: 177 checks, 20 concurrent rounds and ten symmetric
+reference checks. Signed exports independently verified 333, 76 and 138 rows
+(547 total), all valid. Row counts remained 365 actions, 547 audit rows, two plans,
+61 tool requests and two verification cases. Private report and exports:
+`/tmp/hirz-item27-ack-isolation/`; log:
+`/tmp/hirz-item27-ack-isolation.log`. Its disposable database was dropped, development
+remained unchanged, and no Bedrock call or local latency measurement was made.
+
+The neutral acknowledgement also preserves “Close details” when consent was sent
+from fullscreen. The display-mode control now depends on the active fullscreen
+mode even after specialized content is replaced. The reference-host consent test
+opens fullscreen, approves the exact displayed version, checks the neutral headline,
+then closes details; it passed in 4.0 seconds. Strict TypeScript and all five Vite
+builds passed. This frontend-only correction changes no Python code, MCP inputs,
+receipts or latency harness, so the ongoing backend measurements remain applicable;
+a normal push CI run verifies the updated UI and packaging.

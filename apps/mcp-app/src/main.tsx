@@ -135,7 +135,7 @@ function CardApp() {
   const plan = data?.plan;
   const savings = plan?.comparison_validity.valid ? plan.summary.estimated_savings_usd : null;
   return <main className={full ? "canvas fullscreen" : "canvas"} aria-label="Hirz household card" aria-busy={busy}>
-    <header><span className="wordmark">hirz</span><span className="badge">{card?.source ?? "simulated"}</span>{expandable && card && context?.availableDisplayModes?.includes("fullscreen") && <button className="expand" onClick={() => void expand()} aria-label={full ? "Close details" : "Open details"}>{full ? "Close details" : "Details ↗"}</button>}</header>
+    <header><span className="wordmark">hirz</span><span className="badge">{card?.source ?? "simulated"}</span>{expandable && (full || card && context?.availableDisplayModes?.includes("fullscreen")) && <button className="expand" onClick={() => void expand()} aria-label={full ? "Close details" : "Open details"}>{full ? "Close details" : "Details ↗"}</button>}</header>
     <div className="content">
       {!card && <><h1>{result?.speakable.headline ?? "Waiting for household information"}</h1><p role="status">{data?.status === "preparing" ? "Preparing your plan…" : result?.speakable.details.join(" ")}</p></>}
       {card?.kind === "plan" && plan && <>

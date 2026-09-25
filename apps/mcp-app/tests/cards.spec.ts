@@ -75,6 +75,7 @@ for (const kind of ["plan", "scorecard"]) for (const theme of ["light", "dark"])
 test("plan binds exact consent and ignores duplicate gestures", async ({ page }) => {
   const headline = "Your approved plan is being queued.";
   const { frame, calls } = await mount(page, "plan", "light", () => ({ speakable: { headline, details: [], options: [] }, data: { status: "queued" } }));
+  await frame.getByRole("button", { name: "Open details" }).click();
   await frame.getByRole("button", { name: "Approve plan" }).click();
   await expect.poll(() => calls.length).toBe(2);
   expect(calls[1].name).toBe("approve_action");
@@ -83,6 +84,8 @@ test("plan binds exact consent and ignores duplicate gestures", async ({ page })
   expect(calls[1].arguments.request_id).toBeTruthy();
   await expect(frame.getByRole("heading", { name: headline })).toBeVisible();
   await expect(frame.getByRole("button", { name: "Approve plan" })).toHaveCount(0);
+  await frame.getByRole("button", { name: "Close details" }).click();
+  await expect(frame.locator("main")).not.toHaveClass(/fullscreen/);
 });
 
 test("door state changes only on a later observation", async ({ page }) => {
