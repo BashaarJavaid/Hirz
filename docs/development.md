@@ -1401,5 +1401,6 @@ and `CI=1`, using `node node_modules/@playwright/test/cli.js test`. Add
 `--update-snapshots` only for an intentional, reviewed visual change. The fourteen
 committed PNGs contain labeled synthetic data, not credentials or private case IDs.
 Retain private fixture/audit artifacts locally; CI publishes only payload-free
-summaries. Initial screenshot review and the authenticated CI latency/isolation
-workflow_dispatch gates remain required before closing item 27.
+summaries. The [item 27 closure](./verification-log.md#item-27-closure--2026-09-24)
+records the approved screenshots and passing gates. Future relevant changes follow
+the authenticated CI dispatch requirement in the item 26 procedure above.

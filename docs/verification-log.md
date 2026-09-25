@@ -7902,3 +7902,125 @@ then closes details; it passed in 4.0 seconds. Strict TypeScript and all five Vi
 builds passed. This frontend-only correction changes no Python code, MCP inputs,
 receipts or latency harness, so the ongoing backend measurements remain applicable;
 a normal push CI run verifies the updated UI and packaging.
+
+### Final UI regression — all jobs pass
+
+[Run 36093204601](https://github.com/BashaarJavaid/Hirz/actions/runs/36093204601)
+passed all ten normal jobs on `c49c3e7b87aac42dac65fddbb09586da4038beb8`.
+Its Python code, scripts, lockfiles and workflow are unchanged from the ongoing
+latency run's `ae82671`; only the fullscreen exit control, its browser assertion
+and evidence documentation differ.
+
+- Python: 1,425 service-free tests in 137.26 seconds, 152 PostgreSQL integration
+  tests in 202.88 seconds, and 93% combined coverage (870 missed of 12,478).
+- Real authenticated reference-host browser: one passed in 2.5 seconds. Linux
+  Chromium: all 38 visual/behavior checks passed in 1.6 minutes, including the
+  fullscreen acknowledgement/exit flow, with the same fourteen approved PNGs.
+  The one intentionally skipped live case ran in the preceding authenticated step.
+- Independent checker: 117 PASS, zero FAIL/WARN/SKIP, eight MANUAL, complete with
+  no missing evidence; 628 signed audit rows independently valid.
+- Installed wheel and Docker: five packaged resources verified; image UID 10001.
+  Scenario and bounded HA demo restoration checks also passed.
+
+Metadata: `/tmp/hirz-item27-close-ci.json`; full logs:
+`/tmp/hirz-item27-close-ci-{python,build,conformance,scenarios}.log`.
+The manual run's ten normal jobs also passed. Its two authenticated latency jobs
+are still pending, so item 27 is not closed at this checkpoint.
+
+### Item 27 closure — 2026-09-24
+
+The full manual [CI run 36092777151](https://github.com/BashaarJavaid/Hirz/actions/runs/36092777151)
+passed all twelve jobs on `ae826712a7a5853d3c1dfa3f80c986231f054864`, including both
+required authenticated latency scenarios. The final frontend-only fullscreen exit
+fix passed all ten normal jobs on `c49c3e7` in
+[run 36093204601](https://github.com/BashaarJavaid/Hirz/actions/runs/36093204601);
+its Python implementation and timing harness are identical to the manual run.
+No additional timing rerun or discarded samples were needed after the approved
+neutral acknowledgement. Earlier failed measurements remain recorded above.
+
+| Scenario | Timing job | Test duration | Cases | Pooled tools | Highest case p95 | Highest pooled-tool p95 |
+|---|---|---:|---:|---:|---|---|
+| Time-of-Day | [107938503250](https://github.com/BashaarJavaid/Hirz/actions/runs/36092777151/job/107938503250) | 3,197.40 s | 54/54 | 12/12 | `objective-greenest`: 234.426 ms | `get_household_plan`: 149.040 ms |
+| Hourly | [107938503422](https://github.com/BashaarJavaid/Hirz/actions/runs/36092777151/job/107938503422) | 3,361.88 s | 54/54 | 12/12 | `objective-greenest`: 236.703 ms | `get_household_plan`: 160.532 ms |
+
+Each scenario uses five warmups and 100 measured calls per case: 5,400 raw
+JSON-RPC round-trip samples, plus separate 100-call SDK references for onboarding
+and context-all. Decoding/validation remains outside the raw gate; nearest-rank p95
+must be at most 250 ms for every case and pooled tool. These are Ubuntu 24.04 CI
+runner, loopback HTTP, disposable PostgreSQL and twin results, not AWS ingress,
+cold start, Alexa host overhead, real phone delivery or security execution.
+Individual maximum samples above 250 ms remain visible; none were discarded.
+
+The approved acknowledgement brought plan-approval p95 to 134.060 ms (Time-of-Day)
+and 140.816 ms (Hourly). Pooled audit p95 is 83.144 and 70.871 ms respectively.
+The two diagnosed regressions are resolved without a migration, dependency change,
+authorization bypass, fixture reduction or altered timing threshold.
+
+**Time-of-Day: pooled tools, raw round-trip milliseconds.**
+
+| Tool | n | Minimum | Median | p95 | Maximum | Gate |
+|---|---:|---:|---:|---:|---:|---|
+| `what_can_you_do` | 100 | 5.660 | 5.985 | 6.836 | 8.117 | PASS |
+| `get_household_context` | 200 | 13.977 | 15.174 | 17.478 | 21.897 | PASS |
+| `propose_household_rule` | 200 | 10.833 | 33.200 | 54.554 | 151.191 | PASS |
+| `get_household_plan` | 700 | 13.417 | 71.244 | 149.040 | 254.342 | PASS |
+| `explain_plan` | 400 | 38.973 | 40.924 | 47.142 | 152.031 | PASS |
+| `approve_action` | 700 | 31.752 | 34.924 | 121.489 | 237.039 | PASS |
+| `revise_household_plan` | 600 | 11.049 | 71.506 | 126.494 | 233.967 | PASS |
+| `execute_household_action` | 800 | 11.022 | 44.232 | 75.425 | 166.342 | PASS |
+| `evaluate_permission` | 100 | 22.976 | 24.336 | 28.268 | 34.456 | PASS |
+| `get_action_audit` | 400 | 24.122 | 57.480 | 83.144 | 141.912 | PASS |
+| `assess_request_risk` | 400 | 11.059 | 32.823 | 59.099 | 142.667 | PASS |
+| `verify_trusted_identity` | 800 | 11.029 | 13.800 | 73.809 | 165.502 | PASS |
+
+**Hourly: pooled tools, raw round-trip milliseconds.**
+
+| Tool | n | Minimum | Median | p95 | Maximum | Gate |
+|---|---:|---:|---:|---:|---:|---|
+| `what_can_you_do` | 100 | 5.561 | 5.876 | 6.799 | 7.664 | PASS |
+| `get_household_context` | 200 | 13.080 | 15.350 | 18.037 | 22.029 | PASS |
+| `propose_household_rule` | 200 | 10.263 | 31.537 | 59.577 | 68.401 | PASS |
+| `get_household_plan` | 700 | 12.442 | 74.347 | 160.532 | 264.349 | PASS |
+| `explain_plan` | 400 | 40.889 | 43.398 | 53.249 | 136.283 | PASS |
+| `approve_action` | 700 | 31.495 | 35.863 | 128.628 | 247.109 | PASS |
+| `revise_household_plan` | 600 | 10.284 | 70.553 | 140.567 | 226.320 | PASS |
+| `execute_household_action` | 800 | 10.723 | 45.258 | 78.254 | 140.982 | PASS |
+| `evaluate_permission` | 100 | 22.506 | 24.583 | 27.626 | 34.037 | PASS |
+| `get_action_audit` | 400 | 22.811 | 51.607 | 70.871 | 84.330 | PASS |
+| `assess_request_risk` | 400 | 10.167 | 31.928 | 55.316 | 70.285 | PASS |
+| `verify_trusted_identity` | 800 | 10.100 | 13.515 | 70.996 | 138.437 | PASS |
+
+Separate SDK references, excluded from the gate (100 raw and 100 SDK calls each):
+
+| Scenario / case | Raw median | Raw p95 | Raw max | SDK median | SDK p95 | SDK max |
+|---|---:|---:|---:|---:|---:|---:|
+| Time-of-Day / `onboarding` | 5.985 | 6.836 | 8.117 | 93.279 | 97.488 | 111.707 |
+| Time-of-Day / `context-all` | 15.508 | 17.478 | 19.736 | 107.251 | 113.764 | 119.361 |
+| Hourly / `onboarding` | 5.876 | 6.799 | 7.664 | 108.155 | 123.869 | 126.106 |
+| Hourly / `context-all` | 15.774 | 18.536 | 20.739 | 122.040 | 134.749 | 201.143 |
+
+Payload-free complete case/tool tables and count-checked extracts are retained at
+`/tmp/hirz-item27-ack-ci-latency-{tod,hourly}.log` and
+`/tmp/hirz-item27-ack-ci-latency-{tod,hourly}-tables.json`; run metadata is
+`/tmp/hirz-item27-ack-ci.json`. The existing workflow deliberately does not upload
+private raw timing arrays or household audit exports, so local retention of those
+CI artifacts is not claimed. Independently verified final-code local exports are
+retained in `/tmp/hirz-item27-ack-isolation/` as recorded above.
+
+All item 27 gates now pass: the unchanged v2.0.0 reference host and real OAuth
+relay; the author's fourteen approved Linux baselines and all 38 browser checks;
+Python, TypeScript and 93% combined coverage; independent add-on conformance;
+installed-wheel/Docker resources; authenticated isolation and both latency scenarios.
+The approved declaration-check exception and neutral acknowledgement are recorded
+in ADR-018. The earned Playwright/TypeScript friction entry is present; the two
+performance regressions were Hirz implementation issues, not third-party defects.
+
+**Item 27 is complete.** Bedrock remained off, the spending ledger was untouched,
+and development stayed on 0005 with migrations through 0013 manual. Real phone
+approvals, Ring and the simulator remain assigned to their existing roadmap items.
+No merge, deployment, AWS/Alexa latency or new security execution claim is made.
+
+Final record checks: `git diff --check` and `cmp AGENTS.md CLAUDE.md` passed;
+Current phase is 55 words; all approved PNGs are byte-identical to the initial
+baseline commit. `ruff format --check .` reported 248 files already formatted.
+The closure follow-up changes documentation only, after the verified implementation.

@@ -1,6 +1,6 @@
 # ADR-018: MCP App cards over the authenticated local tool surface
 
-Date: 2026-09-24. Status: approved implementation plan; verification in progress.
+Date: 2026-09-24. Status: implemented and verified; item 27 complete.
 
 ## Decision
 
@@ -82,8 +82,8 @@ backtest mappings; summing overlapping plan estimates; optimistic lock transitio
 card/voice security approvals; local fabricated verification outcomes; and pulling
 Ring, phone approvals or the full simulator forward from their assigned items.
 
-No completion, hosted Alexa latency, real phone delivery, Ring integration, or
-security execution is claimed until its own verification gate passes.
+Hosted Alexa latency, real phone delivery, Ring integration and security execution
+remain subject to their own roadmap verification gates.
 
 ## Browser declaration compatibility amendment — 2026-09-24
 
@@ -105,3 +105,10 @@ Resending a disabled plan card was rejected: the additional Actions substantiall
 increased receipt-hashing work and the Hourly approval case exceeded its unchanged
 250 ms p95 gate. Approval checks, audit binding, request retries and the timing
 protocol remain unchanged. Verification is recorded in the item 27 evidence entry.
+
+## Verification closure — 2026-09-24
+
+The approved local scope passed its reference-host, browser, packaging, conformance,
+isolation and authenticated CI timing gates after author review of the initial
+visual baselines. Full evidence, including failed runs and their corrections:
+[item 27 closure](../verification-log.md#item-27-closure--2026-09-24).
