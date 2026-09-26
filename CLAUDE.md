@@ -131,9 +131,9 @@ The verified toolchain and scaffold setup are in `README.md`; use Node 24.
 ## Current phase
 
 **Phase 5 item 28 is in progress; Phase 4 is complete through item 27.**
-Real iPhone approval/twin relock, local security checks and the combined voice/browser
-flow have [evidence](./docs/verification-log.md#item-28-local-acceptance-matrix-and-combined-browser-flow--2026-09-25).
-Compatible-iPhone push reception and CI gates remain outstanding.
+Real iPhone approval/twin relock, UI/security/browser checks and all CI gates
+have [evidence](./docs/verification-log.md#item-28-ci-acceptance--2026-09-25).
+Only compatible-iPhone push reception and approval remain outstanding for item 28.
 Development stays on 0005; migrations through 0018 remain manual. Keep Bedrock
 off and preserve the $2 ledger. Real contact delivery, physical locks and AWS
 security guarantees remain unverified.

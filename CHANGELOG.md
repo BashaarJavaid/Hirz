@@ -6,7 +6,7 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
-- Complete the companion’s local adversarial and combined MCP/browser acceptance checks, expose all six navigation links in portrait, and add the flow to CI ([evidence](./docs/verification-log.md#item-28-local-acceptance-matrix-and-combined-browser-flow--2026-09-25)); compatible-iPhone push and CI acceptance remain pending.
+- 2026-09-25: Build the authenticated companion, fix portrait navigation, and pass UI, adversarial security, browser and CI acceptance; item 28 remains incomplete only for compatible-iPhone push reception and approval ([ADR-019](./docs/adr/ADR-019-companion.md), [evidence](./docs/verification-log.md#item-28-ci-acceptance--2026-09-25)).
 
 - 2026-09-24: Add five authenticated local MCP App cards, deterministic presentation and retained-evidence scorecards, packaged static resources, and reference-host browser checks; close item 27 after author-approved visuals and passing packaging, conformance, isolation and authenticated CI latency gates ([ADR-018](./docs/adr/ADR-018-mcp-app-cards.md), [evidence](./docs/verification-log.md#item-27--2026-09-24)).
 

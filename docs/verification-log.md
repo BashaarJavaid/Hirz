@@ -9261,3 +9261,236 @@ previously trusted fingerprint
 returned `status: valid`, `checked_count: 419`. Earlier runs `a`/`b` retained
 357/409 valid rows. Local anchoring remains explicitly absent. CI links and any
 further results will be appended below; no CI success is claimed here.
+
+### Item 28 CI acceptance — 2026-09-25
+
+Implementation commit `b537dc29cbfe807d91880fa88376d6c7cb8bf546` on
+`item-28-companion` was pushed, then dispatched with
+`gh workflow run ci.yml --ref item-28-companion`:
+[run 36214024113](https://github.com/BashaarJavaid/Hirz/actions/runs/36214024113).
+The duplicate automatic push run `36214024020` was canceled so the manual run
+could supply both ordinary jobs and the required latency matrix on the same SHA.
+No implementation changed during this run. Ubuntu 24.04, Python 3.12, Node
+24.21.0, pinned native Dogwood, locked dependencies and `HIRZ_LLM=off` were used;
+CI's explicitly migrated databases and Compose projects are disposable.
+
+All ten ordinary jobs passed. The existing release job is a placeholder and
+does not prove publication or deployment. Completed job logs were read with
+`gh api repos/BashaarJavaid/Hirz/actions/jobs/<job-id>/logs`; private local copies
+are `/private/tmp/hirz-item28-ci-{python,cedar,conformance,scenarios,build}.log`.
+
+| Check | Result |
+|---|---|
+| Service-free Python tests | 1,469 passed, 179 deselected, 2 warnings; 259.75s |
+| Disposable PostgreSQL integration, including authenticated MCP isolation | 177 passed, 1,471 deselected, 2 warnings; 399.55s |
+| Combined Python coverage | 91%; 13,834 statements, 1,187 missed; 80% gate passed |
+| Native Cedar/compiler agreement | 159 passed; 169.46s |
+| Combined companion browser acceptance | 1 passed; 1.7m; independent signed exports verified by the harness |
+| Unchanged reference host with real authenticated calls | 1 passed; 2.7s |
+| Linux Chromium card baselines and behavior | 38 passed; 1.8m |
+| Independent twelve-tool checker | 117 PASS, 0 FAIL/WARN/SKIP, 8 MANUAL; complete, no missing evidence |
+| MCP smoke audit | 628 signed rows, independently verified valid |
+| Packaging | Python sdist/wheel, fresh-wheel import/CLI, 40 catalogs, five cards, companion assets, Docker build and UID 10001 checks passed |
+| Scenarios | Evening, Hourly and parents scoped checks passed; real HA demo API lamp restoration verified |
+
+Python warnings are existing Starlette/httpx and AnyIO BlockingPortal deprecations.
+Both language lint/type jobs and workspace tests passed. The manual checker items
+remain its declared scope, not Amazon certification. The scenario job's historical
+fixtures do not provide companion authentication evidence; the separate companion
+flow does. Real HA demo API restoration is not physical-lock evidence.
+
+At this checkpoint both latency jobs were still running. Their final results will
+be appended below; this paragraph does not claim the full run has passed.
+
+#### Final CI result
+
+The same run completed **success** at `2026-09-26T04:06:18Z` (2026-09-25
+Pacific): all twelve jobs passed, including both manual latency jobs. Confirmed
+with `gh run view 36214024113 --json status,conclusion,headSha,event,jobs`;
+`gh run view 36214024113 --log` is retained privately at
+`/private/tmp/hirz-item28-ci-36214024113.log`. Separate timing logs are
+`/private/tmp/hirz-item28-ci-latency-{evening,hourly}.log`.
+
+Each scenario passed **54 cases and all twelve tool aggregates** at warm raw
+HTTP round-trip p95 ≤ 250 ms. Time of Day took **2,490.38s**; its maximum case p95
+was **186.037 ms** (`objective-greenest`) and maximum tool p95 **141.712 ms**
+(`get_household_plan`). Hourly took **2,982.22s**; the corresponding maxima were
+**222.861 ms** and **156.194 ms**, for the same case/tool. The established
+five-warmup/100-measured-sample, nearest-rank protocol, SDK reference checks,
+corpus and threshold are unchanged; no samples were discarded or failed run
+retried. These are local twin measurements on CI, not AWS/host cold-start claims.
+The complete payload-free timing tables below are extracted from those logs.
+
+UI, adversarial security, runtime propagation, independently verified retained
+audit exports, packaging, regression and required CI evidence are now recorded.
+**Item 28 remains incomplete only for actual Web Push reception and the resulting
+authenticated approval on a compatible iPhone Home Screen app.** The author's
+iOS 15.7.9 device cannot supply that gate, and no compatible replacement is
+available. Real phone passkey → twin unlock → verified relock already passed;
+it need not be repeated to stand in for push. Controlled push failure/retry
+tests do not prove device delivery. Bedrock remained off and the spending ledger
+was preserved. Real check-in delivery, live drafting, physical lock execution,
+AWS analysis, anchoring and signer-side passkey guarantees remain their explicitly
+deferred items. No threat-model claims were advanced.
+
+The subsequent evidence/roadmap/changelog/instruction-file commit changes only
+documentation; CI above verifies implementation `b537dc2`, not an unrun code
+revision. Final format/diff checks are recorded after the timing tables.
+
+**demo-evening / cases — raw round-trip milliseconds**
+
+| Name | n | Min | Median | p95 | Max | Gate | SDK n | SDK median | SDK p95 | SDK max |
+|---|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|
+| onboarding | 100 | 4.481 | 4.884 | 5.562 | 6.748 | PASS | 100 | 47.663 | 48.530 | 49.515 |
+| context-all | 100 | 14.549 | 54.049 | 55.076 | 137.148 | PASS | 100 | 66.121 | 70.023 | 75.067 |
+| context-people | 100 | 13.793 | 53.517 | 55.865 | 58.664 | PASS | — | — | — | — |
+| proposal-fresh | 100 | 43.333 | 83.562 | 94.714 | 177.604 | PASS | — | — | — | — |
+| proposal-retry | 100 | 49.558 | 50.931 | 52.836 | 147.966 | PASS | — | — | — | — |
+| plan-first | 100 | 80.939 | 82.948 | 90.940 | 204.074 | PASS | — | — | — | — |
+| plan-ready | 100 | 61.733 | 63.572 | 77.155 | 162.464 | PASS | — | — | — | — |
+| explain-summary | 100 | 35.345 | 36.380 | 114.367 | 200.583 | PASS | — | — | — | — |
+| explain-conflicts | 100 | 35.425 | 36.269 | 65.164 | 117.848 | PASS | — | — | — | — |
+| explain-goal | 100 | 35.365 | 36.276 | 42.410 | 128.023 | PASS | — | — | — | — |
+| explain-action | 100 | 36.071 | 36.843 | 114.379 | 396.341 | PASS | — | — | — | — |
+| plan-approval | 100 | 100.444 | 102.632 | 141.915 | 263.953 | PASS | — | — | — | — |
+| objective-most_comfortable | 100 | 96.423 | 99.865 | 177.762 | 191.380 | PASS | — | — | — | — |
+| stale-approval-most_comfortable | 100 | 68.004 | 69.815 | 76.000 | 177.227 | PASS | — | — | — | — |
+| objective-greenest | 100 | 104.137 | 107.416 | 186.037 | 228.309 | PASS | — | — | — | — |
+| stale-approval-greenest | 100 | 30.517 | 69.859 | 72.873 | 225.949 | PASS | — | — | — | — |
+| objective-cheapest | 100 | 99.044 | 102.614 | 185.940 | 197.124 | PASS | — | — | — | — |
+| stale-approval-cheapest | 100 | 30.903 | 69.651 | 76.181 | 163.207 | PASS | — | — | — | — |
+| revision-car | 100 | 95.625 | 102.044 | 168.491 | 322.674 | PASS | — | — | — | — |
+| revision-retry-car | 100 | 50.050 | 51.105 | 52.683 | 61.324 | PASS | — | — | — | — |
+| revision-dishwasher | 100 | 99.809 | 106.348 | 180.015 | 276.676 | PASS | — | — | — | — |
+| revision-retry-dishwasher | 100 | 11.216 | 51.509 | 53.274 | 54.862 | PASS | — | — | — | — |
+| revision-guest | 100 | 100.973 | 106.124 | 118.920 | 201.404 | PASS | — | — | — | — |
+| revision-retry-guest | 100 | 13.275 | 51.466 | 53.072 | 55.815 | PASS | — | — | — | — |
+| same-second-approval | 100 | 30.521 | 70.389 | 75.147 | 241.801 | PASS | — | — | — | — |
+| plan-cancel | 100 | 80.941 | 83.155 | 99.472 | 234.673 | PASS | — | — | — | — |
+| action-temperature | 100 | 40.080 | 79.869 | 87.311 | 145.803 | PASS | — | — | — | — |
+| action-door | 100 | 41.849 | 82.773 | 89.749 | 180.738 | PASS | — | — | — | — |
+| security-approval | 100 | 28.382 | 29.410 | 34.114 | 140.349 | PASS | — | — | — | — |
+| action-claimed-door | 100 | 41.071 | 42.238 | 50.061 | 302.894 | PASS | — | — | — | — |
+| action-ambiguous | 100 | 14.763 | 53.333 | 54.158 | 57.852 | PASS | — | — | — | — |
+| action-profile | 100 | 62.435 | 104.218 | 113.037 | 203.816 | PASS | — | — | — | — |
+| permission-preview | 100 | 22.233 | 62.063 | 64.140 | 142.030 | PASS | — | — | — | — |
+| light-fresh | 100 | 77.420 | 78.873 | 91.666 | 162.551 | PASS | — | — | — | — |
+| light-retry | 100 | 10.941 | 11.440 | 12.385 | 50.409 | PASS | — | — | — | — |
+| audit-today | 100 | 31.226 | 83.546 | 94.933 | 98.721 | PASS | — | — | — | — |
+| audit-last_night | 100 | 52.276 | 102.956 | 113.153 | 172.855 | PASS | — | — | — | — |
+| audit-first-page | 100 | 39.429 | 83.753 | 94.621 | 99.131 | PASS | — | — | — | — |
+| audit-next-page | 100 | 61.888 | 83.925 | 94.449 | 104.398 | PASS | — | — | — | — |
+| pause | 100 | 55.722 | 95.576 | 116.359 | 193.930 | PASS | — | — | — | — |
+| missing-input-request | 100 | 47.399 | 80.709 | 88.410 | 233.173 | PASS | — | — | — | — |
+| missing-input-failure | 100 | 12.385 | 52.574 | 53.271 | 56.723 | PASS | — | — | — | — |
+| risk-not_genuine | 100 | 44.996 | 85.339 | 96.701 | 167.756 | PASS | — | — | — | — |
+| risk-retry-not_genuine | 100 | 50.065 | 51.014 | 52.714 | 56.795 | PASS | — | — | — | — |
+| verify-start-not_genuine | 100 | 96.106 | 98.160 | 105.223 | 243.121 | PASS | — | — | — | — |
+| verify-retry-not_genuine | 100 | 14.032 | 51.462 | 53.251 | 132.586 | PASS | — | — | — | — |
+| verify-pending-not_genuine | 100 | 12.979 | 53.141 | 54.421 | 56.441 | PASS | — | — | — | — |
+| verify-not_genuine | 100 | 12.190 | 52.768 | 53.973 | 55.419 | PASS | — | — | — | — |
+| risk-no_answer | 100 | 47.590 | 85.692 | 143.975 | 166.791 | PASS | — | — | — | — |
+| risk-retry-no_answer | 100 | 11.415 | 51.015 | 51.907 | 129.060 | PASS | — | — | — | — |
+| verify-start-no_answer | 100 | 58.183 | 99.087 | 110.636 | 130.264 | PASS | — | — | — | — |
+| verify-retry-no_answer | 100 | 50.546 | 51.437 | 52.237 | 54.422 | PASS | — | — | — | — |
+| verify-pending-no_answer | 100 | 52.181 | 52.749 | 55.353 | 130.829 | PASS | — | — | — | — |
+| verify-no_answer | 100 | 14.730 | 52.755 | 54.624 | 56.650 | PASS | — | — | — | — |
+
+**demo-evening / tools — raw round-trip milliseconds**
+
+| Name | n | Min | Median | p95 | Max | Gate | SDK n | SDK median | SDK p95 | SDK max |
+|---|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|
+| what_can_you_do | 100 | 4.481 | 4.884 | 5.562 | 6.748 | PASS | — | — | — | — |
+| get_household_context | 200 | 13.793 | 53.964 | 55.382 | 137.148 | PASS | — | — | — | — |
+| propose_household_rule | 200 | 43.333 | 53.904 | 91.695 | 177.604 | PASS | — | — | — | — |
+| get_household_plan | 700 | 12.385 | 83.230 | 141.712 | 233.173 | PASS | — | — | — | — |
+| explain_plan | 400 | 35.345 | 36.459 | 96.793 | 396.341 | PASS | — | — | — | — |
+| approve_action | 700 | 28.382 | 70.258 | 107.135 | 263.953 | PASS | — | — | — | — |
+| revise_household_plan | 600 | 11.216 | 78.475 | 123.289 | 322.674 | PASS | — | — | — | — |
+| execute_household_action | 800 | 10.941 | 79.295 | 106.305 | 302.894 | PASS | — | — | — | — |
+| evaluate_permission | 100 | 22.233 | 62.063 | 64.140 | 142.030 | PASS | — | — | — | — |
+| get_action_audit | 400 | 31.226 | 86.392 | 106.826 | 172.855 | PASS | — | — | — | — |
+| assess_request_risk | 400 | 11.415 | 54.225 | 92.062 | 167.756 | PASS | — | — | — | — |
+| verify_trusted_identity | 800 | 12.190 | 52.806 | 99.463 | 243.121 | PASS | — | — | — | — |
+
+**demo-evening-hourly / cases — raw round-trip milliseconds**
+
+| Name | n | Min | Median | p95 | Max | Gate | SDK n | SDK median | SDK p95 | SDK max |
+|---|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|
+| onboarding | 100 | 5.511 | 5.942 | 7.269 | 8.679 | PASS | 100 | 50.369 | 51.862 | 54.545 |
+| context-all | 100 | 55.799 | 57.384 | 61.143 | 135.591 | PASS | 100 | 73.459 | 79.411 | 86.101 |
+| context-people | 100 | 54.688 | 56.676 | 61.281 | 62.019 | PASS | — | — | — | — |
+| proposal-fresh | 100 | 92.977 | 96.451 | 109.403 | 192.579 | PASS | — | — | — | — |
+| proposal-retry | 100 | 52.368 | 53.416 | 55.441 | 60.036 | PASS | — | — | — | — |
+| plan-first | 100 | 90.882 | 95.193 | 106.781 | 250.713 | PASS | — | — | — | — |
+| plan-ready | 100 | 78.858 | 82.562 | 148.987 | 182.071 | PASS | — | — | — | — |
+| explain-summary | 100 | 43.770 | 46.695 | 60.463 | 178.318 | PASS | — | — | — | — |
+| explain-conflicts | 100 | 44.262 | 46.831 | 123.135 | 160.752 | PASS | — | — | — | — |
+| explain-goal | 100 | 43.816 | 46.954 | 55.333 | 132.553 | PASS | — | — | — | — |
+| explain-action | 100 | 44.768 | 47.425 | 61.118 | 147.092 | PASS | — | — | — | — |
+| plan-approval | 100 | 125.389 | 132.028 | 160.926 | 242.324 | PASS | — | — | — | — |
+| objective-most_comfortable | 100 | 123.967 | 130.043 | 196.802 | 203.088 | PASS | — | — | — | — |
+| stale-approval-most_comfortable | 100 | 34.671 | 37.593 | 42.494 | 46.469 | PASS | — | — | — | — |
+| objective-greenest | 100 | 131.951 | 138.984 | 222.861 | 262.681 | PASS | — | — | — | — |
+| stale-approval-greenest | 100 | 34.829 | 37.720 | 43.762 | 125.918 | PASS | — | — | — | — |
+| objective-cheapest | 100 | 119.383 | 127.330 | 193.003 | 221.619 | PASS | — | — | — | — |
+| stale-approval-cheapest | 100 | 35.098 | 37.752 | 45.740 | 48.610 | PASS | — | — | — | — |
+| revision-car | 100 | 123.474 | 129.495 | 149.275 | 201.797 | PASS | — | — | — | — |
+| revision-retry-car | 100 | 52.409 | 53.877 | 56.028 | 134.728 | PASS | — | — | — | — |
+| revision-dishwasher | 100 | 114.739 | 119.867 | 131.372 | 142.330 | PASS | — | — | — | — |
+| revision-retry-dishwasher | 100 | 52.294 | 54.182 | 55.500 | 59.046 | PASS | — | — | — | — |
+| revision-guest | 100 | 116.703 | 120.584 | 137.699 | 194.855 | PASS | — | — | — | — |
+| revision-retry-guest | 100 | 52.929 | 54.091 | 56.814 | 58.792 | PASS | — | — | — | — |
+| same-second-approval | 100 | 38.228 | 78.793 | 87.250 | 92.663 | PASS | — | — | — | — |
+| plan-cancel | 100 | 106.773 | 111.416 | 132.293 | 184.308 | PASS | — | — | — | — |
+| action-temperature | 100 | 86.907 | 91.854 | 104.260 | 108.450 | PASS | — | — | — | — |
+| action-door | 100 | 51.047 | 55.011 | 64.698 | 137.701 | PASS | — | — | — | — |
+| security-approval | 100 | 34.490 | 36.897 | 43.626 | 49.674 | PASS | — | — | — | — |
+| action-claimed-door | 100 | 51.061 | 55.174 | 63.348 | 157.485 | PASS | — | — | — | — |
+| action-ambiguous | 100 | 14.890 | 16.719 | 20.509 | 32.509 | PASS | — | — | — | — |
+| action-profile | 100 | 77.855 | 83.170 | 101.902 | 159.429 | PASS | — | — | — | — |
+| permission-preview | 100 | 24.559 | 27.099 | 32.530 | 34.757 | PASS | — | — | — | — |
+| light-fresh | 100 | 85.023 | 88.776 | 99.528 | 192.179 | PASS | — | — | — | — |
+| light-retry | 100 | 13.322 | 14.244 | 17.811 | 99.428 | PASS | — | — | — | — |
+| audit-today | 100 | 25.527 | 44.045 | 57.107 | 60.782 | PASS | — | — | — | — |
+| audit-last_night | 100 | 64.797 | 94.559 | 104.725 | 119.578 | PASS | — | — | — | — |
+| audit-first-page | 100 | 30.008 | 83.310 | 97.379 | 108.507 | PASS | — | — | — | — |
+| audit-next-page | 100 | 40.842 | 84.183 | 96.407 | 104.854 | PASS | — | — | — | — |
+| pause | 100 | 72.489 | 112.409 | 126.259 | 197.492 | PASS | — | — | — | — |
+| missing-input-request | 100 | 48.440 | 52.061 | 62.637 | 131.869 | PASS | — | — | — | — |
+| missing-input-failure | 100 | 14.337 | 15.786 | 18.268 | 20.669 | PASS | — | — | — | — |
+| risk-not_genuine | 100 | 55.060 | 96.962 | 106.108 | 110.648 | PASS | — | — | — | — |
+| risk-retry-not_genuine | 100 | 51.807 | 53.537 | 57.143 | 148.743 | PASS | — | — | — | — |
+| verify-start-not_genuine | 100 | 111.128 | 115.214 | 127.343 | 209.617 | PASS | — | — | — | — |
+| verify-retry-not_genuine | 100 | 12.895 | 53.375 | 54.777 | 56.211 | PASS | — | — | — | — |
+| verify-pending-not_genuine | 100 | 14.227 | 55.430 | 57.050 | 59.127 | PASS | — | — | — | — |
+| verify-not_genuine | 100 | 15.059 | 55.183 | 57.399 | 123.503 | PASS | — | — | — | — |
+| risk-no_answer | 100 | 56.241 | 97.130 | 103.625 | 110.303 | PASS | — | — | — | — |
+| risk-retry-no_answer | 100 | 51.964 | 53.228 | 56.289 | 58.053 | PASS | — | — | — | — |
+| verify-start-no_answer | 100 | 110.892 | 116.054 | 130.304 | 185.107 | PASS | — | — | — | — |
+| verify-retry-no_answer | 100 | 13.340 | 53.261 | 54.314 | 122.251 | PASS | — | — | — | — |
+| verify-pending-no_answer | 100 | 14.459 | 55.121 | 56.623 | 57.866 | PASS | — | — | — | — |
+| verify-no_answer | 100 | 14.440 | 54.983 | 56.795 | 60.506 | PASS | — | — | — | — |
+
+**demo-evening-hourly / tools — raw round-trip milliseconds**
+
+| Name | n | Min | Median | p95 | Max | Gate | SDK n | SDK median | SDK p95 | SDK max |
+|---|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|
+| what_can_you_do | 100 | 5.511 | 5.942 | 7.269 | 8.679 | PASS | — | — | — | — |
+| get_household_context | 200 | 54.688 | 57.033 | 61.267 | 135.591 | PASS | — | — | — | — |
+| propose_household_rule | 200 | 52.368 | 76.506 | 102.206 | 192.579 | PASS | — | — | — | — |
+| get_household_plan | 700 | 14.337 | 96.742 | 156.194 | 262.681 | PASS | — | — | — | — |
+| explain_plan | 400 | 43.770 | 46.926 | 60.463 | 178.318 | PASS | — | — | — | — |
+| approve_action | 700 | 34.490 | 41.020 | 135.160 | 242.324 | PASS | — | — | — | — |
+| revise_household_plan | 600 | 52.294 | 115.044 | 136.525 | 201.797 | PASS | — | — | — | — |
+| execute_household_action | 800 | 13.322 | 78.002 | 113.789 | 197.492 | PASS | — | — | — | — |
+| evaluate_permission | 100 | 24.559 | 27.099 | 32.530 | 34.757 | PASS | — | — | — | — |
+| get_action_audit | 400 | 25.527 | 80.119 | 102.382 | 119.578 | PASS | — | — | — | — |
+| assess_request_risk | 400 | 51.807 | 57.023 | 102.003 | 148.743 | PASS | — | — | — | — |
+| verify_trusted_identity | 800 | 12.895 | 55.186 | 119.329 | 209.617 | PASS | — | — | — | — |
+
+Final record checks: `.venv/bin/ruff format --check .` reported **277 files
+already formatted**; `git diff --check` and `cmp AGENTS.md CLAUDE.md` exited 0.
+The format check is repeated after this evidence is recorded, before committing
+the documentation-only update with `[skip ci]`. No further third-party friction
+was encountered beyond the capture-review follow-up already recorded above.
