@@ -219,6 +219,12 @@ def case_response(case: VerificationCase) -> Result:
         "will_call": "The simulated reply says the contact will call. No real call has been arranged.",
         "no_answer": "There was no simulated reply. Do not send anything; contact the person through a channel you trust.",
     }[state.status]
+    if (
+        state.status == "no_answer"
+        and case.speakable.get("headline")
+        == "The contact was removed. No reply will be accepted for this check."
+    ):
+        headline = str(case.speakable["headline"])
     return response(headline, source="twin", case=case)
 
 

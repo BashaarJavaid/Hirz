@@ -357,7 +357,7 @@ def test_tool_transactions_retries_privacy_and_missing_worker_inputs(
 
 
 @pytest.mark.parametrize(
-    "outcome", ["genuine", "not_genuine", "will_call", "no_answer"]
+    "outcome", ["genuine", "not_genuine", "will_call", "no_answer", "removed"]
 )
 def test_trust_is_private_advisory_until_explicit_start(scratch_database, outcome):
     from datetime import timedelta
@@ -507,12 +507,44 @@ def test_trust_is_private_advisory_until_explicit_start(scratch_database, outcom
                 reply_at=None
                 if outcome == "no_answer"
                 else clock[0] + timedelta(seconds=10),
-                reply=outcome,
+                reply="genuine" if outcome == "removed" else outcome,
             )
             world = SimpleNamespace(
                 household=SimpleNamespace(id=HOME),
                 config=SimpleNamespace(contact_scripts=(script,)),
             )
+            if outcome == "removed":
+                from test_companion_auth_database import enroll
+
+                from hirz.companion import auth
+                from hirz.companion import contacts as contact_management
+                from tests.unit.test_companion_auth import Authenticator
+                from tests.unit.test_pipeline import ident
+
+                login = await enroll(
+                    p,
+                    await auth.initial_invitation(p, ident("members", "malik")),
+                    Authenticator(),
+                )
+                async with connection.begin():
+                    owner = await auth.session(connection, login["session"], p.clock())
+                clock[0] += timedelta(seconds=1)
+                async with p.repo.write(p.clock):
+                    await contact_management.remove(
+                        p, owner["principal"], UUID(contact["id"])
+                    )
+                async with connection.begin():
+                    assert (
+                        await p.repo.get(
+                            "trusted_contacts", {"id": UUID(contact["id"])}
+                        )
+                        is None
+                    )
+                    assert not await connection.scalar(
+                        sa.select(db.contact_channels.c.id).where(
+                            db.contact_channels.c.contact_id == UUID(contact["id"])
+                        )
+                    )
             clock[0] += timedelta(minutes=2)
             await advance(p, world)
             status = await HouseholdTools(p, PRINCIPAL).call(
@@ -520,7 +552,13 @@ def test_trust_is_private_advisory_until_explicit_start(scratch_database, outcom
                 dict(operation="status", case_id=case.case_id),
             )
             assert_no_identifiers(status.speakable)
-            assert status.data.case.verification.status == outcome
+            assert status.data.case.verification.status == (
+                "no_answer" if outcome == "removed" else outcome
+            )
+            if outcome == "removed":
+                assert status.speakable.headline == (
+                    "The contact was removed. No reply will be accepted for this check."
+                )
             summary, _ = await verify_database(
                 connection, HOME, p.audit.key.public_key()
             )

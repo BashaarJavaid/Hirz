@@ -162,7 +162,19 @@ def effect(world: TwinWorld, action: Action) -> State:
     return changed(
         current,
         devices=current.devices
-        | {ident: changed(device, state=changed(device.state, **action.params))},
+        | {
+            ident: changed(
+                device,
+                state=changed(
+                    device.state,
+                    **(
+                        {"locked": action.params["locked"]}
+                        if action.action_class == "security.door_unlock"
+                        else action.params
+                    ),
+                ),
+            )
+        },
     )
 
 
@@ -187,6 +199,8 @@ async def execute(
     matched = all(actual.get(k) == v for k, v in action.params.items())
     if action.action_class == "energy.appliance_start":
         matched = actual["on"] is True
+    if action.action_class == "security.door_unlock":
+        matched = actual["locked"] is action.params["locked"]
     await p.execution_outcome(
         action, attempt, EventType.VERIFIED if matched else EventType.VERIFY_FAILED
     )

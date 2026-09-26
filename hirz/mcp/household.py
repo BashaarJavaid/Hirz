@@ -162,10 +162,22 @@ class HouseholdTools:
                     or row.constitution_version != p.bundle.policy().version
                 ):
                     raise ValueError(
-                        "Household policy changed; restart the local server."
+                        "Household policy changed; retry with the current rules."
                     )
             member = await p.requester(self.principal)
-            if member.member_id is None or member.role in {"unknown", "child"}:
+            if not await p.credential_current(self.principal):
+                raise ValueError("The session credential has been revoked.")
+            if (
+                member.member_id is None
+                or member.role == "unknown"
+                or member.role == "child"
+                and name != "propose_household_rule"
+                and not (
+                    name == "execute_household_action"
+                    and isinstance(args, ActionInput)
+                    and args.action == "pause_automation"
+                )
+            ):
                 raise ValueError("This linked account cannot access household tools.")
             principal_hash = digest(identity(self.principal))
             request_id = getattr(args, "request_id", None)
@@ -298,7 +310,9 @@ class HouseholdTools:
             return response(
                 "Your proposed rule is recorded. It has not been activated.",
                 details=(
-                    "Phone delivery and activation are unavailable in this preview.",
+                    "Review the proposal in the companion app; an owner activates it with a passkey."
+                    if p.require_active
+                    else "Phone delivery and activation are unavailable in this preview.",
                 ),
                 status="recorded",
                 reference=decision.action_id,
@@ -420,6 +434,8 @@ class HouseholdTools:
                 return response(
                     "The household rules block this door request."
                     if decision.decision == "deny"
+                    else "Unlocking requires approval in your Hirz phone app."
+                    if p.require_active
                     else "Door unlocking requires phone approval, which is unavailable in this preview.",
                     status="denied"
                     if decision.decision == "deny"
@@ -655,7 +671,7 @@ class HouseholdTools:
                 raise Clarification(
                     "For how many minutes are you requesting the door unlock?"
                 )
-            params = {"open_minutes": args.minutes}
+            params = {"open_minutes": args.minutes, "locked": False}
         else:
             params = {"on": args.action == "turn_on_light"}
         name = CONSUMER_ACTIONS[args.action]
@@ -675,15 +691,21 @@ class HouseholdTools:
                 entity=target.entity,
                 attr=attr,
                 value=params.get(attr, False),
-                by=p.clock() + timedelta(seconds=30),
+                by=p.clock() + timedelta(minutes=10)
+                if args.action == "request_door_unlock"
+                else p.clock() + timedelta(seconds=30),
             ),
             revert=Revert(
                 after_s=args.minutes * 60,
                 inverse=Inverse(
-                    **{"class": name}, target=target, params={"charging": False}
+                    **{"class": name},
+                    target=target,
+                    params={"locked": True, "open_minutes": 0}
+                    if args.action == "request_door_unlock"
+                    else {"charging": False},
                 ),
             )
-            if args.action == "charge_car" and args.minutes
+            if args.action in {"charge_car", "request_door_unlock"} and args.minutes
             else None,
         )
         return result.model_copy(
@@ -1047,9 +1069,15 @@ class HouseholdTools:
         ):
             raise ValueError("That approval is unavailable for this request.")
         action = Action.model_validate(row["proposal"])
-        if action.action_class.startswith("security."):
+        if action.action_class.startswith("security.") and not (
+            self.principal.surface == "app"
+            and self.principal.credential_id
+            and self.principal.passkey_verified
+        ):
             return response(
-                "Phone approval is required and unavailable in this preview. The door request remains unresolved.",
+                "Review this security request in the companion app and approve it with your passkey."
+                if p.require_active
+                else "Phone approval is required and unavailable in this preview. The door request remains unresolved.",
                 status="phone_required",
             )
         decision = await p.vote_locked(

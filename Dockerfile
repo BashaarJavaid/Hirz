@@ -4,9 +4,9 @@ WORKDIR /build
 RUN npm install --global pnpm@12.4.2
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json ./
 COPY apps/mcp-app/ ./apps/mcp-app/
-COPY apps/web/package.json ./apps/web/package.json
+COPY apps/web/ ./apps/web/
 COPY hirz/adapters/doorbell/twin/snapshot.svg ./hirz/adapters/doorbell/twin/snapshot.svg
-RUN pnpm install --frozen-lockfile && pnpm --filter mcp-app build
+RUN pnpm install --frozen-lockfile && pnpm --filter mcp-app build && pnpm --filter web build
 
 FROM rust:1.98.1-slim-bookworm@sha256:ebd900bae66fd508b466cef82d64a83a5fb34682e4c8b2797a42908bddc95a57 AS dogwood
 RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates \
@@ -34,7 +34,13 @@ ENV UV_PYTHON_DOWNLOADS=never \
     PATH="/app/.venv/bin:$PATH"
 COPY pyproject.toml uv.lock README.md LICENSE build_backend.py ./
 COPY hirz/ ./hirz/
+COPY alembic.ini ./
+COPY alembic/ ./alembic/
+COPY constitutions/ ./constitutions/
+COPY scenarios/ ./scenarios/
+COPY tariffs/ ./tariffs/
 COPY --from=cards /build/hirz/mcp/ui/ ./hirz/mcp/ui/
+COPY --from=cards /build/hirz/companion/ui/ ./hirz/companion/ui/
 RUN uv sync --locked --no-dev --no-editable --no-cache \
     && useradd --uid 10001 --no-create-home hirz
 USER hirz

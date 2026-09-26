@@ -1404,3 +1404,109 @@ Retain private fixture/audit artifacts locally; CI publishes only payload-free
 summaries. The [item 27 closure](./verification-log.md#item-27-closure--2026-09-24)
 records the approved screenshots and passing gates. Future relevant changes follow
 the authenticated CI dispatch requirement in the item 26 procedure above.
+
+
+## Companion app (item 28, acceptance still in progress)
+
+Use Node 24 and the locked dependencies. Build both browser bundles before Python
+packaging or production startup:
+
+```sh
+uv sync --locked
+pnpm install --frozen-lockfile
+pnpm --filter mcp-app build
+pnpm --filter web build
+```
+
+The companion uses `/api` and the six same-origin routes; Vite proxies `/api` to
+the local backend during development. WebAuthn requires the exact configured
+HTTPS origin and RP hostname. Initial synthetic owners enroll using explicitly
+issued local invitations; the simulated OAuth issuer cannot sign them in.
+
+For private iPhone testing, install Tailscale on the Mac and iPhone, sign both in
+to the same tailnet, and enable HTTPS/Serve in the account. Use the actual Mac DNS
+name, not an example name:
+
+```sh
+uv run --locked python -m scripts.init_companion --origin https://YOUR-MAC.YOUR-TAILNET.ts.net
+HIRZ_LLM=off HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run --locked python -m scripts.companion_demo --origin https://YOUR-MAC.YOUR-TAILNET.ts.net --port 8002 --artifacts-dir secrets/NEW-PHONE-RUN
+tailscale serve --bg http://127.0.0.1:8002
+```
+
+The initializer preserves existing audit and push keys in the regular mode-0600
+`.env`; partial or conflicting identity configuration is refused. Never copy
+private keys or invitations into audit evidence, screenshots, or documentation.
+The demo explicitly creates and migrates a disposable database through 0018; it
+never upgrades the development database (which remains on 0005). Normal startup
+does not apply migrations. On clean demo shutdown it verifies and retains signed
+exports before dropping the disposable database. Its enrollments are disposable.
+
+Open the URL in Safari, choose Add to Home Screen, and launch the installed app.
+Read the one-use invitation from the private artifact directory, enroll a real
+passkey, and save the recovery code. Activate the initial policy in Constitution
+with a fresh passkey. Initial activation preserves home v7 and parents v1. On
+Approvals, enable notifications with the explicit button; permission and delivery
+remain separate from approval. The labeled doorbell control is available only
+in this disposable fixture. It requests a one-minute twin unlock; approval must
+use a fresh passkey, and both unlock and bounded relock require read-back.
+
+Recovery codes grant enrollment only: successful replacement enrollment consumes
+the code, revokes previous keys/sessions/unused security votes, and returns a
+replacement code. Save that code immediately. Passkeys may sync across devices;
+owners are encouraged to add another distinct credential. Revoking the last key
+requires explicit lockout confirmation. An owner with no remaining passkey and
+no recovery code cannot recover in product. Local invitation issuance refuses
+members with credential history and must never be used as an account reset.
+
+With `HIRZ_LLM=off`, voice proposals remain queued for manual editing. Only an
+explicit disposable demo offers the visibly labeled recorded English patch.
+Live drafting needs `HIRZ_LLM=bedrock` and an explicitly configured model ID;
+provider failures leave form/YAML editing available. No model activates policy.
+
+Browser verification starts a fresh disposable companion, an authenticated MCP
+process and a simulated OAuth issuer. It keeps those processes running through
+policy activation, checks the six pages and retains signed exports on shutdown:
+
+```sh
+pnpm --filter web build
+HIRZ_LLM=off HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run --locked python -m scripts.smoke_companion --artifacts-dir secrets/NEW-BROWSER-RUN
+```
+
+The harness supplies private MCP credentials to the test runner, never to page
+JavaScript. Keep its artifact directory private; it includes one-use invitations
+and temporary authentication material. The browser sees `https://hirz.example.test`
+while transport goes to the isolated loopback server. The same command runs in CI.
+Do not point these tests at a retained phone enrollment.
+
+Chromium uses its virtual authenticator with real server signature verification.
+This is separate from the required real iPhone Home Screen push/passkey gate.
+Stop owned test servers after retaining evidence; `tailscale serve reset` removes
+the private proxy when no longer needed. See [item 28 evidence](./verification-log.md#item-28--in-progress--2026-09-25)
+for the current results and outstanding gates. Twin check-ins are simulated;
+physical locks, real contact verification, live paid drafting and AWS policy
+analysis are not verified by these procedures.
+
+
+A retained disposable phone run can be resumed without changing credentials or
+issuing invitations. Its private `runtime.json` binds the original database,
+origin and twin configuration. Stop the old process first, then use
+`--resume-from secrets/OLD-RUN --artifacts-dir secrets/NEW-RUN` with the same
+origin. Resumed runs retain their database on shutdown. An ordinary new run still
+uses a fresh database; do not confuse its new invitations with account recovery.
+Only disposable `hirz_ha_smoke_` databases are accepted. A worker failure retains
+evidence and stops the demo instead of silently leaving a dead worker behind.
+
+The current phone fixture intentionally has no whole-night planning inputs;
+Tonight reports blocked preparation honestly. Use the configured existing worker
+and scenario inputs for planning acceptance. On iOS 15, the additional Continue
+with passkey tap preserves a fresh browser user gesture; physical-device
+verification remains recorded separately. iPhone Web Push requires **iOS 16.4 or
+later** ([Apple](https://developer.apple.com/documentation/usernotifications/sending-web-push-notifications-in-web-apps-and-browsers));
+an older phone can use the inbox but cannot satisfy the push acceptance gate.
+
+Companion Twin runs use the deployment working directory's `scenarios/`,
+`constitutions/` and `tariffs/`, alongside `alembic.ini` and `alembic/` for explicit
+migration of their isolated databases. Run an installed wheel from that prepared
+checkout/deployment directory; the wheel carries browser assets, not an implicit
+household setup or migration. The container copies these repository resources
+explicitly. No startup migration is introduced.

@@ -557,6 +557,7 @@ def test_retained_audit_checks_independent_trust_and_corruption(tmp_path, monkey
 
     from cryptography.hazmat.primitives.asymmetric import ec
 
+    from hirz import audit
     from hirz.audit import AuditError
     from hirz.twin import execution
 
@@ -568,14 +569,14 @@ def test_retained_audit_checks_independent_trust_and_corruption(tmp_path, monkey
         audit=SimpleNamespace(key=key),
     )
     monkeypatch.setattr(
-        execution, "verify_database", AsyncMock(return_value=({"status": "empty"}, []))
+        audit, "verify_database", AsyncMock(return_value=({"status": "empty"}, []))
     )
     good = tmp_path / "good"
     good.mkdir()
     result, rows = asyncio.run(execution.retain_audit(p, good))
     assert result["status"] == "empty" and rows == []
     assert all(path.stat().st_mode & 0o777 == 0o600 for path in good.iterdir())
-    write = execution.write_export
+    write = audit.write_export
 
     def corrupt(path, document):
         write(path, document)
@@ -583,7 +584,7 @@ def test_retained_audit_checks_independent_trust_and_corruption(tmp_path, monkey
         data["key_fingerprint"] = "0" * 64
         path.write_text(json.dumps(data))
 
-    monkeypatch.setattr(execution, "write_export", corrupt)
+    monkeypatch.setattr(audit, "write_export", corrupt)
     bad = tmp_path / "bad"
     bad.mkdir()
     with pytest.raises(AuditError):

@@ -183,6 +183,7 @@ class Principal(Model):
     requester_confirmed: StrictBool = False
     passkey_verified: StrictBool = False
     verified_action_hash: str | None = None
+    credential_id: str | None = Field(default=None, exclude_if=lambda v: v is None)
 
 
 class SupplementalEvidence(Model):

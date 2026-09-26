@@ -35,7 +35,7 @@ ATTRIBUTES: dict[str, Kind] = {
 }
 for _name in ("target_f", "ev_soc_floor", "open_minutes", "minutes", "soc", "power_kw"):
     ATTRIBUTES[f"action.params.{_name}"] = "number"
-for _name in ("mode", "needed_by", "operation"):
+for _name in ("mode", "needed_by", "operation", "member_id"):
     ATTRIBUTES[f"action.params.{_name}"] = "string"
 for _name in ("soc", "temp_f", "target_f", "power_kw", "recovery_score"):
     ATTRIBUTES[f"asset.state.{_name}"] = "number"

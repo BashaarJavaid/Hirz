@@ -41,6 +41,7 @@ from hirz.audit import (
 )
 from hirz.executor.local import compose
 from hirz.executor.observations import ingest
+from hirz.graph.models import now
 from hirz.graph.seeds import load_seeds, read_seed
 from hirz.local import read_env, signing_key
 from hirz.mcp.auth import SCOPES, KeyCache
@@ -71,8 +72,13 @@ def serve(listener: socket.socket, config: dict[str, Any]) -> None:
     runtime = HouseholdRuntime(
         engine,
         AuditWriter(signing_key(read_env(Path(".env")))),
-        clock=lambda: datetime.fromisoformat(Path(config["clock_file"]).read_text()),
-        profiles=load_profiles(Path(config["profiles"])),
+        allow_unvalidated_fixture=config.get("historical_fixture", True),
+        clock=(lambda: datetime.fromisoformat(Path(config["clock_file"]).read_text()))
+        if config.get("clock_file")
+        else now,
+        profiles=load_profiles(Path(config["profiles"]))
+        if config.get("profiles")
+        else None,
         card_evidence=load_card_evidence(
             Path(config["card_evidence"]) if config.get("card_evidence") else None
         ),
@@ -132,6 +138,7 @@ async def worker(database: str, scenario: str) -> None:
         "-c",
         "from hirz.cli import main; raise SystemExit(main())",
         "worker",
+        "--historical-fixture",
         "--household",
         str(read_seed(Path("constitutions/quinn-home.yaml")).household_id),
         "--once",

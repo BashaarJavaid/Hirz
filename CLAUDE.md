@@ -61,6 +61,7 @@ When closing an item: append the evidence entry first, then the one-sentence roa
 - **Approved item 24 temporary dev OAuth state (2026-09-23):** the simulated local issuer may keep consent transactions, codes and refresh families in memory without Pipeline decisions. This creates no household records, account links, device actions or fabricated audit events; restart loses grants. Signing-key initialization is explicit, separate from the audit key, and refuses malformed existing keys (ADR-014).
 - **Approved item 25 verified-channel fixture bootstrap (2026-09-23):** initial, explicitly labeled verified phone/app channel fixtures may be installed only in disposable twin databases before runtime work. All subsequent case changes require Pipeline decisions; this grants no runtime channel-editing surface, real contact delivery or security authority (ADR-015).
 - **Approved item 26 isolation fixture (2026-09-23):** an explicitly labeled disposable copy of the home fixture may use distinct household/account identities for symmetric plan, constraint and approval probes, alongside the actual home/parents checks. Only initial fixture bootstrap is exempt; all runtime records still require Pipeline decisions (ADR-017).
+- **Approved item 28 authentication bookkeeping (2026-09-25):** pre-login WebAuthn challenges, server sessions and explicitly issued initial invitations for existing demo members may persist without Pipeline decisions. Enrollment completion, credential/recovery changes and household mutations still require Pipeline decisions and audit. Initial invitations cannot reset an enrolled member; simulated OAuth grants no companion authority (ADR-019).
 - **Fail closed** for anything whose failure would weaken a guarantee (Postgres, audit write, boundary evaluation, risk exception). If unsure whether something fails open or closed, it's closed. `ARCHITECTURE.md` §9.
 - **Twin is labeled.** Every observation carries `source: real | real API, demo devices | twin`; tool outputs and detail views show it. Cards show two states, `live` and `simulated` (anything not plainly `real` shows as simulated). A published rate table is `real (published ComEd rate)`, never "live". Never present twin data as real. Hosted-demo households bind `twin` adapters only. Falling back from a real device to its twin is a scenario and demo feature: in a real household an unreachable device is `unavailable; actual state unknown`, and a twin read-back never verifies a real device.
 - **No Hirz process outside the home holds a device credential in AWS mode.** The Home Assistant token stays with Hirz Link in the house; the home obeys only commands signed by the KMS key that only the `hirz-actions` Lambda role may use; write-capable cloud credentials are readable by that role only. A change that hands the worker or the `mcp` role something it can act with is wrong (ADR-009). Local mode has no outside boundary and is labeled `dogwood-local`. The claim covers bugs and bypass paths, not a compromised worker (`THREAT_MODEL.md`; ADR-010 and item 38d narrow that for `security.*`). The signer recomputes the action hash and never trusts the worker's; a command names one home and runs once; and Link owns the ending of a bounded operation, so a relock never depends on the cloud. Hirz governs the actions Hirz takes: never write that it controls everything Alexa can do.
@@ -129,12 +130,13 @@ The verified toolchain and scaffold setup are in `README.md`; use Node 24.
 
 ## Current phase
 
-**Phase 4 is complete through item 27; Phase 5 item 28 is next.** The five MCP
-cards pass reviewed browser, packaging, conformance and authenticated CI gates
-([evidence](./docs/verification-log.md#item-27-closure--2026-09-24)). Development stays
-on 0005; migrations through 0013 remain manual. Keep Bedrock off and the $2 ledger
-preserved. AWS/Alexa host overhead remains item 38; real phone/security execution
-remains unverified.
+**Phase 5 item 28 is in progress; Phase 4 is complete through item 27.**
+Real iPhone approval/twin relock, local security checks and the combined voice/browser
+flow have [evidence](./docs/verification-log.md#item-28-local-acceptance-matrix-and-combined-browser-flow--2026-09-25).
+Compatible-iPhone push reception and CI gates remain outstanding.
+Development stays on 0005; migrations through 0018 remain manual. Keep Bedrock
+off and preserve the $2 ledger. Real contact delivery, physical locks and AWS
+security guarantees remain unverified.
 
 ---
 

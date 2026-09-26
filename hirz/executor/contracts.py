@@ -13,6 +13,7 @@ SUPPORTED = {
     "energy.ev_charge": ("ev", "charging"),
     "energy.battery_dispatch": ("energy", "dispatch_kw"),
     "energy.appliance_start": ("devices", "on"),
+    "security.door_unlock": ("devices", "locked"),
 }
 
 
@@ -20,7 +21,8 @@ def expired(action: Action, at: datetime) -> bool:
     return bool(
         action.expected_effect is None
         or at >= action.expected_effect.by
-        or action.revert
+        or action.action_class != "security.door_unlock"
+        and action.revert
         and action.scheduled_for is not None
         and at >= action.scheduled_for + timedelta(seconds=action.revert.after_s)
     )
@@ -55,6 +57,13 @@ def parameters(name: str, params: dict[str, Any], adapter: str) -> None:
         valid = set(params) == {"dispatch_kw"} and number(params["dispatch_kw"], -5, 5)
     elif adapter == "twin" and name == "energy.appliance_start":
         valid = not params
+    elif adapter == "twin" and name == "security.door_unlock":
+        valid = set(params) == {"locked", "open_minutes"} and (
+            params["locked"] is False
+            and number(params["open_minutes"], 0.01, 10)
+            or params["locked"] is True
+            and params["open_minutes"] == 0
+        )
     if not valid:
         raise ValueError("Unsupported local execution parameters")
 
@@ -83,6 +92,8 @@ def validate(action: Action) -> Action:
     bounded = (
         action.params.get("charging") is True
         or action.params.get("dispatch_kw", 0) != 0
+        or action.action_class == "security.door_unlock"
+        and action.params.get("locked") is False
     )
     if bounded and action.revert is None:
         raise ValueError("Nonzero EV/battery controls require a bounded stop")
@@ -100,6 +111,13 @@ def validate(action: Action) -> Action:
             allowed = inverse.params == {"charging": False}
         elif action.action_class == "energy.battery_dispatch":
             allowed = inverse.params == {"dispatch_kw": 0}
+        elif action.action_class == "security.door_unlock":
+            allowed = (
+                inverse.params == {"locked": True, "open_minutes": 0}
+                and action.params["locked"] is False
+                and action.revert.after_s
+                == float(str(action.params["open_minutes"])) * 60
+            )
         else:
             allowed = action.action_class in {
                 "environment.lights",
@@ -110,10 +128,14 @@ def validate(action: Action) -> Action:
     return ingest(action)
 
 
-def ending(action: Action) -> Action:
+def ending(action: Action, *, start: datetime | None = None) -> Action:
     assert action.revert and action.scheduled_for
     inverse = action.revert.inverse
-    at = action.scheduled_for + timedelta(seconds=action.revert.after_s)
+    at = (
+        start
+        if action.action_class == "security.door_unlock" and start is not None
+        else action.scheduled_for
+    ) + timedelta(seconds=action.revert.after_s)
     result = action.model_copy(
         update={
             "action_id": action.action_id + ":ending",
@@ -124,7 +146,7 @@ def ending(action: Action) -> Action:
             "expected_effect": ExpectedEffect(
                 entity=action.target.entity,
                 attr=SUPPORTED[action.action_class][1],
-                value=next(iter(inverse.params.values())),
+                value=inverse.params[SUPPORTED[action.action_class][1]],
                 by=at + timedelta(seconds=10),
             ),
             "reason": "Exact preauthorized bounded ending",
@@ -134,6 +156,14 @@ def ending(action: Action) -> Action:
 
 
 def inverse(action: Action, state: dict[str, Any]) -> Inverse | None:
+    if action.action_class == "security.door_unlock":
+        if state.get("locked") is not True:
+            raise ValueError("A bounded unlock requires a verified locked door")
+        return Inverse(
+            **{"class": action.action_class},
+            target=action.target,
+            params={"locked": True, "open_minutes": 0},
+        )
     if action.action_class == "energy.appliance_start":
         return None
     keys = set(action.params)

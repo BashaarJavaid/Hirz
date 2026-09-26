@@ -644,11 +644,13 @@ class TwinWorld:
         self.observation(ASSET_DOMAINS[self.assets[ident].kind], ident, state, at)
 
     def doorbell_event(
-        self, entity: str, at: datetime, kind: str, classification: str | None
+        self, entity: str, at: datetime | None, kind: str, classification: str | None
     ) -> Observation:
         ident = self.entity(entity, "doorbell")
         now, state = self.read()
-        if utc(at) != utc(now):
+        # Interactive events sample the running clock once. Scripted events
+        # still have to match their explicit simulation instant exactly.
+        if at is not None and utc(at) != utc(now):
             raise AdapterError(
                 "Twin event must occur at the current simulation instant."
             )

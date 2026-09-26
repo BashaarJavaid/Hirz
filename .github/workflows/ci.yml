@@ -98,6 +98,8 @@ jobs:
         run: pnpm --filter mcp-app exec node reference-host.mjs
       - name: Install pinned Chromium for the authenticated relay
         run: pnpm --filter mcp-app exec playwright install --with-deps chromium
+      - name: Companion voice proposal, passkeys, twin endings and accessibility
+        run: uv run --locked python -m scripts.smoke_companion --artifacts-dir "$RUNNER_TEMP/companion"
       - name: Reference host over real authenticated household calls
         run: HIRZ_CARD_LIVE=1 uv run --locked python -m scripts.smoke_cards --artifacts-dir "$RUNNER_TEMP/card-live" --browser-test
       - name: Linux Chromium card baselines and behavior
@@ -207,9 +209,9 @@ jobs:
           run_install: false
       - run: pnpm install --frozen-lockfile
       - run: pnpm -r test
-      - name: Browser coverage awaits Phase 5
+      - name: Browser coverage location
         run: |
-          echo 'MCP card browser checks run with the Python integration fixtures; companion and simulator checks remain Phase 5.' | tee -a "$GITHUB_STEP_SUMMARY"
+          echo 'Authenticated companion and MCP card browser checks run in python-test; simulator checks remain item 29.' | tee -a "$GITHUB_STEP_SUMMARY"
 
   conformance:
     runs-on: ubuntu-24.04
@@ -396,8 +398,9 @@ jobs:
           uv pip install --python "$RUNNER_TEMP/wheel-smoke/bin/python" "$wheel"
           cd "$RUNNER_TEMP"
           ./wheel-smoke/bin/python -c 'import hirz; from importlib.metadata import version; print("PASS installed hirz", version("hirz"))'
-          ./wheel-smoke/bin/python -c 'from hirz.risk import CLASSES; from hirz.constitution.preview import SITUATIONS; assert len(CLASSES) == len(SITUATIONS) == 36; print("PASS packaged catalogs: 36 classes, 36 situation groups")'
+          ./wheel-smoke/bin/python -c 'from hirz.risk import CLASSES; from hirz.constitution.preview import SITUATIONS; assert len(CLASSES) == len(SITUATIONS) == 40; print("PASS packaged catalogs: 40 classes, 40 situation groups")'
           ./wheel-smoke/bin/python -c 'from hirz.mcp.cards import assets; assert len(assets()) == 5; print("PASS five packaged cards")'
+          ./wheel-smoke/bin/python -c 'from importlib.resources import files; ui = files("hirz.companion").joinpath("ui"); assert all(ui.joinpath(name).is_file() for name in ("index.html", "manifest.webmanifest", "sw.js")); print("PASS packaged companion")'
           ./wheel-smoke/bin/hirz --help
       - run: docker build --tag hirz-ci:check .
       - name: Container runs as the existing unprivileged user

@@ -39,3 +39,7 @@ governance.record_tool_request: {impact: 1, reversibility: reversible, band: LOW
 governance.propose_rule: {impact: 1, reversibility: reversible, band: LOW, freshness_seconds: 300}
 governance.request_plan: {impact: 1, reversibility: reversible, band: LOW, freshness_seconds: 300}
 governance.record_verification: {impact: 1, reversibility: reversible, band: LOW, freshness_seconds: 300}
+governance.credentials: {impact: 1, reversibility: explicit credential lifecycle, band: LOW, freshness_seconds: 300}
+governance.constitution: {impact: 1, reversibility: versioned household policy, band: LOW, freshness_seconds: 300}
+governance.contacts: {impact: 1, reversibility: archived contact history, band: LOW, freshness_seconds: 300}
+governance.twin: {impact: 1, reversibility: isolated simulation, band: LOW, freshness_seconds: 300}

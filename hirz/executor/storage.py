@@ -222,13 +222,14 @@ async def authorize_ending(p: "Pipeline", action: Action, decision: Decision) ->
 
     if action.revert is None:
         return
-    end = ending(action)
+    at = p.clock()
+    end = ending(action, start=at)
     opening = await row(p, action.action_id)
     principal = Principal.model_validate(opening["principal"])
     seq = await p.audit.append(
         p.connection,
         p.household_id,
-        p.clock(),
+        at,
         EventType.ENDING_AUTHORIZED,
         {
             "opening": action.action_id,
@@ -271,7 +272,11 @@ async def validate_ending(p: "Pipeline", action: Action, grant: dict[str, Any]) 
         or parent["execution_attempt_seq"] is None
         or parent["grant_seq"] != grant["payload"]["grant_seq"]
         or opening.content_hash != grant["payload"]["opening_hash"]
-        or digest(ending(opening).model_dump(mode="json", by_alias=True))
+        or digest(
+            ending(opening, start=grant["created_at"]).model_dump(
+                mode="json", by_alias=True
+            )
+        )
         != digest(action.model_dump(mode="json", by_alias=True))
         or digest(grant["payload"]["ending"])
         != digest(action.model_dump(mode="json", by_alias=True))

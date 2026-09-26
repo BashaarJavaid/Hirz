@@ -146,6 +146,7 @@ async def exercise(
                 "-c",
                 "from hirz.cli import main; raise SystemExit(main())",
                 "worker",
+                "--historical-fixture",
                 "--household",
                 str(p.household_id),
                 "--once",

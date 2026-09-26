@@ -170,6 +170,7 @@ class PhysicalParameters(Model):
 
 
 class Asset(Entity):
+    managed_through_hirz: bool = False
     name: Text
     kind: AssetKind
     room_kind: RoomKind | None = None

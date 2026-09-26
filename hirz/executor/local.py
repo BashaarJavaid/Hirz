@@ -148,6 +148,9 @@ async def worker(args: argparse.Namespace) -> int:
         scenario = os.environ.get("HIRZ_TWIN_SCENARIO")
         loaded = LoadedScenario(Path(scenario)) if scenario else None
         world = loaded.world if loaded else None
+        historical = getattr(args, "historical_fixture", False)
+        if historical and not args.database.startswith("hirz_ha_smoke_"):
+            raise ValueError("Historical fixtures require an isolated smoke database")
         clock = (lambda: world.clock()) if world else now
         if world:
             world.clock.set_speed(float(os.environ.get("HIRZ_SIM_SPEED", "1")))
@@ -178,7 +181,12 @@ async def worker(args: argparse.Namespace) -> int:
                 args.household, loads(row["yaml"]), boundary
             )
             p = Pipeline(
-                connection, initial, boundary, AuditWriter(signing_key(values)), clock
+                connection,
+                initial,
+                boundary,
+                AuditWriter(signing_key(values)),
+                clock,
+                require_active=not historical,
             )
             p.bundle = await policy(p)
             if world:
@@ -205,7 +213,12 @@ async def worker(args: argparse.Namespace) -> int:
                     values, database=args.database
                 ) as refresh_connection:
                     refresh_pipeline = Pipeline(
-                        refresh_connection, p.bundle, boundary, p.audit, clock
+                        refresh_connection,
+                        p.bundle,
+                        boundary,
+                        p.audit,
+                        clock,
+                        require_active=not historical,
                     )
                     refresh_registry = await compose(
                         refresh_pipeline,
@@ -224,14 +237,21 @@ async def worker(args: argparse.Namespace) -> int:
                         )
                         while True:
                             refresh_pipeline.bundle = await policy(refresh_pipeline)
+                            from hirz.companion.drafting import advance as draft_rules
+                            from hirz.companion.push import Config as PushConfig
+                            from hirz.companion.push import advance as deliver_push
+                            from hirz.companion.twin import advance as advance_twin
                             from hirz.mcp.trust import advance
                             from hirz.mcp.worker import prepare_plans
 
-                            await advance(refresh_pipeline, world)
-
                             async def preparation_and_refresh() -> None:
+                                await advance(refresh_pipeline, world)
+                                await draft_rules(refresh_pipeline)
+                                if push_config := PushConfig.environment():
+                                    await deliver_push(refresh_pipeline, push_config)
                                 await prepare_plans(refresh_pipeline, loaded)
                                 await refresh.batch()
+                                await advance_twin(refresh_pipeline)
 
                             task = asyncio.create_task(preparation_and_refresh())
                             decisions: list[Decision] = []

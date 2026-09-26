@@ -45,10 +45,12 @@ class HouseholdRuntime:
         clock: Callable[..., Any] = now,
         profiles: Profiles | None = None,
         card_evidence: dict[UUID, Annualized] | None = None,
+        allow_unvalidated_fixture: bool = False,
     ):
         self.engine, self.audit, self.clock = engine, audit, clock
         self.profiles = profiles or Profiles()
         self.card_evidence = card_evidence or {}
+        self.allow_unvalidated_fixture = allow_unvalidated_fixture
         self.boundary = Dogwood()
         self.bundles: dict[UUID, tuple[PolicyBundle, str]] = {}
 
@@ -110,8 +112,45 @@ class HouseholdRuntime:
             )
         bundle, fingerprint = cached
         async with self.engine.connect() as connection:
+            row = (
+                (
+                    await connection.execute(
+                        sa.select(db.constitution_versions)
+                        .join(
+                            db.households,
+                            sa.and_(
+                                db.households.c.id
+                                == db.constitution_versions.c.household_id,
+                                db.households.c.constitution_version
+                                == db.constitution_versions.c.version,
+                            ),
+                        )
+                        .where(db.households.c.id == identity.household_id)
+                    )
+                )
+                .mappings()
+                .one()
+            )
+        if row["status"] != "active" and not self.allow_unvalidated_fixture:
+            raise ValueError("Activate the household rules in the companion app first.")
+        if row["hash"] != fingerprint:
+            if sha256(row["yaml"].encode()).hexdigest() != row["hash"]:
+                raise ValueError("Stored policy integrity check failed")
+            bundle = await PolicyBundle.validate(
+                identity.household_id, loads(row["yaml"]), self.boundary
+            )
+            fingerprint = row["hash"]
+            self.bundles[identity.household_id] = bundle, fingerprint
+        async with self.engine.connect() as connection:
             return await HouseholdTools(
-                Pipeline(connection, bundle, self.boundary, self.audit, self.clock),
+                Pipeline(
+                    connection,
+                    bundle,
+                    self.boundary,
+                    self.audit,
+                    self.clock,
+                    require_active=not self.allow_unvalidated_fixture,
+                ),
                 identity.principal,
                 policy_hash=fingerprint,
                 profiles=self.profiles.households.get(identity.household_id, {}),

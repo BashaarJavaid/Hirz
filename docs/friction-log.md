@@ -648,3 +648,55 @@ checks passed. See the [completion evidence](./verification-log.md#publication-a
   **2026-09-24 author decision:** approved the separate strict browser-test config
   with dependency declaration checking skipped. All pins and full application
   type-checking remain unchanged; browser test source is still checked.
+
+
+## Item 28: WebAuthn gesture handling on iOS 15 — 2026-09-25
+
+- **Tool/task:** Safari/Home Screen WebAuthn on the author's iOS 15.7.9 iPhone.
+  **Steps/expected:** enroll a credential, then activate the initial policy using
+  another fresh credential assertion after fetching a challenge.
+  **Actual:** enrollment succeeded, but activation immediately reported
+  `this request has been cancelled by the user` without displaying a verification
+  prompt. **Severity:** Major. **Workaround under verification:** a native dialog
+  supplies a new explicit click after the server challenge arrives on iOS before
+  version 16. No authentication verification is bypassed. The suspected cause is
+  loss of the user gesture across asynchronous option fetching, documented in
+  [WebKit's authentication guidance](https://webkit.org/blog/11312/meet-face-id-and-touch-id-for-the-web/)
+  and [SimpleWebAuthn's browser quirks](https://simplewebauthn.dev/docs/advanced/browser-quirks).
+  This diagnosis is not yet confirmed on the physical phone. **Suggestion:**
+  distinguish absent user activation from actual cancellation in the browser error.
+
+**2026-09-25 follow-up to the iOS WebAuthn entry:** the author confirmed that the
+fresh-tap “Continue with passkey” path opened the device password prompt and
+activated version 7. The available iOS 15.7.9 device still cannot verify Home
+Screen Web Push; no newer or upgradable iPhone is available for that gate.
+
+## Item 28: incomplete desktop dark browser captures — 2026-09-25
+
+- **Tool/task:** pinned Playwright 1.57.0 Chromium screenshots at 1440×900 after
+  changing `colorScheme`; [screenshot documentation](https://playwright.dev/docs/screenshots).
+  **Expected:** the visible SVG snapshot and passkey button labels appear in both
+  theme captures. **Observed:** desktop dark captures in private browser runs `q`
+  and `s` contain solid rectangles where parts of the image and button labels
+  appear in light/portrait captures. No screenshot exception was emitted; the
+  browser flow and DOM assertions passed. **Severity:** Minor for implementation,
+  blocking acceptance of those visual artifacts. **Attempted mitigation:** disable
+  transitions using reduced-motion mode and wait for two repaint frames; the
+  missing paint persisted. Cause remains unconfirmed, including whether it is
+  app rendering or capture behavior. No workaround or visual pass is claimed.
+  **Suggestion:** expose a capture diagnostic when a screenshot differs from the
+  otherwise queryable visible document.
+
+### Follow-up on item 28 dark captures — 2026-09-25
+
+The apparent omission reproduced while reviewing multiple images together, but
+reopening the **same unchanged PNG** individually displayed the button text and
+complete SVG. A direct stdlib PNG decode of
+`secrets/item28-combined-20260925-c/phone/unlock-1440-dark.png` found 162 colors
+and 435 near-white pixels in the primary-label rectangle, and 279 colors in the
+snapshot rectangle; SHA-256
+`9f504a57d0834e25e21ea4c5ee5bda063d0574141f404406a546555d1c223c6e`.
+The stored screenshot is not missing those pixels. This narrows the issue to the
+image-review path; it does **not** establish a Chromium rendering defect. Review
+originals individually before attributing a visual defect to the app. No app
+repaint workaround was added. The earlier reports remain as observed history.

@@ -562,7 +562,7 @@ TOOLS: dict[str, tuple[type[Input], str, str]] = {
     "propose_household_rule": (
         ProposalInput,
         "plan",
-        "Record a proposed household rule sentence. Does not draft, activate, or send anything to a phone.",
+        "Record a proposed household rule sentence for the companion inbox. A worker may draft it; only an owner's phone passkey can activate it.",
     ),
     "evaluate_permission": (
         PermissionInput,

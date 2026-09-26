@@ -319,3 +319,31 @@ def write_export(path: Path, document: dict[str, Any]) -> None:
     except BaseException:
         path.unlink(missing_ok=True)
         raise
+
+
+async def retain_export(
+    connection: AsyncConnection,
+    household_id: UUID,
+    key: ec.EllipticCurvePublicKey,
+    folder: Path,
+) -> tuple[dict[str, Any], list[Any]]:
+    """Retain and independently verify an export without an authorization runtime."""
+    summary, rows = await verify_database(connection, household_id, key, collect=True)
+    write_export(
+        folder / "audit.json",
+        export_document(household_id, key, rows),
+    )
+    fd = os.open(folder / "public-key.pem", os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    with os.fdopen(fd, "w") as keyfile:
+        keyfile.write(public_pem(key))
+    verified = verify_file(
+        folder / "audit.json",
+        household_id,
+        trusted_fingerprint=fingerprint(key),
+    )
+    if summary["status"] != verified["status"] or verified["status"] not in {
+        "valid",
+        "empty",
+    }:
+        raise ValueError("Signed audit verification failed")
+    return verified, rows

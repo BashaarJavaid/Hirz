@@ -219,3 +219,20 @@ requires the explicit startup evidence mapping described in
 Counts independently deduplicate device action IDs for autonomous execution,
 ASK, DENY and VERIFIED read-back. Categories can overlap; previews, bookkeeping
 and private contact cases are excluded. Pagination changes only the decision list.
+
+
+### Companion integration amendment — 2026-09-25
+
+The twelve flat tool schemas remain unchanged. Under an active policy, eligible
+security requests create a phone approval and direct the linked member to the
+authenticated Approvals page. Voice security approval is still refused; neither
+spoken identity nor a caller-supplied verification flag authorizes it. Any linked
+member may propose a rule or pause; resume is app-only for adult-lineage members.
+
+`propose_household_rule` stores its linked author, sentence, surface and lifecycle.
+With `HIRZ_LLM=off`, it remains queued for manual form/YAML editing. Bedrock mode
+uses the durable worker and an explicitly configured model; tool calls never call
+it. Owner activation requires review and a fresh passkey, including proposals
+originating on Alexa. Historical disposable smokes retain explicitly labeled
+unactivated-policy behavior. [Acceptance status](./verification-log.md#item-28--in-progress--2026-09-25)
+remains incomplete.

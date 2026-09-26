@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- Complete the companion’s local adversarial and combined MCP/browser acceptance checks, expose all six navigation links in portrait, and add the flow to CI ([evidence](./docs/verification-log.md#item-28-local-acceptance-matrix-and-combined-browser-flow--2026-09-25)); compatible-iPhone push and CI acceptance remain pending.
+
 - 2026-09-24: Add five authenticated local MCP App cards, deterministic presentation and retained-evidence scorecards, packaged static resources, and reference-host browser checks; close item 27 after author-approved visuals and passing packaging, conformance, isolation and authenticated CI latency gates ([ADR-018](./docs/adr/ADR-018-mcp-app-cards.md), [evidence](./docs/verification-log.md#item-27--2026-09-24)).
 
 - 2026-09-24: Close item 26b after author review of the CI runner’s local authenticated MCP raw JSON-RPC round-trip gate; require manual latency dispatch before relevant item closures and submission, with AWS ingress, cold start and Alexa host overhead remaining item 38 ([closure](./docs/verification-log.md#closure--2026-09-24), [ADR-017](./docs/adr/ADR-017-tool-latency-and-isolation.md#closure-amendment--2026-09-24)).
@@ -54,6 +56,10 @@ All notable changes are documented here. The format follows
 - 2026-09-21: Record [terminal HA dispatch attempts and fresh-action retries](./docs/adr/ADR-006-twin-first-adapters.md#terminal-ha-dispatch-attempts--2026-09-21-author-approved) and the Phase 2 review's [Phase 3 carry-overs and ordered-plug follow-up](./ROADMAP.md).
 
 ### Fixed
+
+- 2026-09-25: Bring a newly requested twin unlock approval into view and explain the next passkey step inside the phone app ([item 28 evidence](./docs/verification-log.md#item-28--in-progress--2026-09-25)).
+
+- 2026-09-25: Preserve companion sessions through the policy-change worker fix, show door-request outcomes, correct portrait panel spacing and export retained audit evidence independently of the stopped policy helper ([item 28 evidence](./docs/verification-log.md#item-28--in-progress--2026-09-25)).
 
 - 2026-09-24: Add shared test/smoke checks for identifiers and braces in speech, and distinguish the unmeasured AWS latency budget from local CI results ([evidence](./docs/verification-log.md#phase-4-review-batch-1--2026-09-24)).
 - 2026-09-24: Set the separate addon-check repository's Node requirement to 22 or later and update its GitHub About metadata; retain the tested CI pin and published version ([evidence](./docs/verification-log.md#phase-4-review-batch-1--2026-09-24)).
@@ -107,6 +113,10 @@ All notable changes are documented here. The format follows
   to include item 9's pause/resume actions; [verification](./docs/verification-log.md#item-9-ci-build-check--2026-09-18).
 
 ### Added
+
+- 2026-09-25: Record real iPhone passkey approval with signed twin unlock/relock evidence; item 28 remains incomplete pending its other gates ([evidence](./docs/verification-log.md#item-28-physical-iphone-approval-and-bounded-twin-relock--2026-09-25)).
+
+- 2026-09-25: Build the authenticated companion foundation, policy lifecycle, encrypted push delivery and isolated Twin controls; item 28 remains in progress pending its complete acceptance gates ([ADR-019](./docs/adr/ADR-019-companion.md), [partial evidence](./docs/verification-log.md#item-28--in-progress--2026-09-25)).
 
 - 2026-09-23: Add the local stateless JSON MCP endpoint and typed generic onboarding tool,
   with fixed loopback guards and real SDK/Inspector checks; OAuth and household

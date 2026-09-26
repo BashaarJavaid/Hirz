@@ -5,9 +5,14 @@ from collections.abc import AsyncIterator, Callable
 from contextlib import AsyncExitStack, asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
+from hirz.companion.api import Companion
+from hirz.companion.api import router as companion_router
+from hirz.companion.auth import Config as CompanionConfig
 from hirz.db import database_url
 from hirz.local import read_env, signing_key
 from hirz.mcp.auth import SCOPES, KeyCache, OAuthGate
@@ -31,6 +36,7 @@ def create_app(
     engine: AsyncEngine | None = None,
     register: Callable[[HirzMCP], None] | None = None,
     household: HouseholdRuntime | None = None,
+    companion: Companion | None = None,
 ) -> FastAPI:
     """One SDK manager per app; only tests/smoke register diagnostic tools."""
     security = local_security(port)
@@ -49,6 +55,8 @@ def create_app(
             async with AsyncExitStack() as stack:
                 if household is not None:
                     await stack.enter_async_context(household.run())
+                if companion is not None:
+                    await stack.enter_async_context(companion.boundary.persistent())
                 if cache is not None:
                     await stack.enter_async_context(cache.run())
                 await stack.enter_async_context(server.session_manager.run())
@@ -59,6 +67,66 @@ def create_app(
 
     app = FastAPI(openapi_url=None, docs_url=None, redoc_url=None, lifespan=lifespan)
     app.add_api_route("/health", health)
+    if companion is not None:
+        app.include_router(companion_router(companion))
+
+        @app.exception_handler(ValueError)
+        async def refused(request: Request, exc: ValueError) -> JSONResponse:
+            return JSONResponse(
+                {
+                    "detail": "Request refused. Check your session, current rules and inputs."
+                },
+                status_code=403,
+                headers={"Cache-Control": "no-store"},
+            )
+
+        ui = Path(__file__).parent.parent / "companion" / "ui"
+        if not (ui / "index.html").is_file():
+            raise ValueError("Build the companion first: pnpm --filter web build")
+        app.mount(
+            "/assets", StaticFiles(directory=ui / "assets"), name="companion-assets"
+        )
+
+        async def page() -> FileResponse:
+            return FileResponse(
+                ui / "index.html",
+                headers={
+                    "Cache-Control": "no-store",
+                    "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+                    "Referrer-Policy": "no-referrer",
+                    "X-Content-Type-Options": "nosniff",
+                },
+            )
+
+        for path in (
+            "/",
+            "/tonight",
+            "/approvals",
+            "/constitution",
+            "/household",
+            "/audit",
+            "/twin",
+        ):
+            app.add_api_route(path, page)
+
+        async def manifest() -> FileResponse:
+            return FileResponse(
+                ui / "manifest.webmanifest", media_type="application/manifest+json"
+            )
+
+        async def worker_script() -> FileResponse:
+            return FileResponse(
+                ui / "sw.js",
+                media_type="text/javascript",
+                headers={"Cache-Control": "no-cache", "Service-Worker-Allowed": "/"},
+            )
+
+        async def icon() -> FileResponse:
+            return FileResponse(ui / "icon.svg", media_type="image/svg+xml")
+
+        app.add_api_route("/manifest.webmanifest", manifest)
+        app.add_api_route("/sw.js", worker_script)
+        app.add_api_route("/icon.svg", icon)
     if cache is not None:
 
         async def metadata() -> dict[str, object]:
@@ -92,6 +160,15 @@ def create_local_oauth_app() -> FastAPI:
     return create_app(
         cache=KeyCache(),
         engine=engine,
+        companion=Companion(
+            engine,
+            AuditWriter(signing_key(read_env(Path(".env")))),
+            CompanionConfig(
+                os.environ["HIRZ_COMPANION_ORIGIN"], os.environ["HIRZ_COMPANION_RP_ID"]
+            ),
+        )
+        if os.environ.get("HIRZ_COMPANION_ORIGIN")
+        else None,
         household=HouseholdRuntime(
             engine,
             AuditWriter(signing_key(read_env(Path(".env")))),

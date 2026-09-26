@@ -8873,3 +8873,391 @@ Entries above that name one of those databases as retained now describe a
 database that no longer exists. The numbers, fingerprints and CI links they
 record are unaffected. No development-database change and no repository code
 change was made.
+
+## Item 28 — in progress — 2026-09-25
+
+Item 28 is **not complete**. Implementation follows [ADR-019](./adr/ADR-019-companion.md).
+All database integration runs below use explicitly migrated disposable databases;
+the development schema remains 0005. Bedrock stayed off; no paid drafting or
+selection invocation was made and the existing spending ledger was not reset.
+
+Initial foundation checks:
+
+- `.venv/bin/pytest tests/unit/test_companion_auth.py tests/unit/test_companion_api.py tests/unit/test_pipeline.py tests/unit/test_constitution.py tests/unit/test_executor.py --no-cov --tb=short -q`: **152 passed** before the later delivery/scenario changes.
+- Companion credential, activation/rollback, unlock/relock and migration round-trip integration checks: **4 passed in 8.70s** through migration 0017. The credential/push integration files were subsequently renamed with `_database` suffixes to avoid pytest's duplicate-module-name collection error.
+- Controlled push delivery/retry checks: **2 passed in 4.64s**; success sends once, provider failure stops at three attempts, subscription material stays encrypted and out of audit payloads.
+- Initial full service-free run: **1457 passed, 8 failed**. Two native conformance failures exposed Python treating reserved governance condition failures as approvable asks, while native policy denied them; the shared evaluator now makes these terminal. Four risk-catalog assertions needed the four reserved classes. Two loopback WebSocket tests were denied by the execution sandbox; their rerun used loopback permissions.
+- After those fixes, `.venv/bin/pytest tests/cedar_conformance/test_local.py tests/unit/test_risk.py tests/unit/test_companion_drafting.py --no-cov --tb=short -q`: **477 passed in 85.73s**.
+- `HIRZ_LLM=off .venv/bin/pytest -m integration --cov=hirz --cov-append --tb=short -q`: **157 passed, 1467 deselected in 295.85s**, combined coverage **89%** for that run. Its retained console log is `/private/tmp/hirz-item28-integration.log`; subsequent changes require later verification.
+- Isolated Twin controls/check-in plus updated push tests: **3 passed in 6.67s**. The check-in test asserts that simulated replies add no authenticated approval votes or APPROVED audit events.
+- Genuine software-authenticator vote followed by worker unlock/relock, plus credential revocation between vote and dispatch: **2 passed in 5.10s**. The revoked-credential case leaves the twin locked.
+- Subsequent full service-free run with loopback permissions: `HIRZ_LLM=off .venv/bin/pytest --tb=short -q`: **1466 passed, 161 deselected in 235.35s**. Service-free coverage alone is **74%**; the required integration append must follow the final service-free run. Console log: `/private/tmp/hirz-item28-unit.log`.
+
+Browser evidence so far:
+
+- The in-app browser connection returned no available browser. Repository Playwright tests were run with the installed Chromium and a real virtual WebAuthn authenticator against the disposable FastAPI server. Only HTTPS transport was routed to loopback; registration/assertion signatures, cookies, CSRF, native policy and database mutations were real.
+- `HIRZ_LLM=off HIRZ_DOGWOOD=$PWD/.tools/dogwood .venv/bin/python -m scripts.companion_demo --origin https://hirz.example.test --port 8002 --artifacts-dir secrets/item28-browser-20260925-d`, followed by `HIRZ_BROWSER_ARTIFACTS=$PWD/secrets/item28-browser-20260925-d pnpm --filter web test:browser`: **1 passed in 6.9s**. This run registered a passkey, activated seed v7, reviewed a recorded manual YAML edit, activated v8 with a fresh assertion, exported audit, signed out and signed in. It is not evidence for the subsequently added recorded-English endpoint.
+- Retained private artifacts: `secrets/item28-browser-20260925-d/`. Rule-review screenshots at 390px light/dark and audit screenshots at 390px/1440px light/dark were produced. The reviewed rule image exposed a duplicate caveat, subsequently removed. These are interim screenshots, not the complete three-screen acceptance gate.
+- Graceful shutdown retained `536fa8ee-854e-56ca-8c5d-5ba418e710a0/audit.json` and `public-key.pem`; independent offline verification returned **valid, 8 rows**, fingerprint `385589f309b374189ea1b391f4a3ad193f3674cf7fb6e72e1a97caf76e21912b`. Parents export was empty. The disposable database was dropped.
+- Earlier browser attempts failed on missing explicit Dogwood configuration, an ambiguous test locator, and a duplicate YAML key in the recorded edit. These were fixed. Earlier failed disposable databases were retained; no reset of development data was used.
+- Uvicorn re-raises its shutdown signal, which initially cancelled audit-export cleanup. The demo process now installs outer shutdown handlers so its final export/drop can finish; the successful `d` run exercised that shutdown.
+- Expanded browser unlock testing found a current-time fixture observation rejected by Registry validation before an approval could be created. This remains under investigation; it is not a pass for the browser unlock gate.
+
+Private HTTPS was configured with the actual Tailscale hostname supplied by the
+author. The author enabled Serve, and HTTPS `/health` returned `{"status":"ok"}`.
+Real iPhone enrollment, notification reception and authenticated approval remain
+pending author/device evidence. The disposable iPhone process retains its private
+invitations under `secrets/item28-iphone-20260925-a/`.
+
+Outstanding acceptance includes final browser flows and three-screen visual/
+keyboard review, iPhone push/approval, final combined coverage and packaging,
+authenticated MCP conformance/isolation, runtime propagation with running processes,
+required CI latency gates, and the remaining adversarial lifecycle cases. No live
+Bedrock, real contact delivery, physical lock, AWS analysis, Link or remote signer
+claim is earned by these local results. Threat-model completion claims are unchanged.
+
+
+### Item 28 follow-up: running clock and the physical iPhone — 2026-09-25
+
+The author reports Home Screen installation and successful credential enrollment,
+with the recovery code saved, on **iOS 15.7.9**. Initial activation returned
+`this request has been cancelled by the user` immediately, without a device prompt;
+notifications reported `push is unavailable here. Your approval inbox remains usable`.
+The author has no iOS 16.4-or-later iPhone available and cannot update this device.
+Real iPhone Web Push therefore remains **unverified and currently blocked by the
+available OS**, not passed. Apple requires iOS 16.4 or later for Home Screen Web
+Push. A fresh-tap legacy WebAuthn path is under verification; the enrollment,
+recovery state and database were preserved during the server restart.
+
+The live private server was resumed from `secrets/item28-iphone-20260925-a/runtime.json`
+into `secrets/item28-iphone-20260925-b/` without reseeding or new invitations. Before
+recording restart metadata, a read-only check matched the original invitation digest
+and confirmed zero device lifecycles and zero twin checkpoints. No credentials,
+recovery code or signed rows were replaced. The development database is unchanged.
+
+Chromium run `secrets/item28-browser-20260925-k/` passed the expanded real-server
+WebAuthn flow (**1 passed, 1.4 minutes**): registration, initial v7 activation,
+fresh assertion, twin unlock, observed relock, recorded English patch review,
+v8 activation, signed export and subsequent login. Clean shutdown independently
+verified **343 signed home rows**, fingerprint
+`385589f309b374189ea1b391f4a3ad193f3674cf7fb6e72e1a97caf76e21912b`, plus an empty
+parents chain. Screenshots are private in the same directory. The background
+worker later failed when the household policy version changed; this run does not
+establish runtime propagation. The twin factory incorrectly compared mutable
+policy version/pause fields as physical household identity; a targeted fix retains
+all immutable household comparisons and cross-household rejection.
+
+Earlier runs f–j exposed clock drift between wall time and the twin, an exact
+comparison of two moving doorbell-event timestamps, and a lock read-back panel
+that disappeared after the visitor-context expiry. Shared clock validation,
+one-sample interactive events, and independent fresh lock observations address
+those defects; future-observation checks remain strict. Run l exercised the legacy
+fresh-tap UI successfully through unlock, then failed the running-clock relock:
+`Execution claim refused; no dispatch authorized`. Its **288 signed rows** and
+database were retained. The ending and its audit row sampled different times;
+the correction captures one timestamp, with a moving-clock integration regression.
+This failed run is not relock evidence.
+
+Additional checks: updated credential/pending-policy integration checks **3 passed
+in 7.55s**; validated-key push retry checks **2 passed in 4.55s**; the new interactive
+clock/key checks **4 passed in 1.08s**. Workspace Vitest now collects only source
+tests, avoiding accidental Playwright collection, and passes **5 tests** across
+the two apps. Packaging/CI now build both browser bundles. Final regressions,
+remaining adversarial cases, full screenshot review, physical assertion/approval,
+authenticated MCP propagation and CI gates remain outstanding; item 28 is incomplete.
+
+### Item 28 follow-up: activation race, browser checks and regression — 2026-09-25
+
+The author confirmed that the legacy fresh-tap path opened the device password
+prompt and activated **version 7, dogwood-local** on the iPhone. The subsequent
+unlock attempt appeared to do nothing, followed by a white screen. HTTPS returned
+502: the disposable server had stopped after its worker recorded a stale-v7
+observation refusal concurrently with v8 activation. The fail-closed decision was
+correct; treating that ordinary policy-change race as fatal was not. The shared
+observation ingestion path now retains the denial, reloads validated policy
+artifacts and makes one fresh authorized request when the fingerprint changed.
+A same-policy denial remains fatal. The existing physical account was resumed in
+`secrets/item28-iphone-20260925-d/`; HTTPS health returned `{"status":"ok"}`.
+No credential or recovery state was reset. The preceding `c` export independently
+verified **485 signed home rows** with the fingerprint recorded above.
+
+Verification in this follow-up:
+
+- Service-free suite: `HIRZ_LLM=off .venv/bin/pytest` (output retained at
+  `/private/tmp/hirz-item28-unit-final.log`): **1469 passed, 164 deselected,
+  2 warnings, 256.69s**. PostgreSQL append run (same environment,
+  `pytest -m integration --cov=hirz --cov-append`, output at
+  `/private/tmp/hirz-item28-integration-final.log`): **162 passed,
+  1471 deselected, 2 warnings, 320.84s**, **90% combined coverage**
+  (13,826 statements, 1,331 missed). Later edits below received targeted reruns;
+  these full-suite counts do not claim coverage of subsequent changes.
+- Bounded-unlock cases: **4 passed**; the new activation-race case initially
+  failed its audit-tail expectation because the authorized observation also
+  appends a twin checkpoint. After correcting that expectation, the race test
+  passed (**1 passed, 4 deselected, 3.39s**), checking v7 refusal, v8 reload,
+  authorized ingestion and checkpoint retention.
+- Contact removal: **1 passed, 9 deselected, 4.62s**; owner credential governance
+  removes current contact/channel records and a late simulated reply cannot
+  replace the `no_answer` contact-removed explanation.
+- Push: **3 passed, 7.46s**, no network; success, three controlled failures,
+  and expiry after one failed attempt. Expired/exhausted pending jobs now settle
+  to failed, and recipient eligibility is rechecked before dispatch.
+- Browser run `secrets/item28-browser-20260925-p/`: **1 passed, 1.5 minutes**,
+  using Chromium's virtual authenticator with actual server signature verification
+  and the legacy fresh-tap UI. Covers registration, initial v7 activation,
+  form/YAML value preservation, keyboard skip-link focus, twin unlock and observed
+  relock, recorded English v8 review/activation, signed export, simulated check-in
+  reply, logout and login. Run `o` failed a keyboard test that pressed Tab before
+  signed-in navigation mounted; waiting for navigation resolved that test timing.
+  No physical notification reception is inferred from Chromium results.
+- Run `p` clean shutdown independently verified **438 signed home rows** and an
+  empty parents chain, then dropped only its disposable database. Screenshots
+  include all three phone screens and Audit at 390×844/1440×900 in light/dark.
+  Rule-review phone light, unlock phone dark, check-in phone light and desktop
+  rule-review dark were visually inspected; spacing and complete contrast review
+  still need finishing. The phone-width overflow assertions pass.
+
+Real iPhone unlock/relock confirmation is pending the author's retry. Web Push
+remains blocked on the available iOS 15.7.9 device. Authenticated MCP proposal/
+activation propagation, final UI review, remaining adversarial cases and required
+CI gates remain owed. Item 28 is **incomplete**; Bedrock remained off, spending
+ledger untouched, development schema unchanged, and no new threat-model claim
+was made.
+
+### Item 28 follow-up: pending approvals, MCP and retained exports — 2026-09-25
+
+Authenticated regression command:
+`HIRZ_LLM=off HIRZ_DOGWOOD="$PWD/.tools/dogwood" PATH=/opt/homebrew/opt/node@24/bin:$PATH .venv/bin/python scripts/smoke_household_tools.py --audit-output secrets/item28-mcp-20260925-a.json --conformance-cli ../addon-check/dist/cli.js`.
+It passed the twelve-tool OAuth/SDK flow, worker/MCP restarts, scope refusal and
+independent conformance: **117 PASS, 0 FAIL, 0 WARN, 0 SKIP, 8 MANUAL**,
+`complete: true`, no missing evidence. The smoke independently verified **611
+signed rows** and dropped its disposable database. These are explicitly historical
+scenario fixtures; they do not by themselves verify live companion activation.
+
+The targeted command over `test_companion_unlock.py`, `test_companion_policy.py`,
+`test_companion_push_database.py` and `test_companion_twin_database.py`, with
+`-m integration --cov=hirz --cov-append --tb=short -q`, passed **12 tests in
+40.48s**. Combined coverage reached **91%** (13,833 statements, 1,286 missed).
+New coverage includes an unaffected pending security approval reissued under a
+new policy without extending its deadline, its successful subsequent unlock/
+relock, and a moving-clock unlock restored from a checkpoint after pause before
+its authorized relock. Two initial unrelated-policy test candidates were rejected
+by the existing tightening-only schema; the valid case changes HVAC approval TTL.
+A running `HouseholdRuntime` test also checks linked Alexa proposal persistence,
+queued/activated lifecycle, Alexa activation refusal, initial policy gating and
+subsequent decisions using v7 then v8 without reconstructing the runtime. This
+is an in-process runtime test, not the still-owed combined HTTP/browser voice flow.
+
+Browser run `q` passed **1 test in 1.5 minutes**, additionally submitting a proposal
+with drafting off, displaying its linked author and app surface, and activating
+its linked recorded candidate. All six portrait screenshots (three screens, both
+themes) were reviewed with corrected panel padding. Some desktop dark captures
+contained incomplete paint immediately after theme switching; those captures are
+not accepted visual evidence. The next capture run disables transitions through
+reduced-motion support and waits for two animation frames before capture.
+
+Run `q` shutdown exposed an audit-export dependency on the already-stopped native
+policy helper (`Native helper unavailable; no authorization`). The database was
+retained. Read-only export now uses the shared `hirz.audit.retain_export` helper,
+with no policy compilation or mutation. Independent recovery under
+`secrets/item28-browser-20260925-q-recovered/` verified **616 signed home rows**
+and an empty parents chain, using the original fingerprint above. Run `r` was
+stopped before browser work; it had loaded the old cleanup code and reproduced
+that shutdown failure. Neither failed shutdown discarded its database. A separate
+CLI verification of run `p` again reported **valid, 438 rows** against the trusted
+fingerprint.
+
+Workspace lint/types and all **5 Vitest tests** passed. Ruff and strict mypy passed
+(**174 source files**). `uv build` produced the wheel and sdist with both browser
+bundles. `docker build --target cards --tag hirz-item28-browser-build .` passed;
+`.dockerignore` now includes web sources and explicit scenario/deployment resources.
+Only the browser build stage was executed in that Docker check. Audit pagination
+and always-available proposal submission were added; English drafting remains off.
+No live provider or paid model call was made.
+
+### Item 28 latest retained state — 2026-09-25
+
+The final targeted service-free companion run passed **9 tests, 2 deprecation
+warnings, 2.36s**; Ruff and mypy again passed (174 source files), and the wheel/
+sdist rebuilt successfully. Browser run `s` passed **1 test, 1.5 minutes**,
+including the proposal inbox, real server WebAuthn verification, unlock/relock,
+recorded activation and simulated check-in. Reduced-motion mode and two repaint
+frames did **not** resolve missing image/button paint in the desktop dark screenshot;
+that visual gate remains unverified. Portrait captures are readable with action
+buttons in bounds. No full UI acceptance is claimed from DOM assertions alone.
+
+Without stopping the iPhone server, a read-only export in
+`secrets/item28-iphone-20260925-live-export/` independently verified **3,845 signed
+home rows** and an empty parents chain, against the same retained fingerprint.
+There are two activation events and no approved/verified device action in that
+physical test at the time of export. The author confirmed registration and initial
+activation; physical phone unlock/relock remains pending. The private server is
+still running on port 8002 with the preserved account/database and exact Tailscale
+origin. No development migration, paid model call or spending-ledger change occurred.
+
+Remaining closure evidence includes compatible-iPhone Web Push (unavailable on the
+provided iOS 15.7.9 device), physical approval/relock, complete visual/keyboard/
+contrast review (including the desktop dark rendering issue), the combined
+HTTP-authenticated voice-proposal-to-browser activation flow with running workers,
+remaining adversarial acceptance cases and CI latency runs for these changes.
+The final CI gate has not been run or linked. Item 28 remains incomplete.
+
+Run `s` exercised the corrected shutdown export successfully: **672 signed home
+rows verified**, empty parents chain, original fingerprint retained. Its disposable
+database was dropped after verification. This resolves the export's dependency on
+a stopped authorization helper; it does not resolve the desktop dark capture issue.
+Final `ruff format --check .`: **275 files already formatted**.
+
+### Item 28 phone follow-up: finding the approval card — 2026-09-25
+
+The author reported the doorbell button returning “Unlocking requires approval in
+your Hirz phone app.” A read-only inspection confirmed the new approval was
+pending: the generic tool response was accurate, but unhelpful inside that same
+phone app, and the card appeared below the notification/demo/read-back panels.
+The companion now gives an in-page review instruction and scrolls/focuses the
+specific new approval card once polling returns it. This changes navigation only;
+creation, eligibility, passkey confirmation and worker authorization are unchanged.
+Web eslint, strict TypeScript checks and production build passed. The browser
+regression now asserts focus on the newly created approval card.
+
+Browser run `secrets/item28-browser-20260925-t/`: **1 passed, 1.5 minutes**,
+including the new approval-card focus assertion and passkey unlock/verified relock.
+The physical iPhone result remains pending; this is Chromium virtual-authenticator
+evidence. The iPhone server/account stayed running throughout this isolated test.
+Run `t` shutdown independently verified **519 signed home rows** and an empty
+parents chain before dropping its disposable database. Final format check passed:
+**275 files already formatted**.
+
+### Item 28 physical iPhone approval and bounded twin relock — 2026-09-25
+
+The author reports **“it works”** after the in-page approval navigation fix on the
+same iOS 15.7.9 Home Screen app. Read-only inspection of the preserved iPhone
+account's database confirms **two verified twin unlock actions and their two
+verified locked endings**. The latest passkey approval is recorded at
+`2026-09-26T02:38:18.136661Z`; unlock read-back is `VERIFIED` at audit sequence
+**6115**, `02:38:19.547157Z`, and locked ending read-back is `VERIFIED` at sequence
+**6377**, `02:39:19.614902Z`—about one minute later. Both device states are labeled
+twin; this is real iPhone authentication with simulated device execution, not a
+physical lock or push notification test.
+
+A read-only export while the phone app remained running independently verified
+**6,651 signed home rows**, plus an empty parents chain, under
+`secrets/item28-iphone-20260925-unlock-confirmed/`, against trusted fingerprint
+`385589f309b374189ea1b391f4a3ad193f3674cf7fb6e72e1a97caf76e21912b`.
+The physical-phone approval → twin unlock → verified bounded relock gate now has
+both author confirmation and signed audit evidence. No enrollment reset, device
+state substitution, direct device write, development migration or model call was
+used to obtain this result.
+
+Item 28 is still incomplete: compatible-device iPhone Web Push, complete visual/
+keyboard/contrast acceptance, combined authenticated voice/browser propagation,
+remaining adversarial cases and CI gates remain outstanding as detailed above.
+
+### Item 28 local acceptance matrix and combined browser flow — 2026-09-25
+
+The previously generic "remaining UI/security checks" now have explicit evidence.
+Item 28 remains **incomplete** pending compatible-iPhone push reception and the
+required CI runs; the actual iPhone passkey/unlock/relock evidence above stands.
+No Bedrock calls, ledger reset, physical device actions or development migration.
+Read-only confirmation: development `alembic_version = 0005_execution_attempt`.
+
+New security checks use native Dogwood and disposable PostgreSQL: authenticated
+cross-household HTTP reads cannot select another household; foreign review,
+activation, credential-revocation and re-invitation IDs are refused; a genuine
+foreign credential cannot complete another session's ceremony; failed ceremonies
+cannot replay; authenticated cookies do not bypass CSRF/exact-origin checks.
+Owner recovery cannot use re-invitation; nonowners cannot issue re-invitations;
+issuing a replacement invalidates the prior invitation; completing it revokes
+old sessions and recovery grants. A session kept active every 20 minutes still
+expires at exactly 12 hours. Phone approval checks cover expiry, altered action
+hash, a newer doorbell press, revoked credentials before approval, recovery and
+expiry between approval and dispatch, duplicate votes, all-adult quorum, and
+approval redemption replay. The moving-clock relock test also activates a new
+security rule before pause/restart and proves the pre-authorized ending survives.
+A running executor reloads v8 and records DENY_CONSTITUTION/held for work queued
+under v7. A populated disposable 0005 database upgrades to head with unchanged
+unactivated v7/YAML and existing assets defaulting to unmanaged; invalid policy
+statuses/artifact combinations are refused.
+
+Commands (Node 24, Python 3.12, `HIRZ_LLM=off`, native `.tools/dogwood`):
+
+```sh
+.venv/bin/pytest --tb=short
+.venv/bin/pytest tests/unit/test_scenario_execution.py --cov=hirz --cov-append --tb=short -q
+.venv/bin/pytest -m integration --cov=hirz --cov-append --tb=short
+.venv/bin/pytest tests/integration/test_companion_policy.py tests/integration/test_companion_unlock.py tests/integration/test_companion_auth_database.py tests/integration/test_companion_http.py -m integration --cov=hirz --cov-append --tb=short -q
+.venv/bin/coverage report --fail-under=80
+.venv/bin/ruff check .
+.venv/bin/mypy hirz/ scripts/ alembic/
+pnpm -r lint
+pnpm -r typecheck
+pnpm -r test
+pnpm --filter web build
+uv build
+```
+
+The service-free run reported **1 failed, 1468 passed, 175 deselected, 2 warnings
+in 263.17s**: an old audit test patched `hirz.twin.execution.verify_database` after
+the export implementation had moved to `hirz.audit`. Correcting the patch target
+preserved its corruption rejection assertion; its entire module then passed
+**23 tests in 9.18s**. The full integration run reported **1 failed, 175 passed,
+1471 deselected, 2 warnings in 396.21s**: the new queued-action fixture tightened
+the general lights rule but initially left an invalid looser guest override.
+The corrected valid fixture also asserts the actual executor status (`held`)
+and the DENY_CONSTITUTION decision, rather than inventing a `denied` queue state.
+The final complete companion security selection passed **20 tests in 61.87s**,
+including the added populated-schema upgrade. Combined coverage is **91%**
+(13,834 statements, 1,189 missed). Ruff passed; mypy passed **175 source files**;
+workspace lint/types and **5 Vitest tests** passed. Both browser bundles build,
+and Python sdist/wheel build; wheel inspection confirms the companion index,
+manifest, service worker and icon are packaged. Final CI packaging checks now
+expect the actual **40** classes/situation groups and inspect the companion bundle.
+Private logs are `/private/tmp/hirz-item28-{unit-current,export-regression,integration-current,final-security,build-current}.log`.
+
+Combined flow, now also wired into CI's Python integration job:
+
+```sh
+HIRZ_LLM=off HIRZ_DOGWOOD="$PWD/.tools/dogwood" .venv/bin/python -m scripts.smoke_companion --artifacts-dir secrets/item28-combined-20260925-c
+```
+
+**1 Playwright test passed (1.8m)** through real loopback OAuth/PKCE, authenticated
+MCP, Chromium WebAuthn signatures and a separately running companion/worker.
+An unactivated MCP household is refused; v7 activates with a passkey; a phone
+approval unlocks the twin and the normal-clock worker verifies its one-minute
+relock. A recorded candidate that removes HVAC bounds/occupancy restrictions
+shows the unintended `never → auto` and `ask → auto` changes. Activation stays
+disabled until keyboard opening of the complete seven-line review. A real
+`propose_household_rule` MCP call appears as "From Malik via alexa · queued";
+a forged activation/passkey field is refused by the flat tool contract. The
+recorded English patch activates via the phone's fresh passkey, the proposal
+becomes activated, and the still-running MCP process reports v8. The audit has
+two CONSTITUTION_ACTIVATED rows. Simulated check-in, logout/login and export pass.
+
+The harness reuses existing OAuth/MCP process helpers; temporary MCP credentials
+are private files available only to the test runner, never page JavaScript.
+The production runtime still requires activation; historical smoke behavior
+remains an explicit isolated fixture. Browser run `a` failed only because the
+new assertion expected `ask → auto` where the actual bound was `never → auto`;
+`b` passed in 1.7m. Run `c` verifies the final mobile navigation (all six links
+visible), named passkey dialog, proposal/delivery polling, and waits for Audit
+content rather than accepting a loading screenshot. All owned test servers stop
+and their disposable databases drop after verified exports. The retained real
+phone enrollment remains untouched.
+
+**37 reviewed PNGs** in `secrets/item28-combined-20260925-c/phone/`: six pages ×
+390×844/1440×900 × light/dark, three specified phone screens × the same four
+combinations, and `unintended-loosening.png`. Automated checks cover native tab
+order/focus outlines on all pages, control names, image alternatives, actual text
+contrast including opacity, and no document horizontal overflow. The three
+special screens also pass contrast/name checks. The stored desktop dark PNGs
+render correctly when viewed individually; direct pixel verification resolved
+the misleading batched image display ([friction follow-up](./friction-log.md#follow-up-on-item-28-dark-captures--2026-09-25)).
+This is not a screen-reader or universal-device certification.
+
+Clean shutdown retained **419 valid signed home rows**, with an empty parents
+chain. Independent CLI verification of the retained `audit.json` under the
+previously trusted fingerprint
+`385589f309b374189ea1b391f4a3ad193f3674cf7fb6e72e1a97caf76e21912b`
+returned `status: valid`, `checked_count: 419`. Earlier runs `a`/`b` retained
+357/409 valid rows. Local anchoring remains explicitly absent. CI links and any
+further results will be appended below; no CI success is claimed here.

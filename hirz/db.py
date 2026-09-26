@@ -310,8 +310,12 @@ constitution_versions = sa.Table(
     sa.CheckConstraint("version > 0", name="constitution_version_positive"),
     sa.CheckConstraint("hash ~ '^[0-9a-f]{64}$'", name="constitution_hash_hex"),
     sa.CheckConstraint(
-        "status = 'unvalidated' AND compiled_cedar IS NULL AND activated_at IS NULL",
-        name="constitution_unvalidated_only",
+        "status IN ('unvalidated', 'active', 'superseded')",
+        name="constitution_status",
+    ),
+    sa.CheckConstraint(
+        "(status = 'unvalidated' AND compiled_cedar IS NULL AND activated_at IS NULL) OR (status IN ('active', 'superseded') AND compiled_cedar IS NOT NULL AND activated_at IS NOT NULL)",
+        name="constitution_artifacts",
     ),
 )
 households.append_constraint(
@@ -743,4 +747,171 @@ verification_cases = sa.Table(
     sa.ForeignKeyConstraint(
         ["household_id", "decision_seq"], ["audit_log.household_id", "audit_log.seq"]
     ),
+)
+
+# Companion authentication bookkeeping; private tokens are stored only as digests.
+member_passkeys = sa.Table(
+    "member_passkeys",
+    metadata,
+    sa.Column("credential_id", sa.Text, primary_key=True),
+    sa.Column("household_id", sa.UUID, nullable=False),
+    sa.Column("member_id", sa.UUID, nullable=False),
+    sa.Column("public_key", sa.LargeBinary, nullable=False),
+    sa.Column("sign_count", sa.BigInteger, nullable=False),
+    sa.Column("label", sa.Text, nullable=False),
+    sa.Column("added_at", sa.DateTime(timezone=True), nullable=False),
+    sa.Column("revoked_at", sa.DateTime(timezone=True)),
+    sa.ForeignKeyConstraint(
+        ["household_id", "member_id"], ["members.household_id", "members.id"]
+    ),
+    sa.CheckConstraint("sign_count >= 0", name="passkey_counter_nonnegative"),
+    sa.CheckConstraint("length(label) BETWEEN 1 AND 100", name="passkey_label_length"),
+)
+companion_enrollment = sa.Table(
+    "companion_enrollment",
+    metadata,
+    sa.Column("digest", sa.Text, primary_key=True),
+    sa.Column("household_id", sa.UUID, nullable=False),
+    sa.Column("member_id", sa.UUID, nullable=False),
+    sa.Column("kind", sa.Text, nullable=False),
+    sa.Column("expires_at", sa.DateTime(timezone=True)),
+    sa.Column("used_at", sa.DateTime(timezone=True)),
+    sa.ForeignKeyConstraint(
+        ["household_id", "member_id"], ["members.household_id", "members.id"]
+    ),
+    sa.CheckConstraint(
+        "kind IN ('invitation', 'recovery', 'reinvite')", name="enrollment_kind"
+    ),
+    sa.CheckConstraint(
+        "kind = 'recovery' OR expires_at IS NOT NULL", name="invitation_expiry"
+    ),
+)
+companion_sessions = sa.Table(
+    "companion_sessions",
+    metadata,
+    sa.Column("digest", sa.Text, primary_key=True),
+    sa.Column(
+        "credential_id",
+        sa.Text,
+        sa.ForeignKey("member_passkeys.credential_id"),
+        nullable=False,
+    ),
+    sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+    sa.Column("seen_at", sa.DateTime(timezone=True), nullable=False),
+)
+companion_ceremonies = sa.Table(
+    "companion_ceremonies",
+    metadata,
+    sa.Column("id", sa.Text, primary_key=True),
+    sa.Column("browser_digest", sa.Text, nullable=False),
+    sa.Column("session_digest", sa.Text),
+    sa.Column("kind", sa.Text, nullable=False),
+    sa.Column("challenge", sa.LargeBinary, nullable=False),
+    sa.Column("binding", JSONB, nullable=False),
+    sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
+    sa.Column("used_at", sa.DateTime(timezone=True)),
+    sa.CheckConstraint(
+        "kind IN ('register', 'login', 'confirm')", name="ceremony_kind"
+    ),
+)
+
+companion_drafts = sa.Table(
+    "companion_drafts",
+    metadata,
+    sa.Column("id", sa.Text, primary_key=True),
+    sa.Column("household_id", sa.UUID, nullable=False),
+    sa.Column("member_id", sa.UUID, nullable=False),
+    sa.Column("base_version", sa.Integer, nullable=False),
+    sa.Column("base_hash", sa.Text, nullable=False),
+    sa.Column("candidate", sa.Text, nullable=False),
+    sa.Column("candidate_hash", sa.Text, nullable=False),
+    sa.Column("sentence", sa.Text, nullable=False),
+    sa.Column("review", JSONB, nullable=False),
+    sa.Column("reviewed_session", sa.Text),
+    sa.Column("status", sa.Text, nullable=False, server_default="ready"),
+    sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+    sa.ForeignKeyConstraint(
+        ["household_id", "member_id"], ["members.household_id", "members.id"]
+    ),
+    sa.CheckConstraint(
+        "status IN ('ready', 'dismissed', 'activated')", name="draft_status"
+    ),
+)
+
+sa.Index(
+    "constitution_one_active",
+    constitution_versions.c.household_id,
+    unique=True,
+    postgresql_where=sa.text("status = 'active'"),
+)
+
+companion_push = sa.Table(
+    "companion_push",
+    metadata,
+    sa.Column("id", sa.Text, primary_key=True),
+    sa.Column("household_id", sa.UUID, nullable=False),
+    sa.Column("member_id", sa.UUID, nullable=False),
+    sa.Column("endpoint_hash", sa.Text, nullable=False),
+    sa.Column("ciphertext", sa.LargeBinary, nullable=False),
+    sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+    sa.Column("disabled_at", sa.DateTime(timezone=True)),
+    sa.ForeignKeyConstraint(
+        ["household_id", "member_id"], ["members.household_id", "members.id"]
+    ),
+    sa.UniqueConstraint("household_id", "endpoint_hash", name="push_endpoint_unique"),
+)
+companion_delivery = sa.Table(
+    "companion_delivery",
+    metadata,
+    sa.Column(
+        "subscription_id", sa.Text, sa.ForeignKey("companion_push.id"), primary_key=True
+    ),
+    sa.Column("reference", sa.Text, primary_key=True),
+    sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
+    sa.Column("next_attempt", sa.DateTime(timezone=True), nullable=False),
+    sa.Column("attempts", sa.Integer, nullable=False, server_default="0"),
+    sa.Column("status", sa.Text, nullable=False, server_default="pending"),
+    sa.CheckConstraint("attempts BETWEEN 0 AND 3", name="push_attempt_limit"),
+    sa.CheckConstraint(
+        "status IN ('pending', 'sending', 'sent', 'failed')",
+        name="push_delivery_status",
+    ),
+)
+
+rule_proposals.append_column(
+    sa.Column("status", sa.Text, nullable=False, server_default="queued")
+)
+rule_proposals.append_column(
+    sa.Column(
+        "draft_id",
+        sa.Text,
+        sa.ForeignKey("companion_drafts.id", name="proposal_draft_fk"),
+    )
+)
+rule_proposals.append_column(sa.Column("failure", sa.Text))
+rule_proposals.append_constraint(
+    sa.CheckConstraint(
+        "status IN ('queued','ready','failed','dismissed','activated')",
+        name="proposal_status",
+    )
+)
+
+companion_runs = sa.Table(
+    "companion_runs",
+    metadata,
+    sa.Column("id", sa.Text, primary_key=True),
+    sa.Column("household_id", sa.UUID, nullable=False),
+    sa.Column("member_id", sa.UUID, nullable=False),
+    sa.Column("principal", JSONB, nullable=False),
+    sa.Column("scenario", sa.Text, nullable=False),
+    sa.Column("controls", JSONB, nullable=False),
+    sa.Column("revision", sa.Integer, nullable=False),
+    sa.Column("published_revision", sa.Integer),
+    sa.Column("snapshot", JSONB),
+    sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+    sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
+    sa.ForeignKeyConstraint(
+        ["household_id", "member_id"], ["members.household_id", "members.id"]
+    ),
+    sa.CheckConstraint("revision > 0", name="run_revision_positive"),
 )

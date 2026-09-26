@@ -533,3 +533,30 @@ transactional persistence and replay semantics are specified in
 `MEMORY_PROPOSED`, `MEMORY_ACCEPTED` and `MEMORY_REJECTED` accompany the signed
 canonical grant Decision. Acceptance alone triggers automatic plan refresh;
 inherited plan consent still cannot bypass current device rules or approvals.
+
+
+## Item 28 lifecycle amendment — 2026-09-25
+
+[ADR-019](./adr/ADR-019-companion.md) specifies the companion's local activation
+contract. Stored policy versions are `unvalidated`, `active` or `superseded`;
+proposals and immutable reviewed candidates are separate records. First activation
+preserves the synthetic home v7/parents v1 versions. Subsequent activation and
+rollback create the next version. Ordinary authenticated runtime work requires an
+active policy; historical scenario verification is explicitly isolated.
+
+English drafting replaces complete action rules under `autonomy` only. Form and
+YAML editing cover the complete schema. The review shows deterministic situation
+changes and structural settings changes even if sampled decisions do not change.
+More than three summary lines require opening the complete review in the same
+session. Activation binds a fresh verified owner assertion to the exact candidate
+hash and current base version; stale candidates are rejected, and changed classes
+with pending approvals block activation. Unaffected approvals are reissued without
+extending their deadlines or transferring old votes. A policy pointer, compiled
+artifact and signed activation event commit atomically.
+
+Reserved governance classes cover constitution, credentials, contact removal and
+isolated Twin controls. Their typed operations are restricted in Python and native
+Dogwood; they cannot be loosened by household rules. AWS analysis remains
+unavailable. The UI reports `dogwood-local` and `not analyzed: local mode`; this is
+not AWS analysis success. [Current verification status](./verification-log.md#item-28--in-progress--2026-09-25)
+remains incomplete.

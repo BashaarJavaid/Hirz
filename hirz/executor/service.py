@@ -41,10 +41,12 @@ class Executor:
         world: TwinWorld | None = None,
         reload_policy: Callable[[], Awaitable[PolicyBundle]] | None = None,
         refresh_polls: bool = False,
+        freeze_twin_clock: bool = True,
     ):
         self.pipeline, self.registry, self.world = pipeline, registry, world
         self.reload_policy = reload_policy
         self.refresh_polls = refresh_polls
+        self.freeze_twin_clock = freeze_twin_clock
 
     async def read(self, action: Action) -> dict[str, Any]:
         if action.target.adapter == "twin":
@@ -77,9 +79,11 @@ class Executor:
             )
         if not locked:
             return ()
-        speed = self.world.clock._speed if self.world else None
+        speed = (
+            self.world.clock._speed if self.world and self.freeze_twin_clock else None
+        )
         try:
-            if self.world is not None:
+            if self.world is not None and speed is not None:
                 self.world.clock.set_speed(0)
             due_query = (
                 sa.select(db.actions)
@@ -323,12 +327,13 @@ class Executor:
                     ):
                         await twin.execute(p, self.world, action, decision)
                     # A simulated write is a new event instant for versioned observations.
-                    self.world.clock.jump(
-                        min(
-                            self.world.config.end,
-                            self.world.clock() + timedelta(microseconds=1),
+                    if self.freeze_twin_clock:
+                        self.world.clock.jump(
+                            min(
+                                self.world.config.end,
+                                self.world.clock() + timedelta(microseconds=1),
+                            )
                         )
-                    )
                 else:
                     adapter = self.registry.instances[("devices", "ha")]
                     assert isinstance(adapter, HomeAssistant)

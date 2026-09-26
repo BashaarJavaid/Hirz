@@ -65,3 +65,11 @@ governance.record_tool_request: {params: {}}
 governance.propose_rule: {params: {}}
 governance.request_plan: {params: {}}
 governance.record_verification: {params: {}}
+governance.credentials:
+  params: {operation: enroll, member_id: resident}
+governance.constitution:
+  params: {operation: draft}
+governance.contacts:
+  params: {operation: remove}
+governance.twin:
+  params: {operation: start}

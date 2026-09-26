@@ -1,7 +1,6 @@
 """Disposable internal scripted host over the ordinary local services."""
 
 import math
-import os
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -13,11 +12,7 @@ import sqlalchemy as sa
 
 from hirz import db
 from hirz.audit import (
-    export_document,
-    fingerprint,
-    public_pem,
-    verify_database,
-    verify_file,
+    retain_export,
     write_export,
 )
 from hirz.constitution.boundary import Dogwood
@@ -568,27 +563,9 @@ async def overnight_checks(
 
 
 async def retain_audit(p: Pipeline, folder: Path) -> tuple[dict[str, Any], list[Any]]:
-    summary, rows = await verify_database(
-        p.connection, p.household_id, p.audit.key.public_key(), collect=True
+    return await retain_export(
+        p.connection, p.household_id, p.audit.key.public_key(), folder
     )
-    write_export(
-        folder / "audit.json",
-        export_document(p.household_id, p.audit.key.public_key(), rows),
-    )
-    fd = os.open(folder / "public-key.pem", os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
-    with os.fdopen(fd, "w") as keyfile:
-        keyfile.write(public_pem(p.audit.key.public_key()))
-    verified = verify_file(
-        folder / "audit.json",
-        p.household_id,
-        trusted_fingerprint=fingerprint(p.audit.key.public_key()),
-    )
-    if summary["status"] != verified["status"] or verified["status"] not in {
-        "valid",
-        "empty",
-    }:
-        raise ValueError("Signed audit verification failed")
-    return verified, rows
 
 
 async def run_execution(
