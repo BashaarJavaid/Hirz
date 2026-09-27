@@ -41,6 +41,7 @@ def relay(clients: dict[str, Client]) -> Starlette:
             "Access-Control-Allow-Origin": "http://localhost:8080",
             "Vary": "Origin",
             "Cache-Control": "no-store",
+            "Access-Control-Expose-Headers": "mcp-session-id",
         }
         if (
             request.headers.get("origin") != "http://localhost:8080"
@@ -50,12 +51,12 @@ def relay(clients: dict[str, Client]) -> Starlette:
         if request.method == "OPTIONS":
             headers.update(
                 {
-                    "Access-Control-Allow-Methods": "POST",
+                    "Access-Control-Allow-Methods": "POST, DELETE",
                     "Access-Control-Allow-Headers": "content-type, mcp-protocol-version, accept, mcp-session-id",
                 }
             )
             return Response(status_code=204, headers=headers)
-        if request.method != "POST":
+        if request.method not in {"POST", "DELETE"}:
             return Response(status_code=405, headers=headers)
         client = clients.get(request.path_params["household"])
         if client is None:
@@ -64,24 +65,38 @@ def relay(clients: dict[str, Client]) -> Starlette:
         if len(body) > 1_048_576:
             return Response(status_code=413, headers=headers)
         client.tick()
-        upstream = await client.http.post(
+        upstream = await client.http.request(
+            request.method,
             client.url,
             content=body,
             headers={
                 "Content-Type": "application/json",
                 "Accept": "application/json, text/event-stream",
                 "MCP-Protocol-Version": client.protocol_version,
+                **(
+                    {"MCP-Session-Id": request.headers["mcp-session-id"]}
+                    if "mcp-session-id" in request.headers
+                    else {}
+                ),
             },
         )
+        if "mcp-session-id" in upstream.headers:
+            headers["MCP-Session-Id"] = upstream.headers["mcp-session-id"]
         return Response(
             upstream.content,
             status_code=upstream.status_code,
-            media_type="application/json",
+            media_type=upstream.headers.get("content-type", "application/json"),
             headers=headers,
         )
 
     return Starlette(
-        routes=[Route("/{household}/mcp", forward, methods=["POST", "OPTIONS", "GET"])]
+        routes=[
+            Route(
+                "/{household}/mcp",
+                forward,
+                methods=["POST", "OPTIONS", "GET", "DELETE"],
+            )
+        ]
     )
 
 

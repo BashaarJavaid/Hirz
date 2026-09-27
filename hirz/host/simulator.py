@@ -578,7 +578,7 @@ class Simulator:
                                 kind="speech",
                                 text="Scripted mode supports the recorded scenario utterances. Choose one to continue."
                                 if model == "scripted"
-                                else "No tool request was submitted. Please clarify your request.",
+                                else "No tool request was submitted. Please clarify your request or explicitly choose Scripted mode.",
                             )
                         if len(calls) > 8:
                             raise ValueError("Eight tool calls per utterance")

@@ -193,7 +193,10 @@ test("simulator linking, real enrollment, cards, Dot, switching and both themes"
     const transcript = await page.evaluate(async () => (await fetch("/api/simulator/transcript")).json());
     await writeFile(`${artifacts}/scenario-transcript.json`, JSON.stringify(transcript, null, 2), { mode: 0o600 });
     if (scenario === "parents-scam-check") expect(transcript.some((e: { result?: { structuredContent?: { data?: { case?: { verification?: { status?: string } } } } } }) => e.result?.structuredContent?.data?.case?.verification?.status === "not_genuine")).toBe(true);
-    if (process.env.HIRZ_SIMULATOR_DISPLAY !== "dot") await expect(page.frameLocator('iframe[title="Hirz MCP App card"]').getByText("simulated", { exact: false }).first()).toBeVisible();
+    if (process.env.HIRZ_SIMULATOR_DISPLAY !== "dot") {
+      await page.locator('iframe[title="Hirz MCP App card"]').scrollIntoViewIfNeeded();
+      await expect(page.frameLocator('iframe[title="Hirz MCP App card"]').getByText("simulated", { exact: false }).first()).toBeVisible();
+    }
     await page.screenshot({ path: `${artifacts}/scenario-${scenario}-${process.env.HIRZ_SIMULATOR_DISPLAY ?? "show"}.png`, fullPage: true });
     return;
   }
@@ -206,6 +209,7 @@ test("simulator linking, real enrollment, cards, Dot, switching and both themes"
   await expect(page.locator('iframe[title="Hirz MCP App card"]')).toHaveCount(1);
   await expect(page.frameLocator('iframe[title="Hirz MCP App card"]').getByText("simulated", { exact: false }).first()).toBeVisible();
   await expect(page.frameLocator('iframe[title="Hirz MCP App card"]').getByText("Waiting for household information")).toHaveCount(0);
+  await page.locator('iframe[title="Hirz MCP App card"]').scrollIntoViewIfNeeded();
   await accessibility(page, false);
   await page.screenshot({ path: `${artifacts}/simulator-dark.png`, fullPage: true });
   await page.getByRole("combobox", { name: "Theme", exact: true }).selectOption("light");

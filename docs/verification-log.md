@@ -9745,3 +9745,44 @@ login-start probe returned **200/login**, isolating this from the repaired rende
 problem. A prior-run credential is a suspected cause, not a verified server diagnosis.
 The author was directed to the existing current-run recovery flow, with its credential
 revocation effect explained. No credential bypass, reset or new invitation was issued.
+
+### Acceptance checkpoint and reference-host regression — 2026-09-26
+
+The author confirmed **“Version 8 is active”** after the current proposal's real
+phone passkey activation. The expected-arrival phone approval and bounded twin
+relock remain pending; the manual launcher stays running so its eventual signed
+export can corroborate these reports without losing the enrolled credentials.
+
+Scripted evening Show final2 completed in **6.0 minutes**, retaining **4,940 signed
+rows**, one verified bounded unlock/relock, one dishwasher completion and EV SOC
+**0.4999999999747853 at 06:30**. Its full-page capture was blank in the off-screen
+iframe despite a successful DOM visibility assertion; that capture is not accepted
+as visual evidence. The browser harness now scrolls the iframe into view before
+capture. Default browser acceptance then passed **17.9s**, with its painted Show
+card visually reviewed; a complete evening capture rerun is pending. An initial
+bridge-reconnection diagnosis was withdrawn after confirming the callback already
+has stable identity; no speculative bridge change was made.
+
+Paid debugging stopped at **$4.3714836 reserved across 248 counted attempts** in
+the existing item 29 ledger. This is a reserved upper bound, not billed spend or
+cap exhaustion. Both Haiku parents cells pass; both evening cells remain failed
+because the model can stop without selecting a tool after valid clarification.
+The host now explicitly offers a user-selected Scripted mode when no tool was
+submitted. No automatic fallback or further paid retry was made. Nova's four
+cells remain blocked by native CountTokens support. All four scripted scenario
+cells have completed authenticated execution; the repaired final evening Show
+capture is tracked separately. Source-file deferred assertions remain deferred.
+
+CI [36288404300](https://github.com/BashaarJavaid/Hirz/actions/runs/36288404300)
+failed the existing reference-host browser step: `Expected: "get_household_context"`,
+`Timeout: 15000ms`, `Error: element(s) not found`. The test-only OAuth relay still
+discarded MCP session headers and mislabeled SSE as JSON after the authenticated
+server became stateful. It now forwards/exposes the browser's session identifier,
+preserves the upstream media type and permits DELETE cleanup. It never shares
+the fixture client's SDK session or exposes its OAuth credential. The unchanged
+real reference-host test passed **3.0s**, with **404 independently verified signed
+rows** retained before disposable-database cleanup. The relay's optional GET
+stream continues to return 405, as permitted by the MCP transport contract.
+Latency jobs and the subsequent regression run have not yet completed at this
+checkpoint. Retained evidence is under `secrets/item29-20260926`; the development
+database remains unchanged.

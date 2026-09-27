@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-09-26: Preserve MCP session headers and SSE media types in the reference-host test relay; retain explicit model fallback and partial acceptance findings ([evidence](./docs/verification-log.md#acceptance-checkpoint-and-reference-host-regression--2026-09-26)).
+
 - 2026-09-26: Restore the previously verified iOS 15 companion after importing the MCP bridge by targeting Safari 15.4; make recorded requests focus their populated input ([evidence](./docs/verification-log.md#physical-acceptance-found-and-corrected-a-phone-regression--2026-09-26)).
 
 - 2026-09-26: Harden simulator compound selections, time clarification, cancellation receipts and scenario consent pauses; verify full evening twin end states and retain Nova’s fail-closed counting limitation ([ADR-020](./docs/adr/ADR-020-simulator.md), [evidence](./docs/verification-log.md#simulator-acceptance-continuation--2026-09-26)).
