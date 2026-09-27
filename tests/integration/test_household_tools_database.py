@@ -137,6 +137,54 @@ def test_profiles_queue_each_device_and_preserve_retry_and_preview_boundaries(
     asyncio.run(run())
 
 
+def test_blocked_plan_is_not_reported_as_loading_or_approvable(scratch_database):
+    from test_refresh_database import prepared
+
+    from hirz.executor.plans import get
+    from hirz.executor.refresh import job
+    from hirz.executor.refresh_worker import RefreshWorker
+
+    async def run():
+        async with connect(scratch_database) as connection:
+            p, world, registry, _, _, result, _ = await prepared(connection)
+            try:
+                worker = RefreshWorker(p, registry, world=world)
+                await worker.service.request(result.plan.plan_id, PRINCIPAL)
+                async with connection.begin():
+                    stored = await get(p, result.plan.plan_id)
+                    queued = await job(p, stored)
+                await worker.block(
+                    stored,
+                    queued["requested_generation"],
+                    PRINCIPAL,
+                    "The physical workload is infeasible.",
+                    transient=False,
+                )
+                tools = HouseholdTools(p, PRINCIPAL)
+                for name, args in (
+                    ("get_household_plan", {}),
+                    ("explain_plan", {}),
+                    (
+                        "approve_action",
+                        dict(
+                            plan_id=result.plan.plan_id,
+                            version=result.plan.version,
+                            approved=True,
+                            request_id="blocked-approval",
+                        ),
+                    ),
+                ):
+                    reply = await tools.call(name, args)
+                    assert reply.data.status == "unavailable", reply
+                    assert reply.data.code == "PLAN_BLOCKED"
+                    assert reply.data.plan is None
+                    assert_no_identifiers(reply.speakable)
+            finally:
+                await registry.close()
+
+    asyncio.run(run())
+
+
 def test_objective_change_is_durable_and_invalidates_exact_consent(scratch_database):
     from test_refresh_database import prepared
 

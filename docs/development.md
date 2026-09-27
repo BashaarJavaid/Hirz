@@ -1546,7 +1546,11 @@ OAuth linking. Do not recover repeatedly merely to move between browsers.
 Scenario controls require the matching companion household. Only the selected
 scenario advances; 1×, 60× and Next event pause at interaction beats. Complete the
 named Echo’s utterance, exact confirmations and any phone interaction before
-continuing. Read the updated plan before approving its returned version. At the
+continuing. Read the updated plan before approving its returned version. After
+`PLAN_CHANGED`, read the current plan and confirm it again; a rejected approval
+cannot complete the playback beat. `PLAN_BLOCKED` means the worker has stopped,
+so polling is not a recovery. Review the actual household requests and device
+state; a fresh scenario requires a launcher restart, not a clock rewind. At the
 parents’ reply beat choose an explicitly simulated answer, then ask again for the
 result. Recorded rule review requires its matching voice proposal and passkey
 activation. A fresh run requires restarting the launcher. Shutdown independently

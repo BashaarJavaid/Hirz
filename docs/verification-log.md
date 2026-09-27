@@ -9967,3 +9967,56 @@ The separate punctuation revision `d052c62` also completed
 It predates the dispatch repair and is not claimed as its regression gate. No new
 third-party friction was earned by this application bug; final formatting and
 synchronized instruction-file checks are run after this evidence update.
+
+### Blocked planning and stale approval regression — 2026-09-27
+
+The author reached event 19/21 in `manual2`, after real phone enrollment, seed
+activation and rule activation, and reported endless “The plan is still updating”
+speech/card refresh. Read-only inspection found a blocked refresh job, with the
+persisted reason “The physical workload is infeasible; no single member request
+was proven to resolve it.” The first plan had been approved, but its replacement
+had not: the subsequent approval receipt was `denied` / `PLAN_CHANGED`. Playback
+had counted that rejected call as completing the approval beat and advanced time.
+The current run is not claimed complete and has not been rewound, force-approved
+or given silently altered constraints. Its running process predates these fixes.
+
+The shared household plan path now distinguishes a blocked refresh from queued
+preparation across reads, explanations and approvals. The real PostgreSQL
+household-tool suite passed **11 tests in 28.02s**, including the new blocked-job
+regression for all three tool paths. Playback requires an affirmative approval
+with a canonical `execute` decision before completing the approval sentence.
+The browser regression submits the superseded version, verifies `PLAN_CHANGED`
+and Next-event HTTP 409, then reads and approves the genuine current plan.
+
+A read-only repeatable-read checkpoint of the author's actual manual run retained
+**13,677 independently verified signed rows** in
+`secrets/item29-20260927/manual2-checkpoint`. Phone-approved twin opening verified
+at **2026-10-14T00:05:00Z** and relock at **00:06:00Z**, before the **00:06:10Z**
+ending deadline. Together with the author's earlier Mac microphone/speaker and
+phone version-8 activation confirmations, this earns those manual gates; it does
+not earn full evening completion, physical-lock or AWS guarantees.
+
+The first fresh Show regression stopped at a later review with HTTP 409 after a
+valid action-approval vote; this failure is retained in
+`secrets/item29-20260927/stale-approval-browser`. The browser driver now reads the
+actual pending review again when another approval remains, rather than assuming
+every vote settles within 1.5 seconds. Other 409 responses still fail the test.
+Fresh Show/Dot outcomes and source CI are appended when available. No paid model
+calls or development-database migrations were made. No new third-party friction
+was earned: these were application and test-driver bugs.
+
+Both fresh scripted evening replays passed **21/21 events in 6.9 minutes each**:
+Show retained **5,035** signed rows (`stale-approval-show-final`), Dot **4,820**
+(`stale-approval-dot`), each with independent audit verification before disposable
+cleanup, one verified bounded unlock/relock, EV **SOC 0.5 at 06:30 local**, and
+one completed dishwasher cycle. Each explicitly tested rejected stale consent
+before accepting the current plan. Inline Show, resized fullscreen and Dot captures
+were reviewed. The source's deferred assertions remain deferred.
+
+The targeted MCP card browser check passed **1 test in 7.5s**: a preparation poll
+receives `PLAN_BLOCKED`, removes the preparation message and approval button,
+shows the blocked headline, and makes no further automatic polling calls. Targeted
+strict Python types, Ruff lint, web lint and web TypeScript checks passed; card
+TypeScript and final formatting checks follow this entry. The running manual
+session is preserved and still uses the earlier code; the repair applies on the
+next launcher run. Latest source CI/latency remains pending.

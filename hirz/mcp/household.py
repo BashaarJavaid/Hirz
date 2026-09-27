@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from hirz import db
 from hirz.executor.contracts import SUPPORTED, validate
 from hirz.executor.plans import PlanService, get, governance
-from hirz.executor.refresh import RefreshService, fresh
+from hirz.executor.refresh import RefreshService, fresh, job
 from hirz.executor.runtime import RuntimeInputs
 from hirz.explainer.core import (
     approved_figures,
@@ -347,11 +347,8 @@ class HouseholdTools:
                 raise Clarification(
                     "Choose the summary, conflicts, or an action or goal in this plan."
                 )
-            if plan.status == "refreshing" or not await fresh(p, stored):
-                return response(
-                    "The plan is still updating. Ask again when its replacement is ready.",
-                    status="preparing",
-                )
+            if waiting := await self.pending_plan(stored):
+                return waiting
             # Stored narration is already figure-checked; never call a provider here.
             if args.focus == "summary":
                 return Result.model_validate(
@@ -749,6 +746,28 @@ class HouseholdTools:
             update={"content_hash": action_hash(result)}
         ), principal
 
+    async def pending_plan(self, stored: dict[str, Any]) -> Result | None:
+        current = await job(self.p, stored)
+        if current and current["state"] == "blocked":
+            return response(
+                "The plan is blocked. It is not still loading.",
+                details=(
+                    "Review your household requests and device state before changing the plan.",
+                ),
+                status="unavailable",
+                code="PLAN_BLOCKED",
+                reference=stored["plan_id"],
+            )
+        if stored["document"]["status"] == "refreshing" or not await fresh(
+            self.p, stored
+        ):
+            return response(
+                "The plan is still updating. Ask again shortly.",
+                status="preparing",
+                reference=stored["plan_id"],
+            )
+        return None
+
     async def plan(self, args: PlanInput, snapshot: ContextSnapshot) -> Result:
         p = self.p
         stored = await self.current()
@@ -809,12 +828,8 @@ class HouseholdTools:
             )
             stored = await get(p, plan.plan_id)
             plan = Plan.model_validate(stored["document"])
-            if plan.status == "refreshing" or not await fresh(p, stored):
-                return response(
-                    "The plan is still updating. Ask again shortly.",
-                    status="preparing",
-                    reference=plan.plan_id,
-                )
+            if waiting := await self.pending_plan(stored):
+                return waiting
             pending_decisions = (
                 (
                     await p.connection.execute(
@@ -1130,14 +1145,17 @@ class HouseholdTools:
         if args.plan_id:
             stored = await get(p, args.plan_id)
             plan = Plan.model_validate(stored["document"])
-            if (
-                plan.version != args.version
-                or plan.status in {"superseded", "abandoned", "completed"}
-                or (
-                    args.approved
-                    and (plan.status == "refreshing" or not await fresh(p, stored))
-                )
-            ):
+            changed = plan.version != args.version or plan.status in {
+                "superseded",
+                "abandoned",
+                "completed",
+            }
+            if args.approved and not changed:
+                waiting = await self.pending_plan(stored)
+                if waiting and waiting.data.code == "PLAN_BLOCKED":
+                    return waiting
+                changed = waiting is not None
+            if changed:
                 return response(
                     "The plan is still updating or has changed. Review the current version before approving.",
                     status="denied",

@@ -99,7 +99,8 @@ test("simulator linking, real enrollment, cards, Dot, switching and both themes"
       return page.evaluate(async ({ scenario, operation, extra }) => {
         const session = await (await fetch("/api/auth/session")).json();
         const r = await fetch("/api/simulator/scenarios", { method: "POST", headers: { "Content-Type": "application/json", "X-Hirz-CSRF": session.csrf }, body: JSON.stringify({ scenario, operation, ...extra }) });
-        if (!r.ok) throw Error(`Scenario ${operation}: ${r.status}`); return r.json();
+        const result = await r.json();
+        if (!r.ok) throw Error(`Scenario ${operation}: ${r.status}: ${result.detail}`); return result;
       }, { scenario, operation, extra });
     }
     async function utterance(text: string) {
@@ -154,7 +155,12 @@ test("simulator linking, real enrollment, cards, Dot, switching and both themes"
     const total = scenario === "parents-scam-check" ? 5 : 21;
     for (let i = 0, turns = 0; i < total; turns++) {
       expect(turns).toBeLessThan(150);
-      const state = await control("next");
+      const state = await control("next").catch(async error => {
+        if (!String(error).includes("Review the current plan and respond to its pending request first")) throw error;
+        // Another device may need its own approval, or the previous vote may
+        // still be settling. Read the actual current review before responding.
+        return page.evaluate(async () => (await fetch("/api/simulator/scenarios")).json());
+      });
       const beat = state.scenarios[scenario].beat;
       console.log("Scenario event", state.scenarios[scenario].next, beat?.event ?? "world");
       i = state.scenarios[scenario].next;
@@ -166,6 +172,11 @@ test("simulator linking, real enrollment, cards, Dot, switching and both themes"
       }
       if (beat?.event === "voice") {
         if (scenario === "demo-evening") await echo(beat.member);
+        if (beat.text === "Do it." && !process.env.HIRZ_SIMULATOR_MODEL) {
+          const stale = await utterance(beat.text);
+          expect(stale.at(-1)?.result.structuredContent.data.code).toBe("PLAN_CHANGED");
+          await expect(control("next")).rejects.toThrow("Scenario next: 409");
+        }
         if (["Do it.", "Yes."].includes(beat.text)) {
           await expect.poll(async () => {
             const result = await utterance("What's going on tonight?");

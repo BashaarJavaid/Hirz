@@ -394,6 +394,21 @@ class Scenarios:
                                     and not e["result"].get("isError")
                                     and e["status"]
                                     not in {"clarification", "failed", "unavailable"}
+                                    and (
+                                        e["tool"] != "approve_action"
+                                        or (
+                                            e.get("arguments", {}).get("approved")
+                                            is True
+                                            and (
+                                                e["result"]
+                                                .get("structuredContent", {})
+                                                .get("data", {})
+                                                .get("decision")
+                                                or {}
+                                            ).get("decision")
+                                            == "execute"
+                                        )
+                                    )
                                 ]
                                 completed |= Counter(
                                     e["tool"] for e in results

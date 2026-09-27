@@ -38,6 +38,10 @@ There is no permanent learning. Tonight/overnight/tomorrow_morning end at the ne
 local 08:00; next_24h ends 24 hours after creation. Existing horizons stay fixed.
 
 Inputs reject unknown fields, irrelevant parameters and invalid combinations.
+Plan reads, explanations and approval return `unavailable` / `PLAN_BLOCKED` when
+the persisted refresh job is blocked; no stale Plan is supplied for approval.
+Only work still pending returns `preparing`. A `PLAN_CHANGED` approval rejection
+requires reviewing and confirming the current version again.
 Text is bounded to 2,000 characters, names/references to 200, request keys to 128.
 Each tool returns its own strict typed `speakable`/`data` envelope, with only the
 data fields that tool can return ([per-tool schemas](./adr/ADR-015-household-tools.md#per-tool-output-schemas--2026-09-24)). Speech has at most 20 headline words, two

@@ -239,6 +239,18 @@ test("preparation polling stops at thirty seconds with manual refresh", async ({
   expect(calls.length).toBe(stopped);
 });
 
+test("blocked planning stops preparation polling and displays the reason", async ({ page }) => {
+  const preparing = { speakable: { headline: "Preparing your plan.", details: [], options: [] }, data: { status: "preparing" } };
+  const blocked = { speakable: { headline: "The plan is blocked. It is not still loading.", details: ["Review your household requests and device state before changing the plan."], options: [] }, data: { status: "unavailable", code: "PLAN_BLOCKED" } };
+  const { frame, calls } = await mount(page, "plan", "light", () => blocked, preparing);
+  await expect(frame.getByRole("heading", { name: blocked.speakable.headline })).toBeVisible();
+  await expect(frame.getByText("Preparing your plan…")).toHaveCount(0);
+  await expect(frame.getByRole("button", { name: "Approve plan" })).toHaveCount(0);
+  const stopped = calls.length;
+  await advance(page, 3000);
+  expect(calls.length).toBe(stopped);
+});
+
 test("one outstanding poll pauses while hidden and stops on error", async ({ page }) => {
   let finish!: (value: unknown) => void;
   const response = new Promise(resolve => { finish = resolve; });

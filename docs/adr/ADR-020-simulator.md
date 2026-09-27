@@ -170,3 +170,17 @@ The approval card displays the service's canonical speakable headline for phone
 availability. A static “unavailable in this preview” statement was stale once the
 authenticated companion existed; the preview service still supplies its own honest
 unavailable message. Neither rendering path exposes a card approval for security.
+
+### Rejected consent and blocked planning amendment — 2026-09-27
+
+A recorded approval beat completes only after an affirmative `approve_action`
+returns the canonical `execute` decision. A stale-plan rejection is a completed
+tool call, but not consent to advance the scenario clock. The member must read
+the current plan and confirm its exact version again. Expected policy refusals
+for other scenario actions remain valid results.
+
+Plan reads, explanations and approval share the persisted refresh-job check.
+A blocked refresh returns `unavailable` / `PLAN_BLOCKED`, without a stale plan
+card or a promise that polling will finish it. Queued refreshes retain `preparing`.
+Force-approving the superseded plan, rewinding an already executed scenario, or
+changing household requirements to make a failed run appear complete were rejected.
