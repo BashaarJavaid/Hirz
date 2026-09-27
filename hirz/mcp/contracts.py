@@ -48,8 +48,8 @@ FIELD_DESCRIPTIONS = {
     "temperature_f": "Requested room temperature in degrees Fahrenheit; never guess a missing temperature.",
     "lower_f": "Lower temperature bound in degrees Fahrenheit; supply with upper_f for a temperature range.",
     "upper_f": "Upper temperature bound in degrees Fahrenheit; supply with lower_f for a temperature range.",
-    "at": "Explicit household-local AM/PM or 24-hour time; ambiguous dates or daylight-saving times need a date and UTC offset.",
-    "window_start": "Optional temporary constraint start, expressed as an explicit household-local time.",
+    "at": "Required time for charge_after, car_ready_by, appliance_after and appliance_ready_by. Explicit household-local AM/PM or 24-hour time; ambiguous dates or daylight-saving times need a date and UTC offset.",
+    "window_start": "Optional temporary constraint start. Omit to start now; supply only a user-requested explicit household-local time, never 'tonight'. This is not the appliance or charging earliest start; those use at.",
     "window_end": "Optional constraint ending. Otherwise ends with the current plan, or after 24 hours when no plan exists.",
     "constraint_id": "Returned reference of the exact constraint being replaced or removed.",
     "claimed_author": "Name claimed in the sentence; recorded as unverified and never used to grant authority.",
@@ -136,6 +136,14 @@ class PlanInput(Input):
         return self
 
 
+REVISION_VALUES = {
+    "car_target": {"percent"},
+    "car_limit": {"percent"},
+    "temperature": {"temperature_f"},
+    "temperature_range": {"lower_f", "upper_f"},
+}
+
+
 class RevisionInput(Input):
     text: Sentence
     applies_to: Reference
@@ -178,12 +186,7 @@ class RevisionInput(Input):
         required = (
             set()
             if self.operation == "remove"
-            else {
-                "car_target": {"percent"},
-                "car_limit": {"percent"},
-                "temperature": {"temperature_f"},
-                "temperature_range": {"lower_f", "upper_f"},
-            }.get(self.change, {"at"})
+            else REVISION_VALUES.get(self.change, {"at"})
         )
         supplied = {
             k

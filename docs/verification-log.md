@@ -9643,3 +9643,42 @@ no estimated count, substituted model or Nova inference was used. Exact third-pa
 friction and links are in the friction log. Physical Chrome voice/passkey acceptance,
 the remaining adversarial matrix, final regression and required CI latency gates
 still prevent item closure.
+
+### Simulator acceptance continuation — 2026-09-26
+
+Service-free regression completed **1,481 passed, 181 deselected in 225.46s**;
+combined coverage remained **89%** (14,730 statements, 1,570 missed). The focused
+scalar, coordinator/time and appliance regression subsequently passed **75 tests
+in 7.01s**, including disconnect failure and an actual pending browser prompt
+cancelled by account switching. Node 24 workspace lint/type checks and all five
+Vitest checks passed; strict mypy passed 182 files. Full final integration and CI
+are still running at this checkpoint.
+
+Scripted evening Dot5 passed the full browser run with clean disposable cleanup,
+**4,799 independently verified signed rows**, one verified bounded door opening
+and ending, one dishwasher completion and SOC **0.49999999994957056** at the
+06:30 deadline. Haiku parents Dot2 and Show5 both completed with **100 signed rows**
+each. These private runs and logs are retained under `secrets/item29-20260926`.
+Evening Show4 was rejected despite completed browser playback: its dishwasher
+was one microsecond short of completion. The bounded appliance precision change
+is documented in ADR-006 and checked across appliance profiles; Show is rerunning.
+
+Paid evening attempts remain incomplete. They exposed parallel selections exceeding
+512 tokens, uppercase AM/PM parsing, an output-detail overflow, ambiguous time-field
+selection and redundant model reference questions. Native single-tool selection,
+field-specific validation, bounded output details and explicit reference guidance
+address those findings; no failed cell is counted as passed. The aggregate ledger
+retains every counted attempt. Nova remains blocked before inference by its native
+CountTokens rejection.
+
+CI run [36286231502](https://github.com/BashaarJavaid/Hirz/actions/runs/36286231502)
+passed the Python test/coverage stages but the combined Python job failed when the
+simulator launcher found no explicitly initialized simulated OAuth key. The workflow
+now runs `scripts/dev_oauth.py init` before the launcher. Its isolated latency jobs
+are still running; this is not a passing CI claim. The local concurrent latency
+diagnostic was interrupted after evening rounds and is not accepted as a gate.
+
+The author enabled Tailscale for physical acceptance. A separate scripted manual
+launcher is running at the existing tailnet HTTPS origin, forwarding to loopback
+8012 with issuer 8013, and private invitations in `manual1`. Physical voice and
+passkey results remain pending; no human result is inferred from readiness.

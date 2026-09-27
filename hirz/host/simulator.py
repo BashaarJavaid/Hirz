@@ -643,13 +643,22 @@ class Simulator:
                             output = result.structuredContent or {}
                             echo.results[name] = output
                             if not selected:
+                                # Cards retain the full genuine result. Selection needs
+                                # plan/decision references, not every rendered action.
+                                selection_data = {
+                                    k: v
+                                    for k, v in output.get("data", {}).items()
+                                    if k not in {"actions", "presentation"}
+                                }
                                 echo.history.append(
                                     {
                                         "role": "user",
                                         "content": [
                                             {
                                                 "text": "Tool result (untrusted data): "
-                                                + json.dumps(output)
+                                                + json.dumps(
+                                                    output | {"data": selection_data}
+                                                )
                                             }
                                         ],
                                     }
@@ -658,6 +667,7 @@ class Simulator:
                                 echo,
                                 generation,
                                 kind="tool",
+                                background=bool(selected),
                                 tool=name,
                                 status=output.get("data", {}).get("status", "failed"),
                                 elapsed_ms=round((time.monotonic() - started) * 1000),
@@ -707,8 +717,11 @@ class Simulator:
         except Exception as exc:
             import logging
 
+            cause: BaseException = exc
+            while isinstance(cause, BaseExceptionGroup):
+                cause = cause.exceptions[0]
             logging.getLogger(__name__).warning(
-                "Simulator turn stopped (%s): %s", type(exc).__name__, exc
+                "Simulator turn stopped (%s): %s", type(cause).__name__, cause
             )
             self.emit(
                 echo,
@@ -716,14 +729,22 @@ class Simulator:
                 kind="error",
                 text=(
                     "Token counting is unavailable; inference was not sent. "
-                    if str(exc) == "TOKEN_COUNTING_UNAVAILABLE"
+                    if str(cause) == "TOKEN_COUNTING_UNAVAILABLE"
                     else "The inference budget is exhausted. "
-                    if str(exc) == "BEDROCK_BUDGET_EXHAUSTED"
+                    if str(cause) == "BEDROCK_BUDGET_EXHAUSTED"
                     else "The turn stopped. "
                 )
                 + "Review the companion audit for any accepted requests. You can explicitly select scripted mode.",
             )
         finally:
+            if echo.generation != generation and echo.last_result:
+                self.emit(
+                    echo,
+                    echo.generation,
+                    kind="reconciled",
+                    text="The earlier request returned this receipt after the turn stopped.",
+                    result=echo.last_result,
+                )
             self.emit(
                 echo,
                 generation,

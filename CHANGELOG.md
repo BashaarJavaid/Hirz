@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-09-26: Harden simulator compound selections, time clarification, cancellation receipts and scenario consent pauses; verify full evening twin end states and retain Nova’s fail-closed counting limitation ([ADR-020](./docs/adr/ADR-020-simulator.md), [evidence](./docs/verification-log.md#simulator-acceptance-continuation--2026-09-26)).
+
 - 2026-09-26: Add the local authenticated simulator, SDK-managed MCP sessions and scalar elicitation, reusable card bridge, independent Echo histories and bounded host inference; retain item 29 as partial pending its full acceptance matrix ([ADR-020](./docs/adr/ADR-020-simulator.md), [evidence](./docs/verification-log.md#item-29)).
 
 - 2026-09-25: Build the authenticated companion, fix portrait navigation, and pass UI, adversarial security, browser and CI acceptance; item 28 remains incomplete only for compatible-iPhone push reception and approval ([ADR-019](./docs/adr/ADR-019-companion.md), [evidence](./docs/verification-log.md#item-28-ci-acceptance--2026-09-25)).

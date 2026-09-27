@@ -3,6 +3,7 @@
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from uuid import uuid4
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -173,6 +174,17 @@ def test_clarified_eleven_and_dst():
     end = AT + timedelta(hours=15)
     spec, claimed, _, _ = parse("Dad says kitchen in use until 23:00", snap, end)
     assert spec.at.hour == 4 and claimed == "Dad"
+    assert time_at("7:00 AM", AT, end, "America/Chicago") == time_at(
+        "07:00", AT, end, "America/Chicago"
+    )
+    explicit = (
+        time_at("07:00", AT, end, "America/Chicago")
+        .astimezone(ZoneInfo("America/Chicago"))
+        .isoformat()
+    )
+    assert time_at(explicit, AT, end, "America/Chicago") == time_at(
+        "07:00", AT, end, "America/Chicago"
+    )
     for at, end, wall in [
         ("2026-11-01T05:00:00+00:00", "2026-11-01T09:00:00+00:00", "1:30 am"),
         ("2026-03-08T06:00:00+00:00", "2026-03-08T10:00:00+00:00", "2:30 am"),

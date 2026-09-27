@@ -151,6 +151,10 @@ def test_appliance_energy_and_single_completion(name):
     assert done.energy_kwh == pytest.approx(energy)
     assert done.advance(86400) == done
     assert done.start_cycle().elapsed_seconds == 0
+    assert model.advance(minutes * 60 - 0.000002).running
+    rounded = model.advance(minutes * 60 - 0.000001)
+    assert not rounded.running and rounded.completions == 1
+    assert rounded.elapsed_seconds == minutes * 60
 
 
 def test_thermal_cooling_duty_cop_and_coupling_conservation():

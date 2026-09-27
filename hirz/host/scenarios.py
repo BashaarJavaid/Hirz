@@ -2,6 +2,7 @@
 
 import asyncio
 import time
+from collections import Counter
 from datetime import datetime, timedelta
 from typing import Any, Literal
 
@@ -381,24 +382,23 @@ class Scenarios:
                                 if e["kind"] == "user" and e.get("text") == beat["text"]
                             ]
                             for start in starts:
-                                turn = events[
-                                    start + 1 : next(
-                                        (
-                                            i
-                                            for i in range(start + 1, len(events))
-                                            if events[i]["kind"] == "user"
-                                        ),
-                                        len(events),
-                                    )
+                                # Clarifying follow-up utterances belong to this beat.
+                                turn = events[start + 1 :]
+                                results = [
+                                    e
+                                    for e in turn
+                                    if e["kind"] == "tool"
+                                    and not e.get("background")
+                                    and not e["result"].get("isError")
+                                    and e["status"]
+                                    not in {"clarification", "failed", "unavailable"}
                                 ]
-                                results = [e for e in turn if e["kind"] == "tool"]
-                                completed |= (
-                                    len(results) >= len(beat.get("script", []))
-                                    and all(
-                                        not e["result"].get("isError") for e in results
-                                    )
-                                    and any(e["kind"] == "settled" for e in turn)
-                                )
+                                completed |= Counter(
+                                    e["tool"] for e in results
+                                ) >= Counter(
+                                    s if isinstance(s, str) else s["tool"]
+                                    for s in beat.get("script", [])
+                                ) and any(e["kind"] == "settled" for e in turn)
                         if not completed:
                             raise HTTPException(
                                 409,

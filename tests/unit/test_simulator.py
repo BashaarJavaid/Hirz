@@ -68,7 +68,7 @@ def test_protocol_result_omits_null_optional_fields():
     assert "_meta" not in wire
 
 
-@pytest.mark.parametrize("failure", ["timeout", "invalid", "revoked"])
+@pytest.mark.parametrize("failure", ["timeout", "invalid", "revoked", "disconnect"])
 def test_elicitation_stops_before_execution(failure):
     async def run():
         executed = []
@@ -76,6 +76,8 @@ def test_elicitation_stops_before_execution(failure):
         async def elicit(*args, **kwargs):
             if failure == "timeout":
                 raise TimeoutError
+            if failure == "disconnect":
+                raise ConnectionError("Elicitation transport disconnected")
             return types.ElicitResult(
                 action="accept", content={"minutes": -1 if failure == "invalid" else 10}
             )
@@ -235,6 +237,22 @@ def test_no_caller_authority_in_elicitation():
     )
     assert set(schema["properties"]) == {"temperature_f"}
     assert "requester_confirmed" not in json.dumps(schema)
+    revision = fields(
+        "revise_household_plan",
+        {
+            "text": "Set the car target",
+            "applies_to": "car",
+            "kind": "constraint",
+            "operation": "add",
+            "change": "car_target",
+            "request_id": "key",
+        },
+    )
+    assert revision["required"] == ["percent"]
+    verification = fields(
+        "verify_trusted_identity", {"operation": "start", "request_id": "key"}
+    )
+    assert verification["required"] == ["contact", "text"]
 
 
 def test_browser_csrf_stale_prompt_and_card_csp(tmp_path):
@@ -253,12 +271,28 @@ def test_browser_csrf_stale_prompt_and_card_csp(tmp_path):
             client.headers.update(
                 {"Origin": service.origin, "X-Hirz-Simulator-CSRF": state["csrf"]}
             )
+            _, owner = service.browser(client.cookies["hirz_simulator"])
+            echo = owner.echoes[owner.account]
+            pending = asyncio.create_task(
+                service.ask(
+                    owner, echo, echo.generation, "Confirm", {}, kind="commitment"
+                )
+            )
+            await asyncio.sleep(0)
+            stale = echo.prompt["id"]
+            assert (
+                await client.post(
+                    "/api/simulator/command",
+                    json={"operation": "account", "text": "dad"},
+                )
+            ).status_code == 200
+            assert await pending == {"action": "cancel"}
             assert (
                 await client.post(
                     "/api/simulator/command",
                     json={
                         "operation": "answer",
-                        "prompt_id": "stale",
+                        "prompt_id": stale,
                         "action": "accept",
                         "content": {"confirmed": True},
                     },

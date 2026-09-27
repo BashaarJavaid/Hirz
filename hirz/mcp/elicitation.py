@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 from pydantic import ValidationError
 
 from hirz.mcp.auth import identity_context
-from hirz.mcp.contracts import TOOLS, Result, input_schema, response
+from hirz.mcp.contracts import REVISION_VALUES, TOOLS, Result, input_schema, response
 from hirz.pipeline.confirmation import RequesterReview, Review, review_context
 
 
@@ -19,6 +19,27 @@ def fields(
     schema = input_schema(TOOLS[name][0])
     required = set(schema.get("required", ())) - arguments.keys()
     action = arguments.get("action")
+    if (
+        name == "revise_household_plan"
+        and arguments.get("change")
+        and arguments.get("operation") != "remove"
+    ):
+        required.update(
+            REVISION_VALUES.get(arguments["change"], {"at"}) - arguments.keys()
+        )
+    if (
+        name == "verify_trusted_identity"
+        and arguments.get("operation") == "start"
+        and not arguments.get("case_id")
+    ):
+        required.update({"contact", "text"} - arguments.keys())
+    if name == "approve_action":
+        for reference, dependent in (
+            ("plan_id", "version"),
+            ("action_id", "approval_id"),
+        ):
+            if arguments.get(reference) and not arguments.get(dependent):
+                required.add(dependent)
     required.update(
         {
             "charge_car": {"percent", "minutes"},
@@ -141,6 +162,14 @@ async def call(
                 except ValidationError as invalid:
                     if not supported:
                         raise
+                    # A backend/output validation failure is not a missing
+                    # caller value and must never prompt for unrelated fields.
+                    try:
+                        TOOLS[name][0].model_validate(arguments)
+                    except ValidationError:
+                        pass
+                    else:
+                        raise invalid
                     pending = fields(name, arguments, clarification=True)
                     bad = {
                         str(error["loc"][0])
@@ -156,6 +185,9 @@ async def call(
                     if result.data.status != "clarification" or not supported:
                         return result
                     pending = fields(name, arguments, clarification=True)
+                    field = (result.data.code or "").removeprefix("CLARIFY_").lower()
+                    if field in pending["properties"]:
+                        pending["required"] = [field]
                     message = " ".join(
                         (
                             result.speakable.headline,

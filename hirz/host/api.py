@@ -94,6 +94,12 @@ def router(service: Simulator) -> APIRouter:
             return {"url": service.link(owner)}
         if value.operation == "cancel":
             owner.cancel()
+            service.emit(
+                echo,
+                echo.generation,
+                kind="cancelled",
+                text="The turn was stopped. Accepted requests may still finish; their audit records remain available.",
+            )
         elif value.operation == "account":
             if value.text not in ACCOUNTS:
                 raise HTTPException(400, "Unknown Echo")

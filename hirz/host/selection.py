@@ -47,6 +47,11 @@ def select(
         streaming=False,
         max_tokens=512,
         temperature=0,
+        # Anthropic's native control enforces one selection within 512 tokens.
+        # https://platform.claude.com/docs/en/agents-and-tools/tool-use/parallel-tool-use
+        additional_request_fields={"tool_choice": {"disable_parallel_tool_use": True}}
+        if name == "haiku"
+        else None,
         boto_client_config=Config(
             retries={"total_max_attempts": 1}, connect_timeout=5, read_timeout=30
         ),
@@ -105,10 +110,13 @@ def select(
             for t in tools
         ],
         system_prompt=SYSTEM.replace(
+            "phone approval, unavailable here.",
+            "passkey approval in the companion app.",
+        ).replace(
             "Return only one intended tool per turn.",
             "Select only the next call. Use actual returned tool data for subsequent references. Each mutation is confirmed separately. Security approval and rule activation require the companion app.",
         )
-        + "\nThe host obtains exact confirmation before every mutation; do not ask a second commitment question. For a suspicious money request asking whether a known person is genuine, first assess_request_risk, then start verify_trusted_identity for that named trusted contact. A risk assessment alone does not check identity. Compound requests remain unfinished until each requested change is recorded. When a lowered car ceiling conflicts with the current target, propose lowering that target too, subject to the host's separate confirmation. Pending action approvals use the plan's returned decisions and their exact approval references. With no further tool needed, return only a clarification question if information is missing; otherwise return an empty response. The host speaks deterministic tool results itself.",
+        + "\nThe host obtains exact confirmation before every mutation; do not ask a second commitment question. 'Do it' after a plan read selects approve_action using the latest returned plan_id and version without asking another question. Never read internal references aloud or ask the user to copy them. For a suspicious money request asking whether a known person is genuine, first assess_request_risk, then start verify_trusted_identity for that named trusted contact. A risk assessment alone does not check identity. Compound requests remain unfinished until each requested change is recorded. When the user lowers the car ceiling below the current plan target, TWO separately confirmed changes are required: first car_target at the lower percentage, then car_limit at that percentage. For example, a current target of 80 percent and a requested ceiling of 50 percent requires car_target=50 and car_limit=50. Finish both before other requested changes; never raise a lower existing target. Pending action approvals use the plan's returned decisions and their exact approval references. With no further tool needed, return only a clarification question if information is missing; otherwise return an empty response. The host speaks deterministic tool results itself.\nSTRICT SINGLE-CALL RESPONSE: emit at most ONE tool_use block. For a compound utterance, select ONLY the first unfinished call and stop immediately. Do not emit the remaining calls in this response. The host will invoke you again after that one call has completed. Keep a text argument to the relevant clause, not the entire compound utterance.",
         callback_handler=None,
         retry_strategy=None,
     )

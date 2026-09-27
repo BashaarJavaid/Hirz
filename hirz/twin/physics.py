@@ -243,7 +243,17 @@ class Appliance(Model):
             return self
         elapsed = min(seconds, self.cycle_minutes * 60 - self.elapsed_seconds)
         total = self.elapsed_seconds + elapsed
-        done = total >= self.cycle_minutes * 60
+        # Scenario ordering uses datetime's one-microsecond resolution. Snap
+        # only that numerical boundary, not a physically unfinished cycle.
+        done = total >= self.cycle_minutes * 60 or math.isclose(
+            total,
+            self.cycle_minutes * 60,
+            rel_tol=0,
+            abs_tol=1e-6 + math.ulp(self.cycle_minutes * 60),
+        )
+        if done:
+            total = self.cycle_minutes * 60
+            elapsed = total - self.elapsed_seconds
         return changed(
             self,
             elapsed_seconds=total,

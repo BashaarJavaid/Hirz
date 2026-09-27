@@ -101,7 +101,9 @@ jobs:
       - name: Companion voice proposal, passkeys, twin endings and accessibility
         run: uv run --locked python -m scripts.smoke_companion --artifacts-dir "$RUNNER_TEMP/companion"
       - name: Simulator enrollment, PKCE, bridge, Dot and account switching
-        run: uv run --locked python -m scripts.simulator_demo --origin https://hirz.example.test --artifacts-dir "$RUNNER_TEMP/simulator" --browser-test
+        run: |
+          uv run --locked python scripts/dev_oauth.py init
+          uv run --locked python -m scripts.simulator_demo --origin https://hirz.example.test --artifacts-dir "$RUNNER_TEMP/simulator" --browser-test
       - name: Reference host over real authenticated household calls
         run: HIRZ_CARD_LIVE=1 uv run --locked python -m scripts.smoke_cards --artifacts-dir "$RUNNER_TEMP/card-live" --browser-test
       - name: Linux Chromium card baselines and behavior

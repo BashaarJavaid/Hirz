@@ -85,15 +85,17 @@ test("simulator linking, real enrollment, cards, Dot, switching and both themes"
         const r = await fetch("/api/simulator/command", { method: "POST", headers: { "Content-Type": "application/json", "X-Hirz-Simulator-CSRF": s.csrf }, body: JSON.stringify({ operation: "turn", text }) });
         if (!r.ok) throw Error(`Host turn: ${r.status}`);
       }, text);
-      await expect.poll(async () => page.evaluate(async () => {
+      await expect.poll(async () => page.evaluate(async text => {
         const s = await (await fetch("/api/simulator/session")).json();
         if (s.prompt) {
-          const content = Object.fromEntries(Object.entries(s.prompt.schema.properties as Record<string, { type: string; default?: unknown }>).filter(([k, v]) => s.prompt.schema.required.includes(k) || v.default !== undefined).map(([k, v]) => [k, k === "confirmed" ? true : k === "minutes" ? 10 : v.default]));
+          const playback = await (await fetch("/api/simulator/scenarios")).json();
+          const start = new Date(playback.scenarios[playback.selected].at).toLocaleTimeString("en-US", { timeZone: "America/Chicago", hour12: false, hour: "2-digit", minute: "2-digit" });
+          const content = Object.fromEntries(Object.entries(s.prompt.schema.properties as Record<string, { type: string; default?: unknown }>).filter(([k, v]) => s.prompt.schema.required.includes(k) || v.default !== undefined).map(([k, v]) => [k, k === "confirmed" ? true : k === "minutes" ? 10 : k === "window_start" ? start : k === "at" && text.includes("23:31") ? "23:31" : k === "at" && text.includes("kitchen at eleven") ? "23:00" : v.default]));
           const r = await fetch("/api/simulator/command", { method: "POST", headers: { "Content-Type": "application/json", "X-Hirz-Simulator-CSRF": s.csrf }, body: JSON.stringify({ operation: "answer", prompt_id: s.prompt.id, action: "accept", content }) });
           if (!r.ok) throw Error(`Prompt reply: ${r.status}`);
         }
         return s.busy;
-      }), { timeout: 60000, intervals: [250, 500] }).toBe(false);
+      }, text), { timeout: 60000, intervals: [250, 500] }).toBe(false);
       const events = await page.evaluate(async () => (await fetch("/api/simulator/transcript")).json());
       const last = events.findLastIndex((e: { kind: string }) => e.kind === "user");
       const turn = events.slice(last);
@@ -143,6 +145,12 @@ test("simulator linking, real enrollment, cards, Dot, switching and both themes"
         }
         const results = await utterance(beat.text);
         console.log("Tools", results.map((e: { tool: string; status: string }) => `${e.tool}:${e.status}`).join(","));
+        if (["What's going on tonight?", "Optimize energy tonight."].includes(beat.text) && !results.at(-1)?.result.structuredContent.data.plan) {
+          await expect.poll(async () => {
+            const ready = await utterance(beat.text);
+            return ready.at(-1)?.result.structuredContent.data.plan?.version ?? 0;
+          }, { timeout: 60000, intervals: [1000] }).toBeGreaterThan(0);
+        }
       }
       if (beat?.event === "constitution.activate") {
         await page.goto(origin + "/constitution");

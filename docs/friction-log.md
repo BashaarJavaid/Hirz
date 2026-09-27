@@ -732,3 +732,22 @@ repaint workaround was added. The earlier reports remain as observed history.
   **Feature request:** support `CountTokens` for Nova Lite and make per-model
   counting support explicit in the [model card](https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-amazon-nova-lite.html)
   and [CountTokens contract](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_CountTokens.html).
+
+## Item 29: Bedrock's native single-tool control placement — 2026-09-26
+
+- **Tool/task:** Strands/Bedrock Converse with Haiku 4.5, a 512-token output limit,
+  and sequential host confirmation of a compound request.
+  **Steps/expected:** request one tool per model response. Prompt instructions alone
+  still produced three parallel tool blocks and `MaxTokensReachedException`;
+  incomplete calls were not executed. Applying Anthropic's native `tool_choice`
+  object through `additionalModelRequestFields` then returned:
+  `An error occurred (ValidationException) when calling the Converse operation: The additional field tool_choice/type conflicts with the existing field toolConfig.toolChoice.auto. Remove tool_choice/type and try again.`
+  **Severity:** Minor. **Verified workaround:** pass only
+  `{"tool_choice":{"disable_parallel_tool_use":true}}` in additional model
+  request fields, leaving Converse's `toolConfig.toolChoice.auto` intact.
+  The counted/reserved diagnostic then returned one complete tool call within
+  512 tokens. Failed attempts remain charged against the same aggregate ledger;
+  no automatic retry was added.
+  **Feature request:** document the Converse-specific placement alongside
+  [Anthropic's parallel-tool control](https://platform.claude.com/docs/en/agents-and-tools/tool-use/parallel-tool-use)
+  and [Converse auto tool choice](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_AutoToolChoice.html).

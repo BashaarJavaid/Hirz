@@ -105,3 +105,12 @@ count-before-inference rule therefore blocks its live acceptance cells. Estimate
 counting or substituting Nova 2 is rejected without changing the approved plan;
 explicit scripted mode remains available. Evidence and the exact provider error
 are retained in the verification/friction logs.
+
+Haiku uses its native `disable_parallel_tool_use` control in the additional
+request fields, leaving Converse's existing `toolChoice.auto` intact. Prompting
+alone did not keep compound selections within the 512-token ceiling. Models see
+the current plan's derived car target/deadline and compact canonical results;
+rendered actions remain available to cards. Lowering a ceiling below that target
+requires separately confirmed target and ceiling changes. Time-field descriptions
+distinguish the change's `at` from its optional validity window. Elicitation reports
+the invalid scalar; internal output-validation failures never become caller questions.

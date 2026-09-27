@@ -22,6 +22,7 @@ from hirz.explainer.core import (
     local_time,
     safe_text,
 )
+from hirz.explainer.models import Speakable
 from hirz.graph.context import ContextSnapshot, project
 from hirz.graph.models import ConstraintSpec
 from hirz.mcp.contracts import (
@@ -104,6 +105,15 @@ def horizon_end(at: datetime, timezone: str, horizon: str) -> datetime:
     if end <= local:
         end += timedelta(days=1)
     return end.astimezone(UTC)
+
+
+def field_time(
+    field: str, text: str, at: datetime, end: datetime, timezone: str
+) -> datetime:
+    try:
+        return time_at(text, at, end, timezone)
+    except Clarification as exc:
+        raise Clarification(str(exc), options=exc.options, field=field) from exc
 
 
 def audit_window(
@@ -216,7 +226,7 @@ class HouseholdTools:
                     "Please clarify this household request.",
                     details=(str(exc),),
                     status="clarification",
-                    code="CLARIFY",
+                    code="CLARIFY_" + exc.field.upper() if exc.field else "CLARIFY",
                     options=exc.options or ("Give the missing details",),
                 )
             if request_id:
@@ -403,7 +413,8 @@ class HouseholdTools:
             action, lowered = self.action(args, snapshot)
             if isinstance(args, PermissionInput):
                 at = (
-                    time_at(
+                    field_time(
+                        "at",
                         args.at,
                         p.clock(),
                         p.clock() + timedelta(days=2),
@@ -535,7 +546,8 @@ class HouseholdTools:
         )
         if isinstance(args, PermissionInput):
             at = (
-                time_at(
+                field_time(
+                    "at",
                     args.at,
                     self.p.clock(),
                     self.p.clock() + timedelta(days=2),
@@ -869,8 +881,20 @@ class HouseholdTools:
                     plan=plan,
                     decisions=(row["payload"],),
                 )
-            return Result.model_validate(
-                {"speakable": plan.speakable, "data": {"plan": plan}}
+            speech = Speakable.model_validate(plan.speakable)
+            details = speech.details
+            if stored["runtime"]:
+                workload = RuntimeInputs.model_validate(stored["runtime"]).workload
+                if workload.ev:
+                    details = (
+                        *details[:2],
+                        f"The car target is {workload.ev_target * 100:g} percent by {local_time(workload.ev_deadline, context(snapshot))}.",
+                    )
+            return response(
+                speech.headline,
+                details=details,
+                options=speech.options,
+                plan=plan,
             )
 
         pending = (
@@ -1003,12 +1027,12 @@ class HouseholdTools:
                 "temperature_range": "temperature_band",
             }[args.change]
             start = (
-                time_at(args.window_start, p.clock(), end, timezone)
+                field_time("window_start", args.window_start, p.clock(), end, timezone)
                 if args.window_start
                 else p.clock()
             )
             finish = (
-                time_at(args.window_end, start, end, timezone)
+                field_time("window_end", args.window_end, start, end, timezone)
                 if args.window_end
                 else end
             )
@@ -1024,7 +1048,9 @@ class HouseholdTools:
                     if args.temperature_f is not None
                     else args.lower_f,
                     upper=args.upper_f,
-                    at=time_at(args.at, start, finish, timezone) if args.at else None,
+                    at=field_time("at", args.at, start, finish, timezone)
+                    if args.at
+                    else None,
                 )
             )
         intake = Intake(
