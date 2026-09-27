@@ -146,3 +146,11 @@ Fullscreen host context follows the iframe's actual layout dimensions with nativ
 ResizeObserver; inline mode retains its 1280×800 logical canvas. Keeping the inline
 800-pixel height in fullscreen clipped controls in short windows. The browser gate
 checks canvas bounds after resizing and exercises the user's Close details action.
+
+### Recorded punctuation amendment — 2026-09-27
+
+The shared recorded-utterance key also ignores omitted straight/curly apostrophes,
+so `whats going on tonight?` matches the recorded question in selection and playback.
+Letters, negation and numeric punctuation remain significant. Fuzzy matching or a
+model interpreter for unknown scripted text remains rejected; exact normalized
+repository sentences are sufficient.

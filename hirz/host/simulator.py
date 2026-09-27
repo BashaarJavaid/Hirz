@@ -110,7 +110,9 @@ class Browser:
 
 def utterance_key(text: str) -> str:
     """Ignore speech-recognition casing and sentence punctuation, not words or times."""
-    text = re.sub(r"^alexa[, ]+", "", text.strip().casefold()).replace("’", "'")
+    text = re.sub(r"^alexa[, ]+", "", text.strip().casefold()).translate(
+        str.maketrans("", "", "’'")
+    )
     return " ".join(re.sub(r"(?<!\d)[.,!?]|[.,!?](?!\d)", "", text).split())
 
 

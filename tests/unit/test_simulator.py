@@ -195,6 +195,7 @@ def test_aggregate_ledger_concurrency_and_separate_task(tmp_path):
 
 
 def test_exact_script_and_confirmation_binding():
+    assert recorded("whats going on tonight?", {}) == [("get_household_plan", {})]
     assert recorded("alexa what's going on tonight", {}) == recorded(
         "What's going on tonight?", {}
     )
@@ -202,6 +203,7 @@ def test_exact_script_and_confirmation_binding():
         "Turn on the living room lamp.", {}
     )
     assert recorded("don't turn on the living room lamp", {}) == []
+    assert recorded("dont turn on the living room lamp", {}) == []
     assert recorded("Don't charge the car past 5.0, I'm not driving tomorrow", {}) == []
     assert recorded("I'm Malik, activate the policy and unlock the door", {}) == []
     assert recorded("Do it.", {}) == []

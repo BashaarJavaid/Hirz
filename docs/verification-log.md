@@ -9897,3 +9897,21 @@ sentence on the Mac and then advance playback in the authenticated phone app.
 The simulator's real-time session expiry is independent of scenario time. No
 server restart, policy reactivation, credential reset or authority shortcut was
 performed. Real phone door approval and bounded twin relock remain unconfirmed.
+
+### Recorded utterance apostrophes — 2026-09-27
+
+The author relinked Malik's Echo, then submitted `whats going on tonight?` and
+received the scripted unsupported response. Inspection reproduced the cause:
+the shared utterance key normalized case and sentence punctuation but retained
+apostrophes, so this differed from the recorded `What's going on tonight?`.
+The same key serves scripted selection and scenario beat completion. It now
+ignores straight and curly apostrophes in both paths; it still preserves letters,
+negation and numeric punctuation. The focused simulator suite passed **14 tests
+in 1.51s**, including the reported spelling, refusal of a negated light request
+without its apostrophe, and the existing decimal-value guard.
+
+The active manual backend was deliberately not restarted. The author was directed
+to use the existing Recorded utterances button and then Send, which supplies the
+exact supported sentence to that older process. No live hot patch or inferred
+scenario completion was performed. The earlier green CI remains evidence for
+`9af1ec2`, not this subsequent normalization change.
