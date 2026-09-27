@@ -28,8 +28,10 @@ function Card({ event, theme, call }: { event: Event; theme: "light" | "dark"; c
     bridge.oninitialized = () => { void (async () => { await bridge.sendToolInput({ arguments: event.arguments ?? {} }); if (event.result) { await bridge.sendToolResult(event.result); } })().catch(() => setError("Card initialization failed. The spoken result remains available.")); };
     bridge.oncalltool = async params => { const result = await request<{ result: Parameters<AppBridge["sendToolResult"]>[0] }>({ operation: "card", tool: params.name, arguments: params.arguments ?? {}, text: "Card request" }); return result.result; };
     bridge.onrequestdisplaymode = async ({ mode }) => { bridge.setHostContext({ displayMode: mode }); container.current?.classList.toggle("expanded", mode === "fullscreen"); return { mode }; };
+    const size = new ResizeObserver(() => bridge.setHostContext({ containerDimensions: { width: frame.clientWidth, height: frame.clientHeight } }));
+    size.observe(frame);
     void bridge.connect(new PostMessageTransport(frame.contentWindow!, frame.contentWindow!)).then(() => { frame.src = `/api/simulator/cards/${event.card}`; }).catch(() => setError("Card bridge unavailable."));
-    return () => { active.current = null; void bridge.close(); };
+    return () => { size.disconnect(); active.current = null; void bridge.close(); };
   }, [event, call]);
   useEffect(() => { active.current?.setHostContext({ theme }); }, [theme]);
   return <div className="sim-frame" ref={container}>{error && <p role="alert">{error}</p>}<iframe ref={iframe} title="Hirz MCP App card" sandbox="allow-scripts" referrerPolicy="no-referrer" /></div>;

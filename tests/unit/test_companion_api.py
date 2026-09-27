@@ -1,12 +1,44 @@
 """HTTP trust boundary rejects identity fields and cross-origin requests."""
 
-from unittest.mock import Mock
+from contextlib import asynccontextmanager
+from unittest.mock import AsyncMock, Mock
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from hirz.companion.api import Companion, router
 from tests.unit.test_companion_auth import CONFIG
+
+
+def test_recorded_patch_reports_changed_base(monkeypatch):
+    from hirz.companion import policy
+    from hirz.constitution.schema import dump
+    from tests.unit.test_companion_drafting import POLICY
+
+    service = Companion(Mock(), Mock(), CONFIG)
+    service.demo_world = Mock()
+
+    @asynccontextmanager
+    async def authorized(request):
+        yield Mock(), {}
+
+    monkeypatch.setattr(service, "authorized", authorized)
+    monkeypatch.setattr(
+        policy,
+        "current",
+        AsyncMock(
+            return_value={"yaml": dump(POLICY.model_copy(update={"version": 8}))}
+        ),
+    )
+    app = FastAPI()
+    app.include_router(router(service))
+    with TestClient(app, base_url=CONFIG.origin) as client:
+        response = client.post(
+            "/api/constitution/recorded-draft",
+            json={"sentence": "Never unlock for an unexpected visitor"},
+        )
+    assert response.status_code == 409
+    assert "your household is on version 8" in response.json()["detail"]
 
 
 def test_anonymous_bootstrap_and_forged_authority():

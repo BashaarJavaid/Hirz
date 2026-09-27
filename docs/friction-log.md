@@ -766,6 +766,22 @@ repaint workaround was added. The earlier reports remain as observed history.
   identify static initialization blocks as newly supported.
 - **Workaround:** Explicit `build.target: "safari15.4"`; the rebuilt bundle contains
   zero class static blocks. Serve the rebuilt static files without restarting the
-  authenticated manual backend. Physical phone reload is pending confirmation.
+  authenticated manual backend. The author subsequently confirmed restored phone rendering.
 - **Feature request:** Make transitive SDK syntax requirements easier to detect
   when adding a bridge to an application with an older supported browser target.
+
+## Item 29: full-page iframe capture required scrolling — 2026-09-26
+
+- **Tool/task:** Playwright Chromium full-page simulator evidence capture.
+- **Severity:** Minor.
+- **Expected/observed:** The card's `toBeVisible()` assertion passed, but reviewed
+  full-page captures contained a blank iframe region below the viewport. No
+  exception was raised. This cost repeated scenario runs and manual artifact review.
+- **Documentation:** [Full-page screenshots](https://playwright.dev/docs/screenshots#full-page-screenshots)
+  capture the scrollable page; [visibility checks](https://playwright.dev/docs/actionability#visible)
+  check geometry and CSS visibility, not whether an off-screen iframe has painted.
+- **Workaround:** Scroll the iframe into view before capture, keep the existing
+  visibility assertion, and review the resulting artifact. The corrected full
+  evening capture visibly contains the genuine card.
+- **Feature request:** Document iframe painting limitations for full-page captures
+  or expose a capture diagnostic when an otherwise visible frame is unpainted.

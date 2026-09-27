@@ -76,6 +76,21 @@ test("simulator linking, real enrollment, cards, Dot, switching and both themes"
   await page.goto(callback, { waitUntil: "domcontentloaded" });
   await page.goto(origin + "/simulator", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("button", { name: "Relink Echo" })).toBeVisible();
+  async function fullscreen() {
+    const card = page.frameLocator('iframe[title="Hirz MCP App card"]');
+    await card.getByRole("button", { name: "Open details", exact: true }).click();
+    await expect(page.locator(".sim-frame")).toHaveClass("sim-frame expanded");
+    const viewport = page.viewportSize()!;
+    await page.setViewportSize({ width: 1000, height: 600 });
+    await expect.poll(async () => {
+      const frame = await page.locator('iframe[title="Hirz MCP App card"]').boundingBox(), canvas = await card.getByRole("main").boundingBox();
+      return frame !== null && canvas !== null && canvas.y + canvas.height <= frame.y + frame.height + 1 && canvas.x + canvas.width <= frame.x + frame.width + 1;
+    }).toBe(true);
+    await page.screenshot({ path: `${artifacts}/scenario-fullscreen.png`, fullPage: true });
+    await card.getByRole("button", { name: "Close details", exact: true }).click();
+    await expect(page.locator(".sim-frame")).toHaveClass("sim-frame");
+    await page.setViewportSize(viewport);
+  }
   if (scenario) {
     test.setTimeout(1200000);
     await page.getByRole("combobox", { name: "Host", exact: true }).selectOption(process.env.HIRZ_SIMULATOR_MODEL ?? "scripted");
@@ -199,6 +214,7 @@ test("simulator linking, real enrollment, cards, Dot, switching and both themes"
       await expect(page.frameLocator('iframe[title="Hirz MCP App card"]').getByText("simulated", { exact: false }).first()).toBeVisible();
     }
     await page.screenshot({ path: `${artifacts}/scenario-${scenario}-${process.env.HIRZ_SIMULATOR_DISPLAY ?? "show"}.png`, fullPage: true });
+    if (scenario === "demo-evening" && process.env.HIRZ_SIMULATOR_DISPLAY !== "dot") await fullscreen();
     return;
   }
   await page.getByText("Recorded utterances", { exact: true }).click();
@@ -217,6 +233,12 @@ test("simulator linking, real enrollment, cards, Dot, switching and both themes"
   await expect(page.frameLocator('iframe[title="Hirz MCP App card"]').locator("html")).toHaveAttribute("data-theme", "light");
   await accessibility(page, false);
   await page.screenshot({ path: `${artifacts}/simulator-light.png`, fullPage: true });
+  await page.evaluate(async () => {
+    const session = await (await fetch("/api/simulator/session")).json();
+    const result = await fetch("/api/simulator/command", { method: "POST", headers: { "Content-Type": "application/json", "X-Hirz-Simulator-CSRF": session.csrf }, body: JSON.stringify({ operation: "card", tool: "get_action_audit", arguments: { window: "today" } }) });
+    if (!result.ok) throw Error(`Audit card: ${result.status}`);
+  });
+  await fullscreen();
   await page.getByLabel("Your request", { exact: true }).fill("Let them in.");
   await page.getByRole("button", { name: "Send", exact: true }).click();
   const question = page.getByRole("region", { name: "Pending question" });
@@ -243,5 +265,4 @@ test("simulator linking, real enrollment, cards, Dot, switching and both themes"
   await expect(page.getByRole("alert")).toHaveText("Finish this utterance through the named linked Echo first");
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: `${artifacts}/simulator-dot-phone.png`, fullPage: true });
-  await context.unrouteAll({ behavior: "ignoreErrors" });
 });

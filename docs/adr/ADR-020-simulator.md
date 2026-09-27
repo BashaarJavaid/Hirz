@@ -141,3 +141,8 @@ membership even though their envelopes name no tool scope. A revoked or child
 member receives 403 before SDK dispatch. Generic onboarding remains available;
 session cleanup grants no household access. Relying only on the eventual tool-call
 reauthorization was rejected because a resumed stream could expose queued data.
+
+Fullscreen host context follows the iframe's actual layout dimensions with native
+ResizeObserver; inline mode retains its 1280×800 logical canvas. Keeping the inline
+800-pixel height in fullscreen clipped controls in short windows. The browser gate
+checks canvas bounds after resizing and exercises the user's Close details action.

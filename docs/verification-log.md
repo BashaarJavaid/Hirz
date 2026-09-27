@@ -9825,3 +9825,32 @@ The author then reported that exact message. The earlier proposal/activation had
 happened before the playback beat, so it did not satisfy that beat's fresh-utterance
 check. The author was directed to submit its sentence through Malik's linked Echo;
 the already active v8 does not need another activation.
+
+### Fullscreen sizing and first completed latency gate — 2026-09-26
+
+The author confirmed playback advances. A later attempt to preview the already
+activated recorded patch exposed its generic version-conflict error. The endpoint
+now returns a specific **409** naming the fixture's base and current versions;
+the original version guard remains enforced. Three focused companion tests passed
+**3.95s**. The manual backend remains unchanged in memory, so that revised backend
+message applies on the next launcher run; the author was directed to continue
+playback using the already active policy.
+
+The first fullscreen probe incorrectly targeted the inline-only verification card;
+it failed and is retained as a harness error. An evening rerun completed **3.9min**
+with **5,002 signed rows** and one verified bounded unlock/relock, but review of its
+fullscreen capture found clipped controls: the host still advertised an 800-pixel
+height inside a shorter browser window. The host now reports the iframe's actual
+layout dimensions through native ResizeObserver and the existing bridge. Default
+real-backend acceptance passed **21.7s**, then **21.0s** with an explicit resize to
+1000×600, whole-card bounds assertions and Close details verification. Both corrected
+captures were reviewed. The test uses the genuine audit card and retains its final
+transcript before tearing down HTTPS routing; no fixture substitutes its tool result.
+
+The Hourly job in
+[36288404300](https://github.com/BashaarJavaid/Hirz/actions/runs/36288404300)
+passed all **54 cases and 12 tools**, with maximum displayed warm p95 **159.843ms**
+(`objective-cheapest`) against the unchanged **250ms** gate. Its payload-free log is
+retained privately. This measures core transport revision `3ceb792`; later membership
+rejection and UI refinements are not represented as that exact revision. The main
+evening latency job and final regression run remain pending at this checkpoint.

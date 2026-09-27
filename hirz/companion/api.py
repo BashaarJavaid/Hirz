@@ -572,7 +572,15 @@ def router(service: Companion) -> APIRouter:
                     ).read_text()
                 )
             )
-            candidate = policy.patched(loads((await policy.current(p))["yaml"]), patch)
+            base = loads((await policy.current(p))["yaml"])
+            if base.version != patch.base_version:
+                raise HTTPException(
+                    409,
+                    f"This recorded patch starts from version {patch.base_version}; "
+                    f"your household is on version {base.version}. "
+                    "If you already activated it, continue scenario playback.",
+                )
+            candidate = policy.patched(base, patch)
             if not value.proposal_id:
                 raise HTTPException(409, "Select the matching voice proposal first")
             sentence = await p.connection.scalar(
