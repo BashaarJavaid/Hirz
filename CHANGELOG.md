@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-09-27: Record green simulator regression CI and both timing gates; preserve the outstanding model and manual acceptance limits ([evidence](./docs/verification-log.md#final-source-ci-and-resumed-manual-acceptance--2026-09-27)).
+
 - 2026-09-26: Keep fullscreen cards within the actual browser height and explain recorded-patch version conflicts ([evidence](./docs/verification-log.md#fullscreen-sizing-and-first-completed-latency-gate--2026-09-26)).
 
 - 2026-09-26: Recheck membership for MCP stream reconnects and elicitation replies; keep installed-app simulator navigation within its existing companion session and report specific playback blockers ([ADR-020](./docs/adr/ADR-020-simulator.md), [evidence](./docs/verification-log.md#final-painted-capture-and-current-membership-probes--2026-09-26)).

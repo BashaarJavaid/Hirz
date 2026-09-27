@@ -9868,3 +9868,32 @@ relay step, whose repair and local retest are recorded above; this is a timing-j
 pass, not an overall green run. Final-source regression on `9af1ec2` remains
 in progress. Later membership rejection and UI refinements are not claimed as
 measured by this older timing revision.
+
+### Final-source CI and resumed manual acceptance — 2026-09-27
+
+[CI 36290958133](https://github.com/BashaarJavaid/Hirz/actions/runs/36290958133)
+completed **successfully** on source revision `9af1ec2`. Service-free Python tests
+passed **1,484 tests in 268.34s**; PostgreSQL integration passed **179 in 438.66s**.
+The fresh combined coverage gate passed at **89%** (14,755 statements, 1,678 missed),
+above the required 80%. Companion browser acceptance passed **1.8min**, simulator
+acceptance **19.8s**, the unchanged reference host **2.8s**, and **38** card browser
+checks passed in **1.8min**. Build, lint, strict typing, TypeScript tests, native
+Cedar conformance and scoped scenario regressions also passed. The scenario job
+verified real-API demo lamp restoration; its explicitly deferred assertions remain
+deferred. This push run skipped latency by design; the two successful dispatch
+jobs and their older measured revision are recorded immediately above.
+
+The independent tool checker passed **117 checks**, zero failures, warnings or
+skips, with **eight manual items** retained. Its **614-row** signed export verified
+offline. Completed Python, conformance and scenario job logs are retained privately
+under `secrets/item29-20260926/ci-final-*.log`. These CI results do not turn the
+failed Haiku evening cells, blocked Nova counting, remaining adversarial
+interleavings or physical acceptance into passes.
+
+When manual acceptance resumed, the author's Mac screenshot showed Malik's Echo
+selected but **Link Echo with consent**, indicating no current link in that browser
+session. The author was directed to consent again, submit the displayed evening
+sentence on the Mac and then advance playback in the authenticated phone app.
+The simulator's real-time session expiry is independent of scenario time. No
+server restart, policy reactivation, credential reset or authority shortcut was
+performed. Real phone door approval and bounded twin relock remain unconfirmed.
