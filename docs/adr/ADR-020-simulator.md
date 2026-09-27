@@ -154,3 +154,19 @@ so `whats going on tonight?` matches the recorded question in selection and play
 Letters, negation and numeric punctuation remain significant. Fuzzy matching or a
 model interpreter for unknown scripted text remains rejected; exact normalized
 repository sentences are sufficient.
+
+### Delayed phone approval amendment — 2026-09-27
+
+The final dispatch claim now reuses the executor's existing `expired` contract.
+Security unlock duration starts at its authorized opening, while approval expiry
+and `expected_effect.by` independently limit dispatch. The duplicated claim check
+had instead expired a one-minute unlock during the scenario's one-minute wait for
+phone approval, after redemption but before any dispatch. Reusing the common
+predicate removes that disagreement; ignoring the Pipeline error or extending an
+approval was rejected. Exact hashes, current authority, approval TTL, grant freshness
+and signed bounded endings remain mandatory.
+
+The approval card displays the service's canonical speakable headline for phone
+availability. A static “unavailable in this preview” statement was stale once the
+authenticated companion existed; the preview service still supplies its own honest
+unavailable message. Neither rendering path exposes a card approval for security.

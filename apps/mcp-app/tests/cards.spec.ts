@@ -126,12 +126,14 @@ for (const approved of [true, false]) test(`action response ${approved}`, async 
   await expect(frame.getByRole("heading", { name: "Your response was recorded." })).toBeVisible();
 });
 
-test("security never offers card approval", async ({ page }) => {
+for (const active of [false, true]) test(`security never offers card approval (active companion: ${active})`, async ({ page }) => {
   const initial = structuredClone(fixtures.results.approval);
   initial.data.presentation.phone_required = true;
+  initial.speakable.headline = active ? "Unlocking requires approval in your Hirz phone app." : "Phone approval is unavailable in this preview.";
   initial.data.presentation.can_respond = true; // Even inconsistent input cannot bypass the phone requirement.
   const { frame } = await mount(page, "approval", "light", undefined, initial);
-  await expect(frame.getByText(/Phone approval is unavailable/)).toBeVisible();
+  await expect(frame.getByText(initial.speakable.headline, { exact: false })).toBeVisible();
+  if (active) await expect(frame.getByText(/unavailable in this preview/)).toHaveCount(0);
   await expect(frame.getByRole("button", { name: "Approve", exact: true })).toHaveCount(0);
 });
 

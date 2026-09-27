@@ -113,8 +113,8 @@ test("simulator linking, real enrollment, cards, Dot, switching and both themes"
         if (s.prompt) {
           const playback = await (await fetch("/api/simulator/scenarios")).json();
           const start = new Date(playback.scenarios[playback.selected].at).toLocaleTimeString("en-US", { timeZone: "America/Chicago", hour12: false, hour: "2-digit", minute: "2-digit" });
-          const content = Object.fromEntries(Object.entries(s.prompt.schema.properties as Record<string, { type: string; default?: unknown }>).filter(([k, v]) => s.prompt.schema.required.includes(k) || v.default !== undefined).map(([k, v]) => [k, k === "confirmed" ? true : k === "minutes" ? 10 : k === "window_start" ? start : k === "at" && text.includes("23:31") ? "23:31" : k === "at" && text.includes("kitchen at eleven") ? "23:00" : v.default]));
-          if (s.prompt.schema.properties.reply && /let (them|her) in/i.test(text)) content.reply = "Yes, unlock the front door for 10 minutes.";
+          const content = Object.fromEntries(Object.entries(s.prompt.schema.properties as Record<string, { type: string; default?: unknown }>).filter(([k, v]) => s.prompt.schema.required.includes(k) || v.default !== undefined).map(([k, v]) => [k, k === "confirmed" ? true : k === "minutes" ? 1 : k === "window_start" ? start : k === "at" && text.includes("23:31") ? "23:31" : k === "at" && text.includes("kitchen at eleven") ? "23:00" : v.default]));
+          if (s.prompt.schema.properties.reply && /let (them|her) in/i.test(text)) content.reply = "Yes, unlock the front door for 1 minute.";
           if (s.prompt.schema.properties.reply && text.startsWith("Malik just called")) content.reply = "Yes, start the simulated check with Malik.";
           if (s.prompt.schema.properties.reply && text === "Do it.") content.reply = "Yes, approve the exact current plan I just reviewed.";
           if (s.prompt.schema.properties.reply && text.includes("Keep the guest room at 72")) content.reply = "Keep the guest room at 72 Fahrenheit starting now until 7 AM tomorrow morning. No temperature range.";

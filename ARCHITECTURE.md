@@ -733,6 +733,11 @@ worker reloads the selected local policy, identity, observations, approval and
 budget before stage 7 and the durable dispatch claim. Command-state verification
 checks setpoint/control state, never future temperature or delivered EV energy.
 
+The executor and final dispatch claim share one expiry predicate. A security
+unlock's bounded duration begins at its authorized opening, not during phone
+approval waiting; approval expiry and the opening's `expected_effect.by` still
+limit when dispatch may begin (ADR-020, delayed phone approval amendment).
+
 `PlanService.record/approve/revise/cancel` commits governance decisions and canonical
 plans. Plan consent and the separate electricity-plus-wear budget grant do not
 replace device rules, quorum or approval TTL. Explicit revisions need fresh consent;

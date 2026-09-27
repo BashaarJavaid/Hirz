@@ -9915,3 +9915,55 @@ to use the existing Recorded utterances button and then Send, which supplies the
 exact supported sentence to that older process. No live hot patch or inferred
 scenario completion was performed. The earlier green CI remains evidence for
 `9af1ec2`, not this subsequent normalization change.
+
+### Manual approval crash and dispatch regression — 2026-09-27
+
+The author reached event 5 after the straight-apostrophe request and later reached
+the expected-arrival phone approval. The manual server then stopped with
+`PipelineError: Execution claim refused; no dispatch authorized`. Its failure
+cleanup retained database `hirz_ha_smoke_3673a2f2dcb0471fa0db8adf330be77b` and
+`secrets/item29-20260926/manual1` exports. Independent offline verification passed
+all **102,359 signed rows**. The phone's APPROVED event persisted, followed by
+redemption and ending authorization, but the opening has **no execution attempt**;
+the final twin read-back is **locked**, with **zero verified bounded unlocks**.
+Approval acceptance is not reported as door execution or manual acceptance.
+
+The one-minute request was scheduled at 00:04 and approved at the scenario's
+00:05 companion beat. The executor deliberately excludes security duration from
+the waiting deadline, but the duplicated final claim predicate did not. A real
+PostgreSQL/passkey regression with a 61-second wait and refreshed observations
+reproduced the exact PipelineError (**1 failed, 4.74s**) before the fix. The claim
+now calls the existing shared expiry helper. The companion security and executor
+integration suites then passed **45 tests in 107.36s**, covering delayed approval,
+bounded ending, moving clocks, credential revocation and authority expiry.
+
+Two card browser checks passed **4.8s**, testing actual-companion and unavailable
+preview messages while refusing card approval in both cases. The card now renders
+the service's speakable instead of a hardcoded preview limitation. Card build,
+TypeScript checking, lint and targeted strict Python typing passed. The full
+scripted evening browser rerun now requests **one minute**, so the scenario's
+one-minute companion transition exercises the original trigger; its final result
+is recorded below when complete. Paid inference was not used.
+
+A fresh explicitly migrated disposable run is available under
+`secrets/item29-20260927/manual2` at the same HTTPS origin. The crashed process lost
+its in-memory sessions; the author was given the new private initial invitation
+file and asked to enroll again. No existing enrollment was reset, old evidence was
+not deleted, and no active-policy or passkey bootstrap bypass was introduced. The
+development database was not migrated. The previously green CI predates this fix;
+fresh source regression and dispatch latency gates remain pending.
+
+The full scripted evening Show rerun passed **4.0min**, completing all **21 events**
+and retaining **4,989 independently verified signed rows** before cleanup. The
+one-minute opening verified at **00:05:00Z**, and its relock verified at its exact
+**00:06:00Z** due time. The EV reached **SOC 0.5 at 06:30 local** and the dishwasher
+completion assertion passed. Inline and resized fullscreen captures were reviewed;
+private artifacts are in `secrets/item29-20260927/delayed-unlock-browser`. Source
+deferred assertions remain deferred. The author's fresh manual enrollment succeeded;
+seed activation and the new run's manual door check remain pending.
+
+The separate punctuation revision `d052c62` also completed
+[green CI 36354289449](https://github.com/BashaarJavaid/Hirz/actions/runs/36354289449).
+It predates the dispatch repair and is not claimed as its regression gate. No new
+third-party friction was earned by this application bug; final formatting and
+synchronized instruction-file checks are run after this evidence update.

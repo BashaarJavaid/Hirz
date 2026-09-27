@@ -1445,6 +1445,8 @@ class Pipeline:
 
     async def claim_execution(self, action: Action, decision: Decision) -> int:
         """Commit one local HA dispatch attempt before any service request."""
+        from hirz.executor.contracts import expired
+
         if self.connection.in_transaction():
             raise PipelineError("Execution requires an idle connection")
         try:
@@ -1529,15 +1531,7 @@ class Pipeline:
                         row["execution_status"] != "scheduled"
                         or at < row["due_at"]
                         or not lifecycle.get("ending_of")
-                        and (
-                            action.expected_effect is None
-                            or at >= action.expected_effect.by
-                            or action.revert is not None
-                            and action.scheduled_for is not None
-                            and at
-                            >= action.scheduled_for
-                            + timedelta(seconds=action.revert.after_s)
-                        )
+                        and expired(action, at)
                     )
                 ):
                     raise ValueError

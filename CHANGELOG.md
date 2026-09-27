@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-09-27: Share executor/dispatch expiry checks so phone-approval waiting does not consume a bounded unlock's duration; render actual phone-approval availability and retain the failed manual run ([ADR-020](./docs/adr/ADR-020-simulator.md#delayed-phone-approval-amendment--2026-09-27), [evidence](./docs/verification-log.md#manual-approval-crash-and-dispatch-regression--2026-09-27)).
+
 - 2026-09-27: Accept omitted apostrophes consistently in recorded simulator requests and playback matching ([evidence](./docs/verification-log.md#recorded-utterance-apostrophes--2026-09-27)).
 
 - 2026-09-27: Record green simulator regression CI and both timing gates; preserve the outstanding model and manual acceptance limits ([evidence](./docs/verification-log.md#final-source-ci-and-resumed-manual-acceptance--2026-09-27)).

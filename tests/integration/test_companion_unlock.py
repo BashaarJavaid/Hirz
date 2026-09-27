@@ -87,8 +87,9 @@ def test_observations_reload_policy_after_activation_race(scratch_database):
 
 @pytest.mark.parametrize("revoke_before_dispatch", [False, True])
 @pytest.mark.parametrize("moving_clock", [False, True])
+@pytest.mark.parametrize("approval_delay", [0, 61])
 def test_phone_passkey_unlock_and_relock(
-    scratch_database, revoke_before_dispatch, moving_clock
+    scratch_database, revoke_before_dispatch, moving_clock, approval_delay
 ):
     async def run():
         async with connect(scratch_database) as c:
@@ -194,6 +195,10 @@ def test_phone_passkey_unlock_and_relock(
                                 blocked["candidate_hash"],
                                 member["digest"],
                             )
+                # The opening duration starts at dispatch, not while waiting for
+                # phone approval; its separate approval/execution deadlines hold.
+                world.clock.jump(world.clock() + timedelta(seconds=approval_delay))
+                await ingest(p, registry, PRINCIPAL)
                 options = await start(
                     p,
                     session=login["session"],
