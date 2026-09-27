@@ -234,6 +234,13 @@ test("simulator linking, real enrollment, cards, Dot, switching and both themes"
   await page.getByRole("combobox", { name: "Echo account", exact: true }).selectOption("dad");
   await expect(page.getByRole("button", { name: "Link Echo with consent" })).toBeVisible();
   await expect(page.getByLabel("Conversation and tool transcript")).not.toContainText("get_household_context");
+  const next = page.getByRole("button", { name: "Next event", exact: true });
+  await next.click();
+  await expect(page.getByText(/event 1\/21/)).toBeVisible();
+  await next.click();
+  await expect(page.getByText(/event 2\/21/)).toBeVisible();
+  await next.click();
+  await expect(page.getByRole("alert")).toHaveText("Finish this utterance through the named linked Echo first");
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: `${artifacts}/simulator-dot-phone.png`, fullPage: true });
   await context.unrouteAll({ behavior: "ignoreErrors" });

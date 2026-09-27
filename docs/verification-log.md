@@ -9815,3 +9815,13 @@ real-backend browser check passed **15.1s** while asserting playback controls re
 available after that navigation. The manual backend was not restarted, and no
 cookie transfer, passkey reset or authentication shortcut was added. Physical
 door approval and relock are still pending the author's continuation.
+
+The same-app controls were authenticated, but their generic error copy incorrectly
+told the author to sign in when a voice beat remained unfinished. Playback now
+shows the existing sanitized API detail. A genuine browser regression advances
+to the first voice beat and verifies the third Next event request shows
+`Finish this utterance through the named linked Echo first`; it passed **19.6s**.
+The author then reported that exact message. The earlier proposal/activation had
+happened before the playback beat, so it did not satisfy that beat's fresh-utterance
+check. The author was directed to submit its sentence through Malik's linked Echo;
+the already active v8 does not need another activation.

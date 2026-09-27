@@ -6,7 +6,7 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
-- 2026-09-26: Recheck membership for MCP stream reconnects and elicitation replies; keep installed-app simulator navigation within its existing companion session ([ADR-020](./docs/adr/ADR-020-simulator.md), [evidence](./docs/verification-log.md#final-painted-capture-and-current-membership-probes--2026-09-26)).
+- 2026-09-26: Recheck membership for MCP stream reconnects and elicitation replies; keep installed-app simulator navigation within its existing companion session and report specific playback blockers ([ADR-020](./docs/adr/ADR-020-simulator.md), [evidence](./docs/verification-log.md#final-painted-capture-and-current-membership-probes--2026-09-26)).
 
 - 2026-09-26: Preserve MCP session headers and SSE media types in the reference-host test relay; retain explicit model fallback and partial acceptance findings ([evidence](./docs/verification-log.md#acceptance-checkpoint-and-reference-host-regression--2026-09-26)).
 
