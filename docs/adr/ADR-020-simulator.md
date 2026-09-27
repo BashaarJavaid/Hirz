@@ -122,3 +122,10 @@ and caused incomplete compound requests. Models may ask short clarification
 questions, while tool narration remains deterministic. Each new request re-enters
 the service even when a historical attempt was denied. Recorded speech tolerates
 case and sentence punctuation; numbers and words retain their exact meaning.
+
+The shared web build explicitly targets Safari 15.4 because the already verified
+companion phone runs iOS 15.7. SDK class static blocks in the default Vite target
+made that phone's shared app blank. Native build lowering is sufficient; no
+polyfill framework or second frontend is added. This does not add Web Push to
+older iOS. Recorded utterance selection focuses the populated request field so
+its separate Send action is apparent.

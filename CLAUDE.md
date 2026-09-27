@@ -135,7 +135,7 @@ Item 29 adds `HIRZ_LLM=off uv run --locked python -m scripts.simulator_demo --or
 **Phase 5 items 28 and 29 are partial; Phase 4 is complete.**
 Item 28 still owes compatible-iPhone push reception/approval. Item 29 adds the
 local authenticated simulator and MCP elicitation; Nova token counting is blocked,
-with evening live-model, physical voice/passkey, adversarial and CI checks pending ([evidence](./docs/verification-log.md#item-29)).
+with evening live-model, physical passkey/door, adversarial and CI checks pending ([evidence](./docs/verification-log.md#item-29)).
 Development stays on 0005; migrations through 0018 remain manual. Keep the existing
 $2 ledger intact; item 29 has a separate $5 aggregate host ledger. Real contacts,
 physical locks and AWS security guarantees remain unverified.

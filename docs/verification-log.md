@@ -9711,3 +9711,37 @@ The author reported **“it worked”** after testing Mac Chrome speech recognit
 and the spoken response over Tailscale. This records the human microphone/speaker
 check only. Phone rule activation and door approval/relock are being checked
 separately and remain pending until reported and matched to signed evidence.
+
+### Physical acceptance found and corrected a phone regression — 2026-09-26
+
+The author reported that choosing the rule sentence appeared to do nothing and
+the phone app was dark. The sentence control had only populated an off-screen
+input; it now focuses and scrolls that input into view for the separate Send action.
+The shared production bundle contained MCP SDK class static initialization blocks,
+which the previously verified iOS 15.7.9 phone cannot parse. Vite now targets
+Safari 15.4; the rebuilt bundle contains **zero static blocks**. The author then
+reported **“its working now.”** This confirms restored phone rendering; activation
+and security acceptance are not inferred from that statement. The backend was
+not restarted, preserving real enrollment and sessions. Exact third-party findings
+and primary documentation are recorded in the friction log.
+
+The latest MCP and host unit suite passed **90 tests in 10.20s** after clarifying
+that `request_door_unlock` initiates current-policy evaluation and creates a phone
+approval request when allowed; phone approval is not a prerequisite for selecting
+that tool. Voice still cannot grant security authority. Earlier live evening
+attempts that stopped without selecting this new request remain failed cells.
+
+CI run [36288404300](https://github.com/BashaarJavaid/Hirz/actions/runs/36288404300)
+was dispatched on `3ceb792`, superseding the earlier incomplete dispatch and
+cancelling the redundant push run. It predates the phone compatibility repair and
+therefore cannot be claimed as the final revision's complete gate.
+
+The rebuilt default browser acceptance passed **23.9 seconds** with real enrollment,
+PKCE, card initialization/result delivery, keyboard focus, both themes and narrow
+Dot layout. The retained light and narrow captures were visually reviewed.
+Recorded-sentence selection now has an explicit focus/value assertion. The author
+subsequently reported a phone sign-in failure after biometrics; a fresh HTTPS
+login-start probe returned **200/login**, isolating this from the repaired rendering
+problem. A prior-run credential is a suspected cause, not a verified server diagnosis.
+The author was directed to the existing current-run recovery flow, with its credential
+revocation effect explained. No credential bypass, reset or new invitation was issued.

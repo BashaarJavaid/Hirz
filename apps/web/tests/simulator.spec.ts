@@ -76,7 +76,7 @@ test("simulator linking, real enrollment, cards, Dot, switching and both themes"
   await page.goto(origin + "/simulator", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("button", { name: "Relink Echo" })).toBeVisible();
   if (scenario) {
-    test.setTimeout(600000);
+    test.setTimeout(1200000);
     await page.getByRole("combobox", { name: "Host", exact: true }).selectOption(process.env.HIRZ_SIMULATOR_MODEL ?? "scripted");
     await page.getByRole("combobox", { name: "Display", exact: true }).selectOption(process.env.HIRZ_SIMULATOR_DISPLAY ?? "show");
     async function control(operation: string, extra = {}) {
@@ -101,6 +101,9 @@ test("simulator linking, real enrollment, cards, Dot, switching and both themes"
           if (s.prompt.schema.properties.reply && /let (them|her) in/i.test(text)) content.reply = "Yes, unlock the front door for 10 minutes.";
           if (s.prompt.schema.properties.reply && text.startsWith("Malik just called")) content.reply = "Yes, start the simulated check with Malik.";
           if (s.prompt.schema.properties.reply && text === "Do it.") content.reply = "Yes, approve the exact current plan I just reviewed.";
+          if (s.prompt.schema.properties.reply && text.includes("Keep the guest room at 72")) content.reply = "Keep the guest room at 72 Fahrenheit starting now until 7 AM tomorrow morning. No temperature range.";
+          if (s.prompt.schema.properties.reply && text.includes("kitchen at eleven")) content.reply = "Do not run the dishwasher before 11 PM tonight.";
+          if (s.prompt.schema.properties.reply && text === "Good morning.") content.reply = "Please read the current household context and household plan for my morning summary.";
           const r = await fetch("/api/simulator/command", { method: "POST", headers: { "Content-Type": "application/json", "X-Hirz-Simulator-CSRF": s.csrf }, body: JSON.stringify({ operation: "answer", prompt_id: s.prompt.id, action: "accept", content }) });
           if (!r.ok) throw Error(`Prompt reply: ${r.status}`);
         }
@@ -194,6 +197,10 @@ test("simulator linking, real enrollment, cards, Dot, switching and both themes"
     await page.screenshot({ path: `${artifacts}/scenario-${scenario}-${process.env.HIRZ_SIMULATOR_DISPLAY ?? "show"}.png`, fullPage: true });
     return;
   }
+  await page.getByText("Recorded utterances", { exact: true }).click();
+  await page.getByRole("button", { name: "What can you do?", exact: true }).click();
+  await expect(page.getByLabel("Your request", { exact: true })).toBeFocused();
+  await expect(page.getByLabel("Your request", { exact: true })).toHaveValue("What can you do?");
   await page.getByLabel("Your request", { exact: true }).fill("Show household context");
   await page.getByRole("button", { name: "Send", exact: true }).click();
   await expect(page.locator('iframe[title="Hirz MCP App card"]')).toHaveCount(1);

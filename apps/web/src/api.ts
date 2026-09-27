@@ -8,7 +8,7 @@ export async function api<T>(path: string, body?: unknown, signal?: AbortSignal)
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!response.ok) {
-    const detail = response.status === 409 ? (await response.json()).detail : null;
+    const detail = [400, 409].includes(response.status) ? (await response.json()).detail : null;
     throw new Error(typeof detail === "string" ? detail : response.status === 401 ? "Sign in again to continue." : "That request could not be completed. Refresh and try again.");
   }
   const data = await response.json();

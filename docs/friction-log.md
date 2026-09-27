@@ -751,3 +751,21 @@ repaint workaround was added. The earlier reports remain as observed history.
   **Feature request:** document the Converse-specific placement alongside
   [Anthropic's parallel-tool control](https://platform.claude.com/docs/en/agents-and-tools/tool-use/parallel-tool-use)
   and [Converse auto tool choice](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_AutoToolChoice.html).
+
+## Item 29: bridge dependency syntax blanks the older companion phone — 2026-09-26
+
+- **Tool/task:** Vite 8 production bundling with the installed MCP Apps bridge.
+- **Severity:** Major.
+- **Expected/observed:** The companion had previously worked on the author's
+  iOS 15.7.9 device. After the simulator imported the bridge into the shared
+  bundle, the author reported “my phone app is just dark, its not working.”
+  Inspection found MCP SDK class static initialization blocks in the generated
+  JavaScript. No phone-console exception was captured or invented.
+- **Documentation:** [Vite build target](https://vite.dev/config/build-options)
+  defaults to Safari/iOS 16.4; [WebKit's Safari 16.4 notes](https://webkit.org/blog/13966/webkit-features-in-safari-16-4/)
+  identify static initialization blocks as newly supported.
+- **Workaround:** Explicit `build.target: "safari15.4"`; the rebuilt bundle contains
+  zero class static blocks. Serve the rebuilt static files without restarting the
+  authenticated manual backend. Physical phone reload is pending confirmation.
+- **Feature request:** Make transitive SDK syntax requirements easier to detect
+  when adding a bridge to an application with an older supported browser target.

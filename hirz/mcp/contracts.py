@@ -551,7 +551,7 @@ TOOLS: dict[str, tuple[type[Input], str, str]] = {
     "execute_household_action": (
         ActionInput,
         "act",
-        "Request one device setting change, a configured household profile, a door unlock, or pause automation. Profiles use action=apply_profile and the named profile. Future automation may change settings. Ask for missing values. Money cannot be moved.",
+        "Request one device setting change, a configured household profile, a door unlock, or pause automation. A new unlock request uses action=request_door_unlock with room and minutes BEFORE phone approval: this tool evaluates current conditions and creates the phone request if allowed. A historical denial does not decide a new request. Voice never grants security approval. Profiles use action=apply_profile and the named profile. Future automation may change settings. Ask for missing values. Money cannot be moved.",
     ),
     "assess_request_risk": (
         RiskInput,
