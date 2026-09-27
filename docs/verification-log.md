@@ -9854,3 +9854,17 @@ passed all **54 cases and 12 tools**, with maximum displayed warm p95 **159.843m
 retained privately. This measures core transport revision `3ceb792`; later membership
 rejection and UI refinements are not represented as that exact revision. The main
 evening latency job and final regression run remain pending at this checkpoint.
+
+### Both CI latency gates — 2026-09-26
+
+Both timing jobs in
+[36288404300](https://github.com/BashaarJavaid/Hirz/actions/runs/36288404300)
+completed successfully on `3ceb792`. Each passed **54 cases and all 12 tools**
+against warm p95 ≤ **250ms**. Evening's maximum displayed case p95 was **230.150ms**
+(`objective-greenest`); Hourly's was **159.843ms** (`objective-cheapest`). Their
+payload-free logs are retained in `secrets/item29-20260926/ci-evening-latency.log`
+and `ci-hourly-latency.log`. The overall run failed its earlier reference-host
+relay step, whose repair and local retest are recorded above; this is a timing-job
+pass, not an overall green run. Final-source regression on `9af1ec2` remains
+in progress. Later membership rejection and UI refinements are not claimed as
+measured by this older timing revision.
