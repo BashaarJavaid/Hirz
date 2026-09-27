@@ -9786,3 +9786,32 @@ stream continues to return 405, as permitted by the MCP transport contract.
 Latency jobs and the subsequent regression run have not yet completed at this
 checkpoint. Retained evidence is under `secrets/item29-20260926`; the development
 database remains unchanged.
+
+### Final painted capture and current-membership probes — 2026-09-26
+
+The complete scripted evening Show capture rerun passed in **3.8 minutes** with
+**4,741 signed rows**, one verified bounded unlock/relock, and EV SOC
+**0.4999999998487115 at 06:30**. The final capture visibly renders the genuine plan
+card through the installed bridge and was reviewed. It preserves the derived
+negative estimated saving rather than replacing it with a favorable number.
+Artifacts and independent signed exports are retained in
+`secrets/item29-20260926/evening-show-capture-final`.
+
+Transport review found that a revoked member's GET reconnect or elicitation
+response could reach the SDK because neither envelope names a protected tool.
+The gate now checks current membership before either reaches the SDK. The existing
+rollback-only PostgreSQL role-change probe verifies **403** for both paths while
+preserving generic onboarding. Three database tests passed **17.92s**; a further
+genuine SDK callback probe verifies that another authenticated household cannot
+answer the pending question (**404**) and that the legitimate callback still
+completes. Its two tests passed **15.06s**. Auth/host units passed **24 tests in
+11.25s**; combined retained Python coverage remains **90%**. These do not claim
+every possible live disconnect/revocation interleaving.
+
+The author activated v8 inside the installed phone app, then found Safari and the
+recovered Mac companion signed out. Those are separate sessions. The recorded-demo
+Constitution page now offers **Open local simulator** within the same app; the
+real-backend browser check passed **15.1s** while asserting playback controls remain
+available after that navigation. The manual backend was not restarted, and no
+cookie transfer, passkey reset or authentication shortcut was added. Physical
+door approval and relock are still pending the author's continuation.

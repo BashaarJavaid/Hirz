@@ -150,6 +150,27 @@ def test_scope_household_roles_current_membership_and_no_writes(scratch_database
                 ).status_code == 200
             # Rollback-only mutation simulates an externally committed membership change
             # through the same connection supplied to the resolver. No mutation is retained.
+            session_headers = {
+                "authorization": "Bearer " + adult,
+                "Accept": "application/json, text/event-stream",
+                "MCP-Protocol-Version": "2025-11-25",
+            }
+            opened = await client.post(
+                "/mcp",
+                headers=session_headers,
+                json={
+                    "jsonrpc": "2.0",
+                    "id": "membership-session",
+                    "method": "initialize",
+                    "params": {
+                        "protocolVersion": "2025-11-25",
+                        "clientInfo": {"name": "membership-probe", "version": "1"},
+                        "capabilities": {},
+                    },
+                },
+            )
+            assert opened.status_code == 200
+            session_headers["MCP-Session-Id"] = opened.headers["mcp-session-id"]
             async with connect(scratch_database) as c:
                 async with c.begin():
                     await c.execute(
@@ -166,6 +187,21 @@ def test_scope_household_roles_current_membership_and_no_writes(scratch_database
 
                     with pytest.MonkeyPatch.context() as patch:
                         patch.setattr(auth, "resolve_member", current)
+                        async with asyncio.timeout(2):
+                            assert (
+                                await client.get("/mcp", headers=session_headers)
+                            ).status_code == 403
+                        assert (
+                            await client.post(
+                                "/mcp",
+                                headers=session_headers,
+                                json={
+                                    "jsonrpc": "2.0",
+                                    "id": "pending-elicitation",
+                                    "result": {"action": "accept", "content": {}},
+                                },
+                            )
+                        ).status_code == 403
                         assert (
                             await post(
                                 client,
@@ -183,6 +219,7 @@ def test_scope_household_roles_current_membership_and_no_writes(scratch_database
                             )
                         ).status_code == 200
                     await c.rollback()
+            await client.delete("/mcp", headers=session_headers)
             assert (
                 await post(
                     client,

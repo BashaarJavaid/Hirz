@@ -129,3 +129,15 @@ made that phone's shared app blank. Native build lowering is sufficient; no
 polyfill framework or second frontend is added. This does not add Web Push to
 older iOS. Recorded utterance selection focuses the populated request field so
 its separate Send action is apparent.
+
+Acceptance also exposed the installed iPhone app's independent browser session.
+A same-app link on the recorded-demo Constitution page preserves the existing
+companion login for simulator controls. Sharing cookies or transferring companion
+authority through the Echo session is rejected; separate browser sessions retain
+their existing authentication boundary.
+
+Resumed MCP GET streams and JSON-RPC elicitation replies require current household
+membership even though their envelopes name no tool scope. A revoked or child
+member receives 403 before SDK dispatch. Generic onboarding remains available;
+session cleanup grants no household access. Relying only on the eventual tool-call
+reauthorization was rejected because a resumed stream could expose queued data.

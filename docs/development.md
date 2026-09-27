@@ -1536,6 +1536,13 @@ fixture is installed. `/simulator` itself is independent of companion login.
 Recorded speech ignores casing and sentence punctuation while preserving words and
 numeric values; unknown free text remains unsupported.
 
+The installed iPhone app and Safari keep separate sessions. In the installed
+demo app, Constitution's **Open local simulator** link preserves its companion
+session for playback controls. The Mac Echo can remain separately linked while
+the phone advances the shared household scenario. Recovery revokes the member's
+previous companion sessions; it does not authorize another browser or revoke Echo
+OAuth linking. Do not recover repeatedly merely to move between browsers.
+
 Scenario controls require the matching companion household. Only the selected
 scenario advances; 1×, 60× and Next event pause at interaction beats. Complete the
 named Echo’s utterance, exact confirmations and any phone interaction before

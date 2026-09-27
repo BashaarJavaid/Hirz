@@ -60,7 +60,8 @@ test("simulator linking, real enrollment, cards, Dot, switching and both themes"
   await page.getByRole("button", { name: "Preview changes" }).click();
   await page.getByRole("button", { name: "Activate with passkey" }).click();
   await expect(page.getByRole("heading", { name: `Version ${scenario === "parents-scam-check" ? 1 : 7} · active`, exact: true })).toBeVisible();
-  await page.goto(origin + "/simulator", { waitUntil: "domcontentloaded" });
+  await page.getByRole("link", { name: "Open local simulator", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Next event", exact: true })).toBeVisible();
   console.log("Simulator page loaded");
   if (scenario === "parents-scam-check") await page.getByRole("combobox", { name: "Echo account", exact: true }).selectOption("mom");
   await page.getByRole("button", { name: "Link Echo with consent" }).click();

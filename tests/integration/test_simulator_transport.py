@@ -30,6 +30,22 @@ def test_authenticated_elicitation_and_session_isolation(scratch_database, tmp_p
 
             async def elicitation(context, params):
                 seen.append(params.requestedSchema)
+                if len(seen) == 1:
+                    # Another valid account cannot answer this pending SDK request.
+                    foreign = await parents.http.post(
+                        parents.url,
+                        headers={
+                            "Mcp-Session-Id": home.session_id,
+                            "MCP-Protocol-Version": home.protocol_version,
+                            "Accept": "application/json, text/event-stream",
+                        },
+                        json={
+                            "jsonrpc": "2.0",
+                            "id": context.request_id,
+                            "result": {"action": "accept", "content": {"minutes": 1}},
+                        },
+                    )
+                    assert foreign.status_code == 404
                 # A separate connection can lock the household while the server
                 # awaits its human response; no authorization transaction survives.
                 async with connect(scratch_database) as other:

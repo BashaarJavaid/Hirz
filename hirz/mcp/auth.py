@@ -347,7 +347,14 @@ class OAuthGate:
                 )
                 return
             if member.member_id is None or member.role in ("child", "unknown"):
-                if required:
+                # A resumed stream or elicitation reply needs current membership,
+                # even though it carries no tools/call scope to inspect.
+                if (
+                    required
+                    or request.method == "GET"
+                    or isinstance(value, dict)
+                    and ("result" in value or "error" in value)
+                ):
                     await error(
                         403,
                         "account_not_linked",
