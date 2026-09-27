@@ -9682,3 +9682,32 @@ The author enabled Tailscale for physical acceptance. A separate scripted manual
 launcher is running at the existing tailnet HTTPS origin, forwarding to loopback
 8012 with issuer 8013, and private invitations in `manual1`. Physical voice and
 passkey results remain pending; no human result is inferred from readiness.
+
+### Final integration, Show evidence and human voice report — 2026-09-26
+
+Full disposable PostgreSQL regression completed **179 passed, 1,483 deselected in
+671.20s**, with combined coverage **90%** (14,737 statements, 1,534 missed). After
+adding a genuine-tool-receipt history check and punctuation-preserving scripted
+matching, the focused host suite passed **14 tests in 7.51s**, coverage **90%**
+(14,752 statements, 1,516 missed). No development database was migrated.
+
+Scripted evening Show5 passed in **5.9 minutes**, then independently verified
+**5,097 signed rows**, one bounded unlock/relock, one completed dishwasher cycle,
+and EV SOC **0.4999999999747853 at 06:30**. Final scripted parents Show and Dot
+completed with **70 and 73 signed rows**, respectively. The retained parents Show
+capture shows the genuine delayed-result card through the installed bridge.
+Review of the evening capture exposed a lag in the test SSE proxy: reading one
+network chunk did not forward the entire current backlog. It now forwards through
+the real server heartbeat and asserts a rendered Show card before capture. A new
+evening Show run checks this and spoken casing/punctuation through actual activation.
+
+Haiku parents Show final3 passed in **42.0 seconds** with **103 signed rows** after
+replacing Strands' cancelled selection placeholder with the real MCP tool receipt.
+Earlier continuations using a separate user-message receipt were not accepted as
+reliable model history. Final parents Dot completed in **1.0 minute**; remaining
+live evening cells are running, with all attempts still charged to the same ledger.
+
+The author reported **“it worked”** after testing Mac Chrome speech recognition
+and the spoken response over Tailscale. This records the human microphone/speaker
+check only. Phone rule activation and door approval/relock are being checked
+separately and remain pending until reported and matched to signed evidence.

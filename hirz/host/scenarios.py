@@ -18,7 +18,7 @@ from hirz.executor.local import policy as reload_policy
 from hirz.executor.observations import ingest
 from hirz.executor.refresh_worker import RefreshWorker
 from hirz.executor.service import Executor
-from hirz.host.simulator import Simulator
+from hirz.host.simulator import Simulator, utterance_key
 from hirz.mcp.persistence import command
 from hirz.mcp.worker import prepare_plans
 from hirz.pipeline.models import Principal, VerificationCase
@@ -379,7 +379,9 @@ class Scenarios:
                             starts = [
                                 i
                                 for i, e in enumerate(events)
-                                if e["kind"] == "user" and e.get("text") == beat["text"]
+                                if e["kind"] == "user"
+                                and utterance_key(e.get("text", ""))
+                                == utterance_key(beat["text"])
                             ]
                             for start in starts:
                                 # Clarifying follow-up utterances belong to this beat.

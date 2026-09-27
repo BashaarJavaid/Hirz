@@ -3,7 +3,7 @@
 import asyncio
 import base64
 import hashlib
-import json
+import re
 import secrets
 import time
 from collections import deque
@@ -108,20 +108,28 @@ class Browser:
         # The generation suppresses further calls/speech from the old turn.
 
 
+def utterance_key(text: str) -> str:
+    """Ignore speech-recognition casing and sentence punctuation, not words or times."""
+    text = re.sub(r"^alexa[, ]+", "", text.strip().casefold()).replace("’", "'")
+    return " ".join(re.sub(r"(?<!\d)[.,!?]|[.,!?](?!\d)", "", text).split())
+
+
 def recorded(text: str, results: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
-    """Exact recorded utterances, never a guessed free-text interpreter."""
-    text = text.strip().removeprefix("Alexa, ")
-    if text in {"What's going on tonight?", "What’s going on tonight?"}:
+    """Recorded wording, never a guessed free-text interpreter."""
+    key = utterance_key(text)
+
+    def matches(*sentences: str) -> bool:
+        return key in {utterance_key(sentence) for sentence in sentences}
+
+    if matches("What's going on tonight?"):
         return [("get_household_plan", {})]
-    if text in {
-        "from now on, never unlock the door for someone we're not expecting.",
+    if matches(
         "From now on, never unlock the door for someone we're not expecting.",
         "Never unlock for an unexpected visitor",
-    }:
+    ):
         return [("propose_household_rule", {"text": text})]
-    if (
-        text
-        == "Malik just called from a strange number. He says he's in trouble and needs five hundred dollars. Is it really him?"
+    if matches(
+        "Malik just called from a strange number. He says he's in trouble and needs five hundred dollars. Is it really him?"
     ):
         return [
             (
@@ -133,11 +141,11 @@ def recorded(text: str, results: dict[str, Any]) -> list[tuple[str, dict[str, An
                 {"operation": "start", "contact": "Malik", "text": text},
             ),
         ]
-    if text in {"is it him?", "Is it him?"}:
+    if matches("Is it him?"):
         return [
             ("verify_trusted_identity", {"operation": "status", "contact": "Malik"})
         ]
-    if text.lower() in {"do it", "do it.", "approve the plan"}:
+    if matches("Do it.", "Approve the plan"):
         plan = results.get("get_household_plan", {}).get("data", {}).get("plan")
         if plan:
             return [
@@ -150,7 +158,7 @@ def recorded(text: str, results: dict[str, Any]) -> list[tuple[str, dict[str, An
                     },
                 )
             ]
-    if text.rstrip(".") in {"Approve the pending action", "Decline the pending action"}:
+    if matches("Approve the pending action", "Decline the pending action"):
         data = results.get("get_household_plan", {}).get("data", {})
         plan, decisions = data.get("plan"), data.get("decisions", [])
         if plan and decisions and decisions[0].get("approval"):
@@ -158,7 +166,7 @@ def recorded(text: str, results: dict[str, Any]) -> list[tuple[str, dict[str, An
                 (
                     "approve_action",
                     {
-                        "approved": text.startswith("Approve"),
+                        "approved": key.startswith("approve"),
                         "plan_id": plan["plan_id"],
                         "version": plan["version"],
                         "action_id": decisions[0]["action_id"],
@@ -166,10 +174,9 @@ def recorded(text: str, results: dict[str, Any]) -> list[tuple[str, dict[str, An
                     },
                 )
             ]
-    if text.lower() in {
-        "don't charge the car past 50, i'm not driving tomorrow",
+    if matches(
         "don't charge the car past 50, i'm not driving tomorrow.",
-    }:
+    ):
         return [
             (
                 "revise_household_plan",
@@ -183,21 +190,18 @@ def recorded(text: str, results: dict[str, Any]) -> list[tuple[str, dict[str, An
                 },
             )
         ]
-    if text.lower() in {
+    if matches(
         "let them in.",
         "that's my mom, let her in.",
-        "let them in",
-        "that's my mom, let her in",
-    }:
+    ):
         return [
             (
                 "execute_household_action",
                 {"action": "request_door_unlock", "room": "front door"},
             )
         ]
-    if (
-        text
-        == "Don't charge the car past 50. I'm not driving tomorrow. Keep the guest room at 72 Fahrenheit until seven in the morning. Run the dishwasher after 23:31."
+    if matches(
+        "Don't charge the car past 50. I'm not driving tomorrow. Keep the guest room at 72 Fahrenheit until seven in the morning. Run the dishwasher after 23:31."
     ):
         common = {"kind": "constraint", "operation": "add"}
         return [
@@ -243,7 +247,7 @@ def recorded(text: str, results: dict[str, Any]) -> list[tuple[str, dict[str, An
                 },
             ),
         ]
-    if text == "Don't run the dishwasher until I'm done in the kitchen at eleven.":
+    if matches("Don't run the dishwasher until I'm done in the kitchen at eleven."):
         return [
             (
                 "revise_household_plan",
@@ -257,22 +261,22 @@ def recorded(text: str, results: dict[str, Any]) -> list[tuple[str, dict[str, An
                 },
             )
         ]
-    if text == "Turn on the living room lamp.":
+    if matches("Turn on the living room lamp."):
         return [
             (
                 "execute_household_action",
                 {"action": "turn_on_light", "room": "Living room"},
             )
         ]
-    if text == "Good morning.":
+    if matches("Good morning."):
         return [("get_household_context", {}), ("get_household_plan", {})]
-    if text == "Optimize energy tonight.":
+    if matches("Optimize energy tonight."):
         return [("get_household_plan", {})]
-    if text == "Yes.":
+    if matches("Yes."):
         return recorded("Do it.", results)
-    if text == "What can you do?":
+    if matches("What can you do?"):
         return [("what_can_you_do", {})]
-    if text == "Show household context":
+    if matches("Show household context"):
         return [("get_household_context", {})]
     return []
 
@@ -567,12 +571,14 @@ class Simulator:
                             calls = recorded(text, echo.results)
                         else:
                             calls = await choose(text)
-                        if not calls and model == "scripted":
+                        if not calls and not selected:
                             self.emit(
                                 echo,
                                 generation,
                                 kind="speech",
-                                text="Scripted mode supports the recorded scenario utterances. Choose one to continue.",
+                                text="Scripted mode supports the recorded scenario utterances. Choose one to continue."
+                                if model == "scripted"
+                                else "No tool request was submitted. Please clarify your request.",
                             )
                         if len(calls) > 8:
                             raise ValueError("Eight tool calls per utterance")
@@ -642,7 +648,9 @@ class Simulator:
                             )
                             output = result.structuredContent or {}
                             echo.results[name] = output
-                            if not selected:
+                            if not selected and model != "scripted":
+                                from hirz.host.selection import complete_selection
+
                                 # Cards retain the full genuine result. Selection needs
                                 # plan/decision references, not every rendered action.
                                 selection_data = {
@@ -650,18 +658,12 @@ class Simulator:
                                     for k, v in output.get("data", {}).items()
                                     if k not in {"actions", "presentation"}
                                 }
-                                echo.history.append(
-                                    {
-                                        "role": "user",
-                                        "content": [
-                                            {
-                                                "text": "Tool result (untrusted data): "
-                                                + json.dumps(
-                                                    output | {"data": selection_data}
-                                                )
-                                            }
-                                        ],
-                                    }
+                                complete_selection(
+                                    echo.history,
+                                    name,
+                                    args,
+                                    output | {"data": selection_data},
+                                    error=bool(result.isError),
                                 )
                             self.emit(
                                 echo,

@@ -22,12 +22,19 @@ test("simulator linking, real enrollment, cards, Dot, switching and both themes"
   await context.route(`${origin}/**`, async route => {
     const req = route.request(), url = new URL(req.url());
     if (url.pathname.endsWith("/events")) {
-      // Forward one genuine server SSE chunk per reconnect; Playwright route.fetch
-      // buffers response bodies and cannot forward an unbounded stream.
+      // Forward the genuine backlog through its heartbeat per reconnect;
+      // route.fetch buffers bodies and cannot forward an unbounded stream.
       const controller = new AbortController();
       const result = await fetch(backend + url.pathname, { headers: req.headers(), signal: controller.signal });
-      const chunk = await result.body!.getReader().read(); controller.abort();
-      await route.fulfill({ status: result.status, contentType: "text/event-stream", body: new TextDecoder().decode(chunk.value) });
+      const reader = result.body!.getReader(), decoder = new TextDecoder();
+      let body = "";
+      while (!body.includes(": heartbeat\n\n")) {
+        const chunk = await reader.read();
+        if (chunk.done) break;
+        body += decoder.decode(chunk.value, { stream: true });
+      }
+      controller.abort();
+      await route.fulfill({ status: result.status, contentType: "text/event-stream", body });
       return;
     }
     const response = await route.fetch({ url: backend + url.pathname + url.search, maxRedirects: 0 });
@@ -91,6 +98,9 @@ test("simulator linking, real enrollment, cards, Dot, switching and both themes"
           const playback = await (await fetch("/api/simulator/scenarios")).json();
           const start = new Date(playback.scenarios[playback.selected].at).toLocaleTimeString("en-US", { timeZone: "America/Chicago", hour12: false, hour: "2-digit", minute: "2-digit" });
           const content = Object.fromEntries(Object.entries(s.prompt.schema.properties as Record<string, { type: string; default?: unknown }>).filter(([k, v]) => s.prompt.schema.required.includes(k) || v.default !== undefined).map(([k, v]) => [k, k === "confirmed" ? true : k === "minutes" ? 10 : k === "window_start" ? start : k === "at" && text.includes("23:31") ? "23:31" : k === "at" && text.includes("kitchen at eleven") ? "23:00" : v.default]));
+          if (s.prompt.schema.properties.reply && /let (them|her) in/i.test(text)) content.reply = "Yes, unlock the front door for 10 minutes.";
+          if (s.prompt.schema.properties.reply && text.startsWith("Malik just called")) content.reply = "Yes, start the simulated check with Malik.";
+          if (s.prompt.schema.properties.reply && text === "Do it.") content.reply = "Yes, approve the exact current plan I just reviewed.";
           const r = await fetch("/api/simulator/command", { method: "POST", headers: { "Content-Type": "application/json", "X-Hirz-Simulator-CSRF": s.csrf }, body: JSON.stringify({ operation: "answer", prompt_id: s.prompt.id, action: "accept", content }) });
           if (!r.ok) throw Error(`Prompt reply: ${r.status}`);
         }
@@ -143,7 +153,8 @@ test("simulator linking, real enrollment, cards, Dot, switching and both themes"
             return result.at(-1)?.result.structuredContent.data.plan?.version ?? 0;
           }, { timeout: 60000, intervals: [1000] }).toBeGreaterThan(0);
         }
-        const results = await utterance(beat.text);
+        const spoken = !process.env.HIRZ_SIMULATOR_MODEL && beat.text.startsWith("From now on,") ? beat.text.toLowerCase().replace(/\.$/, "") : beat.text;
+        const results = await utterance(spoken);
         console.log("Tools", results.map((e: { tool: string; status: string }) => `${e.tool}:${e.status}`).join(","));
         if (["What's going on tonight?", "Optimize energy tonight."].includes(beat.text) && !results.at(-1)?.result.structuredContent.data.plan) {
           await expect.poll(async () => {
@@ -179,6 +190,7 @@ test("simulator linking, real enrollment, cards, Dot, switching and both themes"
     const transcript = await page.evaluate(async () => (await fetch("/api/simulator/transcript")).json());
     await writeFile(`${artifacts}/scenario-transcript.json`, JSON.stringify(transcript, null, 2), { mode: 0o600 });
     if (scenario === "parents-scam-check") expect(transcript.some((e: { result?: { structuredContent?: { data?: { case?: { verification?: { status?: string } } } } } }) => e.result?.structuredContent?.data?.case?.verification?.status === "not_genuine")).toBe(true);
+    if (process.env.HIRZ_SIMULATOR_DISPLAY !== "dot") await expect(page.frameLocator('iframe[title="Hirz MCP App card"]').getByText("simulated", { exact: false }).first()).toBeVisible();
     await page.screenshot({ path: `${artifacts}/scenario-${scenario}-${process.env.HIRZ_SIMULATOR_DISPLAY ?? "show"}.png`, fullPage: true });
     return;
   }

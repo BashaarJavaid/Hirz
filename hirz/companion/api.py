@@ -555,9 +555,9 @@ def router(service: Companion) -> APIRouter:
             raise HTTPException(
                 404, "Recorded patches require an explicit disposable demo"
             )
-        if value.sentence not in {
-            "Never unlock for an unexpected visitor",
-            "From now on, never unlock the door for someone we're not expecting.",
+        if value.sentence.strip().rstrip(".!?").casefold().replace("’", "'") not in {
+            "never unlock for an unexpected visitor",
+            "from now on, never unlock the door for someone we're not expecting",
         }:
             raise HTTPException(
                 409,

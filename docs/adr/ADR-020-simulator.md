@@ -114,3 +114,11 @@ rendered actions remain available to cards. Lowering a ceiling below that target
 requires separately confirmed target and ceiling changes. Time-field descriptions
 distinguish the change's `at` from its optional validity window. Elicitation reports
 the invalid scalar; internal output-validation failures never become caller questions.
+
+The host replaces Strands' pending-selection tool result with the genuine MCP
+receipt and final host-generated arguments. Keeping a cancelled placeholder and
+appending a separate user message was rejected: it left contradictory history
+and caused incomplete compound requests. Models may ask short clarification
+questions, while tool narration remains deterministic. Each new request re-enters
+the service even when a historical attempt was denied. Recorded speech tolerates
+case and sentence punctuation; numbers and words retain their exact meaning.

@@ -1,6 +1,7 @@
 """Strands selects proposed calls. The async browser host owns all execution."""
 
 import json
+import re
 from decimal import Decimal
 from pathlib import Path
 from typing import Any, cast
@@ -21,6 +22,36 @@ MODELS = {
     "haiku": (MODEL_ID, "1.10", "5.50"),
     "nova": ("us.amazon.nova-lite-v1:0", "0.06", "0.24"),
 }
+PENDING = "Selected for sequential host confirmation; not executed yet."
+
+
+def complete_selection(
+    history: list[dict[str, Any]],
+    name: str,
+    arguments: dict[str, Any],
+    output: dict[str, Any],
+    *,
+    error: bool,
+) -> None:
+    """Replace Strands' selection placeholder with the genuine MCP receipt."""
+    for message in reversed(history):
+        for block in message["content"]:
+            use = block.get("toolUse", {})
+            if use.get("name") != name:
+                continue
+            for reply in reversed(history):
+                for item in reply["content"]:
+                    result = item.get("toolResult", {})
+                    if result.get("toolUseId") == use["toolUseId"] and result.get(
+                        "content"
+                    ) == [{"text": PENDING}]:
+                        use["input"] = dict(arguments)
+                        result.update(
+                            status="error" if error else "success",
+                            content=[{"json": output}],
+                        )
+                        return
+    raise ValueError("Missing pending model selection receipt")
 
 
 def select(
@@ -84,9 +115,7 @@ def select(
 
     def capture(event: BeforeToolCallEvent) -> None:
         calls.append((event.tool_use["name"], dict(event.tool_use["input"])))
-        event.cancel_tool = (
-            "Selected for sequential host confirmation; not executed yet."
-        )
+        event.cancel_tool = PENDING
 
     def finish(event: AfterToolsEvent) -> None:
         event.end_turn = True
@@ -116,7 +145,7 @@ def select(
             "Return only one intended tool per turn.",
             "Select only the next call. Use actual returned tool data for subsequent references. Each mutation is confirmed separately. Security approval and rule activation require the companion app.",
         )
-        + "\nThe host obtains exact confirmation before every mutation; do not ask a second commitment question. 'Do it' after a plan read selects approve_action using the latest returned plan_id and version without asking another question. Never read internal references aloud or ask the user to copy them. For a suspicious money request asking whether a known person is genuine, first assess_request_risk, then start verify_trusted_identity for that named trusted contact. A risk assessment alone does not check identity. Compound requests remain unfinished until each requested change is recorded. When the user lowers the car ceiling below the current plan target, TWO separately confirmed changes are required: first car_target at the lower percentage, then car_limit at that percentage. For example, a current target of 80 percent and a requested ceiling of 50 percent requires car_target=50 and car_limit=50. Finish both before other requested changes; never raise a lower existing target. Pending action approvals use the plan's returned decisions and their exact approval references. With no further tool needed, return only a clarification question if information is missing; otherwise return an empty response. The host speaks deterministic tool results itself.\nSTRICT SINGLE-CALL RESPONSE: emit at most ONE tool_use block. For a compound utterance, select ONLY the first unfinished call and stop immediately. Do not emit the remaining calls in this response. The host will invoke you again after that one call has completed. Keep a text argument to the relevant clause, not the entire compound utterance.",
+        + "\nThe host obtains exact confirmation before every mutation; do not ask a second commitment question. Every new user request, even a repeat after an earlier denial, needs a fresh tool call: conditions may have changed. Never infer current permission from old results or refuse to select a tool because history contains a denial. Only the service can decide. 'Do it' after a plan read selects approve_action using the latest returned plan_id and version without asking another question. Never read internal references aloud or ask the user to copy them. For a suspicious money request asking whether a known person is genuine, first assess_request_risk, then start verify_trusted_identity for that named trusted contact. A risk assessment alone does not check identity. Compound requests remain unfinished until each requested change is recorded. When the user lowers the car ceiling below the current plan target, TWO separately confirmed changes are required: first car_target at the lower percentage, then car_limit at that percentage. For example, a current target of 80 percent and a requested ceiling of 50 percent requires car_target=50 and car_limit=50. Finish both before other requested changes; never raise a lower existing target. Pending action approvals use the plan's returned decisions and their exact approval references. With no further tool needed, return only a clarification question if information is missing; otherwise return an empty response. The host speaks deterministic tool results itself.\nSTRICT SINGLE-CALL RESPONSE: emit at most ONE tool_use block. For a compound utterance, select ONLY the first unfinished call and stop immediately. Do not emit the remaining calls in this response. The host will invoke you again after that one call has completed. Keep a text argument to the relevant clause, not the entire compound utterance.",
         callback_handler=None,
         retry_strategy=None,
     )
@@ -124,7 +153,9 @@ def select(
     agent.hooks.add_callback(AfterToolsEvent, finish)
     result = agent(text)
     history[:] = cast(list[dict[str, Any]], list(agent.messages))
-    message = str(result).strip()
+    message = re.split(r"(?<=[.!])\s+", str(result).strip().rsplit("\n", 1)[-1])[
+        -1
+    ].strip()
     # Tool narration is deterministic. Only a short conversational question
     # can become a model-authored prompt; never repeat model outcome claims.
     return calls, message if message.endswith("?") and len(message) <= 500 else ""

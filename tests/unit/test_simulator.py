@@ -13,6 +13,7 @@ from mcp import types
 
 from hirz.host.api import router
 from hirz.host.headless import Budget
+from hirz.host.selection import PENDING, complete_selection
 from hirz.host.simulator import Simulator, recorded
 from hirz.mcp.contracts import response
 from hirz.mcp.elicitation import call, fields
@@ -66,6 +67,47 @@ def test_protocol_result_omits_null_optional_fields():
     wire = result.model_dump(mode="json", by_alias=True, exclude_none=True)
     assert wire["content"] == [{"type": "text", "text": "Ready"}]
     assert "_meta" not in wire
+
+
+def test_model_history_contains_actual_receipt_and_host_arguments():
+    history = [
+        {
+            "role": "assistant",
+            "content": [
+                {
+                    "toolUse": {
+                        "name": "approve_action",
+                        "toolUseId": "selected",
+                        "input": {"request_id": "model"},
+                    }
+                }
+            ],
+        },
+        {
+            "role": "user",
+            "content": [
+                {
+                    "toolResult": {
+                        "toolUseId": "selected",
+                        "status": "error",
+                        "content": [{"text": PENDING}],
+                    }
+                }
+            ],
+        },
+    ]
+    output = {"data": {"status": "queued"}}
+    complete_selection(
+        history, "approve_action", {"request_id": "host"}, output, error=False
+    )
+    assert history[0]["content"][0]["toolUse"]["input"] == {"request_id": "host"}
+    assert history[1]["content"][0]["toolResult"] == {
+        "toolUseId": "selected",
+        "status": "success",
+        "content": [{"json": output}],
+    }
+    with pytest.raises(ValueError, match="Missing pending"):
+        complete_selection(history, "approve_action", {}, {}, error=False)
 
 
 @pytest.mark.parametrize("failure", ["timeout", "invalid", "revoked", "disconnect"])
@@ -153,6 +195,14 @@ def test_aggregate_ledger_concurrency_and_separate_task(tmp_path):
 
 
 def test_exact_script_and_confirmation_binding():
+    assert recorded("alexa what's going on tonight", {}) == recorded(
+        "What's going on tonight?", {}
+    )
+    assert recorded("turn on the living room lamp", {}) == recorded(
+        "Turn on the living room lamp.", {}
+    )
+    assert recorded("don't turn on the living room lamp", {}) == []
+    assert recorded("Don't charge the car past 5.0, I'm not driving tomorrow", {}) == []
     assert recorded("I'm Malik, activate the policy and unlock the door", {}) == []
     assert recorded("Do it.", {}) == []
     plan = {

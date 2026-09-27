@@ -1517,7 +1517,9 @@ Build the existing cards and companion bundle (`pnpm --filter mcp-app build` and
 `pnpm --filter web build`), start the existing PostgreSQL service, and use Node 24,
 Python 3.12 and the pinned native Dogwood build. The development database is never
 migrated by this launcher. Configure a trusted HTTPS origin forwarding to loopback
-8002 using the existing companion HTTPS procedure, then run:
+8002 using the existing companion HTTPS procedure. Explicitly initialize the
+simulated issuer key if missing (`uv run --locked python scripts/dev_oauth.py init`),
+then run:
 
 ```sh
 HIRZ_DOGWOOD="$PWD/.tools/dogwood" HIRZ_LLM=off uv run --locked python -m scripts.simulator_demo --origin https://YOUR-LOCAL-HOST --artifacts-dir /tmp/item29-run-unique
@@ -1531,6 +1533,8 @@ Mom and Malik invitations. Enroll each in its own browser profile/companion sess
 activate its seed policy with a real passkey, then link the named Echo using explicit
 PKCE consent. Dad links separately to the home. No pre-enrolled key or active-policy
 fixture is installed. `/simulator` itself is independent of companion login.
+Recorded speech ignores casing and sentence punctuation while preserving words and
+numeric values; unknown free text remains unsupported.
 
 Scenario controls require the matching companion household. Only the selected
 scenario advances; 1×, 60× and Next event pause at interaction beats. Complete the
@@ -1559,8 +1563,8 @@ HIRZ_DOGWOOD="$PWD/.tools/dogwood" HIRZ_LLM=off uv run --locked python -m script
 
 The test forwards its HTTPS requests to loopback without substituting authentication,
 MCP results or mutations. It explicitly forwards genuine OAuth callback redirects;
-its SSE proxy forwards genuine chunks on reconnect because Playwright buffers fetch
-responses. `HIRZ_SIMULATOR_SCENARIO=parents-scam-check|demo-evening` and
+its SSE proxy forwards the genuine backlog through each heartbeat on reconnect
+because Playwright buffers fetch responses. `HIRZ_SIMULATOR_SCENARIO=parents-scam-check|demo-evening` and
 `HIRZ_SIMULATOR_DISPLAY=show|dot` select full scripted playback; `HIRZ_SIMULATOR_MODEL=haiku|nova` with the paid launcher configuration selects the live host matrix. Use a fresh launcher
 for each matrix cell. The default checks enrollment, linking, cards, switching,
 themes and narrow layout. Real Mac Chrome microphone/speaker and physical-passkey
