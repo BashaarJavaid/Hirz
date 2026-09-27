@@ -65,7 +65,7 @@ from hirz.twin.disposable import disposable
 from hirz.twin.execution import bootstrap
 from hirz.twin.scenario import LoadedScenario
 from scripts.smoke_household_tools import FullLogin, mcp_process
-from scripts.smoke_oauth import Storage, process
+from scripts.smoke_oauth import Storage, authenticate, process
 from scripts.tool_selection import CASES
 
 WARMUPS = 5
@@ -109,11 +109,13 @@ class Client:
         http: httpx.AsyncClient,
         url: str,
         protocol_version: str,
+        session_id: str,
     ):
         self.session, self.storage = session, storage
         self.auth = auth
         self.http, self.url = http, url
         self.protocol_version = protocol_version
+        self.session_id = session_id
         self.request_id = 0
         self.tick = tick
         self.samples: dict[str, list[float]] = defaultdict(list)
@@ -160,6 +162,7 @@ class Client:
                 "Accept": "application/json, text/event-stream",
                 "Content-Type": "application/json",
                 "MCP-Protocol-Version": self.protocol_version,
+                "Mcp-Session-Id": self.session_id,
             },
         )
         start = time.perf_counter_ns()
@@ -170,7 +173,13 @@ class Client:
             self.tools[case] = tool
             self.inputs[case] = args
         reply.raise_for_status()
-        envelope = types.JSONRPCResponse.model_validate_json(reply.content)
+        envelope = types.JSONRPCResponse.model_validate_json(
+            next(
+                line[6:]
+                for line in reply.text.splitlines()
+                if line.startswith("data: ") and '"result"' in line
+            )
+        )
         assert envelope.id == body.id, "Mismatched JSON-RPC response"
         raw = types.CallToolResult.model_validate(envelope.result)
         if not raw.isError:
@@ -454,7 +463,11 @@ class Environment:
 
     @asynccontextmanager
     async def client(
-        self, member: int, storage: Storage | None = None
+        self,
+        member: int,
+        storage: Storage | None = None,
+        *,
+        elicitation_callback: Any = None,
     ) -> AsyncIterator[Client]:
         login = FullLogin(False, self.config["callback"])
         login.member = member
@@ -473,12 +486,18 @@ class Environment:
             login.callback_result,
         )
         async with httpx.AsyncClient(auth=auth, trust_env=False, timeout=60) as http:
+            await authenticate(http, self.config["resource"])
             async with streamable_http_client(
                 self.config["resource"], http_client=http
             ) as (read, write, session_id):
-                async with ClientSession(read, write) as session:
+                async with ClientSession(
+                    read, write, elicitation_callback=elicitation_callback
+                ) as session:
                     initialized = await session.initialize()
-                    assert session_id() is None, "Raw timing requires stateless MCP"
+                    sid = session_id()
+                    assert sid is not None, (
+                        "Authenticated timing requires an MCP session"
+                    )
                     assert {t.name for t in (await session.list_tools()).tools} == set(
                         TOOLS
                     )
@@ -498,6 +517,7 @@ class Environment:
                         http,
                         self.config["resource"],
                         str(initialized.protocolVersion),
+                        sid,
                     )
                     yield client
 

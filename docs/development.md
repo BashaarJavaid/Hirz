@@ -1510,3 +1510,66 @@ migration of their isolated databases. Run an installed wheel from that prepared
 checkout/deployment directory; the wheel carries browser assets, not an implicit
 household setup or migration. The container copies these repository resources
 explicitly. No startup migration is introduced.
+
+## Item 29 disposable simulator
+
+Build the existing cards and companion bundle (`pnpm --filter mcp-app build` and
+`pnpm --filter web build`), start the existing PostgreSQL service, and use Node 24,
+Python 3.12 and the pinned native Dogwood build. The development database is never
+migrated by this launcher. Configure a trusted HTTPS origin forwarding to loopback
+8002 using the existing companion HTTPS procedure, then run:
+
+```sh
+HIRZ_DOGWOOD="$PWD/.tools/dogwood" HIRZ_LLM=off uv run --locked python -m scripts.simulator_demo --origin https://YOUR-LOCAL-HOST --artifacts-dir /tmp/item29-run-unique
+```
+
+The launcher explicitly migrates one newly named disposable database, supplies
+both labeled twin households, and starts the issuer on loopback 8003 and the
+MCP/companion/simulator on 8002. `--port` and `--issuer-port` can isolate concurrent
+checks. Keep the artifact directory private: `invitations.json` contains the initial
+Mom and Malik invitations. Enroll each in its own browser profile/companion session,
+activate its seed policy with a real passkey, then link the named Echo using explicit
+PKCE consent. Dad links separately to the home. No pre-enrolled key or active-policy
+fixture is installed. `/simulator` itself is independent of companion login.
+
+Scenario controls require the matching companion household. Only the selected
+scenario advances; 1×, 60× and Next event pause at interaction beats. Complete the
+named Echo’s utterance, exact confirmations and any phone interaction before
+continuing. Read the updated plan before approving its returned version. At the
+parents’ reply beat choose an explicitly simulated answer, then ask again for the
+result. Recorded rule review requires its matching voice proposal and passkey
+activation. A fresh run requires restarting the launcher. Shutdown independently
+verifies and exports both signed audit chains before successful database cleanup;
+failed runs retain their disposable database and private evidence.
+
+For model selection only, set `HIRZ_LLM=bedrock`, `AWS_PROFILE=hirz` and add
+`--budget-ledger secrets/item29-host-budget.json`. Preserve this same separate $5
+aggregate ledger across every model, restart and attempted run. Never use/reset the
+existing $2 ledger. Native token counting and maximum-output reservation precede
+inference; expired credentials, counting failure and cap exhaustion stop the turn.
+Select scripted mode explicitly to continue. Pricing and model IDs are in ADR-020;
+recheck pricing before later paid invocations. Drafting stays on the labeled recorded
+patch and narration uses deterministic tool speech during acceptance.
+
+Automated browser checks use the real backend with virtual authenticators:
+
+```sh
+HIRZ_DOGWOOD="$PWD/.tools/dogwood" HIRZ_LLM=off uv run --locked python -m scripts.simulator_demo --origin https://hirz.example.test --artifacts-dir /tmp/item29-browser-unique --browser-test
+```
+
+The test forwards its HTTPS requests to loopback without substituting authentication,
+MCP results or mutations. It explicitly forwards genuine OAuth callback redirects;
+its SSE proxy forwards genuine chunks on reconnect because Playwright buffers fetch
+responses. `HIRZ_SIMULATOR_SCENARIO=parents-scam-check|demo-evening` and
+`HIRZ_SIMULATOR_DISPLAY=show|dot` select full scripted playback; `HIRZ_SIMULATOR_MODEL=haiku|nova` with the paid launcher configuration selects the live host matrix. Use a fresh launcher
+for each matrix cell. The default checks enrollment, linking, cards, switching,
+themes and narrow layout. Real Mac Chrome microphone/speaker and physical-passkey
+rule/unlock/relock acceptance remain separate human checks. Evidence and all open
+matrix/gate results belong in [item 29](./verification-log.md#item-29).
+
+The configured AWS process profile refreshes through `aws login --profile hirz-login`;
+verify it with `aws sts get-caller-identity --profile hirz --no-cli-pager`.
+The verified Nova Lite endpoint currently rejects CountTokens, so it stops before
+inference under the approved budget rule. See the item 29 friction entry.
+Playback pauses again if execution needs a new action approval: read the current
+plan, then explicitly approve or decline its pending action before continuing.

@@ -9494,3 +9494,152 @@ already formatted**; `git diff --check` and `cmp AGENTS.md CLAUDE.md` exited 0.
 The format check is repeated after this evidence is recorded, before committing
 the documentation-only update with `[skip ci]`. No further third-party friction
 was encountered beyond the capture-review follow-up already recorded above.
+
+## Item 29
+
+### Local implementation checkpoint — 2026-09-26
+
+Item 29 remains **partial**. The implementation and boundary decisions are in
+[ADR-020](./adr/ADR-020-simulator.md); the repeatable launcher procedure is in
+[development](./development.md#item-29-disposable-simulator). Item 28's remaining
+physical Web Push check is unchanged.
+
+The first complete service-free run passed **1,477 tests**. The full PostgreSQL
+run passed **177 tests**, producing **89% combined coverage** (14,555 statements,
+1,672 missed at that checkpoint). The new real-HTTP elicitation integration test
+also passed: accept/decline/cancel of missing duration, independent PostgreSQL
+NOWAIT lock acquisition during the prompt, cross-account session rejection and
+unsupported-client typed clarification. Twelve simulator units cover expiry,
+switch cancellation, exact policy/principal/request bindings, invalid/timeout/revoked
+response refusal, origin/CSRF, stale prompt IDs, card CSP and concurrent aggregate
+spending. Four raw/SDK request identity/statistics checks pass with SSE/session IDs.
+The final full service-free rerun is recorded separately when finished.
+
+Commands used the existing `.venv` Python 3.12 environment, native `.tools/dogwood`
+and `.tools/dogwood-helper`, and Docker PostgreSQL with uniquely named disposable
+databases. No development migration ran. Early browser checks used the shell's
+Node 23; the final UI/keyboard run and repeated workspace checks explicitly selected
+`/opt/homebrew/opt/node@24/bin`. Workspace lint, TypeScript checking and five Vitest
+checks passed; strict mypy passed for 182 source files. Ruff checks passed, with
+final formatting still repeated after documentation updates.
+
+The official SDK OAuth smoke passed discovery, explicit S256 consent, authenticated
+session initialization, token refresh, denial, wrong-audience rejection and distinct
+adult/owner membership for the same subject in two homes. The full isolation corpus
+passed with signed exports. The independent twelve-tool checker passed **117 checks,
+zero failures/warnings/skips, eight manual items**, after a real MCP restart; its
+611-row export independently verified. Commands:
+
+```sh
+HIRZ_DOGWOOD="$PWD/.tools/dogwood" HIRZ_LLM=off .venv/bin/python scripts/smoke_oauth.py
+HIRZ_DOGWOOD="$PWD/.tools/dogwood" HIRZ_LLM=off .venv/bin/python scripts/smoke_tool_budget.py --mode isolation --artifacts-dir /tmp/hirz-item29-isolation
+HIRZ_DOGWOOD="$PWD/.tools/dogwood" HIRZ_LLM=off .venv/bin/python scripts/smoke_household_tools.py --audit-output /tmp/hirz-item29-conformance-audit.json --conformance-cli ../addon-check/dist/cli.js
+.venv/bin/pytest tests/integration/test_simulator_transport.py -m integration --cov=hirz --cov-append
+```
+
+Private evidence is retained under ignored `secrets/item29-20260926/`: `browser9`,
+`parents-dot4`, `parents-show1`, `evening-show2`, `isolation`, the conformance export
+and command logs. Browser tests used virtual authenticators with real companion
+verification/enrollment/activation endpoints and genuine PKCE consent/MCP calls.
+The basic test passed in 22.2 seconds on Node 24, including actual card result
+notifications, both themes/contrast, responsive captures, account clearing, no Dot
+iframe, keyboard focus into a confirmation, and refusal of the subsequent real MCP
+scalar question. The dark/light/mobile captures were reviewed; physical speech and
+screen-reader acceptance are not claimed.
+
+| Host | Evening Show | Evening Dot | Parents Show | Parents Dot |
+|---|---|---|---|---|
+| Scripted | Timeline/phone/ending verified | Corrected rerun in progress | Passed | Passed |
+| Haiku 4.5 | Pending credentials | Pending credentials | Pending credentials | Pending credentials |
+| Nova Lite | Pending credentials | Pending credentials | Pending credentials | Pending credentials |
+
+Parents Show/Dot reached all five events and retained 64/61 verified signed rows,
+respectively. Both used Mom's separate enrollment and seed activation, two separately
+confirmed tools at the scam beat, a selected `not_genuine` simulated reply through
+the genuine verification command, and a later explicit status request. No unsolicited
+speech was added by the reply. No real contact delivery is claimed.
+
+The corrected evening Show run reached 21 events, including the actual matching
+voice proposal, deterministic review and passkey activation of version 8; four
+separately confirmed constraint calls; unexpected-visitor denial; a distinct Dad
+link/history; and passkey approval with an actual unlocked read-back. Its 3,984-row
+signed chain contains the door's `VERIFIED` opening at `2026-10-14T00:05:00Z`, an
+`ENDING_AUTHORIZED` locked ending due at `00:15:00Z`, and the ending's `VERIFIED`
+event at exactly `00:15:00Z`. These are twin results. Source scenario deferred
+assertions, old snapshot savings and real-device/Link guarantees are not counted as
+passed by this new public-tool run. Final scenario state is retained by subsequent
+launcher runs, with dollar/kWh figures taken only from genuine returned plans.
+
+Earlier evening Dot playback reached the end but was **not accepted**: audit review
+found that the browser navigated away before the passkey ceremony completed. The
+test now waits for the unlocked read-back, playback refuses an unapproved companion
+beat, and launcher acceptance requires signed opening plus bounded ending evidence.
+Other discarded browser attempts exposed test redirect forwarding, null optional
+protocol fields in bridge notifications, dark-theme inheritance, a missing scenario
+adapter start, and same-timestamp observation ordering; these were corrected and
+rerun. Failed disposable databases were retained by the existing failure policy.
+Playwright routing friction is recorded once in the friction log.
+
+Both attempted live host checks stopped **before inference** with
+`CredentialRetrievalError: Error when retrieving credentials from custom-process`
+and `Your session has expired. Please reauthenticate using 'aws login'.`
+No CountTokens/inference call or reservation was reached; no paid completion is
+claimed. The existing $2 ledger was untouched. The user was asked to refresh
+`aws login --profile hirz`; further paid attempts must use the same separate item-29
+$5 ledger, recommended at `secrets/item29-host-budget.json` (none was charged by
+these failed credential checks). Current prices and sources are recorded in ADR-020.
+
+Remaining at this checkpoint: corrected evening Dot evidence and final-state review;
+eight live-model matrix cells and counting/failure acceptance with refreshed AWS
+credentials; physical Mac Chrome microphone/speaker and real-passkey simulator
+acceptance; the complete adversarial wait/resume/disconnect matrix beyond the
+specific checked cases; and required CI regression/latency gates. A local full
+latency diagnostic is running separately and is not the CI gate of record. No
+item-29 closure, harness extraction, recording Compose, real contact delivery,
+physical lock or AWS security claim is made.
+
+### Simulator continuation: energy end states and live provider checks — 2026-09-26
+
+The final service-free run completed **1,481 passed, 180 deselected**, with combined
+coverage still **89%** (14,623 statements, 1,617 missed). The subsequent requester
+review regression and real SDK transport run completed **2 passed in 9.87s** against
+disposable PostgreSQL/native Dogwood: policy changes during the prompt require a
+new confirmation, profile children receive independent decisions, and advancing
+wall time does not endlessly invalidate an immediate request. This policy-swap
+probe swaps an evaluated test bundle; it does not claim persisted passkey activation.
+
+End-state inspection disqualified the earlier evening Dot3 timeline result:
+its final car SOC was 0.3742427083333334 and dishwasher completions were zero.
+The public planning worker had ignored the explicit scenario EV deadline, and
+playback advanced past runtime approval requests. The worker now retains the
+scenario deadline, and playback pauses on new consent requirements. The current
+plan exposes the actual pending canonical Decision for public-tool approval.
+Dot4 then completed with **4,937 independently verified signed rows**, final SOC
+**0.49999999992435573**, one dishwasher completion, and a verified bounded door
+ending. Show3 additionally recorded that same SOC at **2026-10-14T11:30:00Z
+(06:30 Chicago)**, one completed dishwasher cycle and one signed bounded unlock.
+The browser test passed, but disposable cleanup failed with PostgreSQL
+`ObjectInUse` (one outstanding connection); that database was retained. The
+launcher now settles host/card requests before server teardown and audit export.
+These runs supersede the earlier timeline-only energy evidence; final reruns and
+CI remain outstanding.
+
+AWS login recovery required **`aws login --profile hirz-login`**, not the earlier
+suggested `hirz` profile: inspected configuration showed `hirz` delegates through
+`aws configure export-credentials --profile hirz-login --format process`.
+STS verified the refreshed credentials. Paid attempts now use the durable private
+`secrets/item29-host-budget.json`; all attempts remain included, and the existing
+$2 ledger is unchanged. **Haiku parents Dot passed in 31.9 seconds** with genuine
+risk assessment, verification start, human-selected simulated reply and an explicit
+follow-up status read. An earlier Haiku attempt selected only risk assessment;
+subsequent host guidance requires the identity check as well. Show attempts exposed
+an OAuth test navigation race and background-card history/speech interference;
+those checks are being rerun after fixes. No unpassed live cell is claimed.
+
+Nova's first Dot attempt stopped before inference. A separate free CountTokens
+probe reproduced `ValidationException: The provided model doesn't support counting tokens.`
+The four required Nova cells remain blocked by the approved pre-counting rule;
+no estimated count, substituted model or Nova inference was used. Exact third-party
+friction and links are in the friction log. Physical Chrome voice/passkey acceptance,
+the remaining adversarial matrix, final regression and required CI latency gates
+still prevent item closure.

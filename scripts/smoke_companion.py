@@ -27,7 +27,7 @@ from hirz.local import read_env
 from hirz.mcp.auth import SCOPES
 from hirz.mcp.dev_oauth import registered_client
 from scripts.smoke_household_tools import FullLogin, mcp_process
-from scripts.smoke_oauth import Storage, process
+from scripts.smoke_oauth import Storage, authenticate, process
 
 
 async def run(folder: Path) -> None:
@@ -131,9 +131,10 @@ async def run(folder: Path) -> None:
                     async with httpx.AsyncClient(
                         auth=auth, trust_env=False, timeout=60
                     ) as http:
+                        await authenticate(http, str(config["resource"]))
                         async with streamable_http_client(
                             str(config["resource"]), http_client=http
-                        ) as (read, write, _):
+                        ) as (read, write, session_id):
                             async with ClientSession(read, write) as session:
                                 initialized = await session.initialize()
                                 await session.list_tools()
@@ -148,6 +149,7 @@ async def run(folder: Path) -> None:
                                         "resource": config["resource"],
                                         "token": storage.tokens.access_token,
                                         "protocol": str(initialized.protocolVersion),
+                                        "session": session_id(),
                                     },
                                 )
                                 browser = await asyncio.create_subprocess_exec(

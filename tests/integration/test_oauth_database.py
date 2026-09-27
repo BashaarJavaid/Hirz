@@ -19,6 +19,7 @@ from tests.integration.test_database import (  # noqa: F401
     migrate,
     scratch_database,  # noqa: F401
 )
+from tests.mcp_transport import post
 from tests.unit.test_oauth import call, claims, consent, encode, gated, provider, tokens
 
 pytestmark = pytest.mark.integration
@@ -49,7 +50,8 @@ def test_scope_household_roles_current_membership_and_no_writes(scratch_database
             engine = create_async_engine(scratch_database, hide_parameters=True)
             async with gated(p, engine, required) as (client, cache):
                 for i, t in enumerate(issued):
-                    response = await client.post(
+                    response = await post(
+                        client,
                         "/mcp",
                         json=call(),
                         headers={"authorization": "Bearer " + t["access_token"]},
@@ -67,7 +69,8 @@ def test_scope_household_roles_current_membership_and_no_writes(scratch_database
                         and value["speaker"] is None
                     )
                 wrong_scope = next(scope for scope in SCOPES if scope != required)
-                response = await client.post(
+                response = await post(
+                    client,
                     "/mcp",
                     json=call(),
                     headers={
@@ -82,7 +85,8 @@ def test_scope_household_roles_current_membership_and_no_writes(scratch_database
                 # Same subject has distinct membership/role per household, concurrently.
                 responses = await asyncio.gather(
                     *(
-                        client.post(
+                        post(
+                            client,
                             "/mcp",
                             json=call(),
                             headers={
@@ -122,8 +126,11 @@ def test_scope_household_roles_current_membership_and_no_writes(scratch_database
                     passkey_verified=True,
                 ),
             )
-            response = await client.post(
-                "/mcp", json=call(), headers={"authorization": "Bearer " + adult}
+            response = await post(
+                client,
+                "/mcp",
+                json=call(),
+                headers={"authorization": "Bearer " + adult},
             )
             assert (
                 response.json()["result"]["structuredContent"]["data"]["role"]
@@ -134,11 +141,11 @@ def test_scope_household_roles_current_membership_and_no_writes(scratch_database
                     "authorization": "Bearer " + encode(p, claims(p, sub=subject))
                 }
                 assert (
-                    await client.post("/mcp", json=call(), headers=headers)
+                    await post(client, "/mcp", json=call(), headers=headers)
                 ).status_code == 403
                 assert (
-                    await client.post(
-                        "/mcp", json=call("what_can_you_do"), headers=headers
+                    await post(
+                        client, "/mcp", json=call("what_can_you_do"), headers=headers
                     )
                 ).status_code == 200
             # Rollback-only mutation simulates an externally committed membership change
@@ -160,14 +167,16 @@ def test_scope_household_roles_current_membership_and_no_writes(scratch_database
                     with pytest.MonkeyPatch.context() as patch:
                         patch.setattr(auth, "resolve_member", current)
                         assert (
-                            await client.post(
+                            await post(
+                                client,
                                 "/mcp",
                                 json=call(),
                                 headers={"authorization": "Bearer " + adult},
                             )
                         ).status_code == 403
                         assert (
-                            await client.post(
+                            await post(
+                                client,
                                 "/mcp",
                                 json=call("what_can_you_do"),
                                 headers={"authorization": "Bearer " + adult},
@@ -175,8 +184,11 @@ def test_scope_household_roles_current_membership_and_no_writes(scratch_database
                         ).status_code == 200
                     await c.rollback()
             assert (
-                await client.post(
-                    "/mcp", json=call(), headers={"authorization": "Bearer " + adult}
+                await post(
+                    client,
+                    "/mcp",
+                    json=call(),
+                    headers={"authorization": "Bearer " + adult},
                 )
             ).status_code == 200
 

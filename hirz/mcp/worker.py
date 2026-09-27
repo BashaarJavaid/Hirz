@@ -70,6 +70,10 @@ async def prepare_plans(p: Pipeline, loaded: LoadedScenario | None) -> None:
                     "requester": requester,
                     "actuator_precision": True,
                     "objective": row["objective"],
+                    "ev_deadline": loaded.time(spec.ev_needed_by)
+                    if spec.ev_needed_by
+                    else inputs.ev_deadline,
+                    "constraints": (),
                 }
             )
             result = await asyncio.to_thread(

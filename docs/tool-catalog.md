@@ -3,8 +3,9 @@
 **Item 25 approved local contract (implemented).** The authenticated factory exposes all twelve
 names below. The generic unauthenticated app still exposes only onboarding.
 The implemented contract is in `hirz/mcp/contracts.py`; [ADR-015](./adr/ADR-015-household-tools.md)
-records the approved choices and trust vocabulary. Voice and native structured
-rendering are supported; cards, elicitation and the full simulator remain pending.
+records the approved choices and trust vocabulary. Cards are implemented in item 27. Item 29 adds authenticated SDK sessions/SSE and
+scalar elicitation while preserving the twelve flat tool schemas. Full simulator
+acceptance remains tracked in [the evidence log](./verification-log.md#item-29).
 
 | Tool | Scope | Implemented inputs and behavior |
 |---|---|---|
@@ -236,3 +237,22 @@ it. Owner activation requires review and a fresh passkey, including proposals
 originating on Alexa. Historical disposable smokes retain explicitly labeled
 unactivated-policy behavior. [Acceptance status](./verification-log.md#item-28--in-progress--2026-09-25)
 remains incomplete.
+
+## Item 29 transport and elicitation
+
+Authenticated requests initialize an SDK-managed Streamable HTTP session and send
+its `Mcp-Session-Id` on subsequent POST/GET/DELETE requests. All requests authenticate;
+session possession alone grants nothing. Session ownership includes the linked
+household/account/scopes. Anonymous discovery/onboarding retains stateless JSON.
+Clients linking after anonymous discovery must initialize a fresh authenticated
+session. GET supports the SDK event stream; there is no separate legacy SSE endpoint.
+
+Clients advertising form elicitation receive scalar questions derived from the
+existing input schemas and household clarification results. Values are revalidated
+before existing services run. Accept, decline, cancel and five-minute expiry are
+bounded; unsupported clients retain typed clarification. A requester-confirmation
+prompt is bound to the exact action, linked principal and current policy. Database
+transactions/locks unwind before prompts; resumed calls reauthorize and re-resolve
+references. Claimed names never raise authority. Host commitment review is separate;
+there is no new caller-supplied authority Boolean, voice security approval or voice
+constitution activation. See [ADR-020](./adr/ADR-020-simulator.md).

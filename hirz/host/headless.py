@@ -68,15 +68,36 @@ request_id; use 'host' as its placeholder. Return only one intended tool per tur
 
 
 class Budget:
-    def __init__(self, path: Path):
+    def __init__(
+        self,
+        path: Path,
+        *,
+        limit: Decimal = BUDGET_LIMIT,
+        input_rate: Decimal = Decimal("1.10"),
+        output_rate: Decimal = Decimal("5.50"),
+        purpose: str | None = None,
+        model: str | None = None,
+    ):
         self.path = path
+        self.limit, self.input_rate, self.output_rate, self.purpose = (
+            limit,
+            input_rate,
+            output_rate,
+            purpose,
+        )
+        self.model = model
         self.calls: list[dict[str, int]] = []
 
     def reserve(self, inputs: int, outputs: int) -> None:
-        if type(inputs) is not int or inputs < 0 or not 0 < outputs <= 512:
+        if (
+            type(inputs) is not int
+            or inputs < 0
+            or type(outputs) is not int
+            or not 0 < outputs <= 512
+        ):
             raise ValueError("Invalid token budget")
         cost = (
-            Decimal(inputs) * Decimal("1.10") + Decimal(outputs) * Decimal("5.50")
+            Decimal(inputs) * self.input_rate + Decimal(outputs) * self.output_rate
         ) / 1_000_000
         descriptor = os.open(self.path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
         with os.fdopen(descriptor, "r+") as handle:
@@ -85,11 +106,25 @@ class Budget:
             record: dict[str, Any] = (
                 json.loads(raw) if raw else {"reserved_usd": "0", "calls": []}
             )
+            if raw and record.get("purpose") != self.purpose:
+                raise ValueError("Budget ledger belongs to a different task")
+            if self.purpose is not None:
+                record["purpose"] = self.purpose
             used = Decimal(record["reserved_usd"])
-            if not used.is_finite() or used < 0 or used + cost > BUDGET_LIMIT:
+            if not used.is_finite() or used < 0 or used + cost > self.limit:
                 raise ValueError("BEDROCK_BUDGET_EXHAUSTED")
             record["reserved_usd"] = str(used + cost)
-            record["calls"].append(dict(input_tokens=inputs, max_output_tokens=outputs))
+            reservation: dict[str, Any] = dict(
+                input_tokens=inputs, max_output_tokens=outputs
+            )
+            if self.purpose is not None:
+                reservation.update(
+                    model=self.model,
+                    input_usd_per_million=str(self.input_rate),
+                    output_usd_per_million=str(self.output_rate),
+                    reserved_usd=str(cost),
+                )
+            record["calls"].append(reservation)
             handle.seek(0)
             json.dump(record, handle)
             handle.truncate()

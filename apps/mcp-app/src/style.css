@@ -10,6 +10,7 @@
 }
 :root[data-theme="dark"] { --canvas: #14181E; --nested: #1B2028; --ink: #FFFFFF; color-scheme: dark; }
 * { box-sizing: border-box; }
+html, body { min-height: 100vh; background: var(--canvas); }
 body { margin: 0; background: var(--canvas); color: var(--ink); }
 .canvas { width: 768px; height: 480px; padding: var(--space7); transform: scale(var(--scale)); transform-origin: top left; display: flex; flex-direction: column; gap: var(--space4); overflow: hidden; }
 header { display: flex; align-items: center; gap: var(--space4); min-height: 48px; }

@@ -121,8 +121,11 @@ async def account(c: AsyncConnection, household: UUID, member: UUID) -> Principa
     return Principal(provider=row["provider"], sub=row["sub"], surface="app")
 
 
-async def initial_invitation(p: Pipeline, member: UUID) -> str:
+async def initial_invitation(
+    p: Pipeline, member: UUID, *, at: datetime | None = None
+) -> str:
     """Explicit local setup only. An enrolled member can never use this as reset."""
+    at = at or p.clock()
     async with p.repo.write(p.clock):
         await account(p.connection, p.household_id, member)
         enrolled = await p.connection.scalar(
@@ -151,7 +154,7 @@ async def initial_invitation(p: Pipeline, member: UUID) -> str:
                 household_id=p.household_id,
                 member_id=member,
                 kind="invitation",
-                expires_at=p.clock() + timedelta(hours=24),
+                expires_at=at + timedelta(hours=24),
             )
         )
         return token
@@ -454,8 +457,10 @@ async def register(
     response: dict[str, Any],
     label: str,
     session_token: str | None,
+    *,
+    at: datetime | None = None,
 ) -> dict[str, str]:
-    at = p.clock()
+    at = at or p.clock()
     if (
         record["kind"] != "register"
         or at >= record["expires_at"]
@@ -615,7 +620,10 @@ async def revoke(
     await revoke_keys(p, row["member_id"], credential_id)
 
 
-async def reinvite(p: Pipeline, principal: Principal, member: UUID) -> str:
+async def reinvite(
+    p: Pipeline, principal: Principal, member: UUID, *, at: datetime | None = None
+) -> str:
+    at = at or p.clock()
     role = await p.connection.scalar(
         sa.select(db.members.c.role).where(
             p.scope(db.members), db.members.c.id == member
@@ -642,7 +650,7 @@ async def reinvite(p: Pipeline, principal: Principal, member: UUID) -> str:
             household_id=p.household_id,
             member_id=member,
             kind="reinvite",
-            expires_at=p.clock() + timedelta(hours=24),
+            expires_at=at + timedelta(hours=24),
         )
     )
     return token

@@ -1205,6 +1205,19 @@ class Pipeline:
             raise PipelineError("An owned Pipeline transaction is required")
         action = ingest(action)
         principal = Principal.model_validate(principal.model_dump())
+        from hirz.pipeline.confirmation import RequesterReview, review_context
+
+        review = (
+            review_context.get()
+            if principal.surface == "alexa"
+            and not action.action_class.startswith("security.")
+            else None
+        )
+        review_binding = (
+            review.binding(self.bundle.fingerprint, action, principal) if review else ""
+        )
+        if review and review_binding in review.accepted:
+            principal = principal.model_copy(update={"requester_confirmed": True})
         estimate(cost)
         at = utc(self.clock())
         if action.action_class == "governance.memory":
@@ -1233,6 +1246,9 @@ class Pipeline:
             at,
             bound_press=bound_press,
         )
+        if review and ev.decision.event_type == EventType.ASK_REQUESTER_CONFIRMATION:
+            # Unwind the entire tool transaction before asking a human.
+            raise RequesterReview(review_binding, action)
         if not matched:
             ev = result(ev, EventType.DENY_APPROVAL_MISMATCH)
         elif granted is not None:

@@ -100,6 +100,8 @@ jobs:
         run: pnpm --filter mcp-app exec playwright install --with-deps chromium
       - name: Companion voice proposal, passkeys, twin endings and accessibility
         run: uv run --locked python -m scripts.smoke_companion --artifacts-dir "$RUNNER_TEMP/companion"
+      - name: Simulator enrollment, PKCE, bridge, Dot and account switching
+        run: uv run --locked python -m scripts.simulator_demo --origin https://hirz.example.test --artifacts-dir "$RUNNER_TEMP/simulator" --browser-test
       - name: Reference host over real authenticated household calls
         run: HIRZ_CARD_LIVE=1 uv run --locked python -m scripts.smoke_cards --artifacts-dir "$RUNNER_TEMP/card-live" --browser-test
       - name: Linux Chromium card baselines and behavior
@@ -211,7 +213,7 @@ jobs:
       - run: pnpm -r test
       - name: Browser coverage location
         run: |
-          echo 'Authenticated companion and MCP card browser checks run in python-test; simulator checks remain item 29.' | tee -a "$GITHUB_STEP_SUMMARY"
+          echo 'Authenticated companion, simulator and MCP card browser checks run in python-test; full simulator matrices remain in item 29 evidence.' | tee -a "$GITHUB_STEP_SUMMARY"
 
   conformance:
     runs-on: ubuntu-24.04

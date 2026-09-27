@@ -55,7 +55,7 @@ from hirz.pipeline.models import Principal
 from hirz.twin.disposable import disposable
 from hirz.twin.execution import bootstrap
 from hirz.twin.scenario import LoadedScenario
-from scripts.smoke_oauth import Login, Storage, process
+from scripts.smoke_oauth import Login, Storage, authenticate, process
 from tests.conftest import assert_no_identifiers
 
 
@@ -286,6 +286,7 @@ async def smoke(
                     async with httpx.AsyncClient(
                         auth=auth, trust_env=False, timeout=60
                     ) as http:
+                        await authenticate(http, str(config["resource"]))
                         async with streamable_http_client(
                             config["resource"], http_client=http
                         ) as (read, write, _):

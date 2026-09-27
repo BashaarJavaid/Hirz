@@ -201,7 +201,9 @@ def register(server: HirzMCP, runtime: HouseholdRuntime) -> None:
         try:
             if name not in TOOLS:
                 raise ValueError("Choose an available household tool.")
-            result = await runtime.call(name, arguments)
+            from hirz.mcp.elicitation import call
+
+            result = await call(server, runtime, name, arguments)
         except ValidationError:
             result = response(
                 "Please check the request's fields and supply the required values.",

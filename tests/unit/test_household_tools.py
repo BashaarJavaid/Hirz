@@ -335,7 +335,7 @@ def test_host_keeps_usage_snapshot_for_each_reported_turn():
     assert host.turn("Again")["usage"]["inputTokens"] == 30
 
 
-def test_tools_list_size_and_narrow_output_boundary(capsys, caplog):
+def test_tools_list_size_and_narrow_output_boundary(capsys, caplog, monkeypatch):
     import asyncio
     import json
     from unittest.mock import AsyncMock
@@ -346,6 +346,13 @@ def test_tools_list_size_and_narrow_output_boundary(capsys, caplog):
     from hirz.mcp.runtime import register
     from hirz.mcp.server import create_server, what_can_you_do
     from hirz.mcp.transport import local_security
+
+    async def invoke(server, runtime, name, arguments):
+        return await runtime.call(name, arguments)
+
+    # This test injects arbitrary service results to exercise the output boundary;
+    # authenticated transport/elicitation are covered separately.
+    monkeypatch.setattr("hirz.mcp.elicitation.call", invoke)
 
     async def run():
         server = create_server(local_security(8000), authentication=True)

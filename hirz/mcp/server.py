@@ -1,5 +1,7 @@
 """The onboarding-only public surface; household tools follow authentication."""
 
+import inspect
+from functools import wraps
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
@@ -51,7 +53,29 @@ class HirzMCP(FastMCP):
             self.tool_scopes[tool_name] = required_scope
         elif fn is not what_can_you_do:
             raise ValueError("Only generic onboarding may be anonymous")
-        super().add_tool(fn, name, *args, **kwargs)
+
+        @wraps(fn)
+        async def request_local(*a: Any, **kw: Any) -> Any:
+            from mcp.server.auth.middleware.auth_context import auth_context_var
+            from mcp.server.auth.middleware.bearer_auth import AuthenticatedUser
+
+            from hirz.mcp.auth import identity_context
+
+            request = self._mcp_server.request_context.request
+            identity = request.scope.get("hirz_identity") if request else None
+            access = request.scope.get("hirz_access") if request else None
+            identity_token = identity_context.set(identity)
+            auth_token = auth_context_var.set(
+                AuthenticatedUser(access) if access else None
+            )
+            try:
+                value = fn(*a, **kw)
+                return await value if inspect.isawaitable(value) else value
+            finally:
+                identity_context.reset(identity_token)
+                auth_context_var.reset(auth_token)
+
+        super().add_tool(request_local, name, *args, **kwargs)
 
 
 def create_server(
@@ -60,8 +84,8 @@ def create_server(
     server = HirzMCP(
         "Hirz",
         authentication=authentication,
-        stateless_http=True,
-        json_response=True,
+        stateless_http=not authentication,
+        json_response=not authentication,
         streamable_http_path="/mcp",
         transport_security=security,
         max_request_body_size=MAX_BODY_BYTES,

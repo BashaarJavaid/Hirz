@@ -74,3 +74,10 @@ live in [development](../development.md#item-23-local-mcp-transport) and the
 - [Pinned SDK HTTP method behavior](https://github.com/modelcontextprotocol/python-sdk/blob/v1.30.0/src/mcp/server/streamable_http.py).
 - [Inspector 2.7.0 CLI checks](https://github.com/modelcontextprotocol/inspector/blob/2.7.0/docs/cli-smoke-testing.md).
 - [Inspector authentication and state controls](https://github.com/modelcontextprotocol/inspector/blob/2.7.0/docs/environment-variables.md).
+
+## Authenticated session amendment — 2026-09-26
+
+[ADR-020](./ADR-020-simulator.md) supersedes the stateless/JSON-only choice for
+**authenticated** MCP: the pinned SDK now owns sessions and SSE replies, with
+per-request account binding and elicitation. Anonymous discovery/onboarding retains
+this ADR's stateless JSON behavior. The twelve domain schemas are unchanged.

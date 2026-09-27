@@ -463,3 +463,13 @@ without a closure decision; requiring a local macOS pass makes Docker Desktop
 disk outliers the acceptance criterion; treating the CI runner as an AWS
 measurement claims ingress, cold start and Alexa host costs this gate does not
 measure. The corpus, sample counts and 250 ms threshold remain unchanged.
+
+## Stateful transport measurement amendment — 2026-09-26
+
+Item 29's [ADR-020](./ADR-020-simulator.md) changes authenticated replies to SSE.
+The gate still times raw authenticated tools/call POST through the complete response
+body, now including SSE framing and `Mcp-Session-Id`; decoding/schema assertions stay
+outside the timer. Clients link before initialization and reuse an account-bound
+session. Raw/SDK byte-identity tests now include that session header. Human prompt
+latency, waiting and post-answer processing are separate simulator measurements;
+ordinary calls retain the existing budget and required CI gate of record.

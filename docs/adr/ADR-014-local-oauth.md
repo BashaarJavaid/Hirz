@@ -124,3 +124,12 @@ against the installed pinned source and exercised through the handlers.
 ## Household tools amendment — 2026-09-23
 
 Household tools consume request-local linked member identity and the existing four scopes. Anonymous onboarding remains generic; a valid read grant permits contextual capabilities only when current member resolution succeeds. HTTP 401/403/503 behavior remains at the OAuth gate; tool validation failures are typed MCP execution errors. Full contract and rejected alternatives: [ADR-015](./ADR-015-household-tools.md).
+
+## Session ownership amendment — 2026-09-26
+
+[ADR-020](./ADR-020-simulator.md) binds authenticated SDK sessions to issuer/client,
+linked household, subject and scopes. Every subsequent request authenticates, and
+resumed elicitation rechecks current membership and token validity. Linking after
+anonymous discovery requires initialization of an authenticated session; updated
+SDK smoke clients exercise that boundary explicitly. Simulator tokens stay in
+server memory and confer no companion authority.

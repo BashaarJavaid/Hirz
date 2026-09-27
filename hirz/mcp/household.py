@@ -45,6 +45,7 @@ from hirz.mcp.contracts import (
 from hirz.mcp.persistence import command
 from hirz.mcp.presentation import Annualized
 from hirz.mcp.profiles import Profile, ProfileName
+from hirz.pipeline.confirmation import review_context
 from hirz.pipeline.hashing import action_hash, digest
 from hirz.pipeline.models import (
     Action,
@@ -494,6 +495,17 @@ class HouseholdTools:
                 ),
                 snapshot,
             )
+            if (review := review_context.get()) and child.expected_effect:
+                child = child.model_copy(
+                    update={
+                        "expected_effect": child.expected_effect.model_copy(
+                            update={
+                                "by": review.immediate_at(self.p.clock())
+                                + timedelta(seconds=30)
+                            }
+                        )
+                    }
+                )
             children.append(validate(child))
         targets = [(a.target.adapter, a.target.entity) for a in children]
         if len(set(targets)) != len(targets):
@@ -566,7 +578,9 @@ class HouseholdTools:
             assert action.expected_effect
             action = action.model_copy(
                 update={
-                    "scheduled_for": self.p.clock(),
+                    "scheduled_for": review.immediate_at(self.p.clock())
+                    if (review := review_context.get())
+                    else self.p.clock(),
                     "expected_effect": action.expected_effect.model_copy(
                         update={"by": self.p.clock() + timedelta(seconds=30)}
                     ),
@@ -677,7 +691,16 @@ class HouseholdTools:
         name = CONSUMER_ACTIONS[args.action]
         attr = SUPPORTED.get(name, ("", "locked"))[1]
         result = Action(
-            action_id=uuid4().hex,
+            action_id=uuid5(
+                p.household_id,
+                digest(
+                    {
+                        "request": args.request_id,
+                        "principal": identity(principal),
+                        "target": target.model_dump(),
+                    }
+                ),
+            ).hex,
             **{"class": name},
             target=target,
             params=params,
@@ -686,7 +709,9 @@ class HouseholdTools:
             ),
             reason=reason,
             content_hash="",
-            scheduled_for=p.clock(),
+            scheduled_for=review.immediate_at(p.clock())
+            if (review := review_context.get())
+            else p.clock(),
             expected_effect=ExpectedEffect(
                 entity=target.entity,
                 attr=attr,
@@ -778,9 +803,76 @@ class HouseholdTools:
                     status="preparing",
                     reference=plan.plan_id,
                 )
+            pending_decisions = (
+                (
+                    await p.connection.execute(
+                        sa.select(db.audit_log.c.payload, db.actions.c.proposal)
+                        .join(
+                            db.approvals,
+                            sa.and_(
+                                db.approvals.c.household_id
+                                == db.audit_log.c.household_id,
+                                db.approvals.c.approval_id
+                                == db.audit_log.c.payload["approval"][
+                                    "approval_id"
+                                ].astext,
+                            ),
+                        )
+                        .join(
+                            db.actions,
+                            sa.and_(
+                                db.actions.c.household_id
+                                == db.approvals.c.household_id,
+                                db.actions.c.action_id == db.approvals.c.action_id,
+                            ),
+                        )
+                        .where(
+                            p.scope(db.audit_log),
+                            db.approvals.c.status == "pending",
+                            db.approvals.c.expires_at > p.clock(),
+                            db.actions.c.proposal["plan_id"].astext == plan.plan_id,
+                        )
+                        .order_by(db.audit_log.c.seq.desc())
+                        .limit(1)
+                    )
+                )
+                .mappings()
+                .all()
+            )
+            if pending_decisions:
+                from hirz.mcp.card_data import action_label
+
+                row = pending_decisions[0]
+                action = Action.model_validate(row["proposal"])
+                assets = {
+                    str(b["asset_id"])
+                    for b in snapshot.data["asset_bindings"]
+                    if b["adapter"] == action.target.adapter
+                    and b["entity_id"] == action.target.entity
+                }
+                names = [
+                    display_name(str(a["name"]))
+                    for a in snapshot.data["assets"]
+                    if str(a["id"]) in assets
+                ]
+                return response(
+                    "Your plan is waiting for an action approval.",
+                    details=(
+                        (names[0] + ": " if len(names) == 1 and names[0] else "")
+                        + action_label(action),
+                        *row["payload"]["speakable"]["details"],
+                    ),
+                    options=(
+                        "Approve the pending action",
+                        "Decline the pending action",
+                    ),
+                    plan=plan,
+                    decisions=(row["payload"],),
+                )
             return Result.model_validate(
                 {"speakable": plan.speakable, "data": {"plan": plan}}
             )
+
         pending = (
             (
                 await p.connection.execute(

@@ -700,3 +700,35 @@ The stored screenshot is not missing those pixels. This narrows the issue to the
 image-review path; it does **not** establish a Chromium rendering defect. Review
 originals individually before attributing a visual defect to the app. No app
 repaint workaround was added. The earlier reports remain as observed history.
+
+## Item 29: Playwright HTTPS OAuth redirects and SSE forwarding — 2026-09-26
+
+- **Tool/task:** Playwright 1.57.0 routing a trusted test HTTPS origin to the
+  disposable loopback simulator while retaining genuine PKCE and passkey checks.
+  **Steps/expected:** forward the issuer’s approved callback and the callback’s
+  redirect to `/simulator` through `browserContext.route`; forward the SSE stream
+  with `route.fetch`. **Actual:** redirected navigation bypassed the routing handler
+  and failed with `net::ERR_NAME_NOT_RESOLVED`; unbounded SSE cannot be returned by
+  the buffering fetch/fulfill path. **Severity:** Minor. **Workaround:** capture the
+  genuine consent Location, navigate to the genuine callback explicitly, and finish
+  its redirect with a separate routed navigation; forward actual server SSE chunks
+  on reconnect. No code, token, assertion or tool result is fabricated. Redirect
+  handling is documented in [Playwright routing](https://playwright.dev/docs/api/class-browsercontext#browser-context-route).
+  **Suggestion:** provide an explicit redirect-interception option and a streaming
+  response forwarding API for local authenticated integration tests.
+
+## Item 29: Nova Lite cannot satisfy pre-inference token counting — 2026-09-26
+
+- **Tool/task:** Amazon Bedrock `CountTokens` for `amazon.nova-lite-v1:0`,
+  called before the approved simulator's paid inference in `us-east-1`.
+  **Steps/expected:** count a Converse request before reserving its input plus
+  maximum output in the separate $5 ledger. The real Nova Dot browser attempt
+  stopped before inference; an isolated free `CountTokens` request containing
+  only `Hello` reproduced the same response.
+  **Exact error:** `An error occurred (ValidationException) when calling the CountTokens operation: The provided model doesn't support counting tokens.`
+  **Severity:** Blocker for the four required Nova acceptance cells.
+  **Workaround:** stop, retain the failure, and offer an explicit scripted-mode
+  switch. No estimated token count, model substitution, or paid Nova call was used.
+  **Feature request:** support `CountTokens` for Nova Lite and make per-model
+  counting support explicit in the [model card](https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-amazon-nova-lite.html)
+  and [CountTokens contract](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_CountTokens.html).

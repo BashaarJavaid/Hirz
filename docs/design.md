@@ -59,7 +59,21 @@ Minimal: a wordmark, one accent color, one typeface. No logo project. Following 
 
 ## 6. The simulator frame
 
-The Echo Show frame is the hero; the tool-call transcript is a slim rail beside it, not a second pane of equal weight. An honesty banner names the emulation and the model in use. A switch selects whose Echo it is ("Mom's Echo", "Malik's Echo"). Echo Dot mode hides cards entirely.
+The Echo Show frame is the hero; the tool-call transcript is a slim rail beside it, not a second pane of equal weight. An honesty banner names the emulation and the model in use. The account switch offers Mom’s, Malik’s and Dad’s Echo with explicit consent and
+separate histories. Echo Dot mode mounts no card iframe. The responsive 1280×800
+Show canvas has a 280-pixel transcript rail, stacked below on narrow windows.
+Light/dark themes apply to the host and bridge context; fullscreen is user-operated.
+Pending questions take keyboard focus. Push-to-talk stops synthesized speech,
+while synthesis stops recognition; US-English browser voices have a typed/visible
+fallback. Spoken yes/no or a single scalar can answer each pending question; fields are asked
+one at a time and retain a labeled typed form. The transcript distinguishes processing
+from human wait, and reconnection never re-speaks old results. Rule activation and
+security approval link to the independently authenticated companion app.
+
+Playback is a companion-authorized control. A contact reply is explicitly labeled
+simulated, updates the genuine verification case, and is spoken only after a new
+status request. Scenario completion and physical microphone/passkey acceptance are
+tracked in the [item 29 evidence](./verification-log.md#item-29).
 
 ## 7. Spoken lines
 

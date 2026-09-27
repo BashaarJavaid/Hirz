@@ -43,6 +43,10 @@ def test_raw_request_is_byte_identical_to_sdk(case, tool, args):
         value = response("Request identity fixture").model_dump(mode="json")
 
         def serve(request):
+            if request.method == "GET":
+                return httpx.Response(405)
+            if request.method == "DELETE":
+                return httpx.Response(200)
             body = json.loads(request.content)
             if body["method"] == "notifications/initialized":
                 return httpx.Response(202)
@@ -50,7 +54,7 @@ def test_raw_request_is_byte_identical_to_sdk(case, tool, args):
                 result = {
                     "protocolVersion": "2025-11-25",
                     "capabilities": {},
-                    "serverInfo": {"name": "stateless-fixture", "version": "1"},
+                    "serverInfo": {"name": "session-fixture", "version": "1"},
                 }
             elif body["method"] == "tools/list":
                 result = {
@@ -75,6 +79,7 @@ def test_raw_request_is_byte_identical_to_sdk(case, tool, args):
                                 "accept",
                                 "content-type",
                                 "mcp-protocol-version",
+                                "mcp-session-id",
                             )
                         ),
                         request.content,
@@ -82,7 +87,14 @@ def test_raw_request_is_byte_identical_to_sdk(case, tool, args):
                 )
                 result = {"content": [], "structuredContent": value, "isError": False}
             return httpx.Response(
-                200, json={"jsonrpc": "2.0", "id": body["id"], "result": result}
+                200,
+                headers={
+                    "Content-Type": "text/event-stream",
+                    "Mcp-Session-Id": "fixture",
+                },
+                text="event: message\ndata: "
+                + json.dumps({"jsonrpc": "2.0", "id": body["id"], "result": result})
+                + "\n\n",
             )
 
         url = "http://127.0.0.1:8000/mcp"
@@ -118,7 +130,7 @@ def test_raw_request_is_byte_identical_to_sdk(case, tool, args):
                 async with ClientSession(read, write) as session:
                     initialized = await session.initialize()
                     await session.list_tools()
-                    assert sid() is None
+                    assert sid() == "fixture"
                     client = Client(
                         session,
                         storage,
@@ -127,8 +139,9 @@ def test_raw_request_is_byte_identical_to_sdk(case, tool, args):
                         http,
                         url,
                         initialized.protocolVersion,
+                        "fixture",
                     )
-                    # Independent stateless request sequences: align IDs for an
+                    # Independent raw/SDK request sequences: align IDs for an
                     # exact byte comparison after initialize=0 and tools/list=1.
                     client.request_id = 2
                     client.measuring = True

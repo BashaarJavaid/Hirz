@@ -14,6 +14,7 @@ from hirz.companion.api import Companion
 from hirz.companion.api import router as companion_router
 from hirz.companion.auth import Config as CompanionConfig
 from hirz.db import database_url
+from hirz.host.simulator import Simulator
 from hirz.local import read_env, signing_key
 from hirz.mcp.auth import SCOPES, KeyCache, OAuthGate
 from hirz.mcp.card_evidence import load as load_card_evidence
@@ -37,6 +38,7 @@ def create_app(
     register: Callable[[HirzMCP], None] | None = None,
     household: HouseholdRuntime | None = None,
     companion: Companion | None = None,
+    simulator: Simulator | None = None,
 ) -> FastAPI:
     """One SDK manager per app; only tests/smoke register diagnostic tools."""
     security = local_security(port)
@@ -48,6 +50,16 @@ def create_app(
     if register is not None:
         register(server)
     mcp_app = server.streamable_http_app()
+    # Preserve anonymous JSON discovery/onboarding while authenticated clients use
+    # SDK-managed sessions. The OAuth gate still protects every household call.
+    anonymous = create_server(security, authentication=server.authentication)
+    anonymous.settings.stateless_http = True
+    anonymous.settings.json_response = True
+    if household is not None:
+        register_household(anonymous, household)
+    if register is not None:
+        register(anonymous)
+    anonymous_app = anonymous.streamable_http_app()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -60,6 +72,7 @@ def create_app(
                 if cache is not None:
                     await stack.enter_async_context(cache.run())
                 await stack.enter_async_context(server.session_manager.run())
+                await stack.enter_async_context(anonymous.session_manager.run())
                 yield
         finally:
             if engine is not None:
@@ -67,6 +80,10 @@ def create_app(
 
     app = FastAPI(openapi_url=None, docs_url=None, redoc_url=None, lifespan=lifespan)
     app.add_api_route("/health", health)
+    if simulator is not None:
+        from hirz.host.api import router as simulator_router
+
+        app.include_router(simulator_router(simulator))
     if companion is not None:
         app.include_router(companion_router(companion))
 
@@ -109,6 +126,17 @@ def create_app(
         ):
             app.add_api_route(path, page)
 
+        if simulator is not None:
+
+            async def simulator_page() -> FileResponse:
+                result = await page()
+                result.headers["Content-Security-Policy"] = (
+                    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+                )
+                return result
+
+            app.add_api_route("/simulator", simulator_page)
+
         async def manifest() -> FileResponse:
             return FileResponse(
                 ui / "manifest.webmanifest", media_type="application/manifest+json"
@@ -143,9 +171,14 @@ def create_app(
         "/",
         MCPGuard(
             OAuthGate(
-                mcp_app, cache=cache, engine=engine, tool_scopes=server.tool_scopes
+                mcp_app,
+                cache=cache,
+                engine=engine,
+                tool_scopes=server.tool_scopes,
+                anonymous=anonymous_app,
             ),
             security,
+            sessions=cache is not None and engine is not None,
         ),
     )
     return app

@@ -17,11 +17,11 @@ test("real WebAuthn registration, initial activation, rule review and signed exp
   const mcp = JSON.parse(await readFile(`${artifacts}/mcp.json`, "utf8"));
   async function voice(name: string, args: Record<string, unknown>) {
     const response = await request.post(mcp.resource, {
-      headers: { Authorization: `Bearer ${mcp.token}`, Accept: "application/json, text/event-stream", "MCP-Protocol-Version": mcp.protocol },
+      headers: { Authorization: `Bearer ${mcp.token}`, Accept: "application/json, text/event-stream", "MCP-Protocol-Version": mcp.protocol, "Mcp-Session-Id": mcp.session },
       data: { jsonrpc: "2.0", id: crypto.randomUUID(), method: "tools/call", params: { name, arguments: args } },
     });
     expect(response.status()).toBe(200);
-    return (await response.json()).result;
+    return JSON.parse((await response.text()).split("\n").find(line => line.startsWith("data: ") && line.includes('"result"'))!.slice(6)).result;
   }
   // The browser sees HTTPS. Only transport is routed to the disposable loopback
   // server; ceremonies, signatures, cookies, CSRF and all mutations are real.

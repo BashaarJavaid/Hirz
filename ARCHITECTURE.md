@@ -1231,15 +1231,45 @@ Accessibility is a requirement: the app is keyboard-complete with screen-reader 
 
 ### 5.15 Hirz Simulator
 
-Because add-on access is gated and there is no device, the simulator is the primary demo surface and is built to the real contract:
+The explicitly enabled `/simulator` route shares the companion React app. Its
+FastAPI host (`hirz/host`) holds OAuth tokens, histories and prompts in server
+memory behind an opaque browser cookie. Mom links to the parents’ household;
+Malik and Dad link independently to the home. Companion sessions remain separate
+and authorize only their own household. Browser/session expiry uses real time;
+scenario clocks never extend authority.
 
-- **Emulated host.** A Strands agent on Bedrock, Claude Haiku 4.5 by default (the most reliable tool-caller available; which model class Alexa+ runs is not public, so no model is claimed as a stand-in) with Nova Lite selectable in the simulator's settings, and a system prompt encoding Alexa+'s functional requirements: pick tools from `tools/list`, honor `speakable`, at most 5 options, no jargon, ask before commitments, voice-only vs screen behavior. It is a genuine MCP client hitting the genuine Hirz MCP server over Streamable HTTP with a real bearer token; nothing is short-circuited.
-- **Host bridge.** The simulator implements the MCP Apps host side (`ui/initialize`, tool-result notifications, sandboxed iframe with CSP) so the same MCP App bundles render here and on a real Echo Show.
-- **Voice.** Browser speech recognition and synthesis; a push-to-talk button; transcripts show the tool calls the emulator made, which is exactly what a judge needs to see.
-- **Device modes.** Echo Show (screen + voice; the frame renders at 1280×800, Amazon's 768×480 base canvas × 1.667) and Echo Dot (voice only, cards hidden).
-- **Whose Echo.** A switch between linked accounts ("Mom's Echo", "Malik's Echo"), each with its own token and household, which is how the two-home demo and the isolation test are driven.
-- **Built on the open-source harness.** The generic parts (the real MCP client with OAuth, the MCP Apps host bridge in the Echo Show frame, the voice-only mode, the tool-call transcript) live in a separate Apache-2.0 repository together with the add-on conformance checker, and `apps/web` consumes them as a dependency (`ROADMAP.md` items 25a, 29a). The scenario clock, the live/simulated badges, and the account switch stay here. If the extraction slips, the simulator stays in this repo and nothing else changes.
-- **Honesty.** A banner states it is an emulation of the Alexa+ host, not Alexa, and names the model in use. The optional community Skill bridge is documented in [ADR-007](./docs/adr/ADR-007-alexa-surface-strategy.md) for anyone with an Echo who wants to hear it on hardware.
+Each turn opens a genuine authenticated MCP SDK session. The pinned Strands host
+selects sequential calls; deterministic services make every decision. Exact host
+commitments are distinct from constitution requester confirmation. Missing scalar
+values and household ambiguities use SDK elicitation; transactions unwind before
+human waits and resumed calls recheck current authority/policy. No elicitation can
+activate a constitution or approve security actions. Account changes cancel prompts
+and suppress stale speech without undoing accepted actions.
+
+The existing MCP Apps bridge initializes opaque sandboxed cards and forwards actual
+protocol results without credentials. Show scales a 1280×800 canvas; Dot mounts no
+iframe. The transcript records processing and human-wait timing, with structured
+results collapsed. US-English push-to-talk and speech synthesis retain typed input
+and visible text when unavailable. Replayed or delayed contact events do not speak
+until requested. Both themes and a stacked narrow layout use existing app styling.
+
+`HIRZ_LLM=off` supports recorded utterances and deterministic prompt responses.
+With explicit paid configuration, Haiku 4.5 is the default and Nova Lite is selectable.
+The separate item-29 $5 aggregate ledger counts input and reserves maximum output
+before inference; eight tool calls per utterance, 512 output tokens per model call,
+no automatic inference retries, and no silent fallback. Model changes start fresh
+conversations. Operational setup and acceptance remain in
+[development](./docs/development.md#item-29-disposable-simulator); decisions and
+rejected alternatives are in [ADR-020](./docs/adr/ADR-020-simulator.md).
+
+The disposable launcher requires real companion enrollment and seed activation,
+then pauses scenario playback at voice, confirmation and companion beats. Household
+controls and simulated contact replies require that household’s companion session.
+Only one scenario advances; action deadlines are serviced before the next event.
+Runtime mutations use existing Pipeline paths and cleanup retains verified signed
+exports. Generic harness extraction remains item 29a, recording Compose item 30,
+and real contact delivery, Link and AWS remain separate work. None are implied by
+local twin verification.
 
 ### 5.16 AWS topology
 

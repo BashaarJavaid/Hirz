@@ -6,6 +6,7 @@ import { api, passkey, useResource } from "./api";
 import { Button } from "./components/ui/button";
 import { SchemaForm, type Schema, type Value } from "./schema-form";
 import "./style.css";
+import { Simulator } from "./simulator";
 import snapshot from "../../../hirz/adapters/doorbell/twin/snapshot.svg?inline";
 
 type Session = { authenticated: boolean; member?: { member_id: string; display_name: string; role: string } };
@@ -116,9 +117,10 @@ function Shell({ session, refresh }: { session: Session; refresh: () => void }) 
   const location = useLocation();
   return <div className="shell"><a className="skip" href="#main">Skip to content</a><aside><NavLink to="/tonight" className="wordmark">Hirz</NavLink><p className="muted">{session.member?.display_name}’s household</p><nav aria-label="Main">{["tonight", "approvals", "constitution", "household", "audit", "twin"].map(page => <NavLink key={page} to={`/${page}`}>{page[0].toUpperCase() + page.slice(1)}</NavLink>)}</nav><AsyncButton run={async () => { await api("/auth/logout", {}); refresh(); }}>Sign out</AsyncButton></aside><main id="main" tabIndex={-1} key={location.pathname}><Routes><Route path="/tonight" element={<Tonight />} /><Route path="/constitution" element={<ConstitutionPage />} /><Route path="/approvals" element={<Approvals />} /><Route path="/household" element={<Household />} /><Route path="/audit" element={<Audit />} /><Route path="/twin" element={<Twin />} /><Route path="*" element={<Navigate replace to="/tonight" />} /></Routes></main></div>;
 }
-function App() {
+function CompanionApp() {
   const session = useResource<Session>("/auth/session");
   if (!session.data || session.error) return <main className="login"><Load {...session} /></main>;
   return session.data.authenticated ? <Shell session={session.data} refresh={session.retry} /> : <Login refresh={session.retry} />;
 }
+function App() { return useLocation().pathname === "/simulator" ? <Simulator /> : <CompanionApp />; }
 createRoot(document.getElementById("root")!).render(<BrowserRouter><App /></BrowserRouter>);

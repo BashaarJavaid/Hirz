@@ -25,3 +25,5 @@ One file per consequential decision, each with the alternatives that were reject
 - [`ADR-018-mcp-app-cards.md`](./ADR-018-mcp-app-cards.md) — five bridge-only cards, deterministic presentation, evidence mapping, unchanged reference host and browser gates
 
 - [ADR-019-companion.md](./ADR-019-companion.md) — passkey companion, policy lifecycle, phone approvals and bounded twin scope
+
+- [ADR-020-simulator.md](./ADR-020-simulator.md) — local authenticated host, stateful MCP elicitation, independent Echo histories and bounded inference

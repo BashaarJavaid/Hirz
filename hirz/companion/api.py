@@ -89,6 +89,7 @@ class Companion:
         config: auth.Config,
         *,
         demo_world: TwinWorld | None = None,
+        demo_worlds: dict[UUID, TwinWorld] | None = None,
     ):
         if demo_world is not None and not str(engine.url.database).startswith(
             "hirz_ha_smoke_"
@@ -97,6 +98,9 @@ class Companion:
         self.engine, self.audit, self.config = engine, audit, config
         self.boundary = Dogwood()
         self.demo_world = demo_world
+        self.demo_worlds = demo_worlds or (
+            {demo_world.household.id: demo_world} if demo_world else {}
+        )
         self.demo_lock = asyncio.Lock()
 
     @asynccontextmanager
@@ -131,8 +135,8 @@ class Companion:
             # A monotonic twin clock can drift ahead of wall time; do not relax
             # the Registry's rejection of future observations to accommodate it.
             clock = (
-                self.demo_world.clock
-                if self.demo_world and self.demo_world.household.id == household
+                self.demo_worlds[household].clock
+                if household in self.demo_worlds
                 else now
             )
             yield Pipeline(
@@ -167,7 +171,7 @@ class Companion:
             member = await auth.session(c, token, now())
         async with self.pipeline(member["household_id"]) as p:
             async with p.repo.write(p.clock):
-                member = await auth.session(p.connection, token, p.clock())
+                member = await auth.session(p.connection, token, now())
                 yield p, member
 
 
@@ -332,6 +336,7 @@ def router(service: Companion) -> APIRouter:
                             value.credential,
                             value.label,
                             token,
+                            at=now(),
                         )
                     else:
                         key = await auth.assertion(
@@ -339,17 +344,17 @@ def router(service: Companion) -> APIRouter:
                             service.config,
                             record,
                             value.credential,
-                            p.clock(),
+                            now(),
                         )
                         if record["kind"] == "login":
                             result = {
                                 "session": await auth.create_session(
-                                    p.connection, key["credential_id"], p.clock()
+                                    p.connection, key["credential_id"], now()
                                 )
                             }
                         else:
                             current = await auth.session(
-                                p.connection, token or "", p.clock()
+                                p.connection, token or "", now()
                             )
                             principal = current["principal"].model_copy(
                                 update={"passkey_verified": True}
@@ -366,7 +371,10 @@ def router(service: Companion) -> APIRouter:
                             elif binding["operation"] == "reinvite":
                                 result = {
                                     "invitation": await auth.reinvite(
-                                        p, principal, UUID(binding["member_id"])
+                                        p,
+                                        principal,
+                                        UUID(binding["member_id"]),
+                                        at=now(),
                                     )
                                 }
                             elif binding["operation"] == "activate":
@@ -547,7 +555,10 @@ def router(service: Companion) -> APIRouter:
             raise HTTPException(
                 404, "Recorded patches require an explicit disposable demo"
             )
-        if value.sentence != "Never unlock for an unexpected visitor":
+        if value.sentence not in {
+            "Never unlock for an unexpected visitor",
+            "From now on, never unlock the door for someone we're not expecting.",
+        }:
             raise HTTPException(
                 409,
                 "The recorded fixture supports only: Never unlock for an unexpected visitor",
@@ -562,24 +573,21 @@ def router(service: Companion) -> APIRouter:
                 )
             )
             candidate = policy.patched(loads((await policy.current(p))["yaml"]), patch)
-            if value.proposal_id:
-                sentence = await p.connection.scalar(
-                    sa.select(db.rule_proposals.c.text).where(
-                        p.scope(db.rule_proposals),
-                        db.rule_proposals.c.id == value.proposal_id,
-                    )
+            if not value.proposal_id:
+                raise HTTPException(409, "Select the matching voice proposal first")
+            sentence = await p.connection.scalar(
+                sa.select(db.rule_proposals.c.text).where(
+                    p.scope(db.rule_proposals),
+                    db.rule_proposals.c.id == value.proposal_id,
                 )
-                if sentence != value.sentence:
-                    raise HTTPException(
-                        409, "The proposal does not match this recorded fixture"
-                    )
-                result = await policy.proposal_draft(
-                    p, member["principal"], value.proposal_id, dump(candidate)
+            )
+            if sentence != value.sentence:
+                raise HTTPException(
+                    409, "The proposal does not match this recorded fixture"
                 )
-            else:
-                result = await policy.draft(
-                    p, member["principal"], dump(candidate), value.sentence
-                )
+            result = await policy.proposal_draft(
+                p, member["principal"], value.proposal_id, dump(candidate)
+            )
             return result | {"recorded": True}
 
     @api.post("/constitution/dismiss")

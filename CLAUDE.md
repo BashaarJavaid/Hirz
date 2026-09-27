@@ -128,15 +128,17 @@ The verified toolchain and scaffold setup are in `README.md`; use Node 24.
 - `cd infra/cdk && pnpm cdk deploy` / `pnpm cdk destroy` — the AWS stack for the judging window.
 - `HIRZ_LLM=off|bedrock`, `HIRZ_ADAPTERS=devices:ha,ev:twin,energy:real,...` — runtime configuration.
 
+Item 29 adds `HIRZ_LLM=off uv run --locked python -m scripts.simulator_demo --origin <HTTPS-origin> --artifacts-dir <new-private-dir>` for disposable authenticated playback; `--browser-test` uses virtual authenticators with real server verification. Real companion enrollment/activation and explicit Echo PKCE consent are required. Paid host configuration uses a separate durable $5 ledger; procedure and acceptance limitations are in `docs/development.md` and the item 29 evidence.
+
 ## Current phase
 
-**Phase 5 item 28 is in progress; Phase 4 is complete through item 27.**
-Real iPhone approval/twin relock, UI/security/browser checks and all CI gates
-have [evidence](./docs/verification-log.md#item-28-ci-acceptance--2026-09-25).
-Only compatible-iPhone push reception and approval remain outstanding for item 28.
-Development stays on 0005; migrations through 0018 remain manual. Keep Bedrock
-off and preserve the $2 ledger. Real contact delivery, physical locks and AWS
-security guarantees remain unverified.
+**Phase 5 items 28 and 29 are partial; Phase 4 is complete.**
+Item 28 still owes compatible-iPhone push reception/approval. Item 29 adds the
+local authenticated simulator and MCP elicitation; live-model, physical voice/passkey,
+remaining adversarial and CI acceptance are pending ([evidence](./docs/verification-log.md#item-29)).
+Development stays on 0005; migrations through 0018 remain manual. Keep the existing
+$2 ledger intact; item 29 has a separate $5 aggregate host ledger. Real contacts,
+physical locks and AWS security guarantees remain unverified.
 
 ---
 
