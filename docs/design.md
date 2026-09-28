@@ -75,6 +75,10 @@ simulated, updates the genuine verification case, and is spoken only after a new
 status request. Scenario completion and physical microphone/passkey acceptance are
 tracked in the [item 29 evidence](./verification-log.md#item-29).
 
+The accepted item 29 host modes are Haiku and scripted. Nova's experimental option
+is retained, with acceptance deferred to item 29b; it is not part of the verified
+demo matrix (ADR-020).
+
 ## 7. Spoken lines
 
 Conversation design is design. `speakable.headline` is about 20 words or fewer and at most two sentences; `details` at most three; `options` at most five; a whole spoken turn stays under 30 seconds. The UX conformance test enforces the headline length with the speech-length estimate it already computes. The README and demo dialogue obey the same limit.

@@ -1571,6 +1571,11 @@ Select scripted mode explicitly to continue. Pricing and model IDs are in ADR-02
 recheck pricing before later paid invocations. Drafting stays on the labeled recorded
 patch and narration uses deterministic tool speech during acceptance.
 
+Item 29 is accepted for Haiku and scripted mode. Nova is deferred to item 29b by
+author approval; its existing experimental option is not a verified evening host.
+Use Haiku for the live demo. No further Nova inference is authorized by this
+deferral, and its failed-run evidence and reservations must remain intact.
+
 The Python CI job has a 45-minute allowance, including the real five-minute MCP
 prompt-expiry probe and the browser suites. Its combined coverage threshold is
 unchanged.
@@ -1585,7 +1590,7 @@ The test forwards its HTTPS requests to loopback without substituting authentica
 MCP results or mutations. It explicitly forwards genuine OAuth callback redirects;
 its SSE proxy forwards the genuine backlog through each heartbeat on reconnect
 because Playwright buffers fetch responses. `HIRZ_SIMULATOR_SCENARIO=parents-scam-check|demo-evening` and
-`HIRZ_SIMULATOR_DISPLAY=show|dot` select full scripted playback; `HIRZ_SIMULATOR_MODEL=haiku|nova` with the paid launcher configuration selects the live host matrix. Use a fresh launcher
+`HIRZ_SIMULATOR_DISPLAY=show|dot` select full scripted playback; `HIRZ_SIMULATOR_MODEL=haiku` with the paid launcher configuration selects the accepted live host matrix. Use a fresh launcher
 for each matrix cell. The default checks enrollment, linking, cards, switching,
 themes and narrow layout. Real Mac Chrome microphone/speaker and physical-passkey
 rule/unlock/relock acceptance remain separate human checks. Evidence and all open

@@ -26,4 +26,4 @@ One file per consequential decision, each with the alternatives that were reject
 
 - [ADR-019-companion.md](./ADR-019-companion.md) — passkey companion, policy lifecycle, phone approvals and bounded twin scope
 
-- [ADR-020-simulator.md](./ADR-020-simulator.md) — local authenticated host, stateful MCP elicitation, independent Echo histories and bounded inference
+- [ADR-020-simulator.md](./ADR-020-simulator.md) — local authenticated host, stateful MCP elicitation, independent Echo histories and bounded inference; Haiku/scripted closure with Nova acceptance deferred

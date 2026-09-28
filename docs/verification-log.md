@@ -10427,3 +10427,64 @@ tokens, and the ledger remains mode `0600`. At this checkpoint the current-sourc
 dispatch has green lint/types, TypeScript tests, build, release, both conformance
 jobs and scenario regression; its Python integration/browser job and both latency
 jobs are still running. No final combined-coverage or timing pass is claimed.
+
+### Item 29 closure with Nova deferred — 2026-09-27
+
+The author explicitly approved deferring Nova and closing item 29 if CI passed.
+ADR-020 records the amended acceptance scope: **eight required cells**, comprising
+Haiku and scripted mode × evening and parents × Show and Dot. All eight have
+passing evidence in this item. Nova's existing experimental implementation and
+failed diagnostics remain retained, with future acceptance tracked in item 29b;
+no failed Nova cell becomes a pass and no new inference was performed for closure.
+
+**Final regression CI passes:**
+[36370421146](https://github.com/BashaarJavaid/Hirz/actions/runs/36370421146), commit
+`2249438d5e49224cd65604c7d3e791efbcfc17f5`, has all ten ordinary jobs green:
+Python lint/types/tests, TypeScript lint/types/tests, build, release, scenario
+regression, native Cedar conformance and independent add-on conformance. Python
+reports **1,496 service-free tests** and **192 PostgreSQL integration tests**;
+combined coverage is **89%** (14,814 statements, 1,576 missed), exceeding the
+unchanged 80% requirement. Companion browser **1.8min**, simulator browser
+**20.9s**, authenticated reference host **2.7s**, and all **40 card checks in
+1.9min** pass. Native Cedar conformance reports **159 passed**.
+
+**Both required latency gates pass:** dispatch
+[36368901000](https://github.com/BashaarJavaid/Hirz/actions/runs/36368901000), commit
+`46eaf2ce73b0c6d04ba1a71c742275253708a496`, has green
+[evening](https://github.com/BashaarJavaid/Hirz/actions/runs/36368901000/job/108761013281)
+and [Hourly](https://github.com/BashaarJavaid/Hirz/actions/runs/36368901000/job/108761013137)
+jobs. Highest case p95 is **207.130 ms evening / 191.097 ms Hourly**, both
+`objective-greenest`, below the unchanged 250 ms gate. Every case uses five
+warmups and 100 measured calls, nearest-rank p95, with no discarded samples.
+The gate covers the authenticated local twin server round trip, not AWS ingress
+or cold start. `git diff --name-only 46eaf2c 2249438` contains only AGENTS.md,
+CLAUDE.md, CHANGELOG.md, ROADMAP.md, friction and verification documentation:
+both CI runs test identical runtime, tests, dependencies and workflow source.
+
+The dispatch's separate Python job failed after its companion browser passed,
+with `RuntimeError: Companion export/cleanup failed; retain the database and
+inspect demo.log`. That failed run remains failed; its underlying cleanup cause
+was not established. The later full green regression on identical runtime code
+supplies that gate, including successful cleanup. No threshold, test or coverage
+requirement was relaxed. Complete retrieved logs, including the earlier failure,
+are retained privately at `secrets/item29-20260927/closure/`.
+
+The preceding live Haiku evening evidence verifies **21/21 events per mode**, with
+**6,419 Show / 6,378 Dot signed rows**, bounded unlock/relock, the 50% EV target at
+06:30 and one completed dishwasher cycle. Earlier evidence supplies the other six
+cells, both themes, responsive/keyboard/focus checks and reviewed browser captures.
+The [manual checkpoint](#blocked-planning-and-stale-approval-regression--2026-09-27)
+retains **13,677 signed rows** from actual phone approval, with relock before its
+deadline; the author's Mac Chrome microphone/speaker and real-passkey version-8
+activation confirmations earn the remaining manual gates. The
+[adversarial probes](#remaining-acceptance-probes--2026-09-27) retain elicitation,
+authority-change, isolation, expiry, reconciliation and budget evidence.
+
+**Item 29 is complete within the explicitly amended scope.** Item 28 still owes
+compatible-iPhone Web Push acceptance. Nova, harness extraction, recording Compose,
+real contact delivery, source-scenario deferred assertions, Hirz Link, physical
+lock and AWS deployment/security acceptance retain their separate scope. The
+item-29 ledger remains **$18.44548614 / 838 reservations**; the item-25 $2 ledger
+is unchanged. No development migration, manual-session reset, credential change
+or additional paid call occurred during closure. Third-party friction was reviewed;
+the already recorded failures remain, with no invented explanation or workaround.

@@ -1259,7 +1259,9 @@ and visible text when unavailable. Replayed or delayed contact events do not spe
 until requested. Both themes and a stacked narrow layout use existing app styling.
 
 `HIRZ_LLM=off` supports recorded utterances and deterministic prompt responses.
-With explicit paid configuration, Haiku 4.5 is the default and Nova Lite is selectable.
+With explicit paid configuration, Haiku 4.5 is the accepted default. Nova Lite's
+experimental implementation remains selectable, but its acceptance is deferred
+to item 29b; item 29 is complete for Haiku and scripted mode (ADR-020).
 The separate item-29 aggregate ledger ($20 Haiku ceiling, $10 Nova ceiling against
 the same total) reserves counted Haiku input or Nova’s published
 context ceiling plus 10%, and maximum output before inference; eight tool calls per utterance, 512 output tokens per model call,

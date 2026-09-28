@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-09-27: Close item 29 for Haiku and scripted mode after regression and latency gates passed; defer optional Nova acceptance to item 29b by author approval ([decision](./docs/adr/ADR-020-simulator.md#approved-nova-deferral-and-item-29-closure--2026-09-27), [closure evidence](./docs/verification-log.md#item-29-closure-with-nova-deferred--2026-09-27)).
+
 - 2026-09-27: Complete Haiku evening Show/Dot acceptance with verified twin end states and reviewed cards, within the approved aggregate ledger; item 29 remains partial for Nova evening and final CI ([evidence](./docs/verification-log.md#haiku-20-verification-extension--2026-09-27)).
 
 - 2026-09-27: Reject model-selected tools absent from the current tool list and request fresh reads for the morning briefing; retain the failed final-turn acceptance evidence ([evidence](./docs/verification-log.md#haiku-20-verification-extension--2026-09-27)).

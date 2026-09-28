@@ -1,6 +1,6 @@
 # ADR-020: Local authenticated simulator and MCP elicitation
 
-**Status:** Accepted design, partial implementation/acceptance, 2026-09-26.
+**Status:** Complete within the amended Haiku/scripted scope, 2026-09-27.
 The author approved the item 29 implementation plan while item 28 remains partial.
 
 ## Decision
@@ -335,3 +335,19 @@ host. Morning greetings request a fresh context/plan briefing, as the recorded
 scenario specifies. Treating a stale completion control as an MCP call, inventing
 a morning report from old receipts, or silently mapping arbitrary unknown tools
 to a supported call was rejected.
+
+### Approved Nova deferral and item 29 closure — 2026-09-27
+
+The author explicitly directed: “leave out nova for now and complete item 29 if CI
+has passed.” This amends item 29's acceptance matrix to Haiku 4.5 and scripted mode,
+both scenarios in Show and Dot. Nova acceptance moves to deferred item 29b and is
+not a prerequisite for item 29. Existing experimental Nova code and prior evidence
+remain retained; this is a scope deferral, not a claim that its evening failure is
+fixed. No new inference, budget increase or model substitution is authorized here.
+
+Both latency jobs passed on `46eaf2c`; the full regression run passed on `2249438`,
+which differs only in documentation. Closure changes documentation only. Detailed
+evidence and remaining exclusions are in the
+[closure record](../verification-log.md#item-29-closure-with-nova-deferred--2026-09-27).
+Keeping a nonessential second model as a release blocker, relabeling failed Nova
+cells as passing, and discarding its failed-run reservations were rejected.
