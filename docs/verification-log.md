@@ -10214,3 +10214,30 @@ also answers the recorded final `Yes.` plan clarification explicitly, as it
 already did for `Do it.`; actual server confirmations and plan-version checks
 remain required. A new scripted Dot browser run and current CI are still in
 progress at this checkpoint. Both models' evening cells remain owed.
+
+The scripted evening Dot regression subsequently passed **all 21 events in 4.0min**,
+with **4,875 independently verified signed rows**, one verified bounded unlock and
+relock, EV SOC **0.49999999994957045** at the required time, and one dishwasher
+completion. Private evidence: `secrets/item29-20260927/evening-scripted-dot-lamp/`.
+The reviewed capture visibly shows event 21/21 and Dot without a card iframe.
+Exports were verified before the disposable database was dropped; development was
+unchanged. The final unit rerun passes **62 tests in 2.57s**, web lint/TypeScript
+pass, and strict mypy again passes for 182 files.
+
+The author then explicitly approved one **3,000-output-token** selection-only
+diagnostic. It reused the failed Nova history and actual public input schemas,
+reserved **$0.02052** before inference, and returned the same exact provider
+`ModelErrorException`. No tool executed and no automatic retry ran. The private
+script, exclusive attempt marker and result are retained in
+`secrets/item29-20260927/nova-3000-authorized-once/`; the application and its normal
+budget validator stayed at 512 throughout. The ledger now holds **471 attempts /
+$9.21496186 reserved**, leaving **$0.78503814** under its cap.
+
+A further normal-512 schema-isolation probe was prepared but automatic approval
+review rejected execution as outside the single diagnostic's authorization. It
+made no model call or reservation. Its offline check compares scalar validation
+samples across all twelve tools for `anyOf` versus a nullable `type` array;
+this is a hypothesis, not a verified fix. No request to send household history
+externally or incur further diagnostic spend is inferred from the one-off consent.
+The shared resolver correction is committed as `2def7e3`; its final-source CI
+remains owed. Prior-revision dispatch CI 36362954150 remains in progress.

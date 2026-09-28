@@ -816,3 +816,7 @@ repaint workaround was added. The earlier reports remain as observed history.
   limit returned the same provider error. No household tools executed. The
   temporary allowance was removed; this result does not prove truncation, and
   the production host retains its 512-token maximum.
+- **Further authorized diagnostic:** The author then approved one 3,000-token
+  selection-only request against the same failed input. That request also returned
+  the same provider error. Increasing the output allowance has not established a
+  fix; no permanent runtime increase or additional retry was made.

@@ -263,3 +263,14 @@ the current household. Exact references and ambiguity clarification remain intac
 Execution, permission previews and profile settings share this correction;
 rewriting only the model output or weakening general member/device resolution
 was rejected.
+
+### Follow-up diagnostic authorization — 2026-09-27
+
+The author subsequently authorized exactly one 3,000-output-token selection-only
+diagnostic against the same failed Nova request. It reserved $0.02052 in the same
+ledger and returned the same `ModelErrorException`. The diagnostic changed its
+in-process model and reservation ceiling only; no tracked production code or
+household state changed. No further output-limit increase is inferred from this
+authorization. Optional-field schema representation remains an unverified
+hypothesis; a prepared 512-token probe requires separate approval after automatic
+approval review rejected that additional inference.
