@@ -88,7 +88,9 @@ class Budget:
         self.model = model
         self.calls: list[dict[str, int]] = []
 
-    def reserve(self, inputs: int, outputs: int) -> None:
+    def reserve(
+        self, inputs: int, outputs: int, *, input_basis: str | None = None
+    ) -> None:
         if (
             type(inputs) is not int
             or inputs < 0
@@ -117,6 +119,8 @@ class Budget:
             reservation: dict[str, Any] = dict(
                 input_tokens=inputs, max_output_tokens=outputs
             )
+            if input_basis is not None:
+                reservation["input_basis"] = input_basis
             if self.purpose is not None:
                 reservation.update(
                     model=self.model,

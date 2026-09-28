@@ -546,7 +546,7 @@ TOOLS: dict[str, tuple[type[Input], str, str]] = {
     "approve_action": (
         ApprovalInput,
         "act",
-        "Submit the user's approval or rejection for server validation. For a reviewed plan, provide approved, plan_id, version and request_id; omit action_id and approval_id. For a pending action, provide approved, action_id, approval_id and request_id; omit plan_id and version. User-supplied references are sufficient: copy them verbatim without another confirmation or preliminary fetch. The server refuses missing, stale or foreign references and never approves an unseen replacement. Door approvals require a phone.",
+        "Submit the user's approval or rejection for server validation. For a reviewed plan, provide approved, plan_id, version and request_id; omit action_id and approval_id. For a pending action within a plan, also provide that plan_id and version together with action_id and approval_id. Only an immediate action outside a plan omits plan_id and version. Copy exact returned or user-supplied references. The server refuses missing, stale or foreign references and never approves an unseen replacement. Door approvals require a phone.",
     ),
     "execute_household_action": (
         ActionInput,
@@ -561,7 +561,7 @@ TOOLS: dict[str, tuple[type[Input], str, str]] = {
     "verify_trusted_identity": (
         VerifyInput,
         "verify",
-        "Explicitly start a simulated contact check or read its status after the user asks again. No real communication is available.",
+        "Start a simulated contact check or read its current status. Starting with contact and text first assesses the request's risk, then opens the check; a separate assess_request_risk call is unnecessary. Starting with case_id checks an existing assessment. When the user asks again, call operation=status to read the latest reply even if an earlier result was pending. No real communication is available.",
     ),
     "propose_household_rule": (
         ProposalInput,

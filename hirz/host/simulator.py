@@ -530,10 +530,13 @@ class Simulator:
 
                         async def choose(
                             message: str,
+                            *,
+                            continuing: bool = False,
                         ) -> list[tuple[str, dict[str, Any]]]:
                             from hirz.host.selection import select
 
                             for _ in range(8):
+                                diagnostics: dict[str, Any] = {}
                                 proposed, question = await asyncio.to_thread(
                                     select,
                                     model,
@@ -541,6 +544,14 @@ class Simulator:
                                     list(tools.values()),
                                     echo.history,
                                     message,
+                                    diagnostics,
+                                    continuing=continuing,
+                                )
+                                self.emit(
+                                    echo,
+                                    generation,
+                                    kind="model",
+                                    result={"structuredContent": diagnostics},
                                 )
                                 if proposed or not question:
                                     return proposed
@@ -660,6 +671,30 @@ class Simulator:
                                     for k, v in output.get("data", {}).items()
                                     if k not in {"actions", "presentation"}
                                 }
+                                # Keep canonical EV actions: their charge_limit
+                                # carries the planned target, absent from energy
+                                # observations. Other rendered actions stay in
+                                # the full card/transcript result above.
+                                if "actions" in output.get("data", {}):
+                                    ev_actions = [
+                                        action
+                                        for action in output["data"]["actions"]
+                                        if action.get("class") == "energy.ev_charge"
+                                    ]
+                                    selection_data["actions"] = list(
+                                        {
+                                            (
+                                                a["target"]["adapter"],
+                                                a["target"]["entity"],
+                                            ): a
+                                            for a in sorted(
+                                                ev_actions,
+                                                key=lambda a: a["params"][
+                                                    "charge_limit"
+                                                ],
+                                            )
+                                        }.values()
+                                    )
                                 complete_selection(
                                     echo.history,
                                     name,
@@ -714,7 +749,12 @@ class Simulator:
                                 and not result.isError
                             ):
                                 calls = await choose(
-                                    "Continue only unfinished parts of the original request using the actual tool result above. If complete, return without tools.",
+                                    f"Original user request: {text}\n"
+                                    "Continue only its unfinished parts using the actual tool results above. "
+                                    "Advice to perform a check does not perform that check. "
+                                    "Select the next needed tool, or return empty if the request is complete. "
+                                    "Do not narrate; the host already spoke the tool result.",
+                                    continuing=True,
                                 )
         except asyncio.CancelledError:
             raise

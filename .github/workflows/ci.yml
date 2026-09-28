@@ -47,7 +47,8 @@ jobs:
 
   python-test:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    # Includes the real five-minute MCP prompt-expiry acceptance probe.
+    timeout-minutes: 45
     env:
       COMPOSE_PROJECT_NAME: hirz-ci-${{ github.run_id }}-${{ github.run_attempt }}
       HIRZ_LLM: "off"

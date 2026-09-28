@@ -410,9 +410,24 @@ class Scenarios:
                                         )
                                     )
                                 ]
-                                completed |= Counter(
-                                    e["tool"] for e in results
-                                ) >= Counter(
+                                performed = Counter(e["tool"] for e in results)
+                                # Starting by contact + text calls assess() inside
+                                # verify(), then opens the real verification case.
+                                # Do not require a redundant separate assessment.
+                                if any(
+                                    e["tool"] == "verify_trusted_identity"
+                                    and e.get("arguments", {}).get("operation")
+                                    == "start"
+                                    and not e.get("arguments", {}).get("case_id")
+                                    and e["result"]
+                                    .get("structuredContent", {})
+                                    .get("data", {})
+                                    .get("case", {})
+                                    .get("risk_band")
+                                    for e in results
+                                ):
+                                    performed["assess_request_risk"] += 1
+                                completed |= performed >= Counter(
                                     s if isinstance(s, str) else s["tool"]
                                     for s in beat.get("script", [])
                                 ) and any(e["kind"] == "settled" for e in turn)

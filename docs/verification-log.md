@@ -10110,3 +10110,74 @@ its independent dispatch latency jobs continue without cancellation. Only tests
 and records changed in this acceptance revision. Repository Ruff lint, whitespace
 checks and synchronized instruction checks pass; final formatting reports
 **288 files already formatted**.
+
+### Approved inference amendment and Nova parents acceptance — 2026-09-27
+
+The author explicitly approved a $10 aggregate item-29 cap and the Nova-only
+maximum-context reservation exception ([ADR-020](./adr/ADR-020-simulator.md#approved-spending-and-nova-counting-amendment--2026-09-27)). The existing ledger
+started this work at $4.3714836 / 248 attempts; it was preserved, not reset, and
+the separate item-25 $2 ledger is unchanged. Nova reserves 330,000 input tokens
+and 512 maximum output tokens ($0.01992288) before every attempted inference.
+This bound is not measured usage or actual billing. Haiku still requires native
+CountTokens, and automatic inference retries remain disabled.
+
+Retained live failures now include the actual model response: Haiku refused a
+new expected-arrival request using its historical denied-unlock result; Nova reused
+a historical pending contact state without reading the delayed result. Explicit
+host selection/question/completion controls and focused role guidance address
+these paths. Earlier prompt-only attempts remain failed evidence. The runtime's
+combined verification path already assesses risk before contacting the trusted
+channel; playback had incorrectly required a redundant public assessment call.
+It now recognizes the real returned assessment and verification case.
+
+Nova parents Show (`parents-nova-show-combined`) and Dot (`parents-nova-dot-final`)
+each complete all five events, with **82 / 79 independently verified signed rows**
+and **23.7s / 27.2s** browser results respectively. Both run fresh disposable
+databases with real server-verified virtual passkeys, companion activation, Echo
+PKCE and authenticated MCP. The explicitly simulated reply changes the real case
+to `not_genuine`, no unsolicited speech occurs, and Dot mounts no card. Successful
+databases are removed only after verified exports; development is unchanged.
+Artifacts, model histories and reviewed-result transcripts are private under
+`secrets/item29-20260927/`. Failed attempts have separate directories and retained
+databases; none are relabeled as passing.
+
+The focused offline run passes **61 tests in 3.28s**, including concurrent cap
+enforcement preserving prior reservations, Nova's labeled bound, Haiku counting
+failure, exhausted budgets, disabled retries, and host controls that execute no
+MCP calls. Strict mypy passes for **182 files**. Additional integration/model runs
+are ongoing; the evening model cells and final-source CI remain owed.
+
+The earlier application revision's complete dispatch
+[CI 36358521484](https://github.com/BashaarJavaid/Hirz/actions/runs/36358521484)
+is now green, including both twelve-tool latency gates. These results cover
+`c1fb89f`, not the amendments above.
+
+The amended fast transport/isolation run passes **10 tests in 56.79s** (real
+five-minute timeout excluded because its unchanged server path was already tested
+above). The focused unit suite passes again: **61 tests in 2.12s**. Web lint and
+strict TypeScript checks pass. Nova parents Show/Dot captures were retained; Show
+visibly renders the simulated not-genuine reply through the card bridge.
+
+The next Haiku evening attempt reached the final planned-action review, but
+`approve_action` returned `REQUEST_REFUSED`: the model correctly copied the action
+and approval references but followed an inaccurate description telling it to omit
+the owning plan reference/version. The service's binding check was correct; only
+the description/prompt is corrected. Nova's evening attempts exposed missing scalar
+answers in the browser driver and one documented provider `ModelErrorException`;
+these remain failed runs. The driver now answers the original request text, additive
+operation, exact target from the reviewed clause and existing tonight horizon.
+No callback manufactures a tool result, approval, or household decision.
+
+Model context now preserves a genuine canonical EV action with the highest
+planned charge limit for each car. The former projection discarded all actions,
+while energy observations omit the planning target. This fixes the missing facts
+without inventing a target or sending every rendered action into inference.
+
+Regression CI `e672b67` completed **1,487 service-free / 192 integration tests**
+with **89% combined coverage** (14,769 statements, 1,571 missed), and passed
+companion, simulator and reference-host browser checks. Its final card browser
+step was canceled at the job's 30-minute allowance (`The operation was canceled.`);
+the run is not green. The real five-minute expiry probe accounts for most of the
+added duration. The Python CI job allowance is now 45 minutes; no test, timeout
+assertion or coverage requirement is removed. Log: `/tmp/item29-e672-python.log`,
+retained with the private acceptance evidence before closure.

@@ -128,16 +128,16 @@ The verified toolchain and scaffold setup are in `README.md`; use Node 24.
 - `cd infra/cdk && pnpm cdk deploy` / `pnpm cdk destroy` — the AWS stack for the judging window.
 - `HIRZ_LLM=off|bedrock`, `HIRZ_ADAPTERS=devices:ha,ev:twin,energy:real,...` — runtime configuration.
 
-Item 29 adds `HIRZ_LLM=off uv run --locked python -m scripts.simulator_demo --origin <HTTPS-origin> --artifacts-dir <new-private-dir>` for disposable authenticated playback; `--browser-test` uses virtual authenticators with real server verification. Real companion enrollment/activation and explicit Echo PKCE consent are required. Paid host configuration uses a separate durable $5 ledger; procedure and acceptance limitations are in `docs/development.md` and the item 29 evidence.
+Item 29 adds `HIRZ_LLM=off uv run --locked python -m scripts.simulator_demo --origin <HTTPS-origin> --artifacts-dir <new-private-dir>` for disposable authenticated playback; `--browser-test` uses virtual authenticators with real server verification. Real companion enrollment/activation and explicit Echo PKCE consent are required. Paid host configuration uses a separate durable $10 ledger; procedure and acceptance limitations are in `docs/development.md` and the item 29 evidence.
 
 ## Current phase
 
 **Phase 5 items 28 and 29 are partial; Phase 4 is complete.**
 Item 28 owes iPhone push acceptance. Item 29's real-phone twin unlock/relock passes;
 blocked-plan/stale-consent fixes and local adversarial probes pass. Final CI/latency,
-Haiku evening and Nova counting remain pending ([evidence](./docs/verification-log.md#item-29)).
+Both models’ evening cells remain pending ([evidence](./docs/verification-log.md#item-29)).
 Development stays on 0005; migrations through 0018 remain manual. Preserve the
-separate $2/$5 ledgers. Real contacts, physical locks and AWS security guarantees
+separate $2/$10 ledgers. Real contacts, physical locks and AWS security guarantees
 remain unverified.
 
 ---

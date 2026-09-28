@@ -243,6 +243,17 @@ async def run(args: argparse.Namespace) -> None:
                 async with engine.connect() as c:
                     await retain_export(c, household, audit.key.public_key(), folder)
             write_export(args.artifacts_dir / "playback.json", scenarios.view())
+            if args.browser_test and args.budget_ledger:
+                write_export(
+                    args.artifacts_dir / "model-histories.json",
+                    {
+                        str(index): {
+                            account: echo.history
+                            for account, echo in browser.echoes.items()
+                        }
+                        for index, browser in enumerate(simulator.browsers.values())
+                    },
+                )
             evidence = {}
             for name, item in loaded.items():
                 rows = json.loads(
@@ -319,7 +330,7 @@ def main() -> None:
     parser.add_argument(
         "--budget-ledger",
         type=Path,
-        help="Separate durable item29-host ledger, aggregate ceiling $5; enables live host models only",
+        help="Separate durable item29-host ledger, aggregate ceiling $10; enables live host models only",
     )
     asyncio.run(run(parser.parse_args()))
 

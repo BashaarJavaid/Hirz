@@ -14,13 +14,18 @@ acceptance remains tracked in [the evidence log](./verification-log.md#item-29).
 | get_household_plan | plan | horizon defaults to tonight; optional objective (cheapest, most_comfortable, greenest); request_id when enqueueing or choosing an objective; existing canonical Plan or durable preparation status. |
 | revise_household_plan | plan | text, applies_to, kind, operation, change and applicable scalar values; atomic constraint recording and refresh invalidation. |
 | explain_plan | read | Optional plan_id and focus (summary, conflicts, action/goal reference); stored facts and bounded narration. |
-| approve_action | act | approved, exact plan_id/version or action_id/approval_id, request_id; stale consent refused; security remains unresolved. |
+| approve_action | act | approved, exact plan_id/version for plans, plus action_id/approval_id for a planned pending action; immediate pending actions omit plan references; request_id; stale consent refused; security remains passkey-gated. |
 | execute_household_action | act | action plus applicable profile, room, temperature_f, percent, minutes, beneficiary, claimed_requester; request_id; queued execution. |
 | assess_request_risk | verify | text, claimed_party, party, optional presented_number, request_id; deterministic advice, no contact initiation. |
 | verify_trusted_identity | verify | operation start/status; case_id/contact, text for a new request and request_id for start; private simulated app checks only. |
 | propose_household_rule | plan | text, request_id; records the sentence with CONSTITUTION_PROPOSED, without drafting, delivery or activation. |
 | evaluate_permission | read | Shared action fields, optional at and required request_id; current policy preview with DRY_RUN, no authority. |
 | get_action_audit | read | window or action_id, limit default 20/max 100 and cursor; newest-first consumer summaries. |
+
+Starting `verify_trusted_identity` with `contact` and `text` runs the deterministic
+risk assessment before opening the case; a separate assessment call is unnecessary.
+Passing `case_id` instead continues an existing assessment. A later status question
+requires a fresh `operation=status` read, since earlier pending results can be stale.
 
 The action enum is generated from consumer_actions metadata in risk/classes.yaml:
 charge_car, stop_charging, set_temperature, turn_on_light, turn_off_light,

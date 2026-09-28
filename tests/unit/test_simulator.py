@@ -165,12 +165,16 @@ def test_elicitation_stops_before_execution(failure):
 
 def test_aggregate_ledger_concurrency_and_separate_task(tmp_path):
     path = tmp_path / "ledger"
+    prior = {"input_tokens": 4_000_000, "max_output_tokens": 512}
+    path.write_text(
+        json.dumps({"purpose": "item29-host", "reserved_usd": "4", "calls": [prior]})
+    )
 
     def reserve(_):
         try:
             Budget(
                 path,
-                limit=Decimal("5"),
+                limit=Decimal("10"),
                 input_rate=Decimal("1"),
                 output_rate=Decimal("0"),
                 purpose="item29-host",
@@ -180,8 +184,9 @@ def test_aggregate_ledger_concurrency_and_separate_task(tmp_path):
             return False
 
     with ThreadPoolExecutor(max_workers=8) as pool:
-        assert sum(pool.map(reserve, range(12))) == 5
-    assert Decimal(json.loads(path.read_text())["reserved_usd"]) == 5
+        assert sum(pool.map(reserve, range(12))) == 6
+    assert Decimal(json.loads(path.read_text())["reserved_usd"]) == 10
+    assert json.loads(path.read_text())["calls"][0] == prior
     before = path.read_bytes()
     with pytest.raises(ValueError, match="different task"):
         Budget(path).reserve(1, 512)
@@ -194,8 +199,11 @@ def test_aggregate_ledger_concurrency_and_separate_task(tmp_path):
     assert legacy.read_bytes() == before
 
 
+@pytest.mark.parametrize("model_name", ["haiku", "nova"])
 @pytest.mark.parametrize("failure", ["counting", "exhausted", "retry"])
-def test_selection_stops_before_unreserved_inference(tmp_path, monkeypatch, failure):
+def test_selection_stops_before_unreserved_inference(
+    tmp_path, monkeypatch, failure, model_name
+):
     from unittest.mock import Mock
 
     from hirz.host import selection
@@ -205,7 +213,7 @@ def test_selection_stops_before_unreserved_inference(tmp_path, monkeypatch, fail
         json.dumps(
             {
                 "purpose": "item29-host",
-                "reserved_usd": "5" if failure == "exhausted" else "0",
+                "reserved_usd": "10" if failure == "exhausted" else "0",
                 "calls": [],
             }
         )
@@ -237,28 +245,124 @@ def test_selection_stops_before_unreserved_inference(tmp_path, monkeypatch, fail
     with pytest.raises(
         ValueError,
         match={
-            "counting": "TOKEN_COUNTING_UNAVAILABLE",
+            "counting": "TOKEN_COUNTING_UNAVAILABLE"
+            if model_name == "haiku"
+            else "Automatic inference retries",
             "exhausted": "BEDROCK_BUDGET_EXHAUSTED",
             "retry": "Automatic inference retries",
         }[failure],
     ):
-        selection.select("haiku", ledger, [], [], "Hello")
+        selection.select(model_name, ledger, [], [], "Hello")
     assert factory.call_args.kwargs["retry_strategy"] is None
     assert model.call_args.kwargs["max_tokens"] == 512
+    if model_name == "nova":
+        assert model.call_args.kwargs["additional_request_fields"] == {
+            "inferenceConfig": {"topK": 1}
+        }
     assert (
         model.call_args.kwargs["boto_client_config"].retries["total_max_attempts"] == 1
     )
-    client.count_tokens.assert_called_once_with(
-        modelId=selection.MODELS["haiku"][0].removeprefix("us."),
-        input={
-            "converse": {k: request[k] for k in ("messages", "system", "toolConfig")}
-        },
-    )
-    if failure == "retry":
+    if model_name == "haiku":
+        client.count_tokens.assert_called_once_with(
+            modelId=selection.MODELS["haiku"][0].removeprefix("us."),
+            input={
+                "converse": {
+                    k: request[k] for k in ("messages", "system", "toolConfig")
+                }
+            },
+        )
+    else:
+        client.count_tokens.assert_not_called()
+    if failure == "retry" or (model_name == "nova" and failure == "counting"):
         assert len(sent) == 1
-        assert len(json.loads(ledger.read_text())["calls"]) == 1
+        records = json.loads(ledger.read_text())["calls"]
+        assert len(records) == 1
+        if model_name == "nova":
+            assert records[0]["input_tokens"] == 330_000
+            assert records[0]["input_basis"] == "nova_context_ceiling_plus_10_percent"
+            assert Decimal(records[0]["reserved_usd"]) == Decimal("0.01992288")
     else:
         assert not sent and ledger.read_bytes() == before
+
+
+@pytest.mark.parametrize("step", ["ask_user", "finish_request", "multiple"])
+def test_model_host_controls_never_execute_mcp(tmp_path, monkeypatch, step):
+    from unittest.mock import Mock
+
+    from hirz.host import selection
+
+    client = Mock()
+    monkeypatch.setattr(
+        selection, "BedrockModel", Mock(return_value=SimpleNamespace(client=client))
+    )
+    agent = Mock()
+    question = "Which door and how many minutes?"
+    arguments = {"question": question} if step == "ask_user" else {}
+    selected = "ask_user" if step == "multiple" else step
+    agent.messages = [
+        {
+            "role": "assistant",
+            "content": [
+                {"toolUse": {"name": selected, "toolUseId": "one", "input": arguments}}
+            ],
+        },
+        {
+            "role": "user",
+            "content": [
+                {
+                    "toolResult": {
+                        "toolUseId": "one",
+                        "content": [{"text": PENDING}],
+                        "status": "error",
+                    }
+                }
+            ],
+        },
+    ]
+
+    def invoke(text):
+        require = client.meta.events.register.call_args_list[0].args[1]
+        params = {"toolConfig": {"toolChoice": {"auto": {}}}}
+        require(params)
+        assert params["toolConfig"]["toolChoice"] == {"any": {}}
+        capture = agent.hooks.add_callback.call_args_list[0].args[1]
+        for _ in range(2 if step == "multiple" else 1):
+            capture(SimpleNamespace(tool_use={"name": selected, "input": arguments}))
+        agent.messages.append(
+            {
+                "role": "assistant",
+                "content": [{"text": "Turn ended early by hook after tool execution"}],
+            }
+        )
+        return SimpleNamespace(stop_reason="end_turn")
+
+    agent.side_effect = invoke
+    factory = Mock(return_value=agent)
+    monkeypatch.setattr(selection, "Agent", factory)
+    history, diagnostics = [], {}
+    if step == "multiple":
+        with pytest.raises(ValueError, match="exactly one"):
+            selection.select("nova", tmp_path / "ledger", [], history, "Hi")
+    else:
+        assert selection.select(
+            "nova",
+            tmp_path / "ledger",
+            [],
+            history,
+            "Hi",
+            diagnostics,
+            continuing=step == "finish_request",
+        ) == ([], question if step == "ask_user" else "")
+        assert history[-1]["content"][0]["toolResult"]["content"] == [
+            {"json": {"received": True}}
+        ]
+        assert diagnostics["stop_reason"] == "end_turn"
+    names = [t.tool_name for t in factory.call_args.kwargs["tools"]]
+    assert ("finish_request" in names) == (step == "finish_request")
+    assert all(
+        set(t.tool_spec["inputSchema"]["json"]) <= {"type", "properties", "required"}
+        for t in factory.call_args.kwargs["tools"]
+    )
 
 
 def test_exact_script_and_confirmation_binding():

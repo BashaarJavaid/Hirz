@@ -785,3 +785,24 @@ repaint workaround was added. The earlier reports remain as observed history.
   evening capture visibly contains the genuine card.
 - **Feature request:** Document iframe painting limitations for full-page captures
   or expose a capture diagnostic when an otherwise visible frame is unpainted.
+
+## Item 29: Nova tool schema restrictions — 2026-09-27
+
+- **Tool/task:** Nova Lite through Strands/Bedrock Converse, using the real MCP
+  tool schemas and the approved 512-token response limit.
+- **Severity:** Major.
+- **Expected/observed:** Parents Show/Dot completed, but the evening compound
+  request stopped with the exact provider error:
+  `An error occurred (ModelErrorException) when calling the Converse operation: Model produced invalid sequence as part of ToolUse. Please refer to the model tool use troubleshooting guide.`
+  Earlier prompt-only selection corrections cost over fifteen minutes; failures
+  and their reservations remain retained.
+- **Documentation:** [Nova tool troubleshooting](https://docs.aws.amazon.com/nova/latest/userguide/tools-troubleshooting.html)
+  allows only `type`, `properties`, and `required` at a tool schema's root, and
+  recommends `temperature=0` plus `topK=1`. Generic MCP schemas contain additional
+  JSON Schema fields that this model does not support.
+- **Change under verification:** Filter only the model-facing root schema and use
+  greedy decoding; leave public schemas and strict MCP validation intact. The
+  error may also indicate output truncation; no unverified root-cause claim or
+  higher output cap is made.
+- **Feature request:** Reject unsupported schema fields at request validation with
+  a precise field path instead of discovering incompatibility during generation.

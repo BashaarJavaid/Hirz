@@ -184,3 +184,63 @@ A blocked refresh returns `unavailable` / `PLAN_BLOCKED`, without a stale plan
 card or a promise that polling will finish it. Queued refreshes retain `preparing`.
 Force-approving the superseded plan, rewinding an already executed scenario, or
 changing household requirements to make a failed run appear complete were rejected.
+
+### Approved spending and Nova counting amendment — 2026-09-27
+
+The user approved a $10 aggregate item-29 ceiling, preserving the existing ledger's
+$4.3714836 reservation and every prior attempt. The separate item-25 $2 ledger is
+unchanged. Prices were rechecked against the AWS sources above on 2026-09-27.
+
+Nova Lite still rejects CountTokens. The user approved a Nova-only reservation of
+its entire [published 300K context limit](https://docs.aws.amazon.com/nova/latest/userguide/what-is-nova.html)
+plus 10% (330,000 input tokens), together with 512 maximum output tokens before
+each inference. At the verified rates this reserves $0.01992288 per attempt. The
+ledger labels this as a context-ceiling bound, never an actual token count. Native
+counting remains required for Haiku. The file lock, hard cap, no refunds for failed
+attempts, no automatic inference retries and explicit scripted switch remain.
+
+This supersedes the initial $5/counting-only decision for Nova; heuristic counting,
+resetting the ledger, silently substituting another model and unreserved inference
+remain rejected. Collapsed host diagnostics retain model response/stop reason to
+diagnose selection failures without speaking unverified model outcome claims.
+
+### Explicit selector steps — 2026-09-27
+
+Retained live responses showed Haiku treating a historical denial as current policy
+and Nova treating a historical pending check as its current status. Prompt-only
+corrections did not reliably finish the requests. The host now uses Converse's
+`toolChoice.any` with the twelve discovered MCP tools plus local `ask_user` and,
+only during continuation, `finish_request` controls. These controls never reach
+MCP or mutate household state. Multiple selected steps fail before submission;
+the host still confirms and executes each real MCP mutation separately.
+[AWS documents the native choice contract](https://docs.aws.amazon.com/nova/latest/userguide/prompting-tools-function.html).
+
+The continuation names the actual original request, and the prompt distinguishes
+requesting review from granting permission. The model retains canonical EV actions from genuine plan responses, because
+energy observations do not contain the planned charge target. Strands' synthetic
+“Turn ended early by hook after tool execution” message is removed from model
+history: it describes the host's selection hook, not completion of user work.
+Browser acceptance retains private model histories without session tokens, so
+failed selections can be reproduced without restarting whole scenarios. Silently
+replacing a failed model selection with recorded calls remains rejected.
+
+The public verification contract already calls the deterministic `assess` service
+when `verify_trusted_identity(start)` receives contact and text. Its returned case
+contains the risk assessment and opened verification. Playback therefore accepts
+that genuine combined result for the recorded assessment/check pair; requiring
+two public calls incorrectly rejected completed work and created duplicate cases.
+The existing separate assessment + case-reference path remains valid. Neither
+path skips assessment, contact authorization, confirmation or signed audit writes.
+
+Nova's model-facing input schemas keep only root `type`, `properties` and
+`required`, and use `temperature=0` / `topK=1`, following the
+[provider troubleshooting contract](https://docs.aws.amazon.com/nova/latest/userguide/tools-troubleshooting.html).
+The public MCP schemas and server validation remain unchanged. Raising the
+approved 512-output-token limit or automatically retrying malformed responses
+remains rejected.
+
+A live planned-action approval exposed an incorrect public description: it said
+to omit plan references for every pending action, while the service correctly
+requires the owning plan reference/version for planned actions. The description
+and host prompt now match that existing service contract. Removing the service's
+plan binding to accommodate the inaccurate description was rejected.

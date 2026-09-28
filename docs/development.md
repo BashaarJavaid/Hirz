@@ -1558,13 +1558,20 @@ verifies and exports both signed audit chains before successful database cleanup
 failed runs retain their disposable database and private evidence.
 
 For model selection only, set `HIRZ_LLM=bedrock`, `AWS_PROFILE=hirz` and add
-`--budget-ledger secrets/item29-host-budget.json`. Preserve this same separate $5
+`--budget-ledger secrets/item29-host-budget.json`. Preserve this same separate $10
 aggregate ledger across every model, restart and attempted run. Never use/reset the
-existing $2 ledger. Native token counting and maximum-output reservation precede
-inference; expired credentials, counting failure and cap exhaustion stop the turn.
+existing $2 ledger. Haiku native token counting and maximum-output reservation precede inference.
+The approved Nova exception reserves 330,000 input tokens (its published 300K
+context ceiling plus 10%) and 512 maximum output tokens per attempt, even for
+short requests; this is a cost bound, not a measured token count. Expired credentials,
+Haiku counting failure and cap exhaustion stop the turn.
 Select scripted mode explicitly to continue. Pricing and model IDs are in ADR-020;
 recheck pricing before later paid invocations. Drafting stays on the labeled recorded
 patch and narration uses deterministic tool speech during acceptance.
+
+The Python CI job has a 45-minute allowance, including the real five-minute MCP
+prompt-expiry probe and the browser suites. Its combined coverage threshold is
+unchanged.
 
 Automated browser checks use the real backend with virtual authenticators:
 
@@ -1584,7 +1591,7 @@ matrix/gate results belong in [item 29](./verification-log.md#item-29).
 
 The configured AWS process profile refreshes through `aws login --profile hirz-login`;
 verify it with `aws sts get-caller-identity --profile hirz --no-cli-pager`.
-The verified Nova Lite endpoint currently rejects CountTokens, so it stops before
-inference under the approved budget rule. See the item 29 friction entry.
+The verified Nova Lite endpoint rejects CountTokens; the approved context-ceiling
+reservation exception is documented in ADR-020. See the item 29 friction entry.
 Playback pauses again if execution needs a new action approval: read the current
 plan, then explicitly approve or decline its pending action before continuing.
