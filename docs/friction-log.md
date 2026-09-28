@@ -824,3 +824,19 @@ repaint workaround was added. The earlier reports remain as observed history.
   equivalent nullable scalar `type` arrays instead of `anyOf` also returned the
   same error on the saved failing request. The experimental schema change was
   not adopted; no tool execution or automatic retry occurred.
+
+## Item 29: Haiku native token counting returns a server error — 2026-09-27
+
+- **Tool/task:** Bedrock `CountTokens` before Haiku 4.5 simulator selection.
+- **Severity:** Major.
+- **Expected/observed:** The fresh Show acceptance run reached the expected-arrival
+  request, then native counting failed. The retained, payload-free diagnostic is
+  exactly `Native token counting failed (InternalServerException)`. The underlying
+  provider message was not logged, so no more specific cause is claimed. Earlier
+  calls in the same run counted successfully.
+- **Impact/workaround:** The host stopped before inference, as required; full
+  acceptance did not finish. Counting remains mandatory, no automatic retry was
+  added, and all prior reservations remain in the durable ledger. A fresh full
+  acceptance run uses the existing approved aggregate allowance.
+- **Feature request:** Improve reliability and actionable, payload-free diagnostic
+  details for [CountTokens server errors](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_CountTokens.html).

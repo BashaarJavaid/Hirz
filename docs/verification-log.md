@@ -10382,3 +10382,48 @@ local run used `--no-cov`; combined coverage remains the CI gate, not an inferre
 claim from the local count. Commit `54671af` started dispatch
 [36368367122](https://github.com/BashaarJavaid/Hirz/actions/runs/36368367122), but the
 morning correction requires a subsequent source revision and fresh CI.
+
+The corrected-source Show run (`evening-haiku-show-20-morning`) stopped at the
+expected-arrival voice beat: native counting logged
+`Native token counting failed (InternalServerException)`. That call sent no
+inference; **2,520 signed rows** were independently verified and retained, with
+an incomplete timeline and no unlock yet. The aggregate remains **$16.38072894 /
+747 reservations** before a fresh Dot attempt. No counting bypass, automatic
+inference retry, model substitution or Nova call was introduced. The third-party
+failure is recorded in the friction log. Current source is `46eaf2c`; its required
+CI dispatch is [36368901000](https://github.com/BashaarJavaid/Hirz/actions/runs/36368901000).
+
+**Haiku evening Dot now passes** on `46eaf2c`: browser **1 passed in 6.9min**,
+all **21/21** events, **6,378 independently verified signed rows**, one bounded
+unlock with verified relock, EV SOC **0.49999999992435573** at 06:30, and one
+completed dishwasher cycle. “Good morning” selected fresh `get_household_context`
+then `get_household_plan`; every utterance completed without a mounted card.
+The final capture was reviewed: Haiku and simulated-source labels, Dot mode and
+21/21 are visible. Evidence is retained at
+`secrets/item29-20260927/evening-haiku-dot-20-morning/`; successful cleanup followed
+signed export. The same ledger is **$17.43902354 / 793 reservations** before the
+final fresh Show run. Show acceptance and final-source CI remain pending here.
+
+**Haiku evening Show now passes** on the same `46eaf2c` source: browser **1 passed
+in 6.9min**, **21/21** events, **6,419 independently verified signed rows**, one
+bounded unlock with verified relock, EV SOC **0.49999999994957045** at 06:30, and
+one completed dishwasher cycle. The morning turn reads context and plan; the real
+MCP Apps bridge renders the simulated card and user-controlled fullscreen view.
+Both captures were reviewed. Evidence is retained at
+`secrets/item29-20260927/evening-haiku-show-20-final/`; the disposable database was
+dropped after verified export, with development unchanged.
+
+Haiku now has passing evidence for both scenarios in both display modes. The
+final aggregate is **$18.44548614 / 838 reservations**, including all earlier
+models and failed attempts, with no Nova calls during this Haiku-only work and
+no further paid calls planned here. This is reserved maximum cost, not an AWS
+bill. Nova evening Show/Dot and final-source CI/latency remain outstanding at this
+checkpoint; item 29 remains partial. Scenario source deferrals, real delivery,
+Hirz Link and deployment claims are unchanged.
+
+Final ledger reconciliation sums all 838 retained reservations to exactly
+**$18.44548614**; all **157 calls after the $20 extension** are Haiku at 512 output
+tokens, and the ledger remains mode `0600`. At this checkpoint the current-source
+dispatch has green lint/types, TypeScript tests, build, release, both conformance
+jobs and scenario regression; its Python integration/browser job and both latency
+jobs are still running. No final combined-coverage or timing pass is claimed.
