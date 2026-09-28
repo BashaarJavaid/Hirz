@@ -10360,3 +10360,25 @@ After the cap change, the focused simulator/household suite passes **62 tests in
 4.16s**, including refusal at the model-specific ceiling and preservation of
 previous reservations. Fresh acceptance runs proceed sequentially in disposable
 databases; development and the existing manual session remain untouched.
+
+The first $20 Dot attempt (`evening-haiku-dot-20`) reached all 21 timeline events,
+with **6,881 independently verified signed rows**, one verified bounded unlock,
+EV SOC **0.4999999999243559** at 06:30, and one completed dishwasher cycle. Browser
+acceptance nevertheless failed on “Good morning”: Haiku selected `finish_request`
+from history while that control was unavailable for the new request, reaching a
+host `KeyError: 'finish_request'`. This is not a passing cell. Selection now rejects
+any tool absent from the current advertised list, with regressions for unknown
+tools and stale completion controls. Morning briefing guidance requests fresh
+household context followed by the current plan, matching the recorded scenario;
+browser acceptance requires both genuine reads. The focused suite passes **64
+tests in 2.38s**. The ledger retains **$15.91306394 / 724 reservations** before the
+next fresh Show run.
+
+The broader local service-free run reports **1,492 passed / 2 failed** in 262.77s;
+both failures are sandbox `PermissionError` binding loopback WebSocket listeners.
+Those exact two tests pass with loopback access (**2 passed in 2.36s**). Web lint,
+TypeScript/browser type checks and strict mypy (**182 source files**) pass. This
+local run used `--no-cov`; combined coverage remains the CI gate, not an inferred
+claim from the local count. Commit `54671af` started dispatch
+[36368367122](https://github.com/BashaarJavaid/Hirz/actions/runs/36368367122), but the
+morning correction requires a subsequent source revision and fresh CI.

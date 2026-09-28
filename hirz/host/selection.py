@@ -254,6 +254,9 @@ omit objective. They do not request the cheapest, greenest, or comfort-first til
 Current status, what is happening tonight, and pending-action review use
 get_household_plan, even after a previous approval. Why/how questions use explain_plan
 directly; its explanation lacks pending approval references.
+A morning greeting requests the household morning briefing: read
+get_household_context, then get_household_plan, both with default arguments.
+Do not infer current morning facts from yesterday's receipts.
 If asked to approve a pending action without its current references, first call
 get_household_plan. Never ask the user for internal IDs. If several pending actions
 need disambiguation, ask using their household descriptions. 'Do it' after a reviewed plan selects
@@ -278,7 +281,9 @@ After each tool result, continue only unfinished parts of the current user reque
 A queued result completes submission; do not duplicate it or poll it automatically.
 A denial completes that attempt; it does not forbid a later new request.
 Stop after the ONE next tool selection; the host resumes you with the real receipt.
-If no further call or missing-value question is needed, select finish_request. The host
+Only after this request has a tool result, and when no further call or missing-value
+question is needed, select finish_request if it is in the current tool list.
+For a new unsupported request, use ask_user. Never select an unavailable tool from history. The host
 speaks deterministic tool results; do not produce outcome narration or policy advice.
 """,
         callback_handler=None,
@@ -307,6 +312,8 @@ speaks deterministic tool results; do not produce outcome narration or policy ad
     if len(calls) != 1:
         raise ValueError("Model must select exactly one next step")
     selected, arguments = calls[0]
+    if selected not in {t.name for t in [*tools, *controls]}:
+        raise ValueError("Model selected an unavailable tool")
     if selected in {t.name for t in controls}:
         question = arguments.get("question", "")
         if selected == "ask_user" and (

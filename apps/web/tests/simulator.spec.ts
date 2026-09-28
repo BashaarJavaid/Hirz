@@ -139,6 +139,9 @@ test("simulator linking, real enrollment, cards, Dot, switching and both themes"
       const results = turn.filter((e: { kind: string }) => e.kind === "tool");
       expect(results.length).toBeGreaterThan(0);
       expect(results.every((e: { result: { isError?: boolean } }) => !e.result.isError)).toBe(true);
+      if (text === "Good morning.") {
+        expect(results.map((e: { tool: string }) => e.tool)).toEqual(["get_household_context", "get_household_plan"]);
+      }
       if (["What's going on tonight?", "Optimize energy tonight."].includes(text)) {
         expect(results.filter((e: { tool: string }) => e.tool === "get_household_plan").every((e: { arguments: { objective?: string } }) => e.arguments.objective === undefined)).toBe(true);
       }

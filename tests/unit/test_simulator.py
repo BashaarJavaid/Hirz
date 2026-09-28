@@ -314,7 +314,9 @@ def test_selection_stops_before_unreserved_inference(
         assert not sent and ledger.read_bytes() == before
 
 
-@pytest.mark.parametrize("step", ["ask_user", "finish_request", "multiple"])
+@pytest.mark.parametrize(
+    "step", ["ask_user", "finish_request", "multiple", "stale_finish", "unknown"]
+)
 def test_model_host_controls_never_execute_mcp(tmp_path, monkeypatch, step):
     from unittest.mock import Mock
 
@@ -327,7 +329,13 @@ def test_model_host_controls_never_execute_mcp(tmp_path, monkeypatch, step):
     agent = Mock()
     question = "Which door and how many minutes?"
     arguments = {"question": question} if step == "ask_user" else {}
-    selected = "ask_user" if step == "multiple" else step
+    selected = (
+        "ask_user"
+        if step == "multiple"
+        else "finish_request"
+        if step == "stale_finish"
+        else step
+    )
     agent.messages = [
         {
             "role": "assistant",
@@ -371,6 +379,9 @@ def test_model_host_controls_never_execute_mcp(tmp_path, monkeypatch, step):
     history, diagnostics = [], {}
     if step == "multiple":
         with pytest.raises(ValueError, match="exactly one"):
+            selection.select("nova", tmp_path / "ledger", [], history, "Hi")
+    elif step in {"stale_finish", "unknown"}:
+        with pytest.raises(ValueError, match="unavailable tool"):
             selection.select("nova", tmp_path / "ledger", [], history, "Hi")
     else:
         assert selection.select(

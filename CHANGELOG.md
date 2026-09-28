@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-09-27: Reject model-selected tools absent from the current tool list and request fresh reads for the morning briefing; retain the failed final-turn acceptance evidence ([evidence](./docs/verification-log.md#haiku-20-verification-extension--2026-09-27)).
+
 - 2026-09-27: Preserve household priorities during generic Haiku optimization, use current-plan reads for pending approvals, and reduce redundant selection context; apply the approved Haiku-only $20 aggregate verification ceiling ([decision](./docs/adr/ADR-020-simulator.md#second-haiku-only-verification-extension--2026-09-27), [evidence](./docs/verification-log.md#haiku-20-verification-extension--2026-09-27)).
 
 - 2026-09-27: Resolve light/lamp aliases in the shared household action path; retain the failed, single authorized Nova diagnostic with the runtime still capped at 512 output tokens ([decision](./docs/adr/ADR-020-simulator.md#single-diagnostic-and-device-name-correction--2026-09-27), [evidence](./docs/verification-log.md#one-off-nova-diagnostic-and-shared-light-resolver--2026-09-27)).

@@ -327,3 +327,11 @@ allowance. Nova retains its $10 ceiling against that same aggregate total and
 receives no calls in this work. The 512-output-token limit and native preflight
 counting remain unchanged. Removing failed-run reservations or silently switching
 models was rejected.
+
+The subsequent Dot run reached the morning but selected a completion control from
+history that was unavailable for the new request. Selection now validates the
+chosen name against the current advertised tool list before handing it to the
+host. Morning greetings request a fresh context/plan briefing, as the recorded
+scenario specifies. Treating a stale completion control as an MCP call, inventing
+a morning report from old receipts, or silently mapping arbitrary unknown tools
+to a supported call was rejected.
