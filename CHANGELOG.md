@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-09-27: Resolve light/lamp aliases in the shared household action path; retain the failed, single authorized Nova diagnostic with the runtime still capped at 512 output tokens ([decision](./docs/adr/ADR-020-simulator.md#single-diagnostic-and-device-name-correction--2026-09-27), [evidence](./docs/verification-log.md#one-off-nova-diagnostic-and-shared-light-resolver--2026-09-27)).
+
 - 2026-09-27: Apply the approved aggregate $10/Nova reservation amendment, make host steps explicit, and recognize combined risk/contact verification in playback ([ADR-020](./docs/adr/ADR-020-simulator.md#approved-spending-and-nova-counting-amendment--2026-09-27), [evidence](./docs/verification-log.md#approved-inference-amendment-and-nova-parents-acceptance--2026-09-27)).
 
 - 2026-09-27: Extend simulator acceptance for real prompt expiry, late replies, authority changes, accepted-action reconciliation and fail-closed inference budgeting; reconfirm the Nova counting blocker without inference spend ([evidence](./docs/verification-log.md#remaining-acceptance-probes--2026-09-27)).

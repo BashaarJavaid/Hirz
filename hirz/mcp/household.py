@@ -646,12 +646,13 @@ class HouseholdTools:
         reference = args.room
         if reference:
             suffix = {"light": " light", "lock": " lock"}.get(kind)
-            matching = [
-                r
-                for r in candidates
-                if str(r["name"]).casefold()
-                in {reference.casefold(), reference.casefold() + (suffix or "")}
-            ]
+            names = {reference.casefold(), reference.casefold() + (suffix or "")}
+            if kind == "light":
+                room = reference.casefold()
+                if room.endswith((" light", " lamp")):
+                    room = room.rsplit(" ", 1)[0]
+                names.update({room + " light", room + " lamp"})
+            matching = [r for r in candidates if str(r["name"]).casefold() in names]
             if len(matching) == 1:
                 reference = str(matching[0]["id"])
         asset = unique(candidates, reference)

@@ -123,7 +123,7 @@ test("simulator linking, real enrollment, cards, Dot, switching and both themes"
           }
           if (s.prompt.schema.properties.reply && /let (them|her) in/i.test(text)) content.reply = "Yes, unlock the front door for 1 minute.";
           if (s.prompt.schema.properties.reply && text.startsWith("Malik just called")) content.reply = "Yes, start the simulated check with Malik.";
-          if (s.prompt.schema.properties.reply && text === "Do it.") content.reply = "Yes, approve the exact current plan I just reviewed.";
+          if (s.prompt.schema.properties.reply && ["Do it.", "Yes."].includes(text)) content.reply = "Yes, approve the exact current plan I just reviewed.";
           if (s.prompt.schema.properties.reply && text.includes("Keep the guest room at 72")) content.reply = "Keep the guest room at 72 Fahrenheit starting now until 7 AM tomorrow morning. No temperature range.";
           if (s.prompt.schema.properties.reply && text.includes("kitchen at eleven")) content.reply = "Do not run the dishwasher before 11 PM tonight.";
           if (s.prompt.schema.properties.reply && text === "Good morning.") content.reply = "Please read the current household context and household plan for my morning summary.";

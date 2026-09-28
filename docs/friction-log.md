@@ -806,3 +806,13 @@ repaint workaround was added. The earlier reports remain as observed history.
   higher output cap is made.
 - **Feature request:** Reject unsupported schema fields at request validation with
   a precise field path instead of discovering incompatibility during generation.
+
+- **Follow-up:** Greedy decoding and the root-schema filter did not resolve the
+  evening compound-request failure. Two separate reserved replay probes also
+  returned the same exact error: the documented `</tool>` stop sequence, and
+  removing the model-generated request key. Those unsuccessful experimental
+  changes were reverted. Nova parents Show/Dot pass; evening remains unverified.
+- **Authorized diagnostic:** One selection-only request with a 1,024-token output
+  limit returned the same provider error. No household tools executed. The
+  temporary allowance was removed; this result does not prove truncation, and
+  the production host retains its 512-token maximum.

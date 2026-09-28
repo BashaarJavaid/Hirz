@@ -244,3 +244,22 @@ to omit plan references for every pending action, while the service correctly
 requires the owning plan reference/version for planned actions. The description
 and host prompt now match that existing service contract. Removing the service's
 plan binding to accommodate the inaccurate description was rejected.
+
+### Single diagnostic and device-name correction — 2026-09-27
+
+The author approved exactly one Nova selection-only diagnostic with 1,024 maximum
+output tokens. It reserved 330,000 input tokens plus that output maximum in the
+same $10 ledger before inference, executed no household tools, and returned the
+same provider `ModelErrorException`. This did not establish output truncation as
+the cause. The temporary diagnostic allowance was removed afterward; the normal
+host and budget validator still enforce 512. Further higher-limit calls or a
+permanent limit increase are not authorized by that single diagnostic.
+
+A subsequent Haiku evening failure exposed a separate server contract bug:
+`living room lamp` did not resolve the household's `Living room light`, despite
+the public room description promising lamp/light synonyms. The shared action
+resolver now accepts those terminal device nouns, restricted to light assets in
+the current household. Exact references and ambiguity clarification remain intact.
+Execution, permission previews and profile settings share this correction;
+rewriting only the model output or weakening general member/device resolution
+was rejected.

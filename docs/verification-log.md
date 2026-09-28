@@ -10181,3 +10181,36 @@ the run is not green. The real five-minute expiry probe accounts for most of the
 added duration. The Python CI job allowance is now 45 minutes; no test, timeout
 assertion or coverage requirement is removed. Log: `/tmp/item29-e672-python.log`,
 retained with the private acceptance evidence before closure.
+
+### One-off Nova diagnostic and shared light resolver — 2026-09-27
+
+The author approved exactly one 1,024-output-token Nova diagnostic. The
+selection-only replay reserved **$0.02004576** for 330,000 input plus 1,024 output
+tokens in the existing ledger before Converse. It returned
+`ModelErrorException: An error occurred (ModelErrorException) when calling the Converse operation: Model produced invalid sequence as part of ToolUse. Please refer to the model tool use troubleshooting guide.`
+No household tool executed, and there was no retry. Private result:
+`secrets/item29-20260927/nova-1024-authorized-once/result.json`.
+
+The retained ledger now contains **470 attempts / $9.19444186 reserved**, including
+exactly one entry above 512 output tokens; **$0.80555814** remains under the approved
+$10 cap. Reservations are upper bounds, not actual bills. The temporary diagnostic
+budget allowance was removed after the probe, restoring the fixed 512 validator;
+the application never adopted a higher output limit. The separate item-25 ledger
+is unchanged. This failure does not establish that a larger runtime limit would
+fix Nova, and no evening cell is counted as passing.
+
+The latest Haiku Dot attempt (`evening-haiku-dot-yes`) correctly submitted the
+compound constraints and plan approval, then failed at the living-room lamp beat.
+The public tool description accepts lamp/light synonyms, but the shared target
+resolver accepted only `Living room` and `Living room light`. That resolver is
+corrected for all three callers: execution, permission previews and profiles.
+The unit check covers aliases, exact references, ambiguity, unknown rooms and
+light names not resolving security targets; the PostgreSQL profile test executes
+the alias through the real Pipeline, worker verification and signed audit check.
+
+Focused verification passes **62 unit tests in 2.58s** and **11 PostgreSQL tests in
+20.77s**. Strict mypy passes for **182 source files**. The browser acceptance driver
+also answers the recorded final `Yes.` plan clarification explicitly, as it
+already did for `Do it.`; actual server confirmations and plan-version checks
+remain required. A new scripted Dot browser run and current CI are still in
+progress at this checkpoint. Both models' evening cells remain owed.

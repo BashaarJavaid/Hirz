@@ -38,7 +38,7 @@ def test_profiles_queue_each_device_and_preserve_retry_and_preview_boundaries(
                                 "room": "Living room",
                                 "temperature_f": 72,
                             },
-                            {"action": "turn_on_light", "room": "Living room"},
+                            {"action": "turn_on_light", "room": "Living room lamp"},
                         ]
                     }
                 )
