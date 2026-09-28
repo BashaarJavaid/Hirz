@@ -10029,3 +10029,75 @@ The previous dispatch `36356112537` had green regression jobs but unfinished
 latency jobs when superseded; those unfinished timings are not claimed as passes.
 The new run's results remain pending. This repair adds no paid inference, and
 item 29 remains partial for the previously recorded model/adversarial gaps.
+
+### Remaining acceptance probes — 2026-09-27
+
+While the source CI ran, the local host/transport acceptance suite was extended
+without changing application behavior or making paid inference calls. The fast
+PostgreSQL transport/authorization suite passed **10 tests in 36.22s** and host
+units passed **17 tests in 1.38s**. These use disposable migrated databases,
+the real SDK, OAuth linking and MCP server where listed; no development migration,
+credential reset, manual-session restart or unaudited persisted mutation occurred.
+
+| Boundary | Evidence and scope |
+|---|---|
+| Invalid scalar or injected answer | Genuine SDK calls reject negative/bool/missing duration, caller-supplied authority and changes to an unasked target; no new action rows |
+| Cancellation and late answer | Authenticated SSE request receives SDK cancellation; a late answer cannot create an action |
+| Disconnect/termination | Closing SSE and explicitly deleting the SDK session makes a late answer return 404; no action rows; a lost stream alone remains resumable by the transport contract |
+| Expired response credential | A correctly signed expired bearer is rejected with HTTP 401 before the elicitation response reaches the SDK |
+| Authority changes during a wait | The real OAuth gate's captured reauthorization callback rejects issuer-key revocation and a current child membership; membership uses a rollback-only database view, not a committed membership-edit bypass |
+| Exact requester confirmation | PostgreSQL service calls require renewed review after either the policy or resolved profile changes; each child action retains independent review; these invoke the elicitation wrapper directly rather than claiming live phone policy activation |
+| Accepted action/account switch | The actual host calls authenticated MCP; switching to Dad after Malik's accepted light request preserves the receipt under Malik, emits no stale speech, and retains exactly one light action |
+| Host limits and budget | Units exercise account concurrency, fresh history after model selection, five-dollar aggregate reservation races, counting failure, exhaustion and blocked automatic inference retries; maximum output remains 512 tokens |
+
+Existing real-SDK accept/decline/cancel, unsupported-client fallback, foreign-account
+reply rejection and transaction-release probes remain in the same suite. Credential
+revocation, changed hashes, new door presses and approval expiry before dispatch
+remain covered by the companion security suite in source CI. These are named
+boundary checks, not a claim to enumerate every possible concurrent interleaving.
+
+The first new cancellation probe incorrectly opened a second iterator on a consumed
+HTTP stream and failed; it now continues the original iterator. The first expiry
+probe held the Python SDK elicitation callback forever, blocking that client's own
+receive loop and timing out at 330 seconds. The corrected probe reads SSE directly
+and awaits the actual server's five-minute expiry; its result is appended below.
+The initial reconciliation assertion counted governance actions as device actions;
+the corrected check counts the specific light class and retains its canonical
+receipt. Failed test logs are retained alongside successful logs under
+`secrets/item29-20260927/adversarial-final`.
+
+Offline Haiku review identified the final Dot failure after “Which door? Front
+door or back door?” and the Show failure on the expected-arrival request after an
+earlier denied unlock. Both returned no tool selection. The retained transcripts
+do not contain the model's discarded non-question text or stop reason, so they do
+not establish whether it refused, narrated instead of selecting, or returned an
+empty completion. No speculative prompt change, forced tool selection or automatic
+retry was introduced, and neither evening cell is counted as repaired.
+
+After the author refreshed AWS login, free `CountTokens` requests in `us-east-1`
+for both `amazon.nova-lite-v1:0` and `us.amazon.nova-lite-v1:0` returned
+`ValidationException: The provided model doesn't support counting tokens.` The
+[current counting documentation](https://docs.aws.amazon.com/bedrock/latest/userguide/count-tokens.html)
+states counting is free and its alternative Mantle counting endpoint is
+Claude-specific; the [Nova Lite model card](https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-amazon-nova-lite.html)
+does not support Mantle. This offers no verified alternative for the approved Nova
+model. The existing friction entry already records this exact blocker; no duplicate
+entry is added. The item-29 ledger remains **$4.3714836 reserved across 248 attempts**;
+the separate two-dollar ledger is unchanged.
+
+The completed Python job in
+[CI 36358521484](https://github.com/BashaarJavaid/Hirz/actions/runs/36358521484)
+reports **1,484 service-free tests**, **184 integration tests**, and **89% combined
+coverage** (14,769 statements, 1,677 missed), plus companion browser **1.8min**,
+simulator **19.8s**, reference host **2.9s** and **40 card browser checks in 1.9min**.
+It covers application revision `c1fb89f`; these newly added acceptance tests require
+their own subsequent CI run. Both source latency jobs were still running at this
+checkpoint and are not claimed passed.
+
+The real-time SSE expiry probe passed **1 test in 307.73s** (including setup):
+the server returned `PROMPT_EXPIRED` after at least 299 and less than 330 seconds,
+and a subsequent accepted answer created no action. Its log is retained with the
+other acceptance artifacts. The newly added named adversarial checks therefore
+pass locally; the remaining item-29 blockers are the two Haiku evening cells,
+four Nova cells and completion of the applicable CI gates. No model failure is
+reclassified as success by the added deterministic tests.

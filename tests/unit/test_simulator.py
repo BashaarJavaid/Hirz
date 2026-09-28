@@ -194,6 +194,73 @@ def test_aggregate_ledger_concurrency_and_separate_task(tmp_path):
     assert legacy.read_bytes() == before
 
 
+@pytest.mark.parametrize("failure", ["counting", "exhausted", "retry"])
+def test_selection_stops_before_unreserved_inference(tmp_path, monkeypatch, failure):
+    from unittest.mock import Mock
+
+    from hirz.host import selection
+
+    ledger = tmp_path / "selection.json"
+    ledger.write_text(
+        json.dumps(
+            {
+                "purpose": "item29-host",
+                "reserved_usd": "5" if failure == "exhausted" else "0",
+                "calls": [],
+            }
+        )
+    )
+    before = ledger.read_bytes()
+    client = Mock()
+    client.count_tokens.return_value = {"inputTokens": 24}
+    if failure == "counting":
+        client.count_tokens.side_effect = RuntimeError("Counting unavailable")
+    model = Mock(return_value=SimpleNamespace(client=client))
+    monkeypatch.setattr(selection, "BedrockModel", model)
+    sent = []
+    request = {
+        "messages": [{"role": "user", "content": [{"text": "Hello"}]}],
+        "system": [{"text": "Household host"}],
+        "toolConfig": {"tools": []},
+        "inferenceConfig": {"maxTokens": 512},
+    }
+
+    def invoke(text):
+        reserve = client.meta.events.register.call_args.args[1]
+        reserve({"body": json.dumps(request)})
+        sent.append(request)
+        reserve({"body": json.dumps(request)})
+
+    agent = Mock(side_effect=invoke)
+    factory = Mock(return_value=agent)
+    monkeypatch.setattr(selection, "Agent", factory)
+    with pytest.raises(
+        ValueError,
+        match={
+            "counting": "TOKEN_COUNTING_UNAVAILABLE",
+            "exhausted": "BEDROCK_BUDGET_EXHAUSTED",
+            "retry": "Automatic inference retries",
+        }[failure],
+    ):
+        selection.select("haiku", ledger, [], [], "Hello")
+    assert factory.call_args.kwargs["retry_strategy"] is None
+    assert model.call_args.kwargs["max_tokens"] == 512
+    assert (
+        model.call_args.kwargs["boto_client_config"].retries["total_max_attempts"] == 1
+    )
+    client.count_tokens.assert_called_once_with(
+        modelId=selection.MODELS["haiku"][0].removeprefix("us."),
+        input={
+            "converse": {k: request[k] for k in ("messages", "system", "toolConfig")}
+        },
+    )
+    if failure == "retry":
+        assert len(sent) == 1
+        assert len(json.loads(ledger.read_text())["calls"]) == 1
+    else:
+        assert not sent and ledger.read_bytes() == before
+
+
 def test_exact_script_and_confirmation_binding():
     assert recorded("whats going on tonight?", {}) == [("get_household_plan", {})]
     assert recorded("alexa what's going on tonight", {}) == recorded(
@@ -350,6 +417,25 @@ def test_browser_csrf_stale_prompt_and_card_csp(tmp_path):
                     },
                 )
             ).status_code == 409
+            service.active["dad"] = asyncio.create_task(asyncio.Event().wait())
+            assert (
+                await client.post(
+                    "/api/simulator/command",
+                    json={"operation": "turn", "text": "What can you do?"},
+                )
+            ).status_code == 409
+            service.active["dad"].cancel()
+            await asyncio.gather(service.active["dad"], return_exceptions=True)
+            owner.echoes["malik"].history.append({"role": "user", "content": []})
+            assert (
+                await client.post(
+                    "/api/simulator/command",
+                    json={"operation": "model", "text": "haiku"},
+                )
+            ).status_code == 200
+            assert owner.model == "haiku" and all(
+                not account.history for account in owner.echoes.values()
+            )
             linked = (
                 await client.post("/api/simulator/command", json={"operation": "link"})
             ).json()

@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-09-27: Extend simulator acceptance for real prompt expiry, late replies, authority changes, accepted-action reconciliation and fail-closed inference budgeting; reconfirm the Nova counting blocker without inference spend ([evidence](./docs/verification-log.md#remaining-acceptance-probes--2026-09-27)).
+
 - 2026-09-27: Report blocked planning honestly, require accepted consent before advancing scenario approval beats, and retain the successful real-phone twin unlock/relock ([ADR-020](./docs/adr/ADR-020-simulator.md#rejected-consent-and-blocked-planning-amendment--2026-09-27), [evidence](./docs/verification-log.md#blocked-planning-and-stale-approval-regression--2026-09-27)).
 
 - 2026-09-27: Share executor/dispatch expiry checks so phone-approval waiting does not consume a bounded unlock's duration; render actual phone-approval availability and retain the failed manual run ([ADR-020](./docs/adr/ADR-020-simulator.md#delayed-phone-approval-amendment--2026-09-27), [evidence](./docs/verification-log.md#manual-approval-crash-and-dispatch-regression--2026-09-27)).

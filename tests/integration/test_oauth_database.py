@@ -25,6 +25,94 @@ from tests.unit.test_oauth import call, claims, consent, encode, gated, provider
 pytestmark = pytest.mark.integration
 
 
+@pytest.mark.parametrize("change", ["membership", "token"])
+def test_original_request_reauthorizes_after_wait(
+    scratch_database,  # noqa: F811
+    monkeypatch,
+    change,
+):
+    """Exercise the gate's captured request authority after an external change.
+
+    Membership uses a rollback-only graph view, as in the existing role probe;
+    no unaudited runtime membership change is committed.
+    """
+    from starlette.requests import Request
+    from starlette.responses import JSONResponse
+
+    import hirz.mcp.auth as auth
+    from hirz.mcp.auth import OAuthGate
+    from tests.unit.test_oauth import cache_for
+
+    async def run():
+        seed = read_seed(Path("constitutions/quinn-home.yaml"))
+        async with connect(scratch_database) as c:
+            await migrate(c)
+            await load_seeds(c, [seed], now)
+        p = provider()
+        cache = await cache_for(p)
+        token = encode(p, claims(p))
+        engine = create_async_engine(scratch_database, hide_parameters=True)
+        waiting, resume = asyncio.Event(), asyncio.Event()
+
+        async def pending(scope, receive, send):
+            request = Request(scope)
+            waiting.set()
+            await resume.wait()
+            try:
+                await request.scope["hirz_reauthorize"]()
+            except ValueError:
+                response = JSONResponse({"resumed": False}, status_code=403)
+            else:
+                response = JSONResponse({"resumed": True})
+            await response(scope, receive, send)
+
+        try:
+            app = OAuthGate(
+                pending,
+                cache=cache,
+                engine=engine,
+                tool_scopes={"oauth_probe": "hirz:read"},
+            )
+            async with httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=app), base_url="http://127.0.0.1:8000"
+            ) as client:
+                task = asyncio.create_task(
+                    client.post(
+                        "/mcp",
+                        headers={"Authorization": "Bearer " + token},
+                        json=call(),
+                    )
+                )
+                await asyncio.wait_for(waiting.wait(), 5)
+                if change == "token":
+                    # Removing the trusted issuer key models revocation; the
+                    # original bearer is genuinely revalidated, not cached.
+                    cache.keys.clear()
+                    resume.set()
+                    assert (await task).status_code == 403
+                else:
+                    async with connect(scratch_database) as changed:
+                        async with changed.begin():
+                            await changed.execute(
+                                db.members.update()
+                                .where(db.members.c.household_id == seed.household_id)
+                                .values(role="child")
+                            )
+                            original = auth.resolve_member
+
+                            async def current(connection, household, principal):
+                                return await original(changed, household, principal)
+
+                            monkeypatch.setattr(auth, "resolve_member", current)
+                            resume.set()
+                            assert (await task).status_code == 403
+                            await changed.rollback()
+        finally:
+            await engine.dispose()
+
+    asyncio.run(run())
+
+
 def test_scope_household_roles_current_membership_and_no_writes(scratch_database):  # noqa: F811
     async def run():
         seeds = [
