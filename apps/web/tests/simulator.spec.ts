@@ -139,6 +139,9 @@ test("simulator linking, real enrollment, cards, Dot, switching and both themes"
       const results = turn.filter((e: { kind: string }) => e.kind === "tool");
       expect(results.length).toBeGreaterThan(0);
       expect(results.every((e: { result: { isError?: boolean } }) => !e.result.isError)).toBe(true);
+      if (["What's going on tonight?", "Optimize energy tonight."].includes(text)) {
+        expect(results.filter((e: { tool: string }) => e.tool === "get_household_plan").every((e: { arguments: { objective?: string } }) => e.arguments.objective === undefined)).toBe(true);
+      }
       if (process.env.HIRZ_SIMULATOR_DISPLAY === "dot") await expect(page.locator("iframe")).toHaveCount(0);
       return results;
     }
@@ -168,7 +171,7 @@ test("simulator linking, real enrollment, cards, Dot, switching and both themes"
         return page.evaluate(async () => (await fetch("/api/simulator/scenarios")).json());
       });
       const beat = state.scenarios[scenario].beat;
-      console.log("Scenario event", state.scenarios[scenario].next, beat?.event ?? "world");
+      console.log("Scenario event", state.scenarios[scenario].next, beat?.event ?? "world", state.scenarios[scenario].at);
       i = state.scenarios[scenario].next;
       if (beat?.event === "review") {
         await echo(beat.member);

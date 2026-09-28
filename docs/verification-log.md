@@ -10258,3 +10258,105 @@ is pending/running, not claimed green. The earlier application revision's
 [latency dispatch](https://github.com/BashaarJavaid/Hirz/actions/runs/36362954150)
 continues independently. These later evidence-only notes do not change application
 code. Both models' evening acceptance cells remain incomplete.
+
+### Haiku-only repair and acceptance — 2026-09-27
+
+The author requested Haiku work first and approved a **$15 aggregate** ceiling for
+Haiku fixes and the evening Show/Dot checks. The existing ledger began this work at
+**$9.23488474 / 472 attempts**. Only Haiku's reservation ceiling changes; Nova keeps
+its $10 ceiling against the same total and receives no calls in this work. All
+runtime output limits remain 512, native Haiku counting stays mandatory, and the
+separate item-25 ledger is unchanged. Rates were rechecked against the cited AWS
+pricing source before inference. Details and rejected alternatives are in the
+[ADR amendment](./adr/ADR-020-simulator.md#haiku-only-acceptance-budget-extension--2026-09-27).
+
+The focused unit run passes **62 tests in 2.50s**, including a Haiku reservation
+above the existing $10 total, rejection at $15, Nova rejection at $10, native
+counting failure and disabled retries. Strict mypy passes for **182 files**.
+The first new disposable Haiku Dot run uses the already tested shared lamp alias
+and final-`Yes.` clarification fixes; its full acceptance result remains pending
+at this checkpoint.
+
+The earlier `a119833` dispatch's Python job is now green: **1,493 service-free /
+192 integration tests**, **89% combined coverage** (14,801 statements, 1,576 missed),
+companion browser **1.6min**, simulator **18.3s**, reference host **2.4s**, and **40
+card checks in 1.8min**. Its two latency jobs remain in progress. These counts cover
+that earlier revision, not the new Haiku budget extension. The completed job log
+is retained privately with the acceptance evidence.
+
+The first resumed Haiku Dot run (`evening-haiku-dot-15`) reached event 19 after all
+four compound revisions, successful plan approval, the correct unexpected-door
+denial, lamp execution, passkey-approved expected-arrival unlock, and the dishwasher
+revision. Final pending-action review failed: the model read `explain_plan`, then
+asked for an action reference that the browser driver could not supply (`Prompt
+reply: 422`). The full failed transcript/history, signed exports and disposable
+database are retained. This is not a passing matrix cell. Public descriptions and
+host guidance now require the actual current-plan read for status/approval review,
+while retaining direct explanation calls for why/how questions. The browser driver
+does not manufacture approval IDs. The focused regression suite remains green:
+**62 tests in 2.87s**; a fresh full Dot run is in progress.
+
+The next Dot run (`evening-haiku-dot-review`) used real pending-action references
+successfully. It was stopped at event 19 when repeated review beats were initially
+mistaken for a loop. Retained evidence shows different approved HVAC actions at
+advancing times through **05:30 UTC**, so stopping was premature; this is not an
+approval-loop defect or a passing cell. **6,762 signed rows** were independently
+verified and retained. Comparing its audit to scripted acceptance found the actual
+difference: a Pipeline-recorded `cheapest` objective change during the generic
+“Optimize energy tonight” request. That new priority produced additional HVAC
+adjustments requiring quiet-hours approvals. Guidance now preserves the existing
+priority for generic optimization, and the browser checks that the optional
+objective remains omitted. The stopped run's accepted changes are not undone.
+
+Current-source CI `ddfb218` failed after its companion browser assertions passed:
+`RuntimeError: Companion export/cleanup failed; retain the database and inspect demo.log`.
+The private child log was not uploaded by that workflow, so its underlying cause
+is not established. A local disposable reproduction passes **1 browser check in
+2.4min**, with **371 independently verified signed rows**, completed export and
+database cleanup. Evidence: `secrets/item29-20260927/haiku-companion-cleanup/`.
+That local pass does not turn the failed CI run green.
+
+The `a119833` latency dispatch finished: Hourly passes; evening fails the unchanged
+250 ms p95 gate for `objective-cheapest` at **250.041 ms**, with **142.426 ms median /
+343.407 ms maximum** over 100 measured calls. The equivalent Hourly case records
+**169.037 ms p95**. The small miss is still a failure; no samples or threshold are
+changed. Complete payload-free CI logs are retained with this checkpoint, and
+final-source timing verification remains required before item closure.
+
+The next Dot run (`evening-haiku-dot-objective`) preserved the planning priority
+but stopped at event 19 when native counting returned `TOKEN_COUNTING_UNAVAILABLE`.
+No inference was sent for that failed count. The underlying exception had not
+been retained. Subsequent free requests counted a small message and a wholly
+synthetic 40-message tool conversation successfully. Automatic approval review
+rejected a separate count-only replay of the retained household history; that
+request did not execute. No failed run is reclassified as passing.
+
+To reduce repeated input cost, selection context now omits the plan's opaque
+action-ID list while retaining actual plan/version references, pending decisions,
+constraints and the canonical EV target. Full MCP/card/transcript results are
+unchanged. The focused suite passes **62 tests in 2.65s**, including original-result
+immutability and retained approval references. Counting failures now log only
+their exception type for diagnosis. Fresh Show and Dot browser runs are in progress
+under the same approved $15 aggregate ledger; no Nova inference has run.
+
+### Haiku $20 verification extension — 2026-09-27
+
+The user explicitly approved raising the existing aggregate ceiling to **$20 for
+fresh Haiku Show/Dot verification only**. Nova remains capped at $10 against the
+same total and receives no calls. The original ledger retains **$14.98338244 over
+681 reservations** at this checkpoint, including failed/stopped attempts; the
+separate item-25 ledger is unchanged. Runtime output remains 512 tokens.
+
+The preceding `evening-haiku-dot-context` and `evening-haiku-show-context` runs both
+stopped honestly at the loaded $15 boundary. Dot retained **5,922 signed rows**,
+one verified bounded unlock and an incomplete timeline. Show retained **6,332
+signed rows** and one verified bounded unlock; its timeline reached the morning,
+but the “Good morning” model request was refused for exhausted budget, so its
+browser acceptance failed. Neither is a passing cell. The full signed exports,
+transcripts, model histories and verification reports remain private under
+`secrets/item29-20260927/`. Accepted actions were not undone.
+
+After the cap change, the focused simulator/household suite passes **62 tests in
+4.16s**, including refusal at the model-specific ceiling and preservation of
+previous reservations. Fresh acceptance runs proceed sequentially in disposable
+databases; development and the existing manual session remain untouched.

@@ -279,3 +279,51 @@ The author subsequently approved that single 512-token schema probe. It also
 returned the same provider error, so the equivalent nullable-schema rewrite was
 not adopted. Neither larger output allowances nor this schema representation
 has established a fix for the retained failing request.
+
+### Haiku-only acceptance budget extension — 2026-09-27
+
+The author requested Haiku repairs first and explicitly approved a $15 aggregate
+ceiling for those repairs and the evening Show/Dot checks. The same item-29 ledger
+starts this work at $9.23488474 reserved across 472 attempts; no reservation is
+removed or refunded. Only Haiku may reserve against the extended ceiling. Nova's
+ceiling remains $10 against that same aggregate total, and no Nova calls are part
+of this work. Both runtime output limits remain 512, native Haiku counting is
+mandatory, and the separate item-25 $2 ledger remains unchanged. Raising both
+models' allowance or treating the extension as a fresh $15 budget was rejected.
+
+The first resumed Haiku Dot run passed the lamp and phone-unlock beats but chose
+`explain_plan` for the final current-status read. That result correctly contained
+no pending approval references; the next selection asked the user for an internal
+action reference. Public descriptions and host guidance now distinguish current
+status/approval review (`get_household_plan`) from why/how explanations
+(`explain_plan`). Missing references require a genuine current-plan read; multiple
+pending actions are clarified by household descriptions. Supplying IDs from the
+browser driver's private state or weakening approval binding was rejected.
+
+Inspection of the next retained run showed distinct approved HVAC actions at
+advancing times, not a stuck approval. Haiku had selected `objective=cheapest` for
+the generic optimization request, replacing the household's existing priority.
+The objective description and host guidance now require an explicit request to
+change priorities; generic optimization omits that optional field. Browser
+acceptance rejects unrequested objective changes at the corresponding utterance.
+The old run's accepted changes remain in its signed evidence; resetting its
+priority or weakening quiet-hours approvals to pass it was rejected.
+
+The selection receipt now omits the plan's redundant list of opaque action IDs
+from model context. Exact plan/version metadata, actionable pending decisions and
+the canonical EV target remain available. Full canonical MCP results remain in
+cards, transcripts and signed evidence. A regression verifies that this projection
+does not mutate the original result or discard approval references. Native counting
+failures log only the exception type, never request contents; inference still
+stops without a reservation when counting fails. Bypassing native counting or
+automatically retrying inference was rejected.
+
+### Second Haiku-only verification extension — 2026-09-27
+
+The user explicitly approved a **$20 aggregate ceiling for fresh Haiku Show/Dot
+verification only**, after the preceding runs exhausted the $15 allowance. The
+same durable ledger retains every earlier reservation; this is not a new $20
+allowance. Nova retains its $10 ceiling against that same aggregate total and
+receives no calls in this work. The 512-output-token limit and native preflight
+counting remain unchanged. Removing failed-run reservations or silently switching
+models was rejected.

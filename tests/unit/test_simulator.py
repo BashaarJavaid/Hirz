@@ -96,7 +96,16 @@ def test_model_history_contains_actual_receipt_and_host_arguments():
             ],
         },
     ]
-    output = {"data": {"status": "queued"}}
+    output = {
+        "data": {
+            "status": "queued",
+            "plan": {"plan_id": "actual-plan", "version": 8, "actions": ["opaque-id"]},
+            "decisions": [
+                {"action_id": "pending", "approval": {"approval_id": "actual"}}
+            ],
+            "actions": [{"params": {"charge_limit": 0.8}}],
+        }
+    }
     complete_selection(
         history, "approve_action", {"request_id": "host"}, output, error=False
     )
@@ -104,8 +113,17 @@ def test_model_history_contains_actual_receipt_and_host_arguments():
     assert history[1]["content"][0]["toolResult"] == {
         "toolUseId": "selected",
         "status": "success",
-        "content": [{"json": output}],
+        "content": [
+            {
+                "json": output
+                | {
+                    "data": output["data"]
+                    | {"plan": {"plan_id": "actual-plan", "version": 8}}
+                }
+            }
+        ],
     }
+    assert output["data"]["plan"]["actions"] == ["opaque-id"]
     with pytest.raises(ValueError, match="Missing pending"):
         complete_selection(history, "approve_action", {}, {}, error=False)
 
@@ -209,11 +227,16 @@ def test_selection_stops_before_unreserved_inference(
     from hirz.host import selection
 
     ledger = tmp_path / "selection.json"
+    ceiling = "20" if model_name == "haiku" else "10"
     ledger.write_text(
         json.dumps(
             {
                 "purpose": "item29-host",
-                "reserved_usd": "10" if failure == "exhausted" else "0",
+                "reserved_usd": ceiling
+                if failure == "exhausted"
+                else "10"
+                if model_name == "haiku" and failure == "retry"
+                else "0",
                 "calls": [],
             }
         )
@@ -281,6 +304,12 @@ def test_selection_stops_before_unreserved_inference(
             assert records[0]["input_tokens"] == 330_000
             assert records[0]["input_basis"] == "nova_context_ceiling_plus_10_percent"
             assert Decimal(records[0]["reserved_usd"]) == Decimal("0.01992288")
+        elif failure == "retry":
+            assert (
+                Decimal("10")
+                < Decimal(json.loads(ledger.read_text())["reserved_usd"])
+                < Decimal("20")
+            )
     else:
         assert not sent and ledger.read_bytes() == before
 

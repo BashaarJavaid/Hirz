@@ -27,6 +27,17 @@ risk assessment before opening the case; a separate assessment call is unnecessa
 Passing `case_id` instead continues an existing assessment. A later status question
 requires a fresh `operation=status` read, since earlier pending results can be stale.
 
+Current plan status and pending-action review use `get_household_plan`, whose
+decisions include approval references. `explain_plan` answers why/how questions
+from stored plan facts; its explanation does not supply pending approvals. A host
+missing approval references reads the current plan, then asks by household
+description if several actions need disambiguation. It never asks the user to
+supply an internal action or approval ID.
+
+Generic requests to optimize energy preserve the household's current priority by
+omitting `objective`. Selecting `cheapest`, `greenest` or `most_comfortable` is a
+separate explicit priority change, with its own confirmation and plan review.
+
 The action enum is generated from consumer_actions metadata in risk/classes.yaml:
 charge_car, stop_charging, set_temperature, turn_on_light, turn_off_light,
 request_door_unlock, hold_battery, pause_automation, apply_profile. Money requests route to advice;

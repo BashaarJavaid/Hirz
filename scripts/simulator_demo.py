@@ -330,7 +330,7 @@ def main() -> None:
     parser.add_argument(
         "--budget-ledger",
         type=Path,
-        help="Separate durable item29-host ledger, aggregate ceiling $10; enables live host models only",
+        help="Separate durable item29-host ledger: $20 aggregate for Haiku, $10 ceiling for Nova",
     )
     asyncio.run(run(parser.parse_args()))
 

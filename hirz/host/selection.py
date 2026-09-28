@@ -1,6 +1,7 @@
 """Strands selects proposed calls. The async browser host owns all execution."""
 
 import json
+import logging
 from decimal import Decimal
 from pathlib import Path
 from typing import Any, cast
@@ -26,6 +27,8 @@ PENDING = "Selected for sequential host confirmation; not executed yet."
 # https://docs.aws.amazon.com/nova/latest/userguide/what-is-nova.html
 NOVA_INPUT_RESERVATION = 330_000
 HOST_BUDGET_LIMIT = Decimal("10")
+# Approved Haiku-only verification extension; Nova retains its original ceiling.
+HAIKU_BUDGET_LIMIT = Decimal("20")
 
 
 def complete_selection(
@@ -37,6 +40,13 @@ def complete_selection(
     error: bool,
 ) -> None:
     """Replace Strands' selection placeholder with the genuine MCP receipt."""
+    if plan := output.get("data", {}).get("plan"):
+        # Pending decisions and EV settings retain their own action references.
+        # The full plan action-ID list stays in canonical card/transcript results.
+        output = output | {
+            "data": output["data"]
+            | {"plan": {k: v for k, v in plan.items() if k != "actions"}}
+        }
     for message in reversed(history):
         for block in message["content"]:
             use = block.get("toolUse", {})
@@ -72,7 +82,7 @@ def select(
     model_id, inputs, outputs = MODELS[name]
     budget = Budget(
         ledger,
-        limit=HOST_BUDGET_LIMIT,
+        limit=HAIKU_BUDGET_LIMIT if name == "haiku" else HOST_BUDGET_LIMIT,
         input_rate=Decimal(inputs),
         output_rate=Decimal(outputs),
         purpose="item29-host",
@@ -129,6 +139,9 @@ def select(
                 },
             )["inputTokens"]
         except Exception as exc:
+            logging.getLogger(__name__).warning(
+                "Native token counting failed (%s)", type(exc).__name__
+            )
             raise ValueError("TOKEN_COUNTING_UNAVAILABLE") from exc
         budget.reserve(count, request["inferenceConfig"]["maxTokens"])
 
@@ -236,7 +249,14 @@ simulated. Include text provenance whenever required by a tool schema.
 
 For planning, get_household_plan uses its default objective and horizon unless the
 user explicitly changes them. For current-plan reads use empty arguments.
-Why/how questions use explain_plan directly. 'Do it' after a reviewed plan selects
+General requests such as 'optimize energy tonight' preserve the existing priority:
+omit objective. They do not request the cheapest, greenest, or comfort-first tilt.
+Current status, what is happening tonight, and pending-action review use
+get_household_plan, even after a previous approval. Why/how questions use explain_plan
+directly; its explanation lacks pending approval references.
+If asked to approve a pending action without its current references, first call
+get_household_plan. Never ask the user for internal IDs. If several pending actions
+need disambiguation, ask using their household descriptions. 'Do it' after a reviewed plan selects
 approve_action with its exact plan_id and version. For a pending action in a plan,
 include that plan_id/version AND the returned action_id/approval_id. Only immediate
 actions outside a plan omit plan references. Never approve an unseen replacement.

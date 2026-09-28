@@ -37,7 +37,7 @@ FIELD_DESCRIPTIONS = {
     "scope": "Which household information to read: people, energy, environment, constraints, member, or all.",
     "member": "One household member's exact displayed name or returned reference; required only for member scope.",
     "horizon": "Tonight, overnight and tomorrow morning end at the next household-local 8 AM; next_24h covers 24 hours.",
-    "objective": "Optional temporary planning priority: cheapest minimizes electricity and wear cost; greenest reduces grid electricity, not measured emissions; most_comfortable minimizes occupied-room temperature deviation. Changing it requires request_id and a newly reviewed plan.",
+    "objective": "Omit for current-plan reads and general optimization requests; preserve the existing household priority. Set only when the user explicitly requests a different priority: cheapest minimizes electricity and wear cost; greenest reduces grid electricity, not measured emissions; most_comfortable minimizes occupied-room temperature deviation. Changing it requires request_id and a newly reviewed plan.",
     "request_id": "Host-generated retry key. Reuse only for an identical request; use a new key for changed intent.",
     "text": "The user's exact request or proposed rule, retained as provenance; never a source of identity or permissions.",
     "applies_to": "Exact household device or room name, or returned target reference; car means the unique household EV.",
@@ -531,7 +531,7 @@ TOOLS: dict[str, tuple[type[Input], str, str]] = {
     "get_household_plan": (
         PlanInput,
         "plan",
-        "Read the current plan or request its preparation, including requests to optimize energy tonight. Use the default objective when none is specified; no clarification is needed just to start planning. No execution consent is implied.",
+        "Read the current plan and its pending action approvals, or request preparation, including requests to optimize energy tonight. Use this for current status and approval review; returned decisions contain pending approval references. Use the default objective when none is specified; no clarification is needed just to start planning. No execution consent is implied.",
     ),
     "revise_household_plan": (
         RevisionInput,
@@ -541,7 +541,7 @@ TOOLS: dict[str, tuple[type[Input], str, str]] = {
     "explain_plan": (
         ExplainInput,
         "read",
-        "Answer why or how a plan was arranged using stored facts. Call directly with focus=summary for a general explanation; omit plan_id for the current plan. No preliminary get_household_plan call is needed.",
+        "Answer why or how a plan was arranged using stored facts. Call directly with focus=summary for an explanation; omit plan_id for the current plan. Explanations do not contain pending approval references: use get_household_plan for current status or approval review. No preliminary read is needed for a why/how question.",
     ),
     "approve_action": (
         ApprovalInput,

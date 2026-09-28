@@ -1558,8 +1558,10 @@ verifies and exports both signed audit chains before successful database cleanup
 failed runs retain their disposable database and private evidence.
 
 For model selection only, set `HIRZ_LLM=bedrock`, `AWS_PROFILE=hirz` and add
-`--budget-ledger secrets/item29-host-budget.json`. Preserve this same separate $10
-aggregate ledger across every model, restart and attempted run. Never use/reset the
+`--budget-ledger secrets/item29-host-budget.json`. Preserve this same separate
+aggregate ledger across every model, restart and attempted run. The approved Haiku
+acceptance extension raises its total ceiling to $20; Nova retains a $10 ceiling
+against the same total and is not part of the Haiku-only verification work. Never use/reset the
 existing $2 ledger. Haiku native token counting and maximum-output reservation precede inference.
 The approved Nova exception reserves 330,000 input tokens (its published 300K
 context ceiling plus 10%) and 512 maximum output tokens per attempt, even for
