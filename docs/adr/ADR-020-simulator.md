@@ -274,3 +274,8 @@ household state changed. No further output-limit increase is inferred from this
 authorization. Optional-field schema representation remains an unverified
 hypothesis; a prepared 512-token probe requires separate approval after automatic
 approval review rejected that additional inference.
+
+The author subsequently approved that single 512-token schema probe. It also
+returned the same provider error, so the equivalent nullable-schema rewrite was
+not adopted. Neither larger output allowances nor this schema representation
+has established a fix for the retained failing request.

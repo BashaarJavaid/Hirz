@@ -820,3 +820,7 @@ repaint workaround was added. The earlier reports remain as observed history.
   selection-only request against the same failed input. That request also returned
   the same provider error. Increasing the output allowance has not established a
   fix; no permanent runtime increase or additional retry was made.
+- **Schema isolation:** A separately authorized 512-token selection probe using
+  equivalent nullable scalar `type` arrays instead of `anyOf` also returned the
+  same error on the saved failing request. The experimental schema change was
+  not adopted; no tool execution or automatic retry occurred.

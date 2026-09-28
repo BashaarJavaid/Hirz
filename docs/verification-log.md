@@ -10241,3 +10241,20 @@ this is a hypothesis, not a verified fix. No request to send household history
 externally or incur further diagnostic spend is inferred from the one-off consent.
 The shared resolver correction is committed as `2def7e3`; its final-source CI
 remains owed. Prior-revision dispatch CI 36362954150 remains in progress.
+
+After the author separately approved that single schema probe, it ran once at the
+normal **512-token** limit, reserving **$0.01992288**, and returned the same Nova
+`ModelErrorException`. The saved input history and public tool names were unchanged;
+only the model-facing nullable scalar schemas used an equivalent `type` array.
+No household tool executed and no production schema change was retained. The
+private script, marker and result are in
+`secrets/item29-20260927/nova-nullable-schema-512/`. This hypothesis did not fix the
+failed request. The ledger now records **472 attempts / $9.23488474 reserved**,
+leaving **$0.76511526**. Further paid diagnostics are stopped at this checkpoint.
+
+The tested resolver fix and diagnostic records through the 3,000-token probe are
+pushed as `ddfb218`; its [current-source regression CI](https://github.com/BashaarJavaid/Hirz/actions/runs/36364320471)
+is pending/running, not claimed green. The earlier application revision's
+[latency dispatch](https://github.com/BashaarJavaid/Hirz/actions/runs/36362954150)
+continues independently. These later evidence-only notes do not change application
+code. Both models' evening acceptance cells remain incomplete.
