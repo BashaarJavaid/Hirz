@@ -10691,3 +10691,79 @@ hash-verified dependency; no global age policy was disabled. The initial attempt
 
 The manual session's HTTPS endpoint still returns 200. The author requested and
 received the exact Mac/iPhone walkthrough; physical results are still pending.
+
+### Hirz registry-based CI dispatched — 2026-10-01
+
+Committed and pushed Hirz integration as
+`03fd83ca3e1137d82e7664af33e8f9b9a99a02ed` on the author's selected existing
+`item-29-simulator` branch. Dispatched the complete
+[CI run 36929232686](https://github.com/BashaarJavaid/Hirz/actions/runs/36929232686),
+including both latency scenarios. Cancelled only the redundant push-triggered
+[run 36929191280](https://github.com/BashaarJavaid/Hirz/actions/runs/36929191280)
+for the same commit; the dispatched run remains the gate of record.
+
+With registry dependencies installed, local TypeScript lint/types/tests and web
+build passed again; Python lint/format and strict mypy passed. The physical-device
+walkthrough now lives in [development](./development.md#fresh-mac-microphone-and-iphone-passkey-walkthrough).
+At this checkpoint CI lint/types, TypeScript tests, packaging/container and
+independent conformance have passed; scenario, native conformance, full Python
+regression and both latency jobs are still running. No final CI or physical-device
+acceptance is claimed yet.
+
+### Physical walkthrough blocked at plan consent — 2026-10-01
+
+The author reported `PLAN_CHANGED` on the Mac at event 6/21 and
+`Finish this utterance through the named linked Echo first` when advancing on
+the phone, and confirmed pressing the plan's Approve button without unlinking
+or relinking the Echo. Read-only inspection of the active disposable session
+found app-surface `PLAN_APPROVED` at audit sequence 3974, followed by activation
+of constitution version 9 at sequence 5169 and inherited scheduler consent at
+sequence 5370. Versions 8 and 9 differ only in their version field; the rules
+are identical. The current plan is version 6, approved, and its refresh job is
+idle at generation 9. The scenario's voice-beat check requires a successful
+Echo `approve_action` after the beat begins, while the plan service refuses
+fresh consent for an already approved plan. The app approval therefore leaves
+this voice-only walkthrough gate stuck. No policy rollback, database mutation,
+scenario bypass or session reset was performed during diagnosis. The author's
+choice between recognizing audited phone consent and a fresh Echo-only run is
+pending; physical acceptance remains incomplete.
+
+### Audited phone consent recovery verified — 2026-10-01
+
+The author chose to recognize audited phone plan approval while preserving all
+approval checks. The scenario now accepts that existing consent only for a
+current-plan approval beat, with the named member, current fresh approved plan,
+matching committed execute grant and app approval in the same household and
+plan lineage. Plan authorization, phone security approval and other voice beats
+are unchanged; [ADR-020](./adr/ADR-020-simulator.md#recognize-audited-phone-plan-consent--2026-10-01)
+records the decision.
+
+`uv run --locked pytest tests/integration/test_simulator_transport.py -m integration
+-k current_audited --no-cov --tb=short`: **2 passed, 8 deselected in 6.97s**.
+The real-Pipeline cases reject proposed and refreshing plans, another member,
+unrelated scripts, voice-only consent and cancelled plans; app consent remains
+recognized after an autonomous replacement. Both signed audit chains verify.
+`uv run --locked pytest tests/unit/test_simulator.py --no-cov --tb=short`:
+**25 passed in 2.06s**. Ruff, strict mypy for the changed module, web lint and both
+web TypeScript configurations pass.
+
+Ran `HIRZ_LLM=off HIRZ_SIMULATOR_SCENARIO=demo-evening uv run --locked python -m
+scripts.simulator_demo --origin https://hirz.example.test --port 8022
+--issuer-port 8023 --artifacts-dir /private/tmp/hirz-item29a-phone-consent-regression
+--browser-test`, with Node 24 and native Dogwood. **1 browser test passed in
+4.3 minutes**. The browser first verifies that a stale Echo approval cannot
+advance, approves the current plan on Tonight, activates unchanged rules as
+version 9 using a virtual passkey, waits for inherited consent and advances
+without duplicate Echo approval. Playback completes **21/21 events**, verifies
+**5,033 signed rows** and **one bounded unlock/relock**, reaches 50 percent EV
+charge by the required deadline within the existing numerical tolerance, and
+completes one dishwasher cycle. The private export contains activations 7, 8
+and 9 and one app-surface plan approval. Unexpected-visitor refusal, later
+per-action consent and phone security approval still execute their existing
+checks. The separate disposable database was dropped; development was unchanged.
+
+The original Mac/iPhone session remains running with its old loaded code. The
+launcher has no state-preserving reload; a fresh manual launch requires the
+author's restart choice and renewed enrollment. This browser result uses virtual
+WebAuthn and is not physical-device acceptance. The prior source CI has passed
+regression and is still running both latency jobs at this checkpoint.

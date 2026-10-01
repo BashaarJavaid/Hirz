@@ -19,6 +19,7 @@ from hirz.executor.observations import ingest
 from hirz.executor.refresh_worker import RefreshWorker
 from hirz.executor.service import Executor
 from hirz.host.simulator import Simulator, utterance_key
+from hirz.mcp.household import HouseholdTools
 from hirz.mcp.persistence import command
 from hirz.mcp.worker import prepare_plans
 from hirz.pipeline.models import Principal, VerificationCase
@@ -152,6 +153,69 @@ class Scenarios:
             "response": "Approve the pending action." if pending else "Do it.",
         }
         return True
+
+    async def phone_plan_approved(self, name: str, beat: dict[str, Any]) -> bool:
+        """Recognize existing phone consent; never grant or replay an approval."""
+        if beat.get("script") != [
+            {"tool": "approve_action", "arguments": {"plan": "current"}}
+        ]:
+            return False
+        principal = Principal(provider="demo", sub=beat["member"], surface="app")
+        async with self.companion.pipeline(self.loaded[name].world.household.id) as p:
+            async with p.connection.begin():
+                tools = HouseholdTools(p, principal)
+                stored = await tools.current()
+                member = await p.requester(principal)
+                if (
+                    stored is None
+                    or stored["document"]["status"] != "approved"
+                    or str(stored["member_id"]) != member.member_id
+                    or await tools.pending_plan(stored) is not None
+                ):
+                    return False
+                # The current version must have its own committed execute grant,
+                # even when a refresh inherited an earlier phone approval.
+                consent = await p.connection.scalar(
+                    sa.select(db.audit_log.c.payload).where(
+                        p.scope(db.audit_log),
+                        db.audit_log.c.seq == stored["audit_seq"],
+                        db.audit_log.c.event_type == "PLAN_APPROVED",
+                        db.audit_log.c.payload["mutation"]["plan_id"].astext
+                        == stored["plan_id"],
+                    )
+                )
+                if not consent:
+                    return False
+                granted = await p.connection.scalar(
+                    sa.select(db.audit_log.c.seq).where(
+                        p.scope(db.audit_log),
+                        db.audit_log.c.seq == consent["decision_seq"],
+                        db.audit_log.c.event_type == "EXECUTE",
+                        db.audit_log.c.payload["decision"].astext == "execute",
+                        db.audit_log.c.payload["action_id"].astext
+                        == consent["action_id"],
+                    )
+                )
+                phone = await p.connection.scalar(
+                    sa.select(db.audit_log.c.seq)
+                    .join(
+                        db.plans,
+                        sa.and_(
+                            db.plans.c.household_id == db.audit_log.c.household_id,
+                            db.plans.c.plan_id
+                            == db.audit_log.c.payload["mutation"]["plan_id"].astext,
+                        ),
+                    )
+                    .where(
+                        p.scope(db.audit_log),
+                        db.plans.c.lineage_id == stored["lineage_id"],
+                        db.audit_log.c.event_type == "PLAN_APPROVED",
+                        db.audit_log.c.payload["surface"].astext == "app",
+                        db.audit_log.c.payload["member_id"].astext == member.member_id,
+                    )
+                    .limit(1)
+                )
+                return granted is not None and phone is not None
 
     async def advance(self, name: str, target: datetime) -> bool:
         """Honor action/retry/approval deadlines and the existing five-minute twin poll."""
@@ -431,6 +495,10 @@ class Scenarios:
                                     s if isinstance(s, str) else s["tool"]
                                     for s in beat.get("script", [])
                                 ) and any(e["kind"] == "settled" for e in turn)
+                        if not completed:
+                            completed = await self.phone_plan_approved(
+                                value.scenario, beat
+                            )
                         if not completed:
                             raise HTTPException(
                                 409,

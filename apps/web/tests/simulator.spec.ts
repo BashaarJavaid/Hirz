@@ -195,6 +195,25 @@ test("simulator linking, real enrollment, cards, Dot, switching and both themes"
             return result.at(-1)?.result.structuredContent.data.plan?.version ?? 0;
           }, { timeout: 60000, intervals: [1000] }).toBeGreaterThan(0);
         }
+        if (beat.text === "Do it." && process.env.HIRZ_SIMULATOR_DISPLAY !== "dot" && !process.env.HIRZ_SIMULATOR_MODEL) {
+          // Reproduce phone approval followed by an unchanged rule activation.
+          // The scenario must recognize inherited, audited consent without
+          // requiring a second approval through the Echo.
+          await page.goto(origin + "/tonight");
+          await page.getByRole("button", { name: "Approve this plan", exact: true }).click();
+          await expect(page.getByText("Your approved plan is being queued.", { exact: true })).toBeVisible();
+          await page.goto(origin + "/constitution");
+          await page.getByRole("button", { name: "Preview changes", exact: true }).click();
+          await page.getByRole("button", { name: "Activate with passkey", exact: true }).click();
+          await expect(page.getByRole("heading", { name: "Version 9 · active", exact: true })).toBeVisible();
+          await page.goto(origin + "/simulator");
+          await expect.poll(async () => {
+            const ready = await utterance("What's going on tonight?");
+            return ready.at(-1)?.result.structuredContent.data.plan?.status;
+          }, { timeout: 60000, intervals: [1000] }).toBe("approved");
+          console.log("Phone consent survived version 9 refresh; advancing without duplicate Echo approval");
+          continue;
+        }
         const spoken = !process.env.HIRZ_SIMULATOR_MODEL && beat.text.startsWith("From now on,") ? beat.text.toLowerCase().replace(/\.$/, "") : beat.text;
         const results = await utterance(spoken);
         console.log("Tools", results.map((e: { tool: string; status: string }) => `${e.tool}:${e.status}`).join(","));

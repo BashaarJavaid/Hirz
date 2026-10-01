@@ -365,3 +365,22 @@ scenario cells, fresh manual microphone/phone-passkey acceptance, ordinary regre
 and both latency CI gates are required; prior Haiku runs remain historical evidence
 only. Nova remains deferred to 29b, and both inference ledgers are unchanged.
 This does not turn historical live-model evidence into a fresh extraction run.
+
+### Recognize audited phone plan consent — 2026-10-01
+
+The author approved fixing the scenario gate after a companion plan approval
+left the subsequent Echo-only consent beat stuck. For a beat whose sole script
+approves the current plan, playback may also recognize the named member's
+existing phone consent. The current plan must be approved and fresh, its audit
+sequence must identify its committed `PLAN_APPROVED` and matching `EXECUTE`
+decision, and its lineage must contain that member's app-surface approval.
+This includes a replacement that legitimately inherited phone consent after
+refresh. Every query remains household-scoped. Other voice beats and door
+passkey gates retain their existing requirements.
+
+This reads consent already earned through the Pipeline; it neither reapproves
+the plan nor authorizes an action. Accepting a bare approval flag, replaying a
+grant, bypassing the event counter and resetting the author's session without
+permission were rejected. The disposable launcher has no state-preserving
+reload; applying a code change to an existing manual session requires a fresh
+launch and enrollment, after retaining its signed evidence.

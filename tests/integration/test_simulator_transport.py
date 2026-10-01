@@ -22,6 +22,86 @@ from tests.integration.test_database import (  # noqa: F401
 pytestmark = pytest.mark.integration
 
 
+@pytest.mark.parametrize("surface", ["app", "alexa"])
+def test_scenario_recognizes_only_current_audited_phone_plan_consent(
+    scratch_database,  # noqa: F811
+    surface,
+):
+    from contextlib import asynccontextmanager
+    from types import SimpleNamespace
+
+    from test_refresh_database import prepared
+
+    from hirz.audit import verify_database
+    from hirz.executor.refresh_worker import RefreshWorker
+    from hirz.host.scenarios import Scenarios
+    from hirz.mcp.household import HouseholdTools
+    from scripts.smoke_executor import PRINCIPAL
+
+    async def run():
+        async with connect(scratch_database) as c:
+            p, world, registry, _, service, result, _ = await prepared(c)
+
+            @asynccontextmanager
+            async def pipeline(household):
+                assert household == p.household_id
+                yield p
+
+            scenarios = Scenarios(
+                SimpleNamespace(pipeline=pipeline),
+                {"demo-evening": SimpleNamespace(world=world)},
+                None,
+            )
+            beat = {
+                "event": "voice",
+                "member": "malik",
+                "script": [
+                    {"tool": "approve_action", "arguments": {"plan": "current"}}
+                ],
+            }
+            try:
+                assert not await scenarios.phone_plan_approved("demo-evening", beat)
+                assert (
+                    await service.approve(
+                        result.plan.plan_id,
+                        PRINCIPAL.model_copy(update={"surface": surface}),
+                    )
+                ).decision == "execute"
+                assert await scenarios.phone_plan_approved("demo-evening", beat) == (
+                    surface == "app"
+                )
+                assert not await scenarios.phone_plan_approved(
+                    "demo-evening", beat | {"member": "dad"}
+                )
+                assert not await scenarios.phone_plan_approved(
+                    "demo-evening", beat | {"script": ["execute_household_action"]}
+                )
+                await service.request_refresh(
+                    result.plan.plan_id,
+                    PRINCIPAL,
+                    reason="Exercise preserved consent after refresh",
+                    explicit=False,
+                )
+                assert not await scenarios.phone_plan_approved("demo-evening", beat)
+                await RefreshWorker(p, registry, world=world).batch()
+                assert await scenarios.phone_plan_approved("demo-evening", beat) == (
+                    surface == "app"
+                )
+                async with c.begin():
+                    current = await HouseholdTools(p, PRINCIPAL).current()
+                    assert current["plan_id"] != result.plan.plan_id
+                await service.cancel(current["plan_id"], PRINCIPAL)
+                assert not await scenarios.phone_plan_approved("demo-evening", beat)
+                summary, _ = await verify_database(
+                    c, p.household_id, p.audit.key.public_key()
+                )
+                assert summary["status"] == "valid"
+            finally:
+                await registry.close()
+
+    asyncio.run(run())
+
+
 @pytest.mark.parametrize("interruption", ["cancel", "disconnect", "timeout"])
 def test_interrupted_http_prompt_rejects_late_reply(
     scratch_database,  # noqa: F811

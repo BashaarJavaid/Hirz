@@ -1663,7 +1663,7 @@ session throughout; the installed Home Screen app has a separate session.
    |---|---|
    | 4/21 | Ask the displayed tonight-plan question; if preparation is pending, wait and ask again until a plan is available. |
    | 5/21 | Submit the displayed car/guest-room/dishwasher sentence and review each exact change. Prompt values are car 50%; guest room 72°F from current scenario time until 07:00 tomorrow; dishwasher after 23:31. |
-   | 6/21 | Read the current plan with “What's going on tonight?”, then “Do it.” and confirm that version. `PLAN_CHANGED` requires a fresh read and renewed confirmation. |
+   | 6/21 | Read the current plan with “What's going on tonight?”, then “Do it.” and confirm that version. Alternatively, review and approve it on the phone's Tonight page. After approval succeeds, use Next event; do not approve an already approved plan again. A stale, unapproved plan needs a fresh read and renewed confirmation. |
    | 7/21 | Unexpected doorbell observation; advance. |
    | 8/21 | “Let them in.”, one minute if asked, and exact confirmation. The unexpected-visitor rule must refuse the unlock. |
    | 9/21 | Submit and confirm the displayed living-room lamp request. |
