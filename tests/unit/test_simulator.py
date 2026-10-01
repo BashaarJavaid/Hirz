@@ -518,7 +518,16 @@ def test_no_caller_authority_in_elicitation():
     assert verification["required"] == ["contact", "text"]
 
 
-def test_browser_csrf_stale_prompt_and_card_csp(tmp_path):
+def test_browser_csrf_stale_prompt_and_card_csp(tmp_path, monkeypatch):
+    from addon_host import OAuthSession
+
+    async def discovered_link(self):
+        return (
+            "http://127.0.0.1:8001/authorize?state=unit-test&code_challenge_method=S256"
+        )
+
+    monkeypatch.setattr(OAuthSession, "begin", discovered_link)
+
     async def run():
         service = host(tmp_path)
         app = FastAPI()
@@ -587,5 +596,15 @@ def test_browser_csrf_stale_prompt_and_card_csp(tmp_path):
             card = await client.get("/api/simulator/cards/plan-card")
             assert "sandbox allow-scripts" in card.headers["Content-Security-Policy"]
             assert "connect-src 'none'" in card.headers["Content-Security-Policy"]
+
+            async def failed_discovery(self):
+                raise ValueError("private upstream diagnostic")
+
+            monkeypatch.setattr(OAuthSession, "begin", failed_discovery)
+            failed = await client.post(
+                "/api/simulator/command", json={"operation": "link"}
+            )
+            assert failed.status_code == 400
+            assert "private upstream diagnostic" not in failed.text
 
     asyncio.run(run())

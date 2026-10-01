@@ -10488,3 +10488,206 @@ item-29 ledger remains **$18.44548614 / 838 reservations**; the item-25 $2 ledge
 is unchanged. No development migration, manual-session reset, credential change
 or additional paid call occurred during closure. Third-party friction was reviewed;
 the already recorded failures remain, with no invented explanation or workaround.
+
+## Item 29a
+
+### Extraction and local acceptance checkpoint — 2026-10-01
+
+Implementation follows [ADR-021](./adr/ADR-021-extracted-host-harness.md), including
+configured-origin discovery, no new paid inference, and the author's amended
+publication order. The independent source is staged in the isolated local clone
+`/private/tmp/hirz-item29a-addon-check` of `BashaarJavaid/addon-check`; the original
+sibling checkout remains untouched at this checkpoint. No package has been
+published yet. Hirz temporarily consumes a packed React tarball and locally
+installed Python wheel while the registry release is being verified. These are
+verification inputs, not the final dependency configuration.
+
+Local environment: macOS, Python 3.12.13, Node 24, uv 0.12.15, existing native
+Dogwood and PostgreSQL Compose service. Disposable test databases are explicitly
+migrated; the development database remains on 0005. No inference ledger was
+changed and no paid model was invoked.
+
+Independent checks completed:
+
+- Existing checker: `npm test`, **42 passed** with loopback sockets permitted.
+- `npm run lint`, `npm run typecheck`, `npm run build:host`: passed.
+- Python package `pytest`: **21 passed**, **95.31%** coverage over 128 statements.
+  Tests cover discovery/issuer/resource/endpoint binding, S256, one-use callbacks,
+  refresh serialization and revocation, optional refresh-token retention,
+  unsafe configuration, and SDK connection/elicitation delegation.
+- `npm test --workspace addon-host-example`: **2 browser checks passed**, including
+  the official unchanged `@modelcontextprotocol/server-basic-vanillajs@2.0.0`
+  `get-time` card, exact-call review for both initial and card calls, themes,
+  iframe-free Dot mode, silent replay, decline, CSRF and sibling-browser isolation.
+  Repeated after disabling remote JSON Schema reference retrieval; final run
+  **6.6 seconds**. The reference-card screenshot was visually reviewed.
+- Python wheel and sdist built with `uv build`; npm tarball inspected with
+  `npm pack --workspace addon-host`. Registry publication and registry installs
+  remain outstanding.
+
+Hirz checks completed at this checkpoint:
+
+- `pnpm -r lint`, `pnpm -r typecheck`, `pnpm -r test` and web build passed;
+  TypeScript units comprise **4 card + 1 web** tests. Existing Vite directive and
+  bundle-size warnings remain warnings.
+- Strict mypy passed over **182 source files**.
+- Focused simulator unit tests: **25 passed**, including sanitized discovery
+  failure; focused live transport checks: **5 passed**.
+- Fresh default simulator browser smoke: **1 passed**, **20 seconds**, including
+  enrollment, PKCE, bridge, Dot, household switching, themes and fullscreen;
+  private signed artifacts in `/private/tmp/hirz-item29a-browser`.
+- Full service-free run: **1,494 passed, 2 failed** because the sandbox denied
+  WebSocket fixture binds. Both affected `test_dev.websocket_token_contract`
+  cases subsequently passed with loopback permission. This is not described as
+  a single clean full-suite run. Full integration/combined coverage is pending.
+
+All four fresh **scripted** simulator matrix cells passed, each using a new
+launcher/database and virtual browser authenticators. Commands used
+`HIRZ_LLM=off HIRZ_DOGWOOD="$PWD/.tools/dogwood"`,
+`HIRZ_SIMULATOR_SCENARIO=<scenario>`, `HIRZ_SIMULATOR_DISPLAY=<show|dot>`, and
+`.venv/bin/python -m scripts.simulator_demo --origin https://hirz.example.test
+--artifacts-dir <new-private-dir> --browser-test`. Private artifacts are retained
+under `/private/tmp/hirz-item29a-matrix`; each launcher independently verified its
+signed exports before cleanup.
+
+| Scenario | Display | Timeline complete | Signed rows for selected scenario | Verified bounded twin unlocks |
+|---|---|---|---:|---:|
+| parents-scam-check | Show | Yes | 61 | 0 |
+| parents-scam-check | Dot | Yes | 61 | 0 |
+| demo-evening | Show | Yes | 4,996 | 1 |
+| demo-evening | Dot | Yes | 4,924 | 1 |
+
+These counts come from each retained `verification.json`, not inferred from a
+browser screenshot. The OAuth discovery challenge was subsequently changed to
+read response headers through a stream, avoiding an indefinite SSE response body;
+package tests passed after that change. A fresh default Hirz link smoke against
+the final wheel remains required. Prior Haiku matrix evidence is historical;
+Nova remains item 29b.
+
+A fresh physical-device session is running behind the author's existing private
+HTTPS proxy on ports 8012/8013, with private artifacts at
+`/private/tmp/hirz-item29a-phone`. HTTPS `/simulator` returned 200. Actual microphone,
+speaker, phone rule activation and phone-approved bounded twin unlock/relock
+confirmation are still owed; virtual authenticators do not earn those gates.
+Also outstanding: independent CI, final registry pins/clean installs, final Hirz
+regression and both latency CI gates. Item 29a remains partial.
+
+### Final local artifacts and integration — 2026-10-01
+
+The final wheel passed Hirz's fresh default browser smoke (**1 passed**, **23.5
+seconds**) at `/private/tmp/hirz-item29a-final-wheel-browser`; signed exports were
+retained and its disposable database dropped with development unchanged.
+Clean temporary npm and Python consumers installed the packed artifacts and
+imported all three public exports successfully. Python lint/format/strict types
+passed with the independent package's explicit configuration; Hirz lint/format
+also passed (**289 Python files**).
+
+The full PostgreSQL integration suite passed: **192 passed**, **1,498 deselected**,
+**2 warnings**, **801.95 seconds**. Its coverage appended to the earlier
+service-free run; `coverage report --fail-under=80` passed with **89%** combined
+coverage (**14,809 statements, 1,580 missed**). A fresh full service-free rerun with
+loopback permission is still running to replace the earlier sandbox-affected
+result with a single clean execution.
+
+Tested artifact SHA-256 values:
+
+- `addon-host-0.1.0.tgz` (8,563 bytes): `d63e671a42c3a89db92dd697c664bf30b6d77fd152ff7c61f4f43191636640db`.
+- `addon_host-0.1.0-py3-none-any.whl` (10,052 bytes): `1524b54f9c5eef36f255decdb988516891978a5db33e13a2df8b57f686161f02`.
+- `addon_host-0.1.0.tar.gz` (8,981 bytes): `5b6e85059485620902d6137c31df85b45a04fc149225026e7bf3e893ee03be09`.
+
+The wheel contains only `addon_host`, its typing marker and distribution/license
+metadata. npm contains its built JavaScript, declarations, CSS, README, license
+and package metadata. These hashes identify local tested artifacts, not a claim
+of registry publication.
+
+### Clean service-free rerun and frozen artifact correction — 2026-10-01
+
+The full service-free rerun with loopback permission passed cleanly:
+**1,496 passed**, **194 deselected**, **2 warnings**, **195.87 seconds**. It used
+`HIRZ_LLM=off HIRZ_DOGWOOD="$PWD/.tools/dogwood" .venv/bin/pytest --no-cov --tb=short`
+and preserved the already collected combined coverage. The checker tarball also
+passed its clean-consumer fixture gate: complete fixture exit 0, deliberately
+broken fixture exit 1 with `speech.estimate`.
+
+Final source review corrected explicit-port origin handling: port `0` remains a
+distinct configured origin instead of falling through to the default HTTPS port.
+The added regression and package suite pass (**22 tests**, **95.31% coverage**);
+independent lint/format/strict types pass. The rebuilt wheel was installed in Hirz
+and its clean consumer; public imports and explicit-port isolation passed.
+Hirz's final-wheel browser smoke passed again (**1 passed**, **20.5 seconds**),
+with exports/cleanup at `/private/tmp/hirz-item29a-release-wheel-browser`.
+This corrects the Python artifact hashes above; the npm artifact is unchanged:
+
+- Wheel (10,062 bytes): `5567b2b66e99b03cb0a2020139cd4427b0c9e39a7017561215f26675c8af61ce`.
+- Sdist (8,987 bytes): `2ed1aa42e50b7c27961e10bcd436dc1eb6ff640ba3b50db89de11ab7d9a3634f`.
+
+The reviewed source patch was applied to the previously clean sibling
+`/Users/bashaarjavaid/Projects/addon-check` checkout. The author approved a feature
+branch and draft PR for independent CI. Physical-device confirmations and registry
+credentials are still pending; no release or final Hirz CI success is claimed.
+
+### Independent source publication — 2026-10-01
+
+Pushed independent source commit
+`3e06850d4cf757640ca0c40f0567fa2474684789` on `item-29a-host-harness` and opened the
+author-approved [draft PR #1](https://github.com/BashaarJavaid/addon-check/pull/1).
+The [push CI run](https://github.com/BashaarJavaid/addon-check/actions/runs/36927638706)
+is in progress at this checkpoint. Frozen wheel source and packed React build
+bytes match the reviewed source/build. No merge or registry publication has
+occurred; this records source publication only.
+
+### Independent CI gate passed — 2026-10-01
+
+Both independent runs passed on source commit
+`3e06850d4cf757640ca0c40f0567fa2474684789`:
+[push CI](https://github.com/BashaarJavaid/addon-check/actions/runs/36927638706) and
+[draft-PR CI](https://github.com/BashaarJavaid/addon-check/actions/runs/36927667288).
+The `check` and `host` jobs verify the existing checker and the extracted package,
+including Linux browser checks and clean packed-artifact consumers.
+
+The author chose to retain Hirz's existing `item-29-simulator` branch for downstream
+changes and CI. No Hirz commit/push has occurred at this checkpoint: exact registry
+dependencies and final CI await publication. Registry authentication setup and
+fresh physical microphone/speaker/phone checks remain pending. The private manual
+session is still available; no physical result has been inferred or claimed.
+
+### Registry publication started — 2026-10-01
+
+The author confirmed credentials were already configured locally. npm identity
+verification succeeded, and the existing uv PyPI token was found when read with
+permission to access the credential store; its initial sandboxed lookup had been
+unable to read it. No credential value was printed or recorded.
+
+Uploaded the tested wheel and sdist to
+[PyPI addon-host 0.1.0](https://pypi.org/project/addon-host/0.1.0/). Registry metadata
+and freshly downloaded files match both final SHA-256 values above. A new temporary
+virtual environment installed `addon-host==0.1.0` from PyPI and imported all public
+exports; distribution metadata contains no local direct-URL install. Hirz now
+pins the exact release in `pyproject.toml` and `uv.lock`, retaining existing pinned
+dependencies.
+
+npm accepted the tested `addon-host@0.1.0` tarball after its required browser
+authentication, then reported that package processing could take a few minutes.
+The immediate registry-install attempt found only `0.0.0-stage`; the requested
+`0.1.0` endpoint returned 404. The exact-version consumer verification and pnpm
+lock update await processing; no placeholder version is accepted as the release.
+
+### Both registry releases verified — 2026-10-01
+
+[npm addon-host 0.1.0](https://www.npmjs.com/package/addon-host/v/0.1.0) became
+retrievable after registry processing. The downloaded public tarball matches
+SHA-256 `d63e671a42c3a89db92dd697c664bf30b6d77fd152ff7c61f4f43191636640db` exactly.
+A clean temporary npm consumer installed `addon-host@0.1.0`, React 19.2.0 and
+React DOM 19.2.0 from the registry and imported all public exports successfully.
+Both registry releases therefore match the tested local artifacts.
+
+Hirz's manifests and locks now use exact registry versions, with no temporary file
+dependency. `uv sync --locked` replaced the local wheel with PyPI 0.1.0, without
+upgrading the existing pins. pnpm 12.4.2 added a version-specific
+`minimumReleaseAgeExclude: [addon-host@0.1.0]` entry for the just-published,
+hash-verified dependency; no global age policy was disabled. The initial attempted
+`--prefer-online` flag is unsupported by pnpm 12.4.2; plain `pnpm install
+--lockfile-only` succeeded once the release was available.
+
+The manual session's HTTPS endpoint still returns 200. The author requested and
+received the exact Mac/iPhone walkthrough; physical results are still pending.

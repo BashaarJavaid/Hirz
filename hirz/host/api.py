@@ -65,7 +65,7 @@ def router(service: Simulator) -> APIRouter:
             "accounts": ACCOUNTS,
             "model": value.model,
             "models": MODELS if service.ledger else {"scripted": MODELS["scripted"]},
-            "linked": bool(echo.tokens),
+            "linked": bool(echo.oauth and echo.oauth.tokens),
             "generation": echo.generation,
             "prompt": echo.prompt,
             "busy": echo.task is not None and not echo.task.done(),
@@ -91,7 +91,13 @@ def router(service: Simulator) -> APIRouter:
         _, owner = browser(request)
         echo = owner.echoes[owner.account]
         if value.operation == "link":
-            return {"url": service.link(owner)}
+            try:
+                return {"url": await service.link(owner)}
+            except Exception:
+                raise HTTPException(
+                    400,
+                    "Echo linking is unavailable. Try again after checking the local issuer.",
+                ) from None
         if value.operation == "cancel":
             owner.cancel()
             service.emit(
@@ -147,7 +153,7 @@ def router(service: Simulator) -> APIRouter:
             active = service.active.get(owner.account)
             if active and not active.done():
                 raise HTTPException(409, "This Echo already has an active turn")
-            if not echo.tokens:
+            if echo.oauth is None or echo.oauth.tokens is None:
                 raise HTTPException(409, "Link this Echo first")
             if value.operation == "card" and value.tool is None:
                 raise HTTPException(400, "Choose a card action")

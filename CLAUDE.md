@@ -132,12 +132,12 @@ Item 29 adds `HIRZ_LLM=off uv run --locked python -m scripts.simulator_demo --or
 
 ## Current phase
 
-**Phase 5 item 29 is complete for Haiku/scripted mode; item 28 remains partial.**
-All eight scenario cells, manual voice/passkey/twin-door checks and CI gates pass
-([closure](./docs/verification-log.md#item-29-closure-with-nova-deferred--2026-09-27)).
-Next: compatible-iPhone Web Push acceptance and item 30 recording setup.
-Nova acceptance is deferred to 29b; harness extraction remains 29a.
-Development stays on 0005; migrations remain manual. Preserve both inference ledgers.
+**Phase 5 item 29a extraction is in acceptance; item 29 remains complete.**
+Both packages are published; four fresh scripted cells pass. Physical-device
+repetition and final Hirz CI gates remain outstanding ([evidence](./docs/verification-log.md#item-29a)).
+Item 28 still needs compatible-iPhone Web Push; Nova remains deferred to 29b.
+Development stays on 0005; migrations remain manual. Preserve both inference
+ledgers; no new paid inference is authorized for extraction.
 Real contacts, physical locks and AWS security guarantees remain unverified.
 
 ---

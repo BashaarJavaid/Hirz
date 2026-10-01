@@ -245,7 +245,6 @@ def test_host_switch_reconciles_accepted_action_without_stale_speech(
     tmp_path,
     monkeypatch,
 ):
-    import time
 
     from hirz.host.simulator import Simulator
 
@@ -279,9 +278,17 @@ def test_host_switch_reconciles_accepted_action_without_stale_speech(
                 async with env.servers(), mcp_process(env.listeners[1], env.config):
                     async with env.client(0) as home:
                         assert home.storage.tokens
-                        echo.tokens = home.storage.tokens.model_dump() | {
-                            "received": time.monotonic()
-                        }
+                        from addon_host import OAuthConfig, OAuthSession
+
+                        echo.oauth = OAuthSession(
+                            OAuthConfig(
+                                server_url=host.mcp_url,
+                                issuer=host.issuer,
+                                client_id="hirz-dev-sdk",
+                                redirect_uri=host.origin + "/callback",
+                            ),
+                            tokens=home.storage.tokens,
+                        )
                         before = await connection.scalar(
                             sa.select(sa.func.count())
                             .select_from(db.actions)

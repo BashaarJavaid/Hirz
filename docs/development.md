@@ -1602,3 +1602,84 @@ The verified Nova Lite endpoint rejects CountTokens; the approved context-ceilin
 reservation exception is documented in ADR-020. See the item 29 friction entry.
 Playback pauses again if execution needs a new action approval: read the current
 plan, then explicitly approve or decline its pending action before continuing.
+
+## Item 29a extracted host packages
+
+The independent sources and runnable reference example live in
+[`BashaarJavaid/addon-check`](https://github.com/BashaarJavaid/addon-check).
+Its `packages/react` publishes npm `addon-host`; `packages/python` publishes
+PyPI `addon-host` (`addon_host` import). The standalone example's README documents
+loopback startup and explicitly configured OAuth registrations. It uses no Hirz
+credentials, household fixtures or inference.
+
+Release acceptance follows [ADR-021](./adr/ADR-021-extracted-host-harness.md): run
+independent package CI and full local Hirz checks against packed artifacts before
+uploading those tested artifacts. Inspect the npm tarball and Python sdist/wheel,
+verify imports in clean consumers, then publish version 0.1.0 to both registries.
+After publication, pin `addon-host` to exactly `0.1.0` in `apps/web/package.json`
+and `addon-host==0.1.0` in `pyproject.toml`, regenerate the pnpm/uv locks, and verify
+clean registry installs. Temporary file dependencies are not a release result.
+
+Run ordinary Hirz CI and dispatch its existing two-scenario latency matrix against
+the released dependencies before closing 29a. Repeat the four scripted simulator
+cells with fresh disposable launchers and separately repeat actual microphone,
+speaker and phone-passkey checks using the item 29 procedure above. Do not enable
+Bedrock or change either inference ledger for this extraction. Record all evidence
+and outstanding gates under [item 29a](./verification-log.md#item-29a).
+
+### Fresh Mac microphone and iPhone passkey walkthrough
+
+Use a fresh item 29 launcher and its private `invitations.json`. Connect both
+Mac and iPhone to the configured private HTTPS origin. Keep one iPhone Safari
+session throughout; the installed Home Screen app has a separate session.
+
+1. On the phone, open `/constitution`, expand **Set up a passkey or recover
+   access**, and use the first invitation's token (Malik, home household).
+   **Enroll a passkey**, complete phone verification, save the recovery code,
+   and choose **I saved my recovery code**. Transfer invitations privately;
+   never paste them into chat or evidence.
+2. Leave the initial YAML unchanged. Choose **Preview changes**, then
+   **Activate with passkey**. Confirm **Version 7 · active**.
+3. In Mac Chrome, open `/simulator`, choose **Malik's Echo**, **Scripted**, and
+   **Link Echo with consent**. Select Malik in the home household and approve
+   the simulated OAuth consent. The loopback issuer runs on the Mac, so perform
+   Echo linking there. Phone companion enrollment remains separate.
+4. Enable **Speak responses** and select **Echo Show**. **Push to talk**, allow
+   the microphone, and say “What can you do?” Recognition submits automatically.
+   Check recognized text and audible speech. Repeat in **Echo Dot · voice only**;
+   no iframe/card should appear. Return to Show for the remaining walkthrough.
+5. On the phone, follow **Open local simulator** from Constitution. Select
+   `demo-evening` and use **Next event** to reach event **2/21**. On the Mac,
+   speak the displayed unexpected-visitor rule proposal, review its exact
+   commitment and confirm. Wait for the proposal response before advancing the
+   phone to **3/21**.
+6. On phone Constitution, choose **Use this sentence while editing** under the
+   proposal, **Preview recorded English patch**, and **Complete review (…) and
+   YAML changes**. Review and **Activate with passkey**; confirm **Version 8 ·
+   active**. Return through **Open local simulator**.
+7. Advance with the phone, completing each voice beat on the Mac before advancing:
+
+   | Event | Required interaction |
+   |---|---|
+   | 4/21 | Ask the displayed tonight-plan question; if preparation is pending, wait and ask again until a plan is available. |
+   | 5/21 | Submit the displayed car/guest-room/dishwasher sentence and review each exact change. Prompt values are car 50%; guest room 72°F from current scenario time until 07:00 tomorrow; dishwasher after 23:31. |
+   | 6/21 | Read the current plan with “What's going on tonight?”, then “Do it.” and confirm that version. `PLAN_CHANGED` requires a fresh read and renewed confirmation. |
+   | 7/21 | Unexpected doorbell observation; advance. |
+   | 8/21 | “Let them in.”, one minute if asked, and exact confirmation. The unexpected-visitor rule must refuse the unlock. |
+   | 9/21 | Submit and confirm the displayed living-room lamp request. |
+   | 10–11/21 | Motion and expected-arrival doorbell observations; advance. |
+   | 12/21 | “That's my mom, let her in.”, one minute and exact confirmation; then advance to 13/21. |
+
+8. On phone `/approvals`, review the simulated one-minute unlock and choose
+   **Approve with passkey**. Complete phone verification and wait for **Door
+   read-back: unlocked**.
+9. Return to the phone simulator and advance through **14/21** to **15/21**.
+   Open Approvals again and confirm **Door read-back: locked**. This advances the
+   scenario beyond the bounded ending; do not substitute real-world wall time
+   while the scenario remains paused.
+10. Report actual microphone/speaker behavior in Show and Dot, version-8 passkey
+    activation, and the observed unlocked-to-locked transition. Stop at a failed
+    step and retain its exact visible error. The operator independently verifies
+    signed exports on launcher shutdown before recording acceptance. Completing
+    this walkthrough is physical interaction evidence, not full-night playback,
+    physical-lock, Web Push or Hirz Link evidence.

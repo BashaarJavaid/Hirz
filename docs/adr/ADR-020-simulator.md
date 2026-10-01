@@ -351,3 +351,17 @@ evidence and remaining exclusions are in the
 [closure record](../verification-log.md#item-29-closure-with-nova-deferred--2026-09-27).
 Keeping a nonessential second model as a release blocker, relabeling failed Nova
 cells as passing, and discarding its failed-run reservations were rejected.
+
+### Item 29a extraction acceptance amendment — 2026-10-01
+
+The author approved extracting the generic Python OAuth/MCP primitives and React
+host components into published `addon-host` packages. Hirz retains its HTTP routes,
+account and household checks, prompts/consent, selectors and scenario controls.
+[ADR-021](./ADR-021-extracted-host-harness.md) records the package boundary and
+rejected alternatives.
+
+For item 29a the author explicitly chose no new paid inference: four fresh scripted
+scenario cells, fresh manual microphone/phone-passkey acceptance, ordinary regression
+and both latency CI gates are required; prior Haiku runs remain historical evidence
+only. Nova remains deferred to 29b, and both inference ledgers are unchanged.
+This does not turn historical live-model evidence into a fresh extraction run.

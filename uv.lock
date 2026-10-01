@@ -3,6 +3,19 @@ revision = 3
 requires-python = "==3.12.*"
 
 [[package]]
+name = "addon-host"
+version = "0.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "httpx" },
+    { name = "mcp" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ae/04/5ee7c737dce73871d07faacb094b6ba5153ca779ee203d43b6ba0e5cfa5b/addon_host-0.1.0.tar.gz", hash = "sha256:2ed1aa42e50b7c27961e10bcd436dc1eb6ff640ba3b50db89de11ab7d9a3634f", size = 8987, upload-time = "2026-10-01T21:22:03.518Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ab/55/94a24bd4b81f57b89346db0bdc997c038953883ee615f3c52bc326de738a/addon_host-0.1.0-py3-none-any.whl", hash = "sha256:5567b2b66e99b03cb0a2020139cd4427b0c9e39a7017561215f26675c8af61ce", size = 10062, upload-time = "2026-10-01T21:22:02.491Z" },
+]
+
+[[package]]
 name = "aiohappyeyeballs"
 version = "2.7.1"
 source = { registry = "https://pypi.org/simple" }
@@ -436,6 +449,7 @@ name = "hirz"
 version = "0.0.0"
 source = { editable = "." }
 dependencies = [
+    { name = "addon-host" },
     { name = "alembic" },
     { name = "boto3" },
     { name = "cryptography" },
@@ -469,6 +483,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "addon-host", specifier = "==0.1.0" },
     { name = "alembic", specifier = "==1.20.0" },
     { name = "boto3", specifier = "==1.43.90" },
     { name = "cryptography", specifier = "==50.0.1" },

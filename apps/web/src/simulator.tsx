@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { AppBridge, PostMessageTransport } from "@modelcontextprotocol/ext-apps/app-bridge";
+import { McpAppFrame, Transcript, useVoice } from "addon-host";
+import type { TranscriptEvent } from "addon-host";
+import "addon-host/style.css";
 import { api } from "./api";
 import { Button } from "./components/ui/button";
 import type { Schema, Value } from "./schema-form";
@@ -8,8 +10,7 @@ import "./simulator.css";
 
 type Prompt = { id: string; message: string; schema: Schema; kind: string };
 type Session = { csrf: string; account: string; accounts: Record<string, string>; model: string; models: Record<string, string>; linked: boolean; generation: number; prompt: Prompt | null; busy: boolean };
-type Event = { id: string; generation: number; kind: string; replay?: boolean; text?: string; tool?: string; elapsed_ms?: number; waiting_ms?: number; processing_ms?: number; prompt_latency_ms?: number; status?: string; prompt?: Prompt; card?: string; arguments?: Record<string, unknown>; result?: Parameters<AppBridge["sendToolResult"]>[0] };
-type Recognition = { lang: string; continuous: boolean; interimResults: boolean; start(): void; stop(): void; abort(): void; onresult: ((event: { results: { isFinal: boolean; 0: { transcript: string } }[] }) => void) | null; onerror: (() => void) | null; onend: (() => void) | null };
+type Event = { id: string; generation: number; kind: string; replay?: boolean; text?: string; tool?: string; elapsed_ms?: number; waiting_ms?: number; processing_ms?: number; prompt_latency_ms?: number; status?: string; prompt?: Prompt; card?: string; arguments?: Record<string, unknown>; result?: NonNullable<TranscriptEvent["result"]> };
 let csrf = "";
 async function request<T>(body?: Record<string, unknown>): Promise<T> {
   const r = await fetch(`/api/simulator/${body ? "command" : "session"}`, { method: body ? "POST" : "GET", headers: { "Content-Type": "application/json", "X-Hirz-Simulator-CSRF": csrf }, body: body ? JSON.stringify(body) : undefined });
@@ -17,24 +18,11 @@ async function request<T>(body?: Record<string, unknown>): Promise<T> {
   const result = await r.json(); if (result.csrf) csrf = result.csrf; return result as T;
 }
 
-function Card({ event, theme, call }: { event: Event; theme: "light" | "dark"; call: (body: Record<string, unknown>) => Promise<void> }) {
-  const iframe = useRef<HTMLIFrameElement>(null), container = useRef<HTMLDivElement>(null);
-  const [error, setError] = useState("");
-  const active = useRef<AppBridge | null>(null), currentTheme = useRef(theme); currentTheme.current = theme;
-  useEffect(() => {
-    const frame = iframe.current!;
-    const bridge = new AppBridge(null, { name: "Hirz Simulator", version: "0.1.0" }, { serverTools: {} }, { hostContext: { theme: currentTheme.current, displayMode: "inline", availableDisplayModes: ["inline", "fullscreen"], locale: "en-US", containerDimensions: { width: 1280, height: 800 } } });
-    active.current = bridge;
-    bridge.oninitialized = () => { void (async () => { await bridge.sendToolInput({ arguments: event.arguments ?? {} }); if (event.result) { await bridge.sendToolResult(event.result); } })().catch(() => setError("Card initialization failed. The spoken result remains available.")); };
-    bridge.oncalltool = async params => { const result = await request<{ result: Parameters<AppBridge["sendToolResult"]>[0] }>({ operation: "card", tool: params.name, arguments: params.arguments ?? {}, text: "Card request" }); return result.result; };
-    bridge.onrequestdisplaymode = async ({ mode }) => { bridge.setHostContext({ displayMode: mode }); container.current?.classList.toggle("expanded", mode === "fullscreen"); return { mode }; };
-    const size = new ResizeObserver(() => bridge.setHostContext({ containerDimensions: { width: frame.clientWidth, height: frame.clientHeight } }));
-    size.observe(frame);
-    void bridge.connect(new PostMessageTransport(frame.contentWindow!, frame.contentWindow!)).then(() => { frame.src = `/api/simulator/cards/${event.card}`; }).catch(() => setError("Card bridge unavailable."));
-    return () => { size.disconnect(); active.current = null; void bridge.close(); };
-  }, [event, call]);
-  useEffect(() => { active.current?.setHostContext({ theme }); }, [theme]);
-  return <div className="sim-frame" ref={container}>{error && <p role="alert">{error}</p>}<iframe ref={iframe} title="Hirz MCP App card" sandbox="allow-scripts" referrerPolicy="no-referrer" /></div>;
+function Card({ event, theme }: { event: Event; theme: "light" | "dark" }) {
+  return <McpAppFrame key={event.id} url={`/api/simulator/cards/${event.card}`} args={event.arguments} result={event.result} theme={theme} title="Hirz MCP App card" name="Hirz Simulator" callTool={async params => {
+    const result = await request<{ result: NonNullable<TranscriptEvent["result"]> }>({ operation: "card", tool: params.name, arguments: params.arguments ?? {}, text: "Card request" });
+    return result.result;
+  }} />;
 }
 
 function PromptForm({ prompt, submit }: { prompt: Prompt; submit: (body: Record<string, unknown>) => Promise<void> }) {
@@ -57,11 +45,11 @@ function PlaybackControls({ choose }: { choose: (text: string) => void }) {
 }
 
 export function Simulator() {
-  const [session, setSession] = useState<Session>(), [error, setError] = useState(""), [events, setEvents] = useState<Event[]>([]), [text, setText] = useState(""), [mode, setMode] = useState("show"), [theme, setTheme] = useState<"light" | "dark">("dark"), [voice, setVoice] = useState(false), [listening, setListening] = useState(false), [prompt, setPrompt] = useState<Prompt | null>(null), [card, setCard] = useState<Event>();
+  const [session, setSession] = useState<Session>(), [error, setError] = useState(""), [events, setEvents] = useState<Event[]>([]), [text, setText] = useState(""), [mode, setMode] = useState("show"), [theme, setTheme] = useState<"light" | "dark">("dark"), [voice, setVoice] = useState(false), [prompt, setPrompt] = useState<Prompt | null>(null), [card, setCard] = useState<Event>();
   const input = useRef<HTMLInputElement>(null);
   const choose = (value: string) => { setText(value); input.current?.focus(); input.current?.scrollIntoView({ block: "center" }); };
-  const recognition = useRef<Recognition | null>(null), sessionRef = useRef<Session | undefined>(undefined), voiceRef = useRef(false);
-  const stop = () => { recognition.current?.abort(); window.speechSynthesis?.cancel(); setListening(false); };
+  const sessionRef = useRef<Session | undefined>(undefined), voiceRef = useRef(false);
+  const { listening, listen, stop, speak } = useVoice({ onText: receivedSpeech, onError: setError });
   const load = async () => { const s = await request<Session>(); sessionRef.current = s; setSession(s); setPrompt(s.prompt); };
   const submitRef = useRef<(body: Record<string, unknown>) => Promise<void>>(async () => {});
   submitRef.current = async body => {
@@ -91,22 +79,14 @@ export function Simulator() {
       if (event.kind === "wait" || event.kind === "settled") { setPrompt(null); void load().catch(() => {}); }
       if (event.card && event.result) setCard(event);
       if ((event.kind === "speech" || event.kind === "prompt") && !event.replay && voiceRef.current && "speechSynthesis" in window) {
-        recognition.current?.abort(); window.speechSynthesis.cancel();
-        const line = new SpeechSynthesisUtterance(event.text ?? event.prompt?.message ?? ""); line.lang = "en-US";
-        line.voice = window.speechSynthesis.getVoices().find(v => v.lang === "en-US") ?? window.speechSynthesis.getVoices().find(v => v.lang.startsWith("en")) ?? null;
-        window.speechSynthesis.speak(line);
+        speak(event.text ?? event.prompt?.message ?? "");
       }
     };
     stream.onerror = () => { clearTimeout(interruption); interruption = setTimeout(() => setError("Event stream interrupted. Accepted requests may still finish; refresh to reconcile."), 5000); };
     return () => { clearTimeout(interruption); stream.close(); };
   }, [session?.account, session?.generation]); // Account and generation are the stream identity.
-  function listen() {
-    if (listening) { recognition.current?.stop(); return; }
-    const constructor = (window as unknown as { SpeechRecognition?: new () => Recognition; webkitSpeechRecognition?: new () => Recognition }).SpeechRecognition ?? (window as unknown as { webkitSpeechRecognition?: new () => Recognition }).webkitSpeechRecognition;
-    if (!constructor) { setError("Speech recognition is unavailable. Type your request below."); return; }
-    window.speechSynthesis?.cancel();
-    const r = new constructor(); recognition.current = r; r.lang = "en-US"; r.continuous = false; r.interimResults = false;
-    r.onresult = event => { const final = Array.from(event.results).filter(v => v.isFinal).map(v => v[0].transcript).join(" "); setText(final); if (!final) return;
+  function receivedSpeech(final: string) {
+      setText(final);
       if (!prompt) { void submit({ operation: "turn", text: final }); return; }
       const normalized = final.toLowerCase().replace(/[.!?]/g, "").trim();
       if (["cancel", "decline", "no"].includes(normalized)) { void submit({ operation: "answer", prompt_id: prompt.id, action: normalized === "cancel" ? "cancel" : "decline" }); return; }
@@ -115,9 +95,7 @@ export function Simulator() {
       const [key, schema] = properties[0];
       const value = schema.type === "boolean" ? ["yes", "confirm", "yes confirm"].includes(normalized) : ["integer", "number"].includes(schema.type ?? "") ? Number(normalized) : final;
       if (schema.type === "boolean" && value !== true || typeof value === "number" && !Number.isFinite(value)) { setError("Say yes, no, or the requested value. You can also use the response form."); return; }
-      void submit({ operation: "answer", prompt_id: prompt.id, action: "accept", content: { [key]: value } }); };
-    r.onerror = () => { setListening(false); setError("Microphone unavailable. Typed input remains available."); };
-    r.onend = () => setListening(false); r.start(); setListening(true);
+      void submit({ operation: "answer", prompt_id: prompt.id, action: "accept", content: { [key]: value } });
   }
-  return <main className={`simulator ${theme}`} tabIndex={-1}><header><a href="/tonight" className="wordmark">Hirz</a><h1>Household simulator</h1><p className="sim-honesty">Emulated Alexa+ host · {session?.models[session.model] ?? "Scripted"} · Simulated devices and contact replies</p></header>{error && <p role="alert">{error}</p>}{session && <><div className="sim-controls"><label>Echo account<select value={session.account} onChange={e => void submit({ operation: "account", text: e.target.value })}>{Object.entries(session.accounts).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label><label>Host<select value={session.model} onChange={e => void submit({ operation: "model", text: e.target.value })}>{Object.entries(session.models).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label><label>Display<select value={mode} onChange={e => { stop(); setMode(e.target.value); }}><option value="show">Echo Show</option><option value="dot">Echo Dot · voice only</option></select></label><label>Theme<select value={theme} onChange={e => setTheme(e.target.value as "light" | "dark")}><option>dark</option><option>light</option></select></label><Button onClick={() => void submit({ operation: "link" })}>{session.linked ? "Relink Echo" : "Link Echo with consent"}</Button></div><p>Rule activation and security approval finish in your <a href="/constitution" target="_blank" rel="noreferrer">companion app</a> under its own household login.</p><PlaybackControls choose={choose} /><div className="sim-layout"><section aria-label="Echo"><div className="sim-display">{mode === "show" && card ? <Card event={card} theme={theme} call={submit} /> : <div className="sim-empty"><div className="sim-orb" aria-hidden="true" /><h2>{session.accounts[session.account]}</h2><p>{mode === "dot" ? "Voice-only mode. No card is mounted." : "Your household’s next response appears here."}</p></div>}</div>{prompt && <PromptForm key={prompt.id} prompt={prompt} submit={submit} />}<form onSubmit={e => { e.preventDefault(); void submit({ operation: "turn", text }); setText(""); }}><label>Your request<input ref={input} value={text} onChange={e => setText(e.target.value)} maxLength={2000} /></label><div className="sim-controls"><Button type="submit" disabled={!session.linked || session.busy || !text.trim()}>Send</Button><Button type="button" onClick={listen} disabled={!session.linked}>{listening ? "Finish listening" : "Push to talk"}</Button><Button type="button" onClick={() => void submit({ operation: "cancel" })}>Cancel turn</Button><label><input type="checkbox" checked={voice} onChange={e => { setVoice(e.target.checked); voiceRef.current = e.target.checked; if (!e.target.checked) stop(); }} /> Speak responses</label></div></form><details><summary>Recorded utterances</summary>{["What can you do?", "What's going on tonight?", "From now on, never unlock the door for someone we're not expecting.", "Do it.", "Let them in.", "Malik just called from a strange number. He says he's in trouble and needs five hundred dollars. Is it really him?", "Alexa, is it him?"].map(line => <Button key={line} onClick={() => choose(line)}>{line}</Button>)}</details></section><aside className="sim-transcript" aria-label="Conversation and tool transcript" aria-live="polite"><h2>Conversation</h2>{events.filter(e => e.kind !== "settled").map(e => <article key={e.id}><small>{e.tool ?? e.kind}{e.kind === "wait" ? ` · ${e.waiting_ms} ms human wait` : ""}{e.prompt_latency_ms !== undefined && e.prompt_latency_ms !== null ? ` · ${e.prompt_latency_ms} ms to question` : ""}{e.status ? ` · ${e.status}` : ""}{e.elapsed_ms !== undefined ? ` · ${e.processing_ms ?? e.elapsed_ms} ms processing · ${e.waiting_ms ?? 0} ms waiting` : ""}</small><p>{e.text ?? e.prompt?.message}</p>{e.result && <details><summary>Response details</summary><pre>{JSON.stringify(e.result.structuredContent, null, 2)}</pre></details>}</article>)}</aside></div></>}</main>;
+  return <main className={`simulator ${theme}`} tabIndex={-1}><header><a href="/tonight" className="wordmark">Hirz</a><h1>Household simulator</h1><p className="sim-honesty">Emulated Alexa+ host · {session?.models[session.model] ?? "Scripted"} · Simulated devices and contact replies</p></header>{error && <p role="alert">{error}</p>}{session && <><div className="sim-controls"><label>Echo account<select value={session.account} onChange={e => void submit({ operation: "account", text: e.target.value })}>{Object.entries(session.accounts).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label><label>Host<select value={session.model} onChange={e => void submit({ operation: "model", text: e.target.value })}>{Object.entries(session.models).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label><label>Display<select value={mode} onChange={e => { stop(); setMode(e.target.value); }}><option value="show">Echo Show</option><option value="dot">Echo Dot · voice only</option></select></label><label>Theme<select value={theme} onChange={e => setTheme(e.target.value as "light" | "dark")}><option>dark</option><option>light</option></select></label><Button onClick={() => void submit({ operation: "link" })}>{session.linked ? "Relink Echo" : "Link Echo with consent"}</Button></div><p>Rule activation and security approval finish in your <a href="/constitution" target="_blank" rel="noreferrer">companion app</a> under its own household login.</p><PlaybackControls choose={choose} /><div className="sim-layout"><section aria-label="Echo"><div className="sim-display">{mode === "show" && card ? <Card event={card} theme={theme} /> : <div className="sim-empty"><div className="sim-orb" aria-hidden="true" /><h2>{session.accounts[session.account]}</h2><p>{mode === "dot" ? "Voice-only mode. No card is mounted." : "Your household’s next response appears here."}</p></div>}</div>{prompt && <PromptForm key={prompt.id} prompt={prompt} submit={submit} />}<form onSubmit={e => { e.preventDefault(); void submit({ operation: "turn", text }); setText(""); }}><label>Your request<input ref={input} value={text} onChange={e => setText(e.target.value)} maxLength={2000} /></label><div className="sim-controls"><Button type="submit" disabled={!session.linked || session.busy || !text.trim()}>Send</Button><Button type="button" onClick={listen} disabled={!session.linked}>{listening ? "Finish listening" : "Push to talk"}</Button><Button type="button" onClick={() => void submit({ operation: "cancel" })}>Cancel turn</Button><label><input type="checkbox" checked={voice} onChange={e => { setVoice(e.target.checked); voiceRef.current = e.target.checked; if (!e.target.checked) stop(); }} /> Speak responses</label></div></form><details><summary>Recorded utterances</summary>{["What can you do?", "What's going on tonight?", "From now on, never unlock the door for someone we're not expecting.", "Do it.", "Let them in.", "Malik just called from a strange number. He says he's in trouble and needs five hundred dollars. Is it really him?", "Alexa, is it him?"].map(line => <Button key={line} onClick={() => choose(line)}>{line}</Button>)}</details></section><Transcript events={events} /></div></>}</main>;
 }

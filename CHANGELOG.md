@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-10-01: Extract the simulator's OAuth/MCP client, card bridge, transcript and voice primitives into independent `addon-host` packages while retaining Hirz's household and consent boundaries; publish exact 0.1.0 packages on npm/PyPI and retain physical-device/final-CI acceptance gates ([ADR-021](./docs/adr/ADR-021-extracted-host-harness.md), [evidence](./docs/verification-log.md#item-29a)).
+
 - 2026-09-27: Close item 29 for Haiku and scripted mode after regression and latency gates passed; defer optional Nova acceptance to item 29b by author approval ([decision](./docs/adr/ADR-020-simulator.md#approved-nova-deferral-and-item-29-closure--2026-09-27), [closure evidence](./docs/verification-log.md#item-29-closure-with-nova-deferred--2026-09-27)).
 
 - 2026-09-27: Complete Haiku evening Show/Dot acceptance with verified twin end states and reviewed cards, within the approved aggregate ledger; item 29 remains partial for Nova evening and final CI ([evidence](./docs/verification-log.md#haiku-20-verification-extension--2026-09-27)).

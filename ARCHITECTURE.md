@@ -1251,7 +1251,15 @@ human waits and resumed calls recheck current authority/policy. No elicitation c
 activate a constitution or approve security actions. Account changes cancel prompts
 and suppress stale speech without undoing accepted actions.
 
-The existing MCP Apps bridge initializes opaque sandboxed cards and forwards actual
+The extracted `addon-host` React library supplies the MCP Apps bridge, transcript
+and native voice hook; its Python `addon_host` library supplies in-memory OAuth
+discovery/PKCE/refresh and initialized SDK connections. Hirz retains HTTP/browser
+sessions, household JWT checks, selection, consent, scenario controls and source
+labels. OAuth metadata and endpoints are restricted to configured MCP/issuer
+origins, with pre-registered public clients and no automatic tool retries
+([ADR-021](./docs/adr/ADR-021-extracted-host-harness.md)).
+
+The MCP Apps bridge initializes opaque sandboxed cards and forwards actual
 protocol results without credentials. Show scales a 1280×800 canvas; Dot mounts no
 iframe. The transcript records processing and human-wait timing, with structured
 results collapsed. US-English push-to-talk and speech synthesis retain typed input
@@ -1275,7 +1283,7 @@ then pauses scenario playback at voice, confirmation and companion beats. Househ
 controls and simulated contact replies require that household’s companion session.
 Only one scenario advances; action deadlines are serviced before the next event.
 Runtime mutations use existing Pipeline paths and cleanup retains verified signed
-exports. Generic harness extraction remains item 29a, recording Compose item 30,
+exports. Harness release acceptance remains item 29a, recording Compose item 30,
 and real contact delivery, Link and AWS remain separate work. None are implied by
 local twin verification.
 

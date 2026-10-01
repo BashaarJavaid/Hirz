@@ -840,3 +840,17 @@ repaint workaround was added. The earlier reports remain as observed history.
   acceptance run uses the existing approved aggregate allowance.
 - **Feature request:** Improve reliability and actionable, payload-free diagnostic
   details for [CountTokens server errors](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_CountTokens.html).
+
+## Item 29a — npm optional React peer resolution — 2026-10-01
+
+- **Tool / URL:** npm workspace installation; https://docs.npmjs.com/cli/v11/using-npm/workspaces/
+- **Severity:** Minor.
+- **What happened:** Installing the extracted host workspace with React and React DOM 19.2.0 pinned in the example failed while resolving MCP Apps 2.0.0's optional React DOM peer.
+- **Exact error:** `npm error ERESOLVE could not resolve`; `npm error Conflicting peer dependency: react@19.3.0`; `npm error peer react@"^19.3.0" from react-dom@19.3.0`.
+- **Workaround being verified:** Pin the same React/React DOM 19.2.0 test dependencies at the workspace root; do not disable peer validation.
+- **Feature request:** Resolve compatible workspace pins before selecting a newer optional peer, or identify the workspace placement causing the conflict.
+
+The workspace-root pins and npm overrides did not resolve the conflict. Explicit
+React and React DOM 19.2.0 peer constraints on `addon-host` did: installation
+completed with zero reported vulnerabilities. The shell initially selected Node
+23.11.0; subsequent verification uses the repository-required Homebrew Node 24.

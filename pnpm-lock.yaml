@@ -224,15 +224,15 @@ importers:
 
   apps/web:
     dependencies:
-      '@modelcontextprotocol/ext-apps':
-        specifier: 2.0.0
-        version: 2.0.0(@modelcontextprotocol/client@2.0.0)(@modelcontextprotocol/core@2.0.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(zod@4.2.0)
       '@radix-ui/react-slot':
         specifier: 1.3.3
         version: 1.3.3(@types/react@19.2.2)(react@19.2.0)
       '@tailwindcss/vite':
         specifier: 4.3.3
         version: 4.3.3(vite@8.3.0(@types/node@24.13.5)(jiti@2.7.0))
+      addon-host:
+        specifier: 0.1.0
+        version: 0.1.0(@modelcontextprotocol/client@2.0.0)(@modelcontextprotocol/core@2.0.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(zod@4.2.0)
       class-variance-authority:
         specifier: 0.7.1
         version: 0.7.1
@@ -716,6 +716,13 @@ packages:
     resolution: {integrity: sha512-lGq+9yr1/GuAWaVYIHRjvvySG5/4VfKIvC8EWxStPdcDh/Ka7FG3twP6v4d5BkravUilhIAsG4Qj83t02LWUPQ==}
     engines: {node: '>=0.4.0'}
     hasBin: true
+
+  addon-host@0.1.0:
+    resolution: {integrity: sha512-860v+jj4/y8WThDR7n7qOtOwukF3kXw75ZuzdPr7rpKKSd2YE9D4BOL8qcRQ1qGajleT82NVnxZXyZcWS5thPw==}
+    engines: {node: 24.x}
+    peerDependencies:
+      react: 19.2.0
+      react-dom: 19.2.0
 
   ajv@6.15.0:
     resolution: {integrity: sha512-fgFx7Hfoq60ytK2c7DhnF8jIvzYgOMxfugjLOSMHjLIPgenqa7S7oaagATUq99mV6IYvN2tRmC0wnTYX6iPbMw==}
@@ -1811,6 +1818,17 @@ snapshots:
       acorn: 8.18.0
 
   acorn@8.18.0: {}
+
+  addon-host@0.1.0(@modelcontextprotocol/client@2.0.0)(@modelcontextprotocol/core@2.0.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(zod@4.2.0):
+    dependencies:
+      '@modelcontextprotocol/ext-apps': 2.0.0(@modelcontextprotocol/client@2.0.0)(@modelcontextprotocol/core@2.0.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(zod@4.2.0)
+      react: 19.2.0
+      react-dom: 19.2.0(react@19.2.0)
+    transitivePeerDependencies:
+      - '@modelcontextprotocol/client'
+      - '@modelcontextprotocol/core'
+      - '@modelcontextprotocol/server'
+      - zod
 
   ajv@6.15.0:
     dependencies:

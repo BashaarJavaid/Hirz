@@ -1,8 +1,6 @@
 """Local browser host state. OAuth, conversation and prompts never enter cards."""
 
 import asyncio
-import base64
-import hashlib
 import re
 import secrets
 import time
@@ -10,12 +8,12 @@ from collections import deque
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlencode
+from urllib.parse import parse_qs, urlsplit
 from uuid import uuid4
 
 import httpx
-from mcp import ClientSession, types
-from mcp.client.streamable_http import streamable_http_client
+from addon_host import OAuthConfig, OAuthSession, connect_mcp
+from mcp import types
 
 from hirz.mcp.auth import SCOPES
 from hirz.mcp.cards import TOOLS as CARDS
@@ -66,7 +64,7 @@ def describe(name: str, arguments: dict[str, Any]) -> str:
 
 @dataclass
 class Echo:
-    tokens: dict[str, Any] = field(default_factory=dict)
+    oauth: OAuthSession | None = field(default=None, repr=False)
     history: list[dict[str, Any]] = field(default_factory=list)
     results: dict[str, Any] = field(default_factory=dict)
     request_ids: dict[str, str] = field(default_factory=dict)
@@ -90,7 +88,7 @@ class Browser:
     echoes: dict[str, Echo] = field(
         default_factory=lambda: {name: Echo() for name in ACCOUNTS}
     )
-    linking: dict[str, tuple[str, str, float]] = field(default_factory=dict)
+    linking: dict[str, tuple[str, OAuthSession]] = field(default_factory=dict)
 
     def expired(self) -> bool:
         return (
@@ -316,57 +314,38 @@ class Simulator:
             browser.touched = time.monotonic()
         return token, browser
 
-    def link(self, browser: Browser) -> str:
-        state, verifier = secrets.token_urlsafe(32), secrets.token_urlsafe(48)
-        browser.linking = {state: (browser.account, verifier, time.monotonic())}
-        challenge = (
-            base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest())
-            .rstrip(b"=")
-            .decode()
-        )
-        return (
-            self.issuer
-            + "/authorize?"
-            + urlencode(
-                {
-                    "response_type": "code",
-                    "client_id": "hirz-dev-sdk",
-                    "redirect_uri": self.origin + "/api/simulator/callback",
-                    "scope": " ".join(SCOPES),
-                    "resource": self.mcp_url,
-                    "state": state,
-                    "code_challenge": challenge,
-                    "code_challenge_method": "S256",
-                }
+    async def link(self, browser: Browser) -> str:
+        oauth = OAuthSession(
+            OAuthConfig(
+                server_url=self.mcp_url,
+                issuer=self.issuer,
+                client_id="hirz-dev-sdk",
+                redirect_uri=self.origin + "/api/simulator/callback",
+                scopes=tuple(SCOPES),
             )
         )
+        browser.linking.clear()
+        account = browser.account
+        url = await oauth.begin()
+        if browser.expired() or browser.account != account:
+            raise ValueError("Linking expired")
+        state = parse_qs(urlsplit(url).query)["state"][0]
+        browser.linking = {state: (account, oauth)}
+        return url
 
     async def linked(self, browser: Browser, state: str, code: str) -> None:
-        account, verifier, created = browser.linking.pop(state)
-        if time.monotonic() - created >= 300 or browser.account != account:
+        account, oauth = browser.linking.pop(state)
+        if browser.expired() or browser.account != account:
             raise ValueError("Linking expired")
-        async with httpx.AsyncClient(trust_env=False) as http:
-            reply = await http.post(
-                self.issuer + "/token",
-                data={
-                    "grant_type": "authorization_code",
-                    "client_id": "hirz-dev-sdk",
-                    "code": code,
-                    "code_verifier": verifier,
-                    "redirect_uri": self.origin + "/api/simulator/callback",
-                    "resource": self.mcp_url,
-                },
-            )
-            reply.raise_for_status()
-            tokens = reply.json()
-            # The server authenticates the JWT; verify the linked choice through its
-            # verifier too, never trust unverified claims to route an Echo account.
-            from hirz.mcp.auth import KeyCache
+        await oauth.complete(state, code)
+        # Generic OAuth proves possession; only Hirz validates the linked household.
+        from hirz.mcp.auth import KeyCache
 
+        async with httpx.AsyncClient(trust_env=False) as http:
             cache = KeyCache(self.issuer, self.mcp_url)
             if not await cache.refresh(http):
                 raise ValueError("Issuer unavailable")
-            access = await cache.verify_token(tokens["access_token"])
+            access = await cache.verify_token(await oauth.token())
         available = choices()
         home = next(c.household for c in available if c.subject == "malik")
         parents = next(
@@ -385,29 +364,10 @@ class Simulator:
             or access.claims["household_id"] != expected.household
         ):
             raise ValueError("Choose the household account named by this Echo")
+        if browser.expired() or browser.account != account:
+            raise ValueError("Linking expired")
         browser.cancel()
-        browser.echoes[account] = Echo(tokens=tokens | {"received": time.monotonic()})
-
-    async def token(self, echo: Echo) -> str:
-        if not echo.tokens:
-            raise ValueError("Link this Echo first")
-        if (
-            time.monotonic() - echo.tokens["received"]
-            >= echo.tokens.get("expires_in", 300) - 30
-        ):
-            async with httpx.AsyncClient(trust_env=False) as http:
-                response = await http.post(
-                    self.issuer + "/token",
-                    data={
-                        "grant_type": "refresh_token",
-                        "client_id": "hirz-dev-sdk",
-                        "refresh_token": echo.tokens["refresh_token"],
-                        "resource": self.mcp_url,
-                    },
-                )
-                response.raise_for_status()
-                echo.tokens = response.json() | {"received": time.monotonic()}
-        return str(echo.tokens["access_token"])
+        browser.echoes[account] = Echo(oauth=oauth)
 
     def emit(self, echo: Echo, generation: int, **data: Any) -> None:
         echo.events.append(
@@ -481,7 +441,8 @@ class Simulator:
         echo.last_result = None
         self.emit(echo, generation, kind="card" if selected else "user", text=text)
         try:
-            token = await self.token(echo)
+            if echo.oauth is None:
+                raise ValueError("Link this Echo first")
 
             async def elicit(context: Any, params: Any) -> types.ElicitResult:
                 reply = await self.ask(
@@ -512,250 +473,232 @@ class Simulator:
                         return types.ElicitResult(action="cancel")
                 return types.ElicitResult(**reply)
 
-            async with httpx.AsyncClient(
-                headers={"Authorization": "Bearer " + token},
-                trust_env=False,
-                timeout=360,
-            ) as http:
-                async with streamable_http_client(self.mcp_url, http_client=http) as (
-                    read,
-                    write,
-                    _,
-                ):
-                    async with ClientSession(
-                        read, write, elicitation_callback=elicit
-                    ) as client:
-                        await client.initialize()
-                        tools = {t.name: t for t in (await client.list_tools()).tools}
+            async with connect_mcp(
+                self.mcp_url, oauth=echo.oauth, elicitation_callback=elicit
+            ) as client:
+                tools = {t.name: t for t in (await client.list_tools()).tools}
 
-                        async def choose(
-                            message: str,
-                            *,
-                            continuing: bool = False,
-                        ) -> list[tuple[str, dict[str, Any]]]:
-                            from hirz.host.selection import select
+                async def choose(
+                    message: str,
+                    *,
+                    continuing: bool = False,
+                ) -> list[tuple[str, dict[str, Any]]]:
+                    from hirz.host.selection import select
 
-                            for _ in range(8):
-                                diagnostics: dict[str, Any] = {}
-                                proposed, question = await asyncio.to_thread(
-                                    select,
-                                    model,
-                                    self.ledger,
-                                    list(tools.values()),
-                                    echo.history,
-                                    message,
-                                    diagnostics,
-                                    continuing=continuing,
-                                )
-                                self.emit(
-                                    echo,
-                                    generation,
-                                    kind="model",
-                                    result={"structuredContent": diagnostics},
-                                )
-                                if proposed or not question:
-                                    return proposed
-                                answer = await self.ask(
-                                    browser,
-                                    echo,
-                                    generation,
-                                    question,
-                                    {
-                                        "type": "object",
-                                        "properties": {
-                                            "reply": {
-                                                "type": "string",
-                                                "title": "Your reply",
-                                                "minLength": 1,
-                                            }
-                                        },
-                                        "required": ["reply"],
-                                    },
-                                    kind="elicitation",
-                                )
-                                if answer.get("action") != "accept":
-                                    return []
-                                message = str(answer["content"]["reply"])
-                            raise ValueError("Too many clarification questions")
+                    for _ in range(8):
+                        diagnostics: dict[str, Any] = {}
+                        proposed, question = await asyncio.to_thread(
+                            select,
+                            model,
+                            self.ledger,
+                            list(tools.values()),
+                            echo.history,
+                            message,
+                            diagnostics,
+                            continuing=continuing,
+                        )
+                        self.emit(
+                            echo,
+                            generation,
+                            kind="model",
+                            result={"structuredContent": diagnostics},
+                        )
+                        if proposed or not question:
+                            return proposed
+                        answer = await self.ask(
+                            browser,
+                            echo,
+                            generation,
+                            question,
+                            {
+                                "type": "object",
+                                "properties": {
+                                    "reply": {
+                                        "type": "string",
+                                        "title": "Your reply",
+                                        "minLength": 1,
+                                    }
+                                },
+                                "required": ["reply"],
+                            },
+                            kind="elicitation",
+                        )
+                        if answer.get("action") != "accept":
+                            return []
+                        message = str(answer["content"]["reply"])
+                    raise ValueError("Too many clarification questions")
 
-                        if selected:
-                            calls = [selected]
-                        elif model == "scripted":
-                            calls = recorded(text, echo.results)
+                if selected:
+                    calls = [selected]
+                elif model == "scripted":
+                    calls = recorded(text, echo.results)
+                else:
+                    calls = await choose(text)
+                if not calls and not selected:
+                    self.emit(
+                        echo,
+                        generation,
+                        kind="speech",
+                        text="Scripted mode supports the recorded scenario utterances. Choose one to continue."
+                        if model == "scripted"
+                        else "No tool request was submitted. Please clarify your request or explicitly choose Scripted mode.",
+                    )
+                if len(calls) > 8:
+                    raise ValueError("Eight tool calls per utterance")
+                count = 0
+                while calls:
+                    name, raw = calls.pop(0)
+                    count += 1
+                    if count > 8:
+                        raise ValueError("Eight tool calls per utterance")
+                    if echo.generation != generation or browser.expired():
+                        break
+                    tool = tools[name]
+                    args = dict(raw)
+                    if (
+                        name == "verify_trusted_identity"
+                        and args.get("operation") == "status"
+                    ):
+                        args.pop("request_id", None)
+                    if "request_id" in tool.inputSchema.get("properties", {}) and not (
+                        name == "verify_trusted_identity"
+                        and args.get("operation") == "status"
+                    ):
+                        supplied = str(args.get("request_id", ""))
+                        if selected and supplied:
+                            if (
+                                supplied not in echo.request_ids
+                                and len(echo.request_ids) >= 200
+                            ):
+                                raise ValueError(
+                                    "Relink to start a new card request history"
+                                )
+                            args["request_id"] = echo.request_ids.setdefault(
+                                supplied, uuid4().hex
+                            )
                         else:
-                            calls = await choose(text)
-                        if not calls and not selected:
+                            args["request_id"] = uuid4().hex
+                    if commitment(name, args):
+                        answer = await self.ask(
+                            browser,
+                            echo,
+                            generation,
+                            describe(name, args),
+                            CONFIRM_SCHEMA,
+                            kind="commitment",
+                        )
+                        if (
+                            answer.get("action") != "accept"
+                            or answer.get("content", {}).get("confirmed") is not True
+                        ):
                             self.emit(
                                 echo,
                                 generation,
                                 kind="speech",
-                                text="Scripted mode supports the recorded scenario utterances. Choose one to continue."
-                                if model == "scripted"
-                                else "No tool request was submitted. Please clarify your request or explicitly choose Scripted mode.",
+                                text="That request was not submitted.",
                             )
-                        if len(calls) > 8:
-                            raise ValueError("Eight tool calls per utterance")
-                        count = 0
-                        while calls:
-                            name, raw = calls.pop(0)
-                            count += 1
-                            if count > 8:
-                                raise ValueError("Eight tool calls per utterance")
-                            if echo.generation != generation or browser.expired():
-                                break
-                            tool = tools[name]
-                            args = dict(raw)
-                            if (
-                                name == "verify_trusted_identity"
-                                and args.get("operation") == "status"
-                            ):
-                                args.pop("request_id", None)
-                            if "request_id" in tool.inputSchema.get(
-                                "properties", {}
-                            ) and not (
-                                name == "verify_trusted_identity"
-                                and args.get("operation") == "status"
-                            ):
-                                supplied = str(args.get("request_id", ""))
-                                if selected and supplied:
-                                    if (
-                                        supplied not in echo.request_ids
-                                        and len(echo.request_ids) >= 200
-                                    ):
-                                        raise ValueError(
-                                            "Relink to start a new card request history"
-                                        )
-                                    args["request_id"] = echo.request_ids.setdefault(
-                                        supplied, uuid4().hex
-                                    )
-                                else:
-                                    args["request_id"] = uuid4().hex
-                            if commitment(name, args):
-                                answer = await self.ask(
-                                    browser,
-                                    echo,
-                                    generation,
-                                    describe(name, args),
-                                    CONFIRM_SCHEMA,
-                                    kind="commitment",
-                                )
-                                if (
-                                    answer.get("action") != "accept"
-                                    or answer.get("content", {}).get("confirmed")
-                                    is not True
-                                ):
-                                    self.emit(
-                                        echo,
-                                        generation,
-                                        kind="speech",
-                                        text="That request was not submitted.",
-                                    )
-                                    break
-                            started = time.monotonic()
-                            echo.tool_started = started
-                            waiting_before = echo.waiting_ms
-                            result = await client.call_tool(name, args)
-                            echo.tool_started = None
-                            echo.last_result = result.model_dump(
-                                mode="json", by_alias=True, exclude_none=True
-                            )
-                            output = result.structuredContent or {}
-                            echo.results[name] = output
-                            if not selected and model != "scripted":
-                                from hirz.host.selection import complete_selection
+                            break
+                    started = time.monotonic()
+                    echo.tool_started = started
+                    waiting_before = echo.waiting_ms
+                    result = await client.call_tool(name, args)
+                    echo.tool_started = None
+                    echo.last_result = result.model_dump(
+                        mode="json", by_alias=True, exclude_none=True
+                    )
+                    output = result.structuredContent or {}
+                    echo.results[name] = output
+                    if not selected and model != "scripted":
+                        from hirz.host.selection import complete_selection
 
-                                # Cards retain the full genuine result. Selection needs
-                                # plan/decision references, not every rendered action.
-                                selection_data = {
-                                    k: v
-                                    for k, v in output.get("data", {}).items()
-                                    if k not in {"actions", "presentation"}
-                                }
-                                # Keep canonical EV actions: their charge_limit
-                                # carries the planned target, absent from energy
-                                # observations. Other rendered actions stay in
-                                # the full card/transcript result above.
-                                if "actions" in output.get("data", {}):
-                                    ev_actions = [
-                                        action
-                                        for action in output["data"]["actions"]
-                                        if action.get("class") == "energy.ev_charge"
-                                    ]
-                                    selection_data["actions"] = list(
-                                        {
-                                            (
-                                                a["target"]["adapter"],
-                                                a["target"]["entity"],
-                                            ): a
-                                            for a in sorted(
-                                                ev_actions,
-                                                key=lambda a: a["params"][
-                                                    "charge_limit"
-                                                ],
-                                            )
-                                        }.values()
+                        # Cards retain the full genuine result. Selection needs
+                        # plan/decision references, not every rendered action.
+                        selection_data = {
+                            k: v
+                            for k, v in output.get("data", {}).items()
+                            if k not in {"actions", "presentation"}
+                        }
+                        # Keep canonical EV actions: their charge_limit
+                        # carries the planned target, absent from energy
+                        # observations. Other rendered actions stay in
+                        # the full card/transcript result above.
+                        if "actions" in output.get("data", {}):
+                            ev_actions = [
+                                action
+                                for action in output["data"]["actions"]
+                                if action.get("class") == "energy.ev_charge"
+                            ]
+                            selection_data["actions"] = list(
+                                {
+                                    (
+                                        a["target"]["adapter"],
+                                        a["target"]["entity"],
+                                    ): a
+                                    for a in sorted(
+                                        ev_actions,
+                                        key=lambda a: a["params"]["charge_limit"],
                                     )
-                                complete_selection(
-                                    echo.history,
-                                    name,
-                                    args,
-                                    output | {"data": selection_data},
-                                    error=bool(result.isError),
-                                )
-                            self.emit(
-                                echo,
-                                generation,
-                                kind="tool",
-                                background=bool(selected),
-                                tool=name,
-                                status=output.get("data", {}).get("status", "failed"),
-                                elapsed_ms=round((time.monotonic() - started) * 1000),
-                                waiting_ms=echo.waiting_ms - waiting_before,
-                                processing_ms=max(
-                                    0,
-                                    round((time.monotonic() - started) * 1000)
-                                    - echo.waiting_ms
-                                    + waiting_before,
-                                ),
-                                result=result.model_dump(
-                                    mode="json", by_alias=True, exclude_none=True
-                                ),
-                                card=CARDS.get(name),
-                                arguments=args,
+                                }.values()
                             )
-                            if echo.generation == generation and not selected:
-                                speakable = output.get("speakable", {})
-                                self.emit(
-                                    echo,
-                                    generation,
-                                    kind="speech",
-                                    text=" ".join(
-                                        [
-                                            speakable.get(
-                                                "headline", "Request failed."
-                                            ),
-                                            *speakable.get("details", []),
-                                            *speakable.get("options", []),
-                                        ]
-                                    ),
-                                )
-                            if (
-                                not calls
-                                and not selected
-                                and model != "scripted"
-                                and echo.generation == generation
-                                and not browser.expired()
-                                and count < 8
-                                and not result.isError
-                            ):
-                                calls = await choose(
-                                    f"Original user request: {text}\n"
-                                    "Continue only its unfinished parts using the actual tool results above. "
-                                    "Advice to perform a check does not perform that check. "
-                                    "Select the next needed tool, or return empty if the request is complete. "
-                                    "Do not narrate; the host already spoke the tool result.",
-                                    continuing=True,
-                                )
+                        complete_selection(
+                            echo.history,
+                            name,
+                            args,
+                            output | {"data": selection_data},
+                            error=bool(result.isError),
+                        )
+                    self.emit(
+                        echo,
+                        generation,
+                        kind="tool",
+                        background=bool(selected),
+                        tool=name,
+                        status=output.get("data", {}).get("status", "failed"),
+                        elapsed_ms=round((time.monotonic() - started) * 1000),
+                        waiting_ms=echo.waiting_ms - waiting_before,
+                        processing_ms=max(
+                            0,
+                            round((time.monotonic() - started) * 1000)
+                            - echo.waiting_ms
+                            + waiting_before,
+                        ),
+                        result=result.model_dump(
+                            mode="json", by_alias=True, exclude_none=True
+                        ),
+                        card=CARDS.get(name),
+                        arguments=args,
+                    )
+                    if echo.generation == generation and not selected:
+                        speakable = output.get("speakable", {})
+                        self.emit(
+                            echo,
+                            generation,
+                            kind="speech",
+                            text=" ".join(
+                                [
+                                    speakable.get("headline", "Request failed."),
+                                    *speakable.get("details", []),
+                                    *speakable.get("options", []),
+                                ]
+                            ),
+                        )
+                    if (
+                        not calls
+                        and not selected
+                        and model != "scripted"
+                        and echo.generation == generation
+                        and not browser.expired()
+                        and count < 8
+                        and not result.isError
+                    ):
+                        calls = await choose(
+                            f"Original user request: {text}\n"
+                            "Continue only its unfinished parts using the actual tool results above. "
+                            "Advice to perform a check does not perform that check. "
+                            "Select the next needed tool, or return empty if the request is complete. "
+                            "Do not narrate; the host already spoke the tool result.",
+                            continuing=True,
+                        )
         except asyncio.CancelledError:
             raise
         except Exception as exc:
