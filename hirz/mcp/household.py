@@ -895,6 +895,7 @@ class HouseholdTools:
                         "Decline the pending action",
                     ),
                     plan=plan,
+                    decision=row["payload"],
                     decisions=(row["payload"],),
                 )
             speech = Speakable.model_validate(plan.speakable)

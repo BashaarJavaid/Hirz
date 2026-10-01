@@ -117,21 +117,50 @@ test("1280 by 800 scaling", async ({ page }) => {
   await expect.poll(async () => Math.round((await frame.locator("main").boundingBox())!.width)).toBe(1280);
 });
 
-for (const approved of [true, false]) test(`action response ${approved}`, async ({ page }) => {
-  const { frame, calls } = await mount(page, "approval", "light", () => ({ speakable: { headline: "Your response was recorded.", details: [], options: [] }, data: { status: "recorded" } }));
+for (const planned of [false, true]) for (const approved of [true, false]) test(`action response ${approved} (planned: ${planned})`, async ({ page }) => {
+  const initial = structuredClone(fixtures.results.approval);
+  if (planned) {
+    initial.data.plan = structuredClone(fixtures.results.plan.data.plan);
+    initial.data.plan.status = "awaiting_approval";
+    initial.data.presentation.plan_id = initial.data.plan.plan_id;
+    initial.data.presentation.version = initial.data.plan.version;
+  }
+  const { frame, calls } = await mount(page, planned ? "plan" : "approval", "light", () => ({ speakable: { headline: "Your response was recorded.", details: [], options: [] }, data: { status: "recorded" } }), initial);
+  await expect(frame.getByRole("button", { name: "Approve plan", exact: true })).toHaveCount(0);
   await frame.getByRole("button", { name: approved ? "Approve" : "Deny", exact: true }).click();
   await expect.poll(() => calls.length).toBe(2);
   expect(calls[1].arguments.approved).toBe(approved);
+  expect(calls[1].arguments.action_id).toBe(initial.data.decision.action_id);
   expect(calls[1].arguments.approval_id).toBe(fixtures.results.approval.data.decision.approval.approval_id);
+  if (planned) {
+    expect(calls[1].arguments.plan_id).toBe(initial.data.plan.plan_id);
+    expect(calls[1].arguments.version).toBe(initial.data.plan.version);
+  }
   await expect(frame.getByRole("heading", { name: "Your response was recorded." })).toBeVisible();
 });
 
-for (const active of [false, true]) test(`security never offers card approval (active companion: ${active})`, async ({ page }) => {
+for (const mismatch of ["plan_id", "version"]) test(`pending action with mismatched ${mismatch} has no approval control`, async ({ page }) => {
   const initial = structuredClone(fixtures.results.approval);
+  initial.data.plan = structuredClone(fixtures.results.plan.data.plan);
+  initial.data.presentation.plan_id = initial.data.plan.plan_id;
+  initial.data.presentation.version = initial.data.plan.version;
+  if (mismatch === "plan_id") initial.data.presentation.plan_id += "-other";
+  else initial.data.presentation.version++;
+  const { frame } = await mount(page, "plan", "light", undefined, initial);
+  await expect(frame.getByRole("button", { name: /Approve/ })).toHaveCount(0);
+});
+
+for (const planned of [false, true]) for (const active of [false, true]) test(`security never offers card approval (active companion: ${active}, planned: ${planned})`, async ({ page }) => {
+  const initial = structuredClone(fixtures.results.approval);
+  if (planned) {
+    initial.data.plan = structuredClone(fixtures.results.plan.data.plan);
+    initial.data.presentation.plan_id = initial.data.plan.plan_id;
+    initial.data.presentation.version = initial.data.plan.version;
+  }
   initial.data.presentation.phone_required = true;
   initial.speakable.headline = active ? "Unlocking requires approval in your Hirz phone app." : "Phone approval is unavailable in this preview.";
   initial.data.presentation.can_respond = true; // Even inconsistent input cannot bypass the phone requirement.
-  const { frame } = await mount(page, "approval", "light", undefined, initial);
+  const { frame } = await mount(page, planned ? "plan" : "approval", "light", undefined, initial);
   await expect(frame.getByText(initial.speakable.headline, { exact: false })).toBeVisible();
   if (active) await expect(frame.getByText(/unavailable in this preview/)).toHaveCount(0);
   await expect(frame.getByRole("button", { name: "Approve", exact: true })).toHaveCount(0);

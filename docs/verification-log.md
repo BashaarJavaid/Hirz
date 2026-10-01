@@ -10767,3 +10767,108 @@ launcher has no state-preserving reload; a fresh manual launch requires the
 author's restart choice and renewed enrollment. This browser result uses virtual
 WebAuthn and is not physical-device acceptance. The prior source CI has passed
 regression and is still running both latency jobs at this checkpoint.
+
+### Author-approved manual restart and Hourly gate failure — 2026-10-01
+
+The author explicitly requested the restart. Graceful shutdown of the original
+`/private/tmp/hirz-item29a-phone` launcher retained and independently verified
+**15,945 home-household audit rows**, with zero bounded unlocks and the evening
+timeline incomplete. The parents household had zero rows. The old disposable
+database was dropped and development was unchanged. Started the verified
+`4fd4336a9840902a964903df6883ebb27a0d75d5` fix with the same private HTTPS origin,
+ports 8012/8013, `HIRZ_LLM=off` and native Dogwood, retaining new evidence under
+`/private/tmp/hirz-item29a-phone-restart`. HTTPS `/simulator` returns 200 and the
+fresh two-household invitations file has mode 0600; invitation contents were not
+printed. Fresh phone enrollment, rule activation and Echo linking remain manual.
+
+The original registry-based [CI run 36929232686](https://github.com/BashaarJavaid/Hirz/actions/runs/36929232686)
+passed regression, but its Hourly latency job failed after **2,293.57 seconds**:
+`AssertionError: ('Warm p95 budget exceeded', ['revision-guest', 'pause'])`.
+Each case retains 100 measured samples: `revision-guest` median **66.719 ms**,
+p95 **252.803 ms**; `pause` median **57.746 ms**, p95 **275.725 ms**. Both exceed
+the unchanged **250 ms** per-case threshold. All twelve pooled tool results are
+under budget, which does not override either case failure. No cause has yet been
+established and no gate was retried or relaxed. The evening latency job is still
+running. Regression for the phone-consent fix is separately running in
+[CI run 36932903935](https://github.com/BashaarJavaid/Hirz/actions/runs/36932903935).
+Item 29a remains incomplete.
+
+### Named Echo diagnosis at event 16 — 2026-10-01
+
+The author reached event 16/21 in the restarted physical session and reported a
+successful dishwasher revision followed by the named-Echo utterance blocker.
+Read-only inspection found both current-time constraint receipts attributed to
+Malik; the scenario explicitly assigns this beat to Dad. Supplied the existing
+Dad Echo selection/linking procedure and the later switch back to Malik at event
+18. No gate change, session reset or household mutation was performed during
+diagnosis. The manual procedure now states these account switches for anyone
+continuing beyond its original event-15 acceptance endpoint. Physical microphone,
+speaker and unlock/relock confirmation remain unreported.
+
+The original registry-based CI run has now completed: the evening latency job
+passed and the Hourly job failed as recorded above. The phone-consent fix's
+separate regression run still has its Python test job in progress.
+
+### Pending device-action consent at event 19 — 2026-10-01
+
+The author reported being unable to approve at event 19/21. Read-only inspection
+found current plan version 11 in `awaiting_approval`, an idle refresh job at
+generation 17, and one pending `energy.hvac_adjust` for `hvac.guest_room` in that
+plan. The explicit scenario clock was 23:31:00.000002 local; the request expires
+at 00:01:00.000002 and was not expired. Supplied the existing fresh-plan read and
+“Approve the pending action” flow on Malik's Echo, instead of repeated overall
+plan consent. The operator did not submit approval, alter the request or advance
+the scenario. Added this continuation step to the manual procedure; author
+confirmation of the result is pending.
+
+### Pending-action card correction verified — 2026-10-01
+
+At event 21/21 the author reported no Next-event error, then a plan estimate and
+`Approve plan` after “Good morning.” Read-only inspection found plan version 12
+waiting for a guest-room HVAC action, with an idle refresh job and a live pending
+approval. Its persisted estimate and UTC horizon matched the displayed negative
+estimate and Pacific times. The root cause was presentation precedence: pending
+plan reads returned the Decision only in `decisions`, while the decorator chose
+the plan view first and considered `awaiting_approval` eligible for whole-plan
+approval. The author explicitly approved correcting this card.
+
+The read now also supplies the same canonical Decision in `decision`, and its
+existing action-approval presentation takes precedence over the estimate. The
+plan resource admits this presentation only with a matching plan ID/version;
+Approve/Deny submit those references plus the exact action and approval IDs.
+The device-specific spoken description becomes the approval headline. Whole-plan
+approval is offered only for a proposed plan. The Pipeline and phone-only security
+requirements are unchanged
+([ADR-018](./adr/ADR-018-mcp-app-cards.md#pending-plan-action-presentation-correction--2026-10-01)).
+
+Verification:
+
+- Real database card integration: **4 passed in 9.21s**. New cases create a
+  Pipeline-authorized plan, wait for an actual ASK, verify the card's exact
+  references, reject a stale version, then approve or deny. Only the approved
+  action executes and verifies; both audit chains validate. The initial test
+  incorrectly expected an immediate `execute` Decision from a successful planned
+  vote and failed once; it now checks the existing `APPROVED`/`REJECTED` vote
+  receipt and independently verifies subsequent execution. Runtime voting was
+  not changed to accommodate the test.
+- Python card unit checks: **4 passed in 1.65s**. TypeScript card unit checks:
+  **4 passed**. Ruff, strict mypy for both changed Python modules, card lint,
+  both TypeScript configurations and all five self-contained card builds pass.
+- Fresh authenticated fixture smoke at
+  `/private/tmp/hirz-item29a-pending-card`: five card fixtures, **399 home and 3
+  parents audit rows**, both independently valid. Its disposable database was
+  dropped; development was unchanged.
+- Unchanged pinned reference host with the actual built cards: **8 browser
+  checks passed in 9.5s**, covering planned/unplanned Approve/Deny and phone-only
+  security in both resource contexts. Two further mismatched-plan-ID/version
+  checks passed in **4.1s**. Browser plan-action envelopes explicitly combine
+  generated fixture data; real binding and execution are covered by the
+  database integration above. No visual baseline was replaced.
+
+Regression CI for the earlier phone-consent fix
+[36932903935](https://github.com/BashaarJavaid/Hirz/actions/runs/36932903935)
+has now passed on `4fd4336`; this predates the pending-card correction. The
+current manual session retains its previously loaded code and has not been
+restarted. Physical microphone/speaker and observed unlock/relock confirmation,
+new-source regression and the previously failed Hourly latency gate remain open;
+no acceptance or timing failure is relabeled as a pass.

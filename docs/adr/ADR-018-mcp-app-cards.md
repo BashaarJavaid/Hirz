@@ -112,3 +112,19 @@ The approved local scope passed its reference-host, browser, packaging, conforma
 isolation and authenticated CI timing gates after author review of the initial
 visual baselines. Full evidence, including failed runs and their corrections:
 [item 27 closure](../verification-log.md#item-27-closure--2026-09-24).
+
+### Pending plan-action presentation correction — 2026-10-01
+
+The author approved correcting the card after physical acceptance exposed an
+`Approve plan` button for a plan waiting on an individual device action. A plan
+read now exposes its already-selected pending Decision in the existing singular
+`decision` field as well as `decisions`. That Decision takes presentation priority
+over the plan estimate and uses the existing approval card and device-specific
+spoken description. The plan resource renders this card only when its plan ID
+and version match the returned plan. Whole-plan approval is offered only for
+`proposed` plans. Individual votes still carry action ID, approval ID, plan ID
+and version through the unchanged public tool and Pipeline; security remains
+phone-only. No new response schema, approval authority or model call is added.
+
+Rejected: treating an action vote as whole-plan consent, keeping the misleading
+button and relying on its rejection, or introducing a second approval component.

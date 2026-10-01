@@ -1683,3 +1683,16 @@ session throughout; the installed Home Screen app has a separate session.
     signed exports on launcher shutdown before recording acceptance. Completing
     this walkthrough is physical interaction evidence, not full-night playback,
     physical-lock, Web Push or Hirz Link evidence.
+
+If continuing the evening beyond this phone acceptance check, event **16/21**
+requires **Dad's Echo** on the Mac. Select that Echo and link it with Dad's home
+account if needed, then submit the displayed dishwasher sentence and finish its
+confirmations before advancing the phone. A successful request from Malik does
+not finish Dad's scripted turn. Switch back to **Malik's Echo** for event
+**18/21** and the remaining voice beats.
+
+At event **19/21**, a plan may pause for an individual device action after its
+overall consent succeeds. On Malik's Echo, ask “What's going on tonight?”, review
+the stated action, then say “Approve the pending action” and complete its
+confirmation. Advance only after the response succeeds; repeat if another
+action needs consent. Reapproving the whole plan does not answer these requests.

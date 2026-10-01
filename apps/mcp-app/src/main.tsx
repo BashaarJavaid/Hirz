@@ -32,7 +32,11 @@ function CardApp() {
   const mounted = useRef(true);
   const data = result?.data;
   const expectedKind = __CARD__ === "scorecard" ? "scorecard" : __CARD__.replace("-card", "");
-  const card = data?.presentation?.kind === expectedKind ? data.presentation : undefined;
+  const card = data?.presentation?.kind === expectedKind
+    || expectedKind === "plan" && data?.presentation?.kind === "approval"
+      && data.plan?.plan_id === data.presentation.plan_id
+      && data.plan?.version === data.presentation.version
+    ? data?.presentation : undefined;
   const full = context?.displayMode === "fullscreen" && expandable;
   const stale = !!card && clock >= Date.parse(card.valid_until);
   const disabled = busy || stale || !!error || !["ok", "recorded"].includes(data?.status ?? "");

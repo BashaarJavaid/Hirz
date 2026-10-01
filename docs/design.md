@@ -39,6 +39,12 @@ Principles taken from the guide: reduced content density (fewer metadata fields,
 5. **No internal IDs, class names, or JSON** on any card.
 6. **Three motions, all CSS transitions, no animation library:** the EV bar moves when the plan changes by voice; the verification card goes from *pending* to the result, on its own, because Alexa cannot speak unprompted; the door goes locked → unlocked → relocked.
 
+When a plan is waiting for an individual action, its card shows that pending
+action's existing approval view, including the device-specific description, rule,
+risk band and permitted response controls. It does not offer whole-plan approval.
+Security actions retain the phone-only response path
+([ADR-018](./adr/ADR-018-mcp-app-cards.md#pending-plan-action-presentation-correction--2026-10-01)).
+
 ## 4. The seven hand-designed screens
 
 These appear on camera, so they are designed by hand. Every other companion page (Household, Audit, Twin, the YAML view, settings) uses Tailwind + shadcn/ui defaults with no custom design work.
