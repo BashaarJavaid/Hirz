@@ -6,6 +6,7 @@ Stop with Ctrl-C to retain independently verified signed exports and drop the da
 
 import argparse
 import asyncio
+import gc
 import json
 import os
 import signal
@@ -14,6 +15,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
+from types import AsyncGeneratorType
 from typing import Any
 
 import sqlalchemy as sa
@@ -42,6 +44,30 @@ from hirz.twin.clock import SimClock
 from hirz.twin.disposable import disposable
 from hirz.twin.scenario import LoadedScenario
 from hirz.twin.world import TwinConfig, TwinWorld
+
+
+def shutdown_stacks() -> list[list[str]]:
+    """Coroutine locations only: never task reprs, source lines or frame locals."""
+    stacks = []
+    for task in asyncio.all_tasks():
+        frames = []
+        cursor: Any = task.get_coro()
+        while cursor is not None:
+            frame = getattr(cursor, "cr_frame", getattr(cursor, "ag_frame", None))
+            if frame is not None:
+                frames.append(f"{Path(frame.f_code.co_filename).name}:{frame.f_lineno}")
+                cursor = getattr(cursor, "cr_await", getattr(cursor, "ag_await", None))
+            else:
+                cursor = next(
+                    (
+                        item
+                        for item in gc.get_referents(cursor)
+                        if isinstance(item, AsyncGeneratorType)
+                    ),
+                    None,
+                )
+        stacks.append(frames)
+    return stacks
 
 
 def phone_world(start: datetime | None = None) -> TwinWorld:
@@ -145,6 +171,13 @@ async def connection(
 
 
 async def run(args: argparse.Namespace) -> None:
+    if args.shutdown_diagnostic:
+        signal.signal(
+            signal.SIGUSR1,
+            lambda *_: print(
+                "COMPANION_SHUTDOWN_STACKS " + json.dumps(shutdown_stacks()), flush=True
+            ),
+        )
     if os.environ.get("HIRZ_LLM", "off") != "off":
         raise ValueError("Disposable companion verification requires HIRZ_LLM=off")
     config = Config(args.origin, args.origin.removeprefix("https://"))
@@ -322,6 +355,7 @@ def main() -> None:
     )
     parser.add_argument("--port", type=int, default=8002)
     parser.add_argument("--artifacts-dir", type=Path, required=True)
+    parser.add_argument("--shutdown-diagnostic", action="store_true")
     asyncio.run(run(parser.parse_args()))
 
 

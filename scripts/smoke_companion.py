@@ -5,6 +5,7 @@ import asyncio
 import json
 import logging
 import os
+import signal
 import socket
 import sys
 from pathlib import Path
@@ -54,6 +55,7 @@ async def run(folder: Path) -> None:
             sys.executable,
             "-m",
             "scripts.companion_demo",
+            "--shutdown-diagnostic",
             "--origin",
             "https://hirz.example.test",
             "--port",
@@ -175,7 +177,16 @@ async def run(folder: Path) -> None:
         finally:
             if child.returncode is None:
                 child.terminate()
-            await asyncio.wait_for(child.wait(), 60)
+            try:
+                await asyncio.wait_for(child.wait(), 60)
+            except TimeoutError:
+                if child.returncode is None:
+                    child.send_signal(signal.SIGUSR1)
+                    await asyncio.sleep(0.25)
+                for line in (folder / "demo.log").read_text().splitlines():
+                    if line.startswith("COMPANION_SHUTDOWN_STACKS "):
+                        print(line, flush=True)
+                raise
             for listener in sockets:
                 listener.close()
         if child.returncode:

@@ -11153,3 +11153,116 @@ physical repetition or paid inference was required for this recovery correction.
 
 That browser run independently verified **5,412 home audit rows**, an empty
 parents chain and **one bounded twin unlock**.
+
+The final recovery source is `bf50e54cf85b798a3bfd700aad7db50817db374c` on
+`item-29-simulator`. The **single authorized normal acceptance dispatch** is
+[36952637731](https://github.com/BashaarJavaid/Hirz/actions/runs/36952637731),
+with `latency_diagnostic=false`; push regression is
+[36952597602](https://github.com/BashaarJavaid/Hirz/actions/runs/36952597602).
+Both were started on that exact source. The remaining scripted parents Show/Dot
+and evening Dot cells are being repeated against the same source. The author's
+completed manual session remains running, with its signed read-only snapshot
+already retained; no additional manual repetition is requested.
+
+### Final-source scripted matrix — 2026-10-01
+
+All four scripted cells pass on `bf50e54`, with Bedrock off and independent signed
+exports. Each launcher exited successfully and dropped its own disposable database;
+the unselected household had an empty audit chain. No paid inference was used.
+
+| Scenario | Display | Completed events | Verified selected-household rows | Bounded twin unlocks | Private artifacts |
+|---|---|---:|---:|---:|---|
+| Evening, phone consent and v9 activation | Show | 21/21 | 5,412 | 1 | `/private/tmp/hirz-item29a-activation-recovery` |
+| Evening | Dot | 21/21 | 5,545 | 1 | `/private/tmp/hirz-item29a-final-demo-evening-dot` |
+| Parents scam check | Show | 5/5 | 61 | 0 | `/private/tmp/hirz-item29a-final-parents-scam-check-show` |
+| Parents scam check | Dot | 5/5 | 58 | 0 | `/private/tmp/hirz-item29a-final-parents-scam-check-dot` |
+
+The evening Show cell took 5.0m and Dot 3.7m. The parents browser assertions
+include the authenticated `not_genuine` contact reply and no unsolicited speech;
+Dot asserts no card iframe. Final-source CI remains in progress.
+
+### Final manual-session export and shutdown — 2026-10-01
+
+After the author explicitly approved saving final evidence and stopping the
+simulator, graceful shutdown of `/private/tmp/hirz-item29a-contract-restart`
+completed successfully. The final playback records **21/21 evening events** and
+`timeline_complete: true`; independent export verification retained **22,896 home
+audit rows** and **one verified bounded twin unlock**. The unselected parents
+chain is empty (its separate final-source scripted checks are recorded above).
+The launcher dropped only its disposable database and reported development
+unchanged. The private simulator is now offline; its final signed evidence and
+playback reports remain local. No second restart or physical repetition was done.
+
+### Normal acceptance dispatch: companion teardown failure — 2026-10-01
+
+The normal dispatch's Python job
+[110668695495](https://github.com/BashaarJavaid/Hirz/actions/runs/36952637731/job/110668695495)
+passed **1,497 service-free tests** (265.11s), **199 integration tests** (815.04s)
+and **90% combined coverage** (14,837 statements, 1,517 missed). Its companion
+browser assertions passed in **1.8m**, but `scripts/smoke_companion.py:178` again
+raised `TimeoutError` while waiting 60 seconds for the companion child to exit.
+The job failed; later simulator/card browser steps were not reached in that job.
+The same-source [push regression 36952597602](https://github.com/BashaarJavaid/Hirz/actions/runs/36952597602)
+passed all its ordinary jobs, showing that cleanup failure is intermittent.
+Neither result erases the other. The retained failed log is
+`/private/tmp/hirz-item29a-final-python-failure.log`.
+
+Both normal latency jobs remain running and are left untouched. The author was
+asked whether to fix/test the companion shutdown without weakening export or
+acceptance checks. A single disposable local diagnostic uses a temporary
+`sitecustomize.py` to record coroutine filenames, line numbers and cancellation
+counts to a private log every ten seconds; it contains no payloads/locals and
+changes neither application code nor the existing 60-second smoke timeout.
+Artifacts are `/private/tmp/hirz-item29a-shutdown-probe`; tracing lives outside the
+repository at `/private/tmp/hirz-item29a-shutdown-trace`. No cause or fix is yet
+claimed, and the failed job is not replaced by an automatic rerun.
+
+The local shutdown diagnostic did **not reproduce** the hang: browser assertions
+passed in 1.7m, the child exited normally, **440 home audit rows** verified, the
+parents chain was empty and its disposable database was dropped. No production
+or timeout change was made. The CI child log was not published, so the available
+CI trace identifies the parent's wait timeout but cannot distinguish HTTP drain,
+worker cancellation, native-helper shutdown or audit export. Further shutdown
+changes remain subject to the pending author decision; a successful diagnostic
+is not described as fixing the recurring CI failure.
+
+### Normal latency acceptance completed — 2026-10-01
+
+The single authorized normal dispatch on `bf50e54`,
+[36952637731](https://github.com/BashaarJavaid/Hirz/actions/runs/36952637731),
+completed both latency jobs successfully with `latency_diagnostic=false`.
+Each scenario retained all **54 cases**, **100 measured samples per case**,
+the existing five warmups and the **250 ms** case/tool p95 ceiling. No failed
+samples were removed and no additional latency run was started.
+
+| Scenario | Highest case p95 | Highest aggregate tool p95 | Job |
+|---|---:|---:|---|
+| Evening | 234.511 ms (`objective-greenest`) | 167.994 ms (`get_household_plan`, 700 samples) | [110668695453](https://github.com/BashaarJavaid/Hirz/actions/runs/36952637731/job/110668695453) |
+| Hourly | 237.254 ms (`objective-greenest`) | 167.178 ms (`get_household_plan`, 700 samples) | [110668695567](https://github.com/BashaarJavaid/Hirz/actions/runs/36952637731/job/110668695567) |
+
+All twelve aggregate tool gates passed in each scenario. Private job logs are
+`/private/tmp/hirz-item29a-final-latency-evening.log` and
+`/private/tmp/hirz-item29a-final-latency-hourly.log`. The workflow as a whole
+remains **failed** because of the companion teardown timeout recorded above;
+these passing latency results do not erase that failure or explain the earlier
+latency failure. The author subsequently approved investigating, fixing and
+testing companion shutdown, with exports and acceptance checks preserved.
+
+### Companion shutdown diagnosis authorized — 2026-10-01
+
+A second local probe used the same temporary coroutine tracer at 250 ms intervals
+in `/private/tmp/hirz-item29a-shutdown-fast-probe`. It also did not reproduce the
+hang: browser acceptance passed in 1.7m, **430 home rows** independently verified,
+the parents chain was empty, and disposable cleanup completed. The probe is
+diagnostic evidence only; another local pass does not resolve the CI failure.
+
+The companion smoke now asks its child for coroutine locations only after the
+unchanged 60-second shutdown wait fails. The child has an explicit diagnostic
+flag and a SIGUSR1 handler; it emits filenames and line numbers, including
+awaits inside async context managers, without task representations, source text,
+locals or request data. The parent publishes only that marked diagnostic line
+and re-raises the original timeout. No raw private log or credential artifact is
+uploaded, no failed run is turned into success, and no latency job is restarted.
+One targeted unit test verifies context traversal and omission of task/frame
+payloads; it passed, and strict mypy passed for both changed scripts. Ordinary
+push CI will exercise the diagnostic on Linux; the shutdown cause remains unknown.
