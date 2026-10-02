@@ -10953,3 +10953,105 @@ payload-free diagnostic records**, **1,577 valid home audit rows** and an empty
 parents chain. Cleanup dropped only that disposable database. This short local
 smoke validates instrumentation, not latency acceptance. Final format check:
 **290 files already formatted**.
+
+The approved diagnostic dispatch is
+[36944414312](https://github.com/BashaarJavaid/Hirz/actions/runs/36944414312),
+source `fd476a48e7074824d833b08d9c5949a15f4c1fb4`, on the existing
+`item-29-simulator` branch. Both scenario timing jobs started with the diagnostic
+input enabled. Their eventual result will not replace the failed acceptance
+run or independently close item 29a.
+
+### Full local diagnostic retained — 2026-10-01
+
+The longer temporary profiler completed **105 complete Hourly home lifecycles**
+and retained **315 method traces** at
+`/private/tmp/hirz-item29a-hourly-profile-long` (driver:
+`/private/tmp/hirz_item29a_profile_long.py`). `retain_export` independently
+verified **166,102 home audit rows**, with an empty parents chain. The driver
+exited successfully and dropped only its disposable database. The current
+manual simulator and development database remain unchanged.
+
+`method-summary.json` retains all 105 observations per method, including those
+corresponding to normal gate warmups: guest revision median **101.562 ms**,
+p95 **215.813 ms**, maximum **324.589 ms**; pause median **95.642 ms**, p95
+**212.207 ms**, maximum **628.370 ms**. Guest retries are separately retained.
+These are instrumented method timings, not raw HTTP gate samples: they include
+cProfile/SQL/GC tracing, exclude surrounding request work, and ran alongside the
+manual simulator and, during part of the run, local builds/tests. No acceptance
+pass or CI equivalence is claimed.
+
+Four full garbage collections were captured across these methods: two fresh
+guest revisions, one retry and one pause. The longest was **136.598 ms**; other
+slow calls had no full collection and showed delays spread across database
+round trips and Python work. The trace does not establish the cause of the
+original CI failure. The approved CI diagnostic remains in progress; production
+behavior has not been optimized on an unproven explanation.
+
+The diagnostic dispatch's [ordinary Python/browser job](https://github.com/BashaarJavaid/Hirz/actions/runs/36944414312/job/110643080644)
+passed on `fd476a4`: **1,497 service-free tests** in 251.67s, **196 integration
+tests** in 768.63s and **90% combined coverage** (14,829 statements, 1,517 missed).
+The companion, simulator and authenticated-card browser checks each passed;
+Linux card baselines/behavior report **46 passed in 2.0m**. All other ordinary
+jobs also passed. The retained job log is
+`/private/tmp/hirz-item29a-ci-regression-fd476a4.log`; both instrumented timing
+jobs are still running, so this does not close the outstanding latency gate.
+
+### Pending-action MCP output contract — 2026-10-01
+
+At 19/21 the author reported “Waiting for household information / This card's
+data is unavailable. Ask Hirz again.” Read-only inspection of the current private
+simulator found plan version 6 awaiting approval and a valid pending Decision;
+the server logged `household_tool_failed tool=get_household_plan
+error=ValidationError`. The earlier card fix supplied singular `decision`,
+`action` and an approval presentation, but `GetHouseholdPlanData` omitted those
+fields and permitted only a plan presentation. The registered MCP boundary
+therefore correctly refused the undeclared output.
+
+The narrow contract now declares the existing canonical Decision/Action and
+approval presentation. The real pending-action integration check passes its
+result through the registered MCP handler before testing exact binding, stale
+refusal, approval/denial execution and signed audit verification. All **4 card
+integration tests pass in 15.30s**; **39 household-tool unit tests pass in 4.35s**.
+The tool list remains **115,034 bytes**, largest tool **17,927 bytes**, within
+unchanged limits. Ruff, formatting and strict mypy for the contract pass. No
+input validation, authorization, consent or execution check was relaxed.
+
+A separate full browser check at
+`/private/tmp/hirz-item29a-plan-contract-regression` stopped at 6/21: its
+phone-consent/unchanged-v9-activation branch hit `Execution claim refused; no
+dispatch authorized`. The retained audit ends with an EXECUTE grant followed by
+CONSTITUTION_ACTIVATED; no subsequent dispatch was authorized. This suggests a
+policy-change race but does not yet establish its exact failing predicate.
+The scenario task stopped and its final timeline assertion failed; this is not
+a passing walkthrough. Cleanup retained **864 verified home audit rows**, an
+empty parents chain and the failed disposable database for investigation.
+The author's active 19/21 session was not restarted or changed.
+
+### Author-confirmed physical checks — 2026-10-01
+
+For the fresh `/private/tmp/hirz-item29a-physical-final` session, the author
+answered “all of these are done” to the explicit checklist: Show microphone
+recognition and audible reply; Dot microphone recognition and audible reply;
+phone-passkey activation of version 8; and door read-back changing from unlocked
+to locked. These are author-observed physical results, separate from automated
+browser assertions. They were completed before the 19/21 card-output error;
+that error and remaining regression/latency gates still prevent item closure.
+
+The independent **scripted voice-consent Show walkthrough passed all 21 events
+in 3.9m**, including two pending reviews at 19/21 and the morning read. Artifacts:
+`/private/tmp/hirz-item29a-plan-contract-voice`. Its retained transcript includes
+**three successful pending-action plan responses**, each carrying the declared
+Action/Decision and an approval presentation matching its plan; none reports
+`isError`. Cleanup independently verified **5,011 home audit rows**, an empty
+parents chain and **one bounded twin unlock**, then dropped its disposable
+database. This verifies the contract correction through actual authenticated
+MCP/browser traffic; the earlier phone-consent/activation failure remains open.
+
+The author then explicitly approved saving evidence and restarting to load the
+contract fix. Graceful shutdown of `hirz-item29a-physical-final` retained
+**12,886 verified home audit rows**, an empty parents chain and **one bounded
+twin unlock**; playback remained incomplete at the reported pending review.
+The old launcher exited successfully and dropped only its disposable database.
+A fresh session uses `/private/tmp/hirz-item29a-contract-restart` at the same
+private HTTPS origin and ports 8012/8013, with Bedrock off. The author-confirmed
+physical checks above remain evidence; no repeat is required just for restart.

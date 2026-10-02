@@ -133,8 +133,8 @@ Item 29 adds `HIRZ_LLM=off uv run --locked python -m scripts.simulator_demo --or
 ## Current phase
 
 **Phase 5 item 29a extraction is in acceptance; item 29 remains complete.**
-Both packages are published; four fresh scripted cells and regression CI pass.
-Physical checks and the failed Hourly latency gate remain outstanding ([evidence](./docs/verification-log.md#item-29a)).
+Both packages are published; four scripted cells passed before the latest card fix.
+The author confirmed all physical checks; current regression verification and the failed Hourly latency gate remain outstanding ([evidence](./docs/verification-log.md#item-29a)).
 Item 28 still needs compatible-iPhone Web Push; Nova remains deferred to 29b.
 Development stays on 0005; migrations remain manual. Preserve both inference
 ledgers; no new paid inference is authorized for extraction.

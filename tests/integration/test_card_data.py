@@ -15,10 +15,17 @@ pytestmark = pytest.mark.integration
 
 
 @pytest.mark.parametrize("approved", [True, False])
-def test_plan_read_presents_exact_pending_action_consent(scratch_database, approved):
+def test_plan_read_presents_exact_pending_action_consent(
+    scratch_database, approved, monkeypatch
+):
+    from mcp import types
     from test_executor_database import environment, proposal, runtime_for
 
     from hirz.executor.plans import PlanService
+    from hirz.mcp.contracts import GetHouseholdPlanResult
+    from hirz.mcp.runtime import register
+    from hirz.mcp.server import create_server
+    from hirz.mcp.transport import local_security
     from hirz.pipeline.service import PolicyBundle
 
     async def run():
@@ -41,7 +48,28 @@ def test_plan_read_presents_exact_pending_action_consent(scratch_database, appro
                 pending = (await executor.sweep())[0]
                 assert pending.decision == "ask" and pending.approval
                 tools = HouseholdTools(p, PRINCIPAL)
-                answer = await tools.call("get_household_plan", {})
+
+                async def invoke(server, runtime, name, arguments):
+                    return await runtime.call(name, arguments)
+
+                # Exercise the actual registered MCP output boundary as well as
+                # Pipeline-created consent; transport authentication has its own gate.
+                monkeypatch.setattr("hirz.mcp.elicitation.call", invoke)
+                server = create_server(local_security(8000), authentication=True)
+                register(server, tools)
+                handler = server._mcp_server.request_handlers[types.CallToolRequest]
+                returned = await handler(
+                    types.CallToolRequest(
+                        method="tools/call",
+                        params=types.CallToolRequestParams(
+                            name="get_household_plan", arguments={}
+                        ),
+                    )
+                )
+                assert not returned.root.isError
+                answer = GetHouseholdPlanResult.model_validate(
+                    returned.root.structuredContent
+                )
                 data, card = answer.data, answer.data.presentation
                 assert data.plan.status == "awaiting_approval"
                 assert card.kind == "approval" and card.can_respond

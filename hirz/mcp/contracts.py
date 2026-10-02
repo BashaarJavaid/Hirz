@@ -384,10 +384,12 @@ class GetHouseholdContextResult(ToolResult):
 
 class GetHouseholdPlanData(ToolData):
     plan: Plan | None = None
+    decision: Decision | None = None
     decisions: tuple[Decision, ...] = ()
+    action: Action | None = None
     actions: tuple[Action, ...] = ()
     reference: str | None = None
-    presentation: PlanCard | None = None
+    presentation: PlanCard | ApprovalCard | None = None
 
 
 class GetHouseholdPlanResult(ToolResult):
