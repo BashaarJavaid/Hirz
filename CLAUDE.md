@@ -132,9 +132,10 @@ Item 29 adds `HIRZ_LLM=off uv run --locked python -m scripts.simulator_demo --or
 
 ## Current phase
 
-**Phase 5 item 29a extraction is in acceptance; item 29 remains complete.**
-Packages, fresh manual walkthrough, physical checks and current regression CI pass.
-Activation/dispatch recovery and both normal latency gates pass; an intermittent companion shutdown timeout in CI remains under investigation ([evidence](./docs/verification-log.md#item-29a)).
+**Phase 5 items 29 and 29a are complete; item 30 is next.**
+Extraction [acceptance evidence](./docs/verification-log.md#item-29a-closure-with-shutdown-follow-up--2026-10-01)
+is retained; the unresolved companion shutdown defect is separately tracked in
+[issue #7](https://github.com/BashaarJavaid/Hirz/issues/7) by author approval.
 Item 28 still needs compatible-iPhone Web Push; Nova remains deferred to 29b.
 Development stays on 0005; migrations remain manual. Preserve both inference
 ledgers; no new paid inference is authorized for extraction.

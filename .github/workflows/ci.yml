@@ -108,10 +108,7 @@ jobs:
       - name: Install pinned Chromium for the authenticated relay
         run: pnpm --filter mcp-app exec playwright install --with-deps chromium
       - name: Companion voice proposal, passkeys, twin endings and accessibility
-        run: |
-          for companion_probe in 1 2 3; do
-            uv run --locked python -m scripts.smoke_companion --artifacts-dir "$RUNNER_TEMP/companion-$companion_probe"
-          done
+        run: uv run --locked python -m scripts.smoke_companion --artifacts-dir "$RUNNER_TEMP/companion"
       - name: Simulator enrollment, PKCE, bridge, Dot and account switching
         run: |
           uv run --locked python scripts/dev_oauth.py init

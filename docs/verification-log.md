@@ -11315,3 +11315,71 @@ failure; this is a bounded reproduction attempt, not retries until green.
 The 60-second shutdown wait, signed-export requirements, browser assertions,
 ordinary downstream checks and job timeout are unchanged. No latency dispatch
 is authorized or added by this change.
+
+The approved bounded diagnostic is commit
+`21ed80bc44de82682bdbf082e2b62995e14e6e36`, running as ordinary
+[push CI 36967258986](https://github.com/BashaarJavaid/Hirz/actions/runs/36967258986).
+Its three companion invocations use distinct private artifact directories and
+fresh disposable databases. The earlier normal latency results remain attached
+to `bf50e54`; this diagnostic introduces no application or authorization change.
+
+### Approved three-session diagnostic completed — 2026-10-01
+
+[CI 36967258986](https://github.com/BashaarJavaid/Hirz/actions/runs/36967258986)
+passed every ordinary job on `21ed80b`. All **three independent companion
+sessions** passed browser assertions, child shutdown and independently verified
+signed exports; browser times were **1.8m, 1.7m and 1.7m**. The log contains three
+explicit companion `PASS` summaries and no `COMPANION_SHUTDOWN_STACKS` record.
+The unchanged fail-fast step did not retry any failure. No latency job ran.
+
+The same Python job passed **1,498 service-free tests** in 259.16s and **199
+integration tests** in 776.79s, with **90% combined coverage** (14,837 statements,
+1,517 missed). Simulator browser acceptance passed in 19.8s, the authenticated
+reference-host check in 2.7s, and all **46 Linux card checks** in 2.0m. The retained
+log is `/private/tmp/hirz-item29a-three-shutdown-python.log`.
+
+The bounded diagnostic did **not reproduce or fix** the two earlier shutdown
+timeouts. Root cause remains unknown; CPython's
+[subprocess-cancellation report](https://github.com/python/cpython/issues/103847)
+is only a candidate explanation, not an attribution of the Hirz failures.
+The normal single-session workflow has been restored locally, and a separate
+defect report is prepared at `/private/tmp/hirz-item29a-shutdown-followup.md`.
+Neither that restoration nor an issue has been published yet. Item 29a remains
+partial pending the author's decision whether to keep the shutdown investigation
+as a closure blocker or explicitly defer it to the separate open defect.
+
+
+### Item 29a closure with shutdown follow-up — 2026-10-01
+
+The author instructed “close 29a” after being offered closure with the unfixed
+companion shutdown defect tracked separately. The defect is now open as
+[issue #7](https://github.com/BashaarJavaid/Hirz/issues/7); its cause remains
+unknown and no shutdown repair is claimed. This explicitly defers that defect
+from item 29a closure, as recorded in the
+[ADR-021 amendment](./adr/ADR-021-extracted-host-harness.md#closure-and-shutdown-deferral--2026-10-01).
+
+Closure relies on the retained [registry release verification](#both-registry-releases-verified--2026-10-01),
+independent reference-server proof, [final scripted matrix](#final-source-scripted-matrix--2026-10-01),
+[physical checks](#author-confirmed-physical-checks--2026-10-01),
+[completed manual walkthrough](#completed-manual-walkthrough-and-diagnostic-results--2026-10-01),
+and [final signed manual export](#final-manual-session-export-and-shutdown--2026-10-01).
+Both [normal latency gates](#normal-latency-acceptance-completed--2026-10-01)
+passed on application commit `bf50e54`; that dispatch's overall failure remains
+recorded. The later [ordinary CI](https://github.com/BashaarJavaid/Hirz/actions/runs/36967258986)
+passed on `21ed80b`, including the bounded three-session diagnostic documented
+above. Neither passing diagnostics nor this closure erase earlier failures.
+
+The temporary three-session loop is restored to the ordinary single companion
+invocation. Payload-free timeout diagnostics, the shutdown limit, failure
+propagation, signed-export requirements and all acceptance thresholds remain.
+Closure changes only records and that workflow restoration; application and
+package code are unchanged. No new latency dispatch, paid inference, manual
+session, database migration, package release or merge is part of this closure.
+The independent package PR remains draft. No third-party friction entry is
+added because the shutdown cause has not been attributed to a third-party tool.
+
+Closure validation passed: the workflow parses with the original single-session
+command, AGENTS/CLAUDE are byte-identical, Current phase is 72 words, prior
+verification evidence is an unchanged prefix, and `git diff --check` is clean.
+The closure commit's push will trigger ordinary CI; it is not a new latency
+acceptance dispatch and is not represented here as a completed run.

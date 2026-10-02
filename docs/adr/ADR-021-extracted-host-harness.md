@@ -1,6 +1,6 @@
 # ADR-021: Extracted local MCP host harness
 
-Date: 2026-10-01. Status: approved; implementation and acceptance in progress.
+Date: 2026-10-01. Status: implemented; acceptance complete with the approved shutdown follow-up below.
 
 ## Decision
 
@@ -64,6 +64,23 @@ The author explicitly approved **no new paid inference** for this extraction.
 Prior Haiku evidence remains historical; no claim of a fresh live-model matrix
 is made. Nova remains item 29b, and neither inference ledger changes. This amends
 the item 29a reuse of item 29 acceptance, not the historical item 29 results.
+
+### Closure and shutdown deferral — 2026-10-01
+
+The author approved closing item 29a while tracking the unresolved intermittent
+companion smoke shutdown timeout separately in
+[issue #7](https://github.com/BashaarJavaid/Hirz/issues/7). The
+[closure evidence](../verification-log.md#item-29a-closure-with-shutdown-follow-up--2026-10-01)
+links the accepted package, reference-server, scripted, physical, regression and
+normal latency results, including the retained failed runs and their limits.
+The temporary three-session diagnostic returns to one ordinary companion run;
+timeout diagnostics and failure propagation remain in place.
+
+Keeping extraction open until that separate defect is reproduced and repaired
+was offered and declined. Reclassifying the failed runs as passes or calling
+later successful diagnostics a fix is rejected: the shutdown cause is unknown.
+No authorization, signed-export or latency requirement is relaxed; this amendment
+only removes the unresolved cleanup defect as a blocker for item 29a closure.
 
 ## Rejected alternatives
 

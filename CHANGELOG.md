@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-10-01: Close item 29a with author-approved shutdown-defect follow-up and restore the ordinary single companion CI session ([decision](./docs/adr/ADR-021-extracted-host-harness.md#closure-and-shutdown-deferral--2026-10-01), [evidence](./docs/verification-log.md#item-29a-closure-with-shutdown-follow-up--2026-10-01)).
+
 - 2026-10-01: Run the approved bounded three-session companion CI probe to investigate intermittent teardown failure, stopping on the first error ([evidence](./docs/verification-log.md#instrumented-ordinary-ci-completed-without-reproduction--2026-10-01)).
 
 - 2026-10-01: Capture payload-free coroutine locations when the companion smoke times out during shutdown, retaining the failure and signed-export requirements ([evidence](./docs/verification-log.md#companion-shutdown-diagnosis-authorized--2026-10-01)).
