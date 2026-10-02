@@ -11266,3 +11266,52 @@ uploaded, no failed run is turned into success, and no latency job is restarted.
 One targeted unit test verifies context traversal and omission of task/frame
 payloads; it passed, and strict mypy passed for both changed scripts. Ordinary
 push CI will exercise the diagnostic on Linux; the shutdown cause remains unknown.
+
+Diagnostic commit `d33796dfc9b4c3020589f37e10d5d9ea888233da` triggered ordinary
+[push CI 36964641407](https://github.com/BashaarJavaid/Hirz/actions/runs/36964641407);
+no latency dispatch was added. Twelve bounded local probes stopped fresh,
+unactivated companion fixtures at offsets across one worker cycle: all exited
+successfully in **0.469–0.639 seconds**, with empty signed chains and disposable
+database cleanup. These probes used `/private/tmp/hirz-item29a-shutdown-phases`
+and did not reproduce the CI hang. A separate real-child signal probe captured
+nine coroutine stacks containing only filenames/line numbers, then completed
+ordinary export and cleanup in **0.515 seconds**; its private artifacts are
+`/private/tmp/hirz-item29a-shutdown-signal`. It verifies the diagnostic path, not a
+shutdown fix or physical/browser acceptance.
+
+Twelve further local probes in `/private/tmp/hirz-item29a-shutdown-active`
+enrolled a virtual browser passkey and activated home v7 through the ordinary
+companion UI before stopping at the same worker-cycle offsets. Every launcher
+exited zero, independently verified its signed exports and dropped its own
+database; shutdown took **0.434–0.613 seconds**. These active-policy probes also
+did not reproduce the hang. No activation row or passkey authority was inserted
+by a bootstrap shortcut, no physical device was used, and the normal acceptance
+timeout was unchanged. CI has passed database regressions and coverage and is
+preparing its browser checks; no shutdown fix is yet claimed.
+
+### Instrumented ordinary CI completed without reproduction — 2026-10-01
+
+[Push CI 36964641407](https://github.com/BashaarJavaid/Hirz/actions/runs/36964641407)
+passed all ordinary jobs on `d33796d`. Its Python job passed **1,498 service-free
+tests** in 168.79s and **199 integration tests** in 665.13s, with **90% combined
+coverage** (14,837 statements, 1,517 missed). Companion browser acceptance passed
+in **1.6m**, followed by successful child exit and independently verified exports;
+the shutdown diagnostic did not fire. Simulator browser acceptance passed in
+17.6s, the live reference-host browser check in 2.2s, and all **46 Linux card
+checks** passed in 1.8m. The retained job log is
+`/private/tmp/hirz-item29a-shutdown-diagnostic-python.log`.
+
+This pass does not explain or repair the two recorded shutdown timeouts. Item
+29a remains partial. A concrete, syntax-checked workflow change is prepared to
+run three independent disposable companion checks, retaining every assertion
+and the 60-second shutdown limit; the existing fail-fast shell would stop the
+step at its first failure. It is **not pushed or run** pending the author's
+decision, and it introduces no latency dispatch. No third-party defect or
+workaround is claimed: the available evidence still does not identify the cause.
+
+The author approved the prepared three-check diagnostic. The existing companion
+CI step now runs three independent disposable sessions and stops on its first
+failure; this is a bounded reproduction attempt, not retries until green.
+The 60-second shutdown wait, signed-export requirements, browser assertions,
+ordinary downstream checks and job timeout are unchanged. No latency dispatch
+is authorized or added by this change.

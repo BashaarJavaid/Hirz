@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-10-01: Run the approved bounded three-session companion CI probe to investigate intermittent teardown failure, stopping on the first error ([evidence](./docs/verification-log.md#instrumented-ordinary-ci-completed-without-reproduction--2026-10-01)).
+
 - 2026-10-01: Capture payload-free coroutine locations when the companion smoke times out during shutdown, retaining the failure and signed-export requirements ([evidence](./docs/verification-log.md#companion-shutdown-diagnosis-authorized--2026-10-01)).
 
 - 2026-10-01: Let the local executor recover on a later sweep when concurrent rule activation invalidates a plan before dispatch, preserving fresh authorization and fatal handling of audit/database errors ([ADR-020](./docs/adr/ADR-020-simulator.md#recover-a-refused-stale-plan-dispatch--2026-10-01)).
