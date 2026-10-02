@@ -11055,3 +11055,101 @@ The old launcher exited successfully and dropped only its disposable database.
 A fresh session uses `/private/tmp/hirz-item29a-contract-restart` at the same
 private HTTPS origin and ports 8012/8013, with Bedrock off. The author-confirmed
 physical checks above remain evidence; no repeat is required just for restart.
+
+The correction was pushed as `1ab2c3ea065114b97d999e1e580bddfb9f5b4a43` on the
+existing branch; [regression CI 36948789970](https://github.com/BashaarJavaid/Hirz/actions/runs/36948789970)
+is in progress. The restarted local simulator returned `/health` **200**.
+The separate approved timing diagnostic remains running and was not cancelled.
+
+Checking run history also exposed an earlier, separate
+[push CI failure on fd476a4](https://github.com/BashaarJavaid/Hirz/actions/runs/36944414612/job/110643076890):
+the companion browser assertion passed, but `scripts/smoke_companion.py:178`
+timed out waiting 60 seconds for its child to exit. This differs from the
+successful ordinary jobs in diagnostic dispatch 36944414312 on the same source.
+Its direct retained log is
+`/private/tmp/hirz-item29a-prior-push-failure-complete.log`. The teardown timeout
+remains to investigate; no rerun or acceptance pass is substituted for it.
+
+### Completed manual walkthrough and diagnostic results — 2026-10-01
+
+The author explicitly confirmed “All 21 steps completed without errors” in the
+fresh `hirz-item29a-contract-restart` session. The earlier explicit Show/Dot
+audio, phone-passkey v8 activation and unlocked-to-locked observations remain
+recorded above. A read-only live snapshot at
+`/private/tmp/hirz-item29a-completed-live-snapshot` independently verified
+**10,776 home audit rows** and an empty parents chain. The running simulator was
+not stopped or changed; the snapshot does not claim later rows or a final tail.
+
+Current-source [regression CI 36948789970](https://github.com/BashaarJavaid/Hirz/actions/runs/36948789970)
+passed on `1ab2c3e`: **1,497 service-free tests** (262.37s), **196 integration
+tests** (786.19s), **90% combined coverage** (14,831 statements, 1,523 missed),
+and successful companion, simulator and authenticated-card browser checks.
+Linux card tests report **46 passed**. All ordinary jobs passed; latency was
+skipped on this push as designed. The retained Python job log is
+`/private/tmp/hirz-item29a-regression-1ab2c3e.log`. The prior teardown timeout is
+not relabeled as a pass and no root cause is claimed from this later success.
+
+The approved [diagnostic dispatch 36944414312](https://github.com/BashaarJavaid/Hirz/actions/runs/36944414312)
+completed successfully for both scenarios on `fd476a4`. Each retained trace
+contains **6,531 method records**. Highest per-case HTTP p95 was **242.723 ms**
+(Evening, objective-greenest) and **238.255 ms** (Hourly, objective-greenest).
+Hourly revision-guest p95 was **96.729 ms** and pause p95 **83.715 ms**; neither
+original failure reproduced. Sample counts, warmups and thresholds were unchanged.
+These instrumented results remain **diagnostic, not acceptance gates**.
+
+Evening recorded 75 generation-2 collections (maximum **116.638 ms**); Hourly
+recorded 77 (maximum **108.682 ms**). Of method calls over 200 ms, 27/28 Evening
+and 33/33 Hourly calls included a full collection. This associates full GC with
+slow instrumented calls, but does not establish the original failure's cause;
+method timings also exclude surrounding HTTP work. No GC disabling, threshold
+change or speculative performance optimization was applied. Direct completed
+logs are `/private/tmp/hirz-item29a-ci-diagnostic-{evening,hourly}-complete.log`;
+the Hourly method summary is retained alongside them. A single normal gate on
+final source and recovery behavior for the separate activation/dispatch refusal
+were submitted to the author for explicit decisions.
+
+### Approved stale-plan dispatch recovery — 2026-10-01
+
+The author approved fixing and testing recovery, and authorized **one normal
+acceptance dispatch on final source**, with all samples and the 250 ms limit
+unchanged. The diagnostic pass is not substituted for that run.
+
+A deterministic integration test reproduced `Execution claim refused; no
+dispatch authorized` by committing a real passkey-gated rule activation on a
+second connection between redemption and claim. The first restrictive fixture
+was itself invalid (a global `never` would loosen existing per-role overrides);
+it was corrected to a valid owner-specific tightening before testing recovery.
+No production grammar or validation was changed to accommodate the fixture.
+
+The shared plan-authority predicate now raises a specific `ValueError` subtype
+for its existing refusal condition. The claim transaction rolls back without
+writing an attempt and preserves the connection so the executor can release its
+session lock. The executor ends that sweep and leaves later ticks to the existing
+refresh/redemption path. Other claim errors still become fatal Pipeline errors.
+This applies at the shared HA/twin boundary, not only in the simulator. The
+[ADR amendment](./adr/ADR-020-simulator.md#recover-a-refused-stale-plan-dispatch--2026-10-01)
+records the approved behavior and rejected alternatives.
+
+The two deterministic activation cases initially passed in **8.26s**: unchanged
+rules permit a separately submitted fresh action, while a new owner `never`
+refuses it; neither dispatches the old grant. Both verify signed audit and lock
+release. An additional audit-failure case explicitly checks that infrastructure
+errors still propagate. The related unit suite passes **133 tests in 6.99s**.
+Ruff passes, all **290 files** pass formatting, and strict mypy passes for the
+four affected production files. Broader executor/refresh/passkey integration and
+the previously failed phone-consent browser path are running before publication.
+
+The broader integration run completed: **63 passed in 212.06s** across
+`test_companion_unlock.py`, `test_executor_database.py` and
+`test_refresh_database.py`. This includes the added fatal audit-failure case,
+concurrent worker claims, tampered endings, approval expiry/revocation, durable
+refresh consent, plan cancellation and rollback checks.
+
+The formerly failing **phone-consent Show browser path passed all 21 events in
+5.0m** at `/private/tmp/hirz-item29a-activation-recovery`, including concurrent
+unchanged version-9 activation, pending plan-action reviews and morning reads.
+Cleanup exited successfully and dropped only its disposable database. No new
+physical repetition or paid inference was required for this recovery correction.
+
+That browser run independently verified **5,412 home audit rows**, an empty
+parents chain and **one bounded twin unlock**.

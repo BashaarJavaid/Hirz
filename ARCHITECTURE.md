@@ -754,6 +754,11 @@ Late starts shorten intervals; expired openings are skipped, overdue endings ret
 Reversible failures may retry once through a fresh Action; uncertain originals are
 never resent. Ordinary rollback uses a captured inverse through current policy.
 
+A plan-authority change between redemption and dispatch refuses the claim without
+a device write and ends the current sweep. The next tick refreshes and evaluates
+current authority; it never reuses the stale grant. Audit/database failures and
+invalid claims still fail closed as errors ([recovery amendment](./docs/adr/ADR-020-simulator.md#recover-a-refused-stale-plan-dispatch--2026-10-01)).
+
 `0007_execution_lifecycle` adds action scheduling/recovery fields, `plans`,
 `plan_actions`, `pending_notifications` and `twin_checkpoints`. All keys and audit
 references are household scoped. Twin physical/control state and committed simulated

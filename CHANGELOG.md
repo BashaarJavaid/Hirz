@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-10-01: Let the local executor recover on a later sweep when concurrent rule activation invalidates a plan before dispatch, preserving fresh authorization and fatal handling of audit/database errors ([ADR-020](./docs/adr/ADR-020-simulator.md#recover-a-refused-stale-plan-dispatch--2026-10-01)).
+
 - 2026-10-01: Correct the plan tool's narrow MCP output contract so pending device-action approval cards reach the simulator instead of an unavailable-data error ([ADR-018](./docs/adr/ADR-018-mcp-app-cards.md#pending-action-mcp-contract-correction--2026-10-01)).
 
 - 2026-10-01: Add opt-in, payload-free CI timing diagnostics to investigate the outstanding Hourly gate without changing acceptance criteria ([ADR-017](./docs/adr/ADR-017-tool-latency-and-isolation.md#opt-in-timing-diagnosis--2026-10-01)).

@@ -27,6 +27,138 @@ from tests.unit.test_pipeline import PRINCIPAL, ident
 pytestmark = pytest.mark.integration
 
 
+@pytest.mark.parametrize("change", ["same_policy", "forbid", "audit_failure"])
+def test_plan_dispatch_activation_race_defers_without_dispatch(
+    scratch_database, monkeypatch, change
+):
+    from unittest.mock import AsyncMock
+
+    from test_executor_database import proposal, runtime_for
+
+    from hirz.audit import verify_database
+    from hirz.executor.plans import PlanService
+    from hirz.executor.storage import row
+    from hirz.pipeline.audit import PipelineError
+    from hirz.pipeline.service import Pipeline
+    from scripts.smoke_executor import action
+
+    async def run():
+        async with connect(scratch_database) as c, connect(scratch_database) as c2:
+            p, world, registry, executor = await environment(c)
+            try:
+                login = await enroll(
+                    p,
+                    await auth.initial_invitation(p, ident("members", "malik")),
+                    Authenticator(),
+                )
+                async with c.begin():
+                    member = await auth.session(c, login["session"], p.clock())
+                principal = member["principal"].model_copy(
+                    update={"passkey_verified": True}
+                )
+
+                async def activate(runtime, candidate):
+                    async with runtime.repo.write(runtime.clock):
+                        draft = await policy.draft(runtime, principal, dump(candidate))
+                        await policy.review_complete(
+                            runtime, principal, draft["id"], member["digest"]
+                        )
+                        return await policy.activate(
+                            runtime,
+                            principal,
+                            draft["id"],
+                            draft["candidate_hash"],
+                            member["digest"],
+                        )
+
+                assert await activate(p, p.bundle.policy()) == 7
+                p.bundle = await reload_policy(p)
+                p.require_active = True
+                service = PlanService(p)
+                plan, actions = proposal(world)
+                await service.record(
+                    plan, actions, PRINCIPAL, runtime=runtime_for(plan)
+                )
+                assert (
+                    await service.approve(plan.plan_id, PRINCIPAL)
+                ).decision == "execute"
+                claim = p.claim_execution
+                candidate = p.bundle.policy().model_copy(deep=True)
+                if change == "forbid":
+                    candidate.per_role.setdefault("owner", {})["environment.lights"] = (
+                        candidate.autonomy["environment"]["lights"].model_copy(
+                            update={"mode": "never"}
+                        )
+                    )
+                activation_errors = []
+
+                async def change_before_dispatch(command, decision):
+                    if change == "audit_failure":
+                        with monkeypatch.context() as patch:
+                            patch.setattr(
+                                p.audit,
+                                "append",
+                                AsyncMock(
+                                    side_effect=RuntimeError("audit unavailable")
+                                ),
+                            )
+                            return await claim(command, decision)
+                    # A real, separately committed activation lands after redemption.
+                    other = Pipeline(
+                        c2, p.bundle, p.boundary, p.audit, p.clock, require_active=True
+                    )
+                    try:
+                        assert await activate(other, candidate) == 8
+                    except Exception as exc:
+                        activation_errors.append(str(exc))
+                        raise
+                    await claim(command, decision)
+
+                monkeypatch.setattr(p, "claim_execution", change_before_dispatch)
+                if change == "audit_failure":
+                    with pytest.raises(PipelineError, match="Execution claim refused"):
+                        await executor.sweep()
+                else:
+                    outcomes = await executor.sweep()
+                    assert not activation_errors, activation_errors
+                    assert outcomes == ()
+                assert state(world, actions[0])["on"] is False
+                async with c.begin():
+                    refused = await row(p, actions[0].action_id)
+                    assert refused["execution_status"] == "scheduled"
+                    assert refused["execution_attempt_seq"] is None
+                # The refusal must release the worker's original session lock.
+                key = int.from_bytes(p.household_id.bytes[:8], "big", signed=True)
+                async with c2.begin():
+                    assert await c2.scalar(
+                        sa.text("SELECT pg_try_advisory_lock(:key)"), {"key": key}
+                    )
+                    await c2.execute(
+                        sa.text("SELECT pg_advisory_unlock(:key)"), {"key": key}
+                    )
+
+                if change == "audit_failure":
+                    return  # Infrastructure failure remains fatal, never a deferred sweep.
+                monkeypatch.setattr(p, "claim_execution", claim)
+                p.bundle = await reload_policy(p)
+                # The next sweep re-evaluates the stale plan; it cannot reuse its grant.
+                await executor.sweep()
+                assert state(world, actions[0])["on"] is False
+                fresh = action(world)
+                result = await p.enqueue(fresh, PRINCIPAL)
+                assert result.decision == ("deny" if change == "forbid" else "execute")
+                await executor.sweep()
+                assert state(world, fresh)["on"] is (change != "forbid")
+                verified, _ = await verify_database(
+                    c, p.household_id, p.audit.key.public_key()
+                )
+                assert verified["status"] == "valid"
+            finally:
+                await registry.close()
+
+    asyncio.run(run())
+
+
 def test_observations_reload_policy_after_activation_race(scratch_database):
     async def run():
         async with connect(scratch_database) as c:

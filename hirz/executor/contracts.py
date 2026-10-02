@@ -17,6 +17,10 @@ SUPPORTED = {
 }
 
 
+class PlanAuthorityChanged(ValueError):
+    """The plan no longer authorizes a new dispatch; re-evaluate on a later sweep."""
+
+
 def expired(action: Action, at: datetime) -> bool:
     return bool(
         action.expected_effect is None

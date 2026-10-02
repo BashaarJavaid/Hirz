@@ -1445,7 +1445,7 @@ class Pipeline:
 
     async def claim_execution(self, action: Action, decision: Decision) -> int:
         """Commit one local HA dispatch attempt before any service request."""
-        from hirz.executor.contracts import expired
+        from hirz.executor.contracts import PlanAuthorityChanged, expired
 
         if self.connection.in_transaction():
             raise PipelineError("Execution requires an idle connection")
@@ -1599,6 +1599,10 @@ class Pipeline:
                     )
                 )
             return seq
+        except PlanAuthorityChanged:
+            # No attempt was written. The transaction rolled back; preserve the
+            # worker's connection so its session lock can be released normally.
+            raise
         except Exception:
             await self.connection.invalidate()
             await self.connection.rollback()

@@ -14,7 +14,7 @@ from hirz.adapters.devices.ha import HomeAssistant, fahrenheit
 from hirz.adapters.registry import Registry
 from hirz.audit import Verification
 from hirz.executor import observations, twin
-from hirz.executor.contracts import expired, inverse, validate
+from hirz.executor.contracts import PlanAuthorityChanged, expired, inverse, validate
 from hirz.executor.plans import get, hold, schedule_approved
 from hirz.executor.storage import notice, repeated, row, transition
 from hirz.pipeline.audit import PipelineError
@@ -155,7 +155,12 @@ class Executor:
                     "dispatched",
                 }:
                     continue
-                results.append(await self.run(current))
+                try:
+                    results.append(await self.run(current))
+                except PlanAuthorityChanged:
+                    # A concurrent change invalidated the grant before dispatch.
+                    # Leave scheduling intact for fresh evaluation on the next tick.
+                    return tuple(results)
             if (
                 self.world is not None
                 and not ordered
@@ -340,7 +345,7 @@ class Executor:
                     await adapter.execute(action, decision)
                 if not is_ending and not self.refresh_polls:
                     await observations.ingest(p, self.registry, principal)
-            except PipelineError:
+            except (PipelineError, PlanAuthorityChanged):
                 raise
             except Exception:
                 if p.connection.in_transaction():

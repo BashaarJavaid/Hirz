@@ -8,7 +8,7 @@ from uuid import UUID, uuid4
 import sqlalchemy as sa
 
 from hirz import db
-from hirz.executor.contracts import expired, validate
+from hirz.executor.contracts import PlanAuthorityChanged, expired, validate
 from hirz.executor.runtime import RuntimeInputs
 from hirz.executor.storage import check_overlaps, notice, transition, transition_many
 from hirz.explainer.core import Context, context, decision_context, facts, prepared
@@ -122,7 +122,7 @@ async def execution_authority(
         or str(stored["member_id"]) != member.member_id
         or not eligible(p, member, principal)
     ):
-        raise ValueError("Plan execution lacks current approver authority")
+        raise PlanAuthorityChanged("Plan execution lacks current approver authority")
 
 
 async def budget_params(p: "Pipeline", plan: Plan) -> dict[str, Any]:

@@ -384,3 +384,19 @@ grant, bypassing the event counter and resetting the author's session without
 permission were rejected. The disposable launcher has no state-preserving
 reload; applying a code change to an existing manual session requires a fresh
 launch and enrollment, after retaining its signed evidence.
+
+### Recover a refused stale-plan dispatch — 2026-10-01
+
+The author approved recovery after a real rule activation between redemption and
+dispatch correctly refused the device write but stopped the simulator. The shared
+plan-authority predicate now distinguishes that expected refusal from malformed
+claims, audit failures and database errors. At the claim boundary it rolls back
+without an attempt or device write and preserves the worker connection, allowing
+normal release of its session lock. The executor ends that sweep; a later tick
+must refresh and re-evaluate current authority through the existing Pipeline.
+The stale grant is never dispatched or treated as successful execution.
+
+Rejected: swallowing all Pipeline errors, retrying the old grant, bypassing plan
+freshness, changing the activation rules or adding a simulator-only execution path.
+The same fix applies to the local HA and twin dispatch boundary. It adds no claim
+about AWS execution or real locks.
