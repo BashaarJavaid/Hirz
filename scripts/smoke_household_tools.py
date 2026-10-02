@@ -83,6 +83,10 @@ def serve(listener: socket.socket, config: dict[str, Any]) -> None:
             Path(config["card_evidence"]) if config.get("card_evidence") else None
         ),
     )
+    if os.environ.get("HIRZ_BUDGET_DIAGNOSTIC") == "1":
+        from scripts.tool_budget_diagnostic import install
+
+        install(engine, runtime)
     app = create_app(
         port=listener.getsockname()[1],
         cache=KeyCache(config["issuer"], config["resource"]),

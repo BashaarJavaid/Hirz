@@ -1790,6 +1790,7 @@ async def run(
         status="failed",
         protocol=PROTOCOL,
         mode=mode,
+        diagnostic=os.environ.get("HIRZ_BUDGET_DIAGNOSTIC") == "1",
         platform=platform.platform(),
         python=sys.version,
         versions={

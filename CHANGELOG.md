@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-10-01: Add opt-in, payload-free CI timing diagnostics to investigate the outstanding Hourly gate without changing acceptance criteria ([ADR-017](./docs/adr/ADR-017-tool-latency-and-isolation.md#opt-in-timing-diagnosis--2026-10-01)).
+
 - 2026-10-01: Show the pending device-action approval card when a plan waits for consent, bind its controls to the matching plan version, and remove misleading whole-plan approval in that state ([ADR-018](./docs/adr/ADR-018-mcp-app-cards.md#pending-plan-action-presentation-correction--2026-10-01)).
 
 - 2026-10-01: Let simulator plan-consent steps recognize audited phone approval, including consent preserved by a refresh, so a valid companion approval does not strand the walkthrough ([ADR-020](./docs/adr/ADR-020-simulator.md#recognize-audited-phone-plan-consent--2026-10-01)).

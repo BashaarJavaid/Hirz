@@ -1,6 +1,7 @@
 """The benchmark cannot hide a slow path by pooling or omitting samples."""
 
 import asyncio
+import gc
 import json
 import sys
 import time
@@ -27,6 +28,61 @@ from scripts.smoke_tool_budget import (
     timing_report,
 )
 from scripts.tool_selection import CASES
+
+
+def test_diagnostic_redacts_inputs_and_preserves_success_and_failure(
+    monkeypatch, capsys
+):
+    from scripts import tool_budget_diagnostic as diagnostic
+
+    listeners = {}
+    monkeypatch.setattr(
+        diagnostic.event,
+        "listen",
+        lambda engine, name, callback: listeners.__setitem__(name, callback),
+    )
+    monkeypatch.setattr(gc, "callbacks", [])
+    expected = response("Private response content")
+
+    async def original(name, arguments):
+        context = SimpleNamespace()
+        query = (
+            None,
+            None,
+            "SELECT 'private SQL text'",
+            {"secret": "token"},
+            context,
+            False,
+        )
+        listeners["before_cursor_execute"](*query)
+        gc.callbacks[0]("start", {"generation": 2})
+        await asyncio.sleep(0)
+        gc.callbacks[0]("stop", {"generation": 2})
+        listeners["after_cursor_execute"](*query)
+        if arguments.get("fail"):
+            raise ValueError("Private error")
+        return expected
+
+    runtime = SimpleNamespace(call=original)
+    diagnostic.install(SimpleNamespace(sync_engine=object()), runtime)
+
+    async def run():
+        assert await runtime.call("get_household_plan", {"secret": "token"}) is expected
+        with pytest.raises(ValueError, match="Private error"):
+            await runtime.call("private unknown tool", {"fail": True})
+
+    asyncio.run(run())
+    output = capsys.readouterr().out
+    assert "private" not in output.lower() and "token" not in output
+    rows = [
+        json.loads(line.removeprefix("DIAGNOSTIC_NOT_GATE "))
+        for line in output.splitlines()
+    ]
+    assert [row["tool"] for row in rows] == ["get_household_plan", "unknown"]
+    for row in rows:
+        assert row["query_count"] == 1 and row["query_ms"] >= 0
+        assert len(row["slowest_queries"][0]["fingerprint"]) == 64
+        assert len(row["gc"]) == 1 and row["gc"][0]["generation"] == 2
 
 
 @pytest.mark.parametrize(

@@ -473,3 +473,19 @@ outside the timer. Clients link before initialization and reuse an account-bound
 session. Raw/SDK byte-identity tests now include that session header. Human prompt
 latency, waiting and post-answer processing are separate simulator measurements;
 ordinary calls retain the existing budget and required CI gate of record.
+
+## Opt-in timing diagnosis — 2026-10-01
+
+The author approved an opt-in diagnostic mode for investigating the item 29a
+Hourly failure on the same CI runner type. The disposable MCP benchmark process
+records tool method wall/CPU times, SQL count/total and its three slowest query
+fingerprints/times, plus garbage-collection generation/duration. Tool names use
+the closed catalog. Arguments, SQL text/parameters, results, errors and household
+identifiers are never logged by the diagnostic.
+
+`latency_diagnostic` defaults to false. Enabling it retains the existing corpus,
+five warmups, 100 measured samples, signed exports and 250 ms assertions, but
+marks reports and summaries as diagnostic only. Instrumentation and synchronous
+logging affect timing; a diagnostic pass cannot close an acceptance gate. Normal
+runs install no hooks. Rejected retrying the failed gate without diagnosis,
+changing its threshold or publishing private payloads for profiling.

@@ -10872,3 +10872,84 @@ current manual session retains its previously loaded code and has not been
 restarted. Physical microphone/speaker and observed unlock/relock confirmation,
 new-source regression and the previously failed Hourly latency gate remain open;
 no acceptance or timing failure is relabeled as a pass.
+
+### Latest regression and live-session snapshot — 2026-10-01
+
+[Regression CI 36938433701](https://github.com/BashaarJavaid/Hirz/actions/runs/36938433701)
+passed on `9492a5f5c0bdd3b72ee69afcce700ad3590fee8e`, including the pending-action
+card correction. This push run does not execute the workflow-dispatch latency
+matrix; the previously failed Hourly gate remains open.
+
+A read-only snapshot of the still-running manual session was retained separately
+at `/private/tmp/hirz-item29a-live-audit-snapshot`: **38,523 home rows valid**,
+parents chain empty. The existing `retain_export` helper independently verified
+the exported signatures and chain under its own repeatable-read transaction.
+An initial wrapper incorrectly opened a transaction first and was refused with
+`Audit verification requires an idle connection`; no household mutation occurred.
+The corrected call uses the helper's transaction ownership. This is an audit
+snapshot, not final playback evidence or an anchored completeness claim.
+
+The author explicitly reported that none of the requested fresh physical
+microphone, speaker, phone-passkey activation or observed unlock/relock checks
+had yet been performed. All remain pending; reaching 21/21 is not substituted
+for those observations. The live session has not been reset.
+
+### Hourly latency diagnosis started — 2026-10-01
+
+A temporary, private profiler reused the existing Hourly fixture and ten complete
+`home_round` lifecycles in its own disposable database, with Bedrock off. It traced
+SQL durations and Python work only for guest revision/retry and pause calls. The
+largest instrumented method durations were **169.25 ms guest revision** and
+**110.58 ms pause**; these exclude parts of transport and include profiling
+cost, so they are neither comparable gate samples nor a latency pass.
+Artifacts: `/private/tmp/hirz-item29a-hourly-profile`; temporary driver:
+`/private/tmp/hirz_item29a_profile.py`. The concurrent private manual simulator
+remained running, so this is diagnostic work under local load.
+
+All ten lifecycle rounds completed. The diagnostic's final reuse of the full
+gate's export wrapper failed because it requires a nonempty parents audit, while
+this deliberately home-only run performed no parents calls. Both already-written
+exports were independently checked: **15,810 home rows valid, parents empty**.
+Only the resulting inactive diagnostic database was then dropped; the live
+simulator and development databases were untouched. The longer diagnostic uses
+`retain_export`, which correctly accepts an empty chain, and adds garbage-
+collection timing. No production code, threshold, warmup count or gate sample
+count has been changed; the original failed CI result remains the gate of record.
+
+### Approved restart with the pending-card fix — 2026-10-01
+
+The author approved saving the current session and restarting with the tested
+card correction. Graceful shutdown of `/private/tmp/hirz-item29a-phone-restart`
+retained **42,903 valid home audit rows**, an empty parents chain, and the final
+playback/verification reports. The evening reports `timeline_complete: true`
+and **one verified bounded twin unlock**; parents playback was incomplete.
+These automated records do not establish the still-unperformed physical checks.
+The launcher exited successfully and dropped only its disposable database.
+
+All five card resources were rebuilt. A fresh launcher now uses
+`/private/tmp/hirz-item29a-physical-final` at the same private HTTPS origin, ports
+8012/8013, with Bedrock off; local `/health` returned **200**. New invitations stay
+in its private file. The author received the new invitation-copy command and
+fresh iPhone enrollment/activation and Mac Show/Dot audio steps. No passkey or
+approval was performed on the author's behalf; development remains unchanged.
+
+### Approved payload-free CI diagnostic — 2026-10-01
+
+The author approved adding and running an opt-in diagnostic on GitHub's runner.
+The workflow input defaults off, and reports/summaries explicitly mark enabled
+runs as **diagnostic, not acceptance gates**. It preserves the case corpus,
+warmups, sample counts, signed verification and 250 ms assertions. The disposable
+MCP process reports method wall/thread-CPU time, query count/total, its three
+slowest query fingerprints/times and GC timings. Normal benchmark startup does
+not install hooks; production startup is unchanged
+([ADR-017](./adr/ADR-017-tool-latency-and-isolation.md#opt-in-timing-diagnosis--2026-10-01)).
+
+The benchmark unit suite passes **5 tests in 4.21s**, including preservation of
+successful results and exceptions and exclusion of input, SQL, response and
+error text from diagnostic output. Ruff and strict mypy for all three affected
+scripts pass. A real authenticated Hourly lifecycle at
+`/private/tmp/hirz-item29a-ci-trace-smoke` completed with **47 structurally checked
+payload-free diagnostic records**, **1,577 valid home audit rows** and an empty
+parents chain. Cleanup dropped only that disposable database. This short local
+smoke validates instrumentation, not latency acceptance. Final format check:
+**290 files already formatted**.

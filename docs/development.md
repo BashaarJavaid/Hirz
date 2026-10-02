@@ -1268,8 +1268,17 @@ CI, including isolation. **Dispatch CI once before closing any roadmap item that
 changes the pipeline, tools, executor, refresh or storage, and once before
 submission; record each run in the evidence log.** Open the repository's
 **Actions → CI → Run workflow**, select the branch, and click **Run workflow**.
-This runs both latency matrix jobs alongside the ordinary jobs. See the
+Leave **latency_diagnostic** unchecked for acceptance. This runs both latency
+matrix jobs alongside the ordinary jobs. See the
 [closure amendment](./adr/ADR-017-tool-latency-and-isolation.md#closure-amendment--2026-09-24).
+
+For an explicitly authorized timing investigation, check **latency_diagnostic**
+or dispatch with `gh workflow run ci.yml --ref <branch> -f latency_diagnostic=true`.
+The benchmark emits `DIAGNOSTIC_NOT_GATE` timing records containing only catalog
+tool names, query fingerprints/counts/durations and garbage-collection timings.
+It still runs every case and assertion. Its report has `diagnostic: true`; even a
+successful workflow is **not an acceptance gate**. Normal dispatches keep the
+hooks disabled. Private reports and signed exports remain unuploaded.
 
 To compare a private local `report.json` with a CI run's payload-free timing
 summary, first match the commit, scenario and measurement protocol; distinguish

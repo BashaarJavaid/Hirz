@@ -1,6 +1,14 @@
 name: CI
 
-on: [push, pull_request, workflow_dispatch]
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      latency_diagnostic:
+        description: "Trace latency without accepting the run as a release gate"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -296,6 +304,7 @@ jobs:
     env:
       HIRZ_LLM: "off"
       HIRZ_BUDGET_SCENARIO: ${{ matrix.scenario }}
+      HIRZ_BUDGET_DIAGNOSTIC: ${{ inputs.latency_diagnostic && '1' || '0' }}
       COMPOSE_PROJECT_NAME: hirz-latency-${{ matrix.scenario }}-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -331,6 +340,9 @@ jobs:
                   print("No completed timing report; item 26 gate did not pass.", file=summary)
               else:
                   report = json.loads(path.read_text())
+                  if report.get("diagnostic"):
+                      print("DIAGNOSTIC ONLY — NOT AN ACCEPTANCE GATE", file=summary)
+                      print("DIAGNOSTIC ONLY — NOT AN ACCEPTANCE GATE")
                   print(report["protocol"], file=summary)
                   print(report["protocol"])
                   print("Local tool budget: " + report["status"], file=summary)
