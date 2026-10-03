@@ -115,11 +115,16 @@ test("simulator linking, real enrollment, cards, Dot, switching and both themes"
       }, { scenario, operation, extra });
     }
     async function utterance(text: string) {
-      await page.evaluate(async text => {
+      await expect.poll(async () => page.evaluate(async text => {
         const s = await (await fetch("/api/simulator/session")).json();
+        if (s.busy) return false;
         const r = await fetch("/api/simulator/command", { method: "POST", headers: { "Content-Type": "application/json", "X-Hirz-Simulator-CSRF": s.csrf }, body: JSON.stringify({ operation: "turn", text }) });
+        // Card polling may win the slot after the session read. Retry only an
+        // explicitly refused turn; an accepted request must never be replayed.
+        if (r.status === 409 && (await r.json()).detail === "This Echo already has an active turn") return false;
         if (!r.ok) throw Error(`Host turn: ${r.status}`);
-      }, text);
+        return true;
+      }, text), { timeout: 60000, intervals: [250, 500] }).toBe(true);
       await expect.poll(async () => page.evaluate(async text => {
         const s = await (await fetch("/api/simulator/session")).json();
         if (s.prompt) {
