@@ -1,5 +1,6 @@
 """Household-scoped lifecycle writes, inside the Pipeline graph transaction."""
 
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
@@ -215,14 +216,15 @@ async def repeated(p: "Pipeline", stored: dict[str, Any]) -> Decision:
     )
 
 
-async def authorize_ending(p: "Pipeline", action: Action, decision: Decision) -> None:
+async def authorize_ending(
+    p: "Pipeline", action: Action, decision: Decision, *, at: datetime
+) -> None:
     from hirz.executor.contracts import ending
     from hirz.pipeline.models import Principal
     from hirz.pipeline.service import identity
 
     if action.revert is None:
         return
-    at = p.clock()
     end = ending(action, start=at)
     opening = await row(p, action.action_id)
     principal = Principal.model_validate(opening["principal"])

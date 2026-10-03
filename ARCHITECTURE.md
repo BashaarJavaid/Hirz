@@ -747,7 +747,7 @@ notifications here are pending member-addressed records, without delivery claims
 For plan approval, the call commits consent and its budget allocation and returns “being queued”; after due bounded endings, the worker atomically materializes every signed per-action scheduling event from that durable approved plan, with cancellation/revision, overlap and execution-time checks preserved ([amendment](./docs/adr/ADR-017-tool-latency-and-isolation.md#scheduling-and-harness-amendment--2026-09-24)).
 
 `Executor.sweep/rollback` uses a household session lock and closes transactions
-during HA calls. Exact bounded endings are persisted before dispatch and survive
+during HA calls. Exact bounded endings are persisted atomically with the validated opening attempt, before dispatch, and survive
 pause, cancellation, revision and policy changes. They run before due openings,
 under their original operation grant, with distinct durable claims and read-back.
 Late starts shorten intervals; expired openings are skipped, overdue endings retained.

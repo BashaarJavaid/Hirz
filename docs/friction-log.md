@@ -854,3 +854,24 @@ The workspace-root pins and npm overrides did not resolve the conflict. Explicit
 React and React DOM 19.2.0 peer constraints on `addon-host` did: installation
 completed with zero reported vulnerabilities. The shell initially selected Node
 23.11.0; subsequent verification uses the repository-required Homebrew Node 24.
+
+## Item 30 — internal bridge silently omits published ports — 2026-10-03
+
+- **Tool / URL:** Docker Engine 29.7.2 on Docker Desktop/macOS;
+  https://docs.docker.com/compose/how-tos/networking/ and
+  https://docs.docker.com/engine/network/port-publishing/.
+- **Severity:** Minor.
+- **What happened:** The initial recording network used `internal: true` with
+  explicit loopback port mappings. Both servers started inside the container,
+  but Docker accepted the configuration without creating host bindings:
+  `NetworkSettings.Ports` was exactly `{"8002/tcp":[],"8003/tcp":[]}`.
+- **Exact error:** The host HTTP probe returned
+  `ConnectError: [Errno 61] Connection refused`; trusted HTTPS returned HTTP 502.
+  Compose itself emitted no configuration error.
+- **Workaround:** Use the run's ordinary dedicated Compose bridge, publish only
+  simulator/issuer ports on 127.0.0.1, and leave PostgreSQL unpublished. Docker's
+  Compose networking guide documents that an internal network has no connection
+  to the host network interfaces. No host-network mode or public binding is used.
+- **Feature request:** Reject or warn about requested port publications that an
+  internal-only network cannot provide, instead of reporting a started service
+  with empty effective bindings.

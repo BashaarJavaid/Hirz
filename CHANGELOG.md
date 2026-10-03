@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-10-03: Persist bounded endings with validated opening attempts so a refused opening cannot leave an orphan ending; preserve pre-dispatch durability and strict verification ([ADR-020](./docs/adr/ADR-020-simulator.md#commit-bounded-endings-with-the-opening-claim--2026-10-03)).
+
 - 2026-10-03: Add the isolated scripted recording launcher and Compose packaging, with private credential preservation and cleanup gated on signed exports; acceptance remains in progress ([ADR-020](./docs/adr/ADR-020-simulator.md#recording-packaging-and-lifecycle--2026-10-03), [evidence](./docs/verification-log.md#item-30)).
 
 - 2026-10-01: Close item 29a with author-approved shutdown-defect follow-up and restore the ordinary single companion CI session ([decision](./docs/adr/ADR-021-extracted-host-harness.md#closure-and-shutdown-deferral--2026-10-01), [evidence](./docs/verification-log.md#item-29a-closure-with-shutdown-follow-up--2026-10-01)).

@@ -664,6 +664,61 @@ def test_queued_approval_ttl_and_boundary_failure(scratch_database):
     asyncio.run(run())
 
 
+def test_cancel_between_redemption_and_claim_leaves_no_ending(
+    scratch_database, monkeypatch
+):
+    from hirz.audit import verify_database
+    from hirz.pipeline.audit import PipelineError
+
+    async def run():
+        async with connect(scratch_database) as c:
+            p, w, registry, executor = await environment(c)
+            try:
+                service = PlanService(p)
+                plan, _ = proposal(w)
+                opening = changed(bounded(w, 60), plan_id=plan.plan_id)
+                plan = plan.model_copy(update={"actions": (opening.action_id,)})
+                await service.record(
+                    plan, (opening,), PRINCIPAL, runtime=runtime_for(plan)
+                )
+                await service.approve(plan.plan_id, PRINCIPAL)
+                claim = p.claim_execution
+
+                async def cancel_before_claim(action, decision):
+                    await service.cancel(plan.plan_id, PRINCIPAL)
+                    return await claim(action, decision)
+
+                monkeypatch.setattr(p, "claim_execution", cancel_before_claim)
+                with pytest.raises(PipelineError, match="Execution claim refused"):
+                    await executor.sweep()
+                async with c.begin():
+                    assert (await row(p, opening.action_id))[
+                        "execution_attempt_seq"
+                    ] is None
+                    assert (
+                        await c.scalar(
+                            sa.select(sa.func.count())
+                            .select_from(db.actions)
+                            .where(
+                                p.scope(db.actions),
+                                db.actions.c.action_id == ending(opening).action_id,
+                            )
+                        )
+                        == 0
+                    )
+                w.clock.jump(w.clock() + timedelta(seconds=61))
+                assert await executor.sweep() == ()
+                assert state(w, opening)["on"] is False
+                summary, _ = await verify_database(
+                    c, p.household_id, p.audit.key.public_key()
+                )
+                assert summary["status"] == "valid"
+            finally:
+                await registry.close()
+
+    asyncio.run(run())
+
+
 def test_autonomous_revision_inherits_and_cancellation_retains_ending(scratch_database):
     async def run():
         async with connect(scratch_database) as c:

@@ -1407,10 +1407,6 @@ class Pipeline:
                     | {"decision": ev.decision.model_dump(mode="json", by_alias=True)}
                 )
             )
-        if stored_execution and action.revert:
-            from hirz.executor.storage import authorize_ending
-
-            await authorize_ending(self, action, ev.decision)
         if action.action_class in {
             "governance.record_constraint",
             "governance.withdraw_constraint",
@@ -1572,6 +1568,12 @@ class Pipeline:
                     and str(binding["asset_id"]) != action.target.zone
                 ):
                     raise ValueError
+                if lifecycle and action.revert:
+                    from hirz.executor.storage import authorize_ending
+
+                    # Commit the ending with the opening's validated attempt.
+                    # A refused claim must not leave an orphan ending to dispatch.
+                    await authorize_ending(self, action, decision, at=at)
                 seq = await self.audit.append(
                     self.connection,
                     self.household_id,

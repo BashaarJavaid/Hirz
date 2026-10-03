@@ -11411,3 +11411,49 @@ and failure checks, four scripted browser cells, the manual recording rehearsal,
 combined Python coverage, ordinary CI and both latency gates remain owed here.
 Issue #7 is not claimed fixed; Nova, Web Push, contacts, Ring, Link and AWS retain
 their prior status. No paid inference was invoked.
+
+### Compose startup and bounded-ending diagnosis — 2026-10-03
+
+Three failed startup runs were retained under `secrets/demo/runs/`, with their
+volumes and available private evidence:
+
+- `hirz-demo-4cfe0e1f9c3a4f19a5758100e058184f`: bootstrap expected `/app/.env`;
+  the mount was corrected instead of adding a second bootstrap configuration.
+  Wrapper exited 1 at the 180-second readiness deadline.
+- `hirz-demo-963ab937385c44b1881dafb03d62198b`: readiness compared timestamp
+  strings rather than instants; canonical UTC is the requested Chicago time.
+  The comparison was corrected and regression checked.
+- `hirz-demo-a173c9d9b54e4bcaada89de8049c7aa9`: Docker omitted requested
+  publications on an internal-only bridge. Wrapper exited 1 after its deadline;
+  storage remained even though runtime export/shutdown succeeded. See the
+  [friction entry](./friction-log.md#item-30--internal-bridge-silently-omits-published-ports--2026-10-03).
+
+The dedicated ordinary bridge then passed readiness, including trusted HTTPS.
+Initial parents Show (`hirz-demo-4731e51a626245c9abbf5c2a6d7138eb`) and Dot
+(`hirz-demo-03e93aab51ab471f9ad43c09aa6236d6`) browser runs passed, each with 64
+signed scenario rows and independently verified cleanup. Each fresh database had
+2 households, 0 active policies and 0 passkeys; invitation hashes differed.
+Live Docker inspection confirmed UID 501/GID 20, `.env` mode 0600,
+`HIRZ_LLM=off`, no AWS/HA environment keys, only 127.0.0.1:8002/8003 published,
+and no PostgreSQL publication. Node 24.21.0 lint/type/unit checks also passed.
+
+The first evening Show run (`hirz-demo-b29aa6cfbeaf49119019964a4fdb4362`)
+failed at 17:45 with `PipelineError: Execution claim refused; no dispatch authorized`.
+Read-only inspection of retained database
+`hirz_ha_smoke_ccd4f44ae4554ef29bad9ed03007261f` found one verified ending and
+one scheduled ending whose opening was cancelled with no execution attempt.
+Its strict verifier correctly refused that orphan. The database was stopped
+again after inspection; no retained history was changed.
+
+The [atomic ending amendment](./adr/ADR-020-simulator.md#commit-bounded-endings-with-the-opening-claim--2026-10-03)
+fixes the cause. The new cancellation-between-redemption-and-claim regression was
+run against `7906c91` in memory and failed exactly `assert 1 == 0` (one orphan
+ending). The corrected executor suite passes 30 tests; passkey regressions and
+fresh four-cell Compose acceptance are still running at this entry.
+
+Initial CI was submitted on `7906c91` after explicit author approval:
+[push](https://github.com/BashaarJavaid/Hirz/actions/runs/37152419807) and
+[dispatch](https://github.com/BashaarJavaid/Hirz/actions/runs/37152419186).
+They predate the bounded-ending fix and cannot close item 30. Local baseline
+service-free tests passed 1512 tests before that fix; combined coverage remains
+pending until integration finishes. No issue #7 repair is claimed.

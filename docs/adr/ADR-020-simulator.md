@@ -441,3 +441,28 @@ Rejected: reusing development credentials/volumes, publishing PostgreSQL,
 pre-enrolling passkeys or activating policies, a second seed implementation,
 automatic container restarts, automatic deletion after a failed run, cloud
 inference, and treating readiness as authenticated recording acceptance.
+
+The private network is the run's dedicated Compose bridge with PostgreSQL
+unpublished. Docker Desktop accepted an internal-only network but omitted its
+requested host port bindings, so `internal: true` is not used for the publishing
+runtime ([observed friction](../friction-log.md#item-30--internal-bridge-silently-omits-published-ports--2026-10-03)).
+This is network separation between projects, not an outbound-network prohibition.
+
+### Commit bounded endings with the opening claim — 2026-10-03
+
+The Compose evening acceptance exposed an orphan ending: redemption persisted a
+bounded ending, the opening never acquired an execution attempt, and refresh
+cancelled the unstarted opening. When the ending became due, the existing verifier
+correctly refused it because its opening had never been attempted.
+
+The shared local Pipeline now creates `ENDING_AUTHORIZED` and the ending row in
+the same transaction as the fully validated `EXECUTION_ATTEMPTED`, before adapter
+dispatch. Both use the claim's sampled timestamp, avoiding backwards audit time
+with a running clock. Refused claims leave neither record; successful claims still
+persist their exact ending before any effect, and cancellation/pause of a started
+operation cannot remove it. No claim check, signature verification, bounded timing
+rule or passkey requirement is removed. This applies to both local HA and twin
+claims; it does not change AWS/Link guarantees or resolve issue #7.
+
+Rejected: permitting an ending without its opening, swallowing the claim error,
+rewriting retained failed-run history, and a simulator-only exception.
