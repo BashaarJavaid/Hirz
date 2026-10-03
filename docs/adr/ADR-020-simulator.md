@@ -400,3 +400,44 @@ Rejected: swallowing all Pipeline errors, retrying the old grant, bypassing plan
 freshness, changing the activation rules or adding a simulator-only execution path.
 The same fix applies to the local HA and twin dispatch boundary. It adds no claim
 about AWS execution or real locks.
+
+### Recording packaging and lifecycle — 2026-10-03
+
+Item 30 packages the existing disposable simulator launcher and unchanged seeded
+scenarios in the existing image. `scripts/demo.py init --origin <HTTPS-origin>`
+creates a separate complete `secrets/demo/.env` only in an empty recording
+namespace; repeat initialization validates and preserves it. Missing credentials
+with retained recording state, malformed keys, partial configuration and identity
+conflicts require restoration. The regular nonsymlink file is mode 0600; run
+directories are 0700. A local file lock excludes overlapping initialization/runs.
+
+`run` allocates a unique Compose project, private database volume and evidence
+directory. Only simulator/issuer loopback ports 8002/8003 are published. PostgreSQL
+is private, with `depends_on: condition: service_healthy` following
+[Docker's startup ordering contract](https://docs.docker.com/compose/how-tos/startup-order/).
+The simulator runs as the invoking non-root UID/GID with credentials mounted read
+only, `HIRZ_LLM=off`, no ledger and no cloud/device credentials. Bind and database
+connection options preserve the host launcher's defaults and exact HTTP guards.
+
+“Recording state” means seeded and paused: evening selected at
+2026-10-13T17:30:00-05:00 before event zero, parents at 17:00, seed 20261013,
+Malik's Echo, dark Show mode and speech off. Real passkey enrollment, seed-policy
+activation and explicit Echo OAuth consent are manual on every fresh run. The
+private readiness receipt contains clocks, indices and scripted/paused state,
+never authentication material. The wrapper checks it, the local services/UI and
+trusted HTTPS within 180 seconds after build, then opens `/simulator`. A browser
+opener failure prints the URL and leaves the healthy foreground run available.
+
+Ctrl-C stops the runtime while PostgreSQL remains available, allowing 120 seconds
+for pending-call settlement and both signed exports. Recording databases remain
+until the wrapper sees a successful runtime exit and independently verifies both
+exports with the configured audit key. Only then may it remove this run's Compose
+resources and volume. Failure retains storage and private evidence; initialization
+never repairs or resets failed state. The ordinary disposable-launcher cleanup
+behavior remains unchanged. This packaging does not establish a fix for issue #7's
+intermittent companion shutdown path.
+
+Rejected: reusing development credentials/volumes, publishing PostgreSQL,
+pre-enrolling passkeys or activating policies, a second seed implementation,
+automatic container restarts, automatic deletion after a failed run, cloud
+inference, and treating readiness as authenticated recording acceptance.

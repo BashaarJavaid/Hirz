@@ -1705,3 +1705,83 @@ overall consent succeeds. On Malik's Echo, ask “What's going on tonight?”, r
 the stated action, then say “Approve the pending action” and complete its
 confirmation. Advance only after the response succeeds; repeat if another
 action needs consent. Reapproving the whole plan does not answer these requests.
+
+## Item 30 recording stack
+
+Use Docker Desktop, Python 3.12/uv and Tailscale on the recording computer. Configure
+trusted HTTPS forwarding to loopback 8002 before initialization, using the companion
+HTTPS procedure. The phone must trust and reach that same origin; Echo OAuth linking
+uses the recording computer's loopback issuer. Ports 8002 and 8003 must be free.
+
+```sh
+uv run --locked python scripts/demo.py init --origin https://YOUR-LOCAL-HOST
+uv run --locked python scripts/demo.py run
+```
+
+Initialization creates separate recording credentials in `secrets/demo/.env`
+(mode 0600). Repeating it preserves a complete valid file. Back up that original
+file privately. Never replace keys/passwords alongside retained recording state;
+restore the original configuration if it is partial, malformed, absent, or has a
+conflicting origin. No development migration, seed or reset is performed.
+
+Each foreground invocation builds the existing image and creates a unique Compose
+project, PostgreSQL volume and `secrets/demo/runs/<run-id>` directory (0700).
+PostgreSQL is not published; the runtime runs as your non-root UID/GID. The image
+includes the UI bundles and native Dogwood. No HA, AWS or inference credentials
+are supplied. Build time is separate from the 180-second readiness allowance.
+The wrapper validates the private receipt, local endpoints and trusted HTTPS before
+opening `/simulator`; if the browser opener fails, open its printed URL manually.
+
+The initial screen uses Malik's Echo, Scripted, dark theme, Echo Show, speech off.
+Evening is selected and paused at 2026-10-13 17:30 America/Chicago before its first
+event; parents stays paused at 17:00. Seed 20261013 and scenario files are unchanged.
+Devices/contact replies remain simulated and rate provenance remains published.
+Readiness means this seeded paused state, **not** a preauthenticated household.
+
+The launcher prints only the private invitation-file location. Open that file
+locally, enroll each owner in a separate companion session with a real passkey,
+activate each seed policy, then explicitly approve the appropriate Echo OAuth
+consent on the recording computer. Follow the item 29 rehearsal above for rule
+activation and phone approval. Every fresh run needs fresh enrollment and linking.
+Do not publish invitations, recovery codes, private logs or whole artifact folders.
+
+Keep the terminal attached. Ctrl-C stops the runtime first, allows up to 120
+seconds for settlement/exports, then independently verifies both households against
+the saved audit key. Successful cleanup removes only that run's containers,
+network and database volume; credentials and evidence remain. `cleanup.json` records
+successful removal. `ready.json`, `shutdown.json`, playback, verification results,
+per-household signed exports and private logs live below the run directory.
+
+On any startup, runtime, export, verification or shutdown failure, the command
+returns nonzero and retains storage. Inspect that run's private logs and `run.json`;
+`docker ps -a --filter label=org.hirz.recording=v1` lists recording containers only.
+Do not restart its simulator as a recovery: bootstrap intentionally requires a
+fresh artifact directory and never resumes a recording. Restore missing credentials,
+fix the cause and start a new run, preserving the old evidence and database.
+For diagnosis, start only the failed run's PostgreSQL container and inspect or dump
+its disposable database using `docker exec`; keep dumps in that run's 0700 folder
+with mode 0600. Stop it afterward. Development resources never enter this procedure.
+
+Explicit disposal of a failed run is destructive and forfeits any unexported
+history. After retaining the evidence you need and deciding to discard that exact
+run, use its **literal** `hirz-demo-<id>` from `run.json`:
+
+```sh
+recording_run=hirz-demo-REPLACE_WITH_EXACT_FAILED_RUN_ID
+docker stop --time 120 "${recording_run}-simulator-1"
+docker stop "${recording_run}-postgres-1"
+docker rm "${recording_run}-simulator-1" "${recording_run}-postgres-1"
+docker volume rm "${recording_run}_postgres"
+docker network rm "${recording_run}_default"
+```
+
+Never use a global prune or a development Compose project for recording cleanup.
+A failed run is never deleted automatically, even when some exports are valid.
+
+For automated recording acceptance, run the existing Playwright simulator test
+against the running Compose image with `HIRZ_BROWSER_ORIGIN` set to the saved
+origin, `HIRZ_SIMULATOR_ARTIFACTS` pointing to its `artifacts` directory,
+`HIRZ_SIMULATOR_SCENARIO=demo-evening|parents-scam-check` and
+`HIRZ_SIMULATOR_DISPLAY=show|dot` (see the test's display variable). Use a fresh
+run per cell. Virtual authenticators still undergo real server-side WebAuthn
+verification; they do not replace the manual real-phone rehearsal.

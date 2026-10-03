@@ -474,6 +474,8 @@ open http://localhost:3000                       # companion app + simulator
 
 During the judging window there is also a hosted demo: one click seeds a throwaway household on simulated devices only, so nothing needs installing (the link is in the Devpost testing instructions). No AWS account is required for the local path. `HIRZ_LLM=off` runs every flow deterministically with canned explanations, which is what CI uses and what a judge with no credentials can run.
 
+For an isolated scripted recording, initialize once with `uv run --locked python scripts/demo.py init --origin <HTTPS-origin>`, then use `uv run --locked python scripts/demo.py run`. Trusted Tailscale HTTPS forwarding is required; [recording setup and shutdown](./docs/development.md#item-30-recording-stack) covers fresh passkey enrollment and retained failures.
+
 ## Documentation
 
 - [`ARCHITECTURE.md`](./ARCHITECTURE.md) — layers, the decision pipeline, canonical objects, every component in depth, data model, latency budget, failure modes, hardening, observability, testing, CI/CD, deployment

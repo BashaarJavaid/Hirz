@@ -130,16 +130,18 @@ The verified toolchain and scaffold setup are in `README.md`; use Node 24.
 
 Item 29 adds `HIRZ_LLM=off uv run --locked python -m scripts.simulator_demo --origin <HTTPS-origin> --artifacts-dir <new-private-dir>` for disposable authenticated playback; `--browser-test` uses virtual authenticators with real server verification. Real companion enrollment/activation and explicit Echo PKCE consent are required. Paid host configuration uses a separate durable ledger ($20 Haiku ceiling; $10 Nova ceiling against the same total); procedure and acceptance limitations are in `docs/development.md` and the item 29 evidence.
 
+Item 30 adds `uv run --locked python scripts/demo.py init --origin <HTTPS-origin>` and `uv run --locked python scripts/demo.py run` for isolated scripted recording. Trusted Tailscale forwarding to 8002 is required; enrollment, activation and Echo consent remain manual. Failed runs retain storage; only verified shutdown permits cleanup. Procedure: `docs/development.md#item-30-recording-stack`. Acceptance remains in progress.
+
 ## Current phase
 
-**Phase 5 items 29 and 29a are complete; item 30 is next.**
-Extraction [acceptance evidence](./docs/verification-log.md#item-29a-closure-with-shutdown-follow-up--2026-10-01)
-is retained; the unresolved companion shutdown defect is separately tracked in
-[issue #7](https://github.com/BashaarJavaid/Hirz/issues/7) by author approval.
+**Phase 5 items 29 and 29a are complete; item 30 is in progress.**
+Recording packaging is implemented; acceptance remains in the
+[item 30 evidence](./docs/verification-log.md#item-30).
+[Issue #7](https://github.com/BashaarJavaid/Hirz/issues/7) remains open.
 Item 28 still needs compatible-iPhone Web Push; Nova remains deferred to 29b.
 Development stays on 0005; migrations remain manual. Preserve both inference
-ledgers; no new paid inference is authorized for extraction.
-Real contacts, physical locks and AWS security guarantees remain unverified.
+ledgers; recording uses scripted mode only. Real contacts, physical locks and AWS
+security guarantees remain unverified.
 
 ---
 

@@ -1,7 +1,7 @@
 import { accessibility } from "./accessibility";
 import { test, expect } from "@playwright/test";
 import { readFile, writeFile } from "node:fs/promises";
-const origin = "https://hirz.example.test";
+const origin = process.env.HIRZ_BROWSER_ORIGIN ?? "https://hirz.example.test";
 const backend = process.env.HIRZ_BROWSER_BACKEND ?? "http://127.0.0.1:8002";
 const scenario = process.env.HIRZ_SIMULATOR_SCENARIO;
 const artifacts = process.env.HIRZ_SIMULATOR_ARTIFACTS;
@@ -50,6 +50,10 @@ test("simulator linking, real enrollment, cards, Dot, switching and both themes"
   console.log("Simulator page loaded");
   await expect(page.getByRole("heading", { name: "Household simulator" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Link Echo with consent" })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Display", exact: true })).toHaveValue("show");
+  await expect(page.getByRole("combobox", { name: "Theme", exact: true })).toHaveValue("dark");
+  await expect(page.getByRole("combobox", { name: "Echo account", exact: true })).toHaveValue("malik");
+  await expect(page.getByLabel("Speak responses")).not.toBeChecked();
   await page.goto(origin + "/constitution", { waitUntil: "domcontentloaded" });
   console.log("Enrollment page loaded");
   await page.getByText("Set up a passkey or recover access").click();
@@ -62,6 +66,13 @@ test("simulator linking, real enrollment, cards, Dot, switching and both themes"
   await expect(page.getByRole("heading", { name: `Version ${scenario === "parents-scam-check" ? 1 : 7} · active`, exact: true })).toBeVisible();
   await page.getByRole("link", { name: "Open local simulator", exact: true }).click();
   await expect(page.getByRole("button", { name: "Next event", exact: true })).toBeVisible();
+  const paused = await page.evaluate(async () => (await fetch("/api/simulator/scenarios")).json());
+  expect(paused).toMatchObject({ selected: "demo-evening", playing: false, scenarios: {
+    "demo-evening": { at: "2026-10-13T22:30:00+00:00", next: 0 },
+    "parents-scam-check": { at: "2026-10-13T22:00:00+00:00", next: 0 },
+  } });
+  await page.waitForTimeout(1200); // Cross a runtime tick to check the paused clocks.
+  expect(await page.evaluate(async () => (await fetch("/api/simulator/scenarios")).json())).toEqual(paused);
   console.log("Simulator page loaded");
   if (scenario === "parents-scam-check") await page.getByRole("combobox", { name: "Echo account", exact: true }).selectOption("mom");
   await page.getByRole("button", { name: "Link Echo with consent" }).click();

@@ -11383,3 +11383,31 @@ command, AGENTS/CLAUDE are byte-identical, Current phase is 72 words, prior
 verification evidence is an unchanged prefix, and `git diff --check` is clean.
 The closure commit's push will trigger ordinary CI; it is not a new latency
 acceptance dispatch and is not represented here as a completed run.
+
+## Item 30
+
+### Recording implementation checks — 2026-10-03
+
+Implemented the approved recording packaging in ADR-020: separate private
+credentials, a fresh Compose project/volume per foreground invocation, paused
+scripted readiness, non-root runtime and verified-export cleanup. Initial local
+checks (macOS arm64, Python 3.12.13) passed:
+
+- `uv run --locked pytest tests/unit/test_demo.py --no-cov`: **18 passed**,
+  including configuration preservation/refusal, private permissions, occupied
+  ports, readiness timeout, browser fallback, and startup/runtime/export/shutdown
+  cleanup refusal.
+- `pnpm -r lint`, `pnpm -r typecheck`, `pnpm -r test`: passed; cards **4 tests**,
+  web **1 test**. Python Ruff and strict mypy: passed, **184 source files**.
+- Both UI builds and `uv build`: passed; sdist and wheel produced. Packaging was
+  rerun with network access after sandbox DNS refused the pinned build backend.
+- Author approved switching the existing Tailscale forwarding from loopback 8012
+  to 8002 and preparing a real-phone rehearsal. Dedicated initialization created
+  `secrets/demo/.env`; no development credentials were replaced. Private baseline
+  records the development database at `0005_execution_attempt`.
+
+This entry is implementation evidence only. Compose startup/shutdown, fresh-run
+and failure checks, four scripted browser cells, the manual recording rehearsal,
+combined Python coverage, ordinary CI and both latency gates remain owed here.
+Issue #7 is not claimed fixed; Nova, Web Push, contacts, Ring, Link and AWS retain
+their prior status. No paid inference was invoked.

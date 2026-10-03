@@ -13,8 +13,10 @@ from hirz import db
 
 
 @asynccontextmanager
-async def disposable(values: dict[str, str]) -> AsyncIterator[AsyncConnection]:
-    url = db.database_url(values)
+async def disposable(
+    values: dict[str, str], *, url: sa.URL | None = None, retain: bool = False
+) -> AsyncIterator[AsyncConnection]:
+    url = url or db.database_url(values)
     name = "hirz_ha_smoke_" + uuid4().hex
     admin = create_async_engine(
         url,
@@ -47,12 +49,15 @@ async def disposable(values: dict[str, str]) -> AsyncIterator[AsyncConnection]:
         raise
     else:
         await engine.dispose()
-        async with admin.connect() as c:
-            await c.exec_driver_sql(f'DROP DATABASE "{name}"')
-        print(
-            "disposable_database=dropped; development_database=unchanged",
-            file=sys.stderr,
-        )
+        if retain:
+            print(f"disposable_database_retained={name}", file=sys.stderr)
+        else:
+            async with admin.connect() as c:
+                await c.exec_driver_sql(f'DROP DATABASE "{name}"')
+            print(
+                "disposable_database=dropped; development_database=unchanged",
+                file=sys.stderr,
+            )
     finally:
         await engine.dispose()
         await admin.dispose()

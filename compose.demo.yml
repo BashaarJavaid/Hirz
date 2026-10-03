@@ -1,0 +1,67 @@
+services:
+  postgres:
+    image: postgres:16.15@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94
+    environment:
+      POSTGRES_DB: hirz
+      POSTGRES_USER: hirz
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Use scripts/demo.py init first}
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "hirz", "-d", "hirz"]
+      interval: 2s
+      timeout: 5s
+      retries: 60
+    restart: "no"
+    labels:
+      org.hirz.recording: "v1"
+
+  simulator:
+    build: .
+    image: hirz-recording:local
+    user: "${HIRZ_DEMO_UID:?Use scripts/demo.py run}:${HIRZ_DEMO_GID:?Use scripts/demo.py run}"
+    environment:
+      HIRZ_LLM: "off"
+      HIRZ_DOGWOOD: /usr/local/bin/dogwood
+    command:
+      - python
+      - -m
+      - scripts.simulator_demo
+      - --origin
+      - ${HIRZ_DEMO_ORIGIN:?Use scripts/demo.py init first}
+      - --bind
+      - 0.0.0.0
+      - --database-host
+      - postgres
+      - --recording-run
+      - ${HIRZ_DEMO_RUN:?Use scripts/demo.py run}
+      - --artifacts-dir
+      - /run/hirz/artifacts
+    volumes:
+      - type: bind
+        source: ./secrets/demo/.env
+        target: /app/.env
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${HIRZ_DEMO_RUN_DIR:?Use scripts/demo.py run}
+        target: /run/hirz
+        bind:
+          create_host_path: false
+    ports:
+      - "127.0.0.1:8002:8002"
+      - "127.0.0.1:8003:8003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    stop_grace_period: 120s
+    labels:
+      org.hirz.recording: "v1"
+
+volumes:
+  postgres:
+    labels:
+      org.hirz.recording: "v1"

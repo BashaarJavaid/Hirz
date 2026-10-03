@@ -46,6 +46,10 @@ async def run(args: argparse.Namespace) -> None:
         )
     args.artifacts_dir.mkdir(mode=0o700, parents=True, exist_ok=False)
     values = read_env(Path(".env"))
+    if args.recording_run and (
+        args.budget_ledger or os.environ.get("HIRZ_LLM") != "off"
+    ):
+        raise ValueError("Recording requires HIRZ_LLM=off and no inference ledger")
     audit = AuditWriter(signing_key(values))
     config = Config(args.origin, urlsplit(args.origin).hostname or "")
     issuer = f"http://127.0.0.1:{args.issuer_port}"
@@ -64,7 +68,13 @@ async def run(args: argparse.Namespace) -> None:
     evening.world.config = evening.world.config.model_copy(
         update={"end": evening.world.config.end + timedelta(hours=1)}
     )
-    async with disposable(values) as connection:
+    async with disposable(
+        values,
+        url=db.database_url(values).set(
+            host=args.database_host, port=args.database_port
+        ),
+        retain=bool(args.recording_run),
+    ) as connection:
         await bootstrap(loaded["demo-evening"], connection)
         parents = loaded["parents-scam-check"]
         await load_seeds(
@@ -155,19 +165,21 @@ async def run(args: argparse.Namespace) -> None:
             uvicorn.Server(
                 uvicorn.Config(
                     app,
-                    host="127.0.0.1",
+                    host=args.bind,
                     port=args.port,
                     access_log=False,
                     log_level="warning",
+                    timeout_graceful_shutdown=10,
                 )
             ),
             uvicorn.Server(
                 uvicorn.Config(
                     create_issuer(provider, port=args.issuer_port),
-                    host="127.0.0.1",
+                    host=args.bind,
                     port=args.issuer_port,
                     access_log=False,
                     log_level="warning",
+                    timeout_graceful_shutdown=10,
                 )
             ),
         ]
@@ -178,6 +190,19 @@ async def run(args: argparse.Namespace) -> None:
         async def work() -> None:
             while not all(server.started for server in servers):
                 await asyncio.sleep(0.1)
+            if args.recording_run:
+                write_export(
+                    args.artifacts_dir / "ready.pending.json",
+                    scenarios.view()
+                    | {
+                        "run_id": args.recording_run,
+                        "mode": "scripted",
+                        "seed": evening.spec.seed,
+                    },
+                )
+                (args.artifacts_dir / "ready.pending.json").rename(
+                    args.artifacts_dir / "ready.json"
+                )
             await scenarios.run()
 
         tasks.append(asyncio.create_task(work()))
@@ -213,6 +238,7 @@ async def run(args: argparse.Namespace) -> None:
             for task in done:
                 task.result()
         finally:
+            shutdown_failed = False
             for browser in simulator.browsers.values():
                 for account in browser.echoes:
                     browser.account = account
@@ -220,8 +246,12 @@ async def run(args: argparse.Namespace) -> None:
             pending = [task for task in simulator.active.values() if not task.done()]
             try:
                 async with asyncio.timeout(45):
-                    await asyncio.gather(*pending, return_exceptions=True)
+                    results = await asyncio.gather(*pending, return_exceptions=True)
+                    shutdown_failed |= any(
+                        isinstance(r, BaseException) for r in results
+                    )
             except TimeoutError:
+                shutdown_failed = True
                 for task in pending:
                     task.cancel()
                 await asyncio.gather(*pending, return_exceptions=True)
@@ -232,8 +262,12 @@ async def run(args: argparse.Namespace) -> None:
             await asyncio.gather(*tasks[2:], return_exceptions=True)
             try:
                 async with asyncio.timeout(15):
-                    await asyncio.gather(*tasks[:2], return_exceptions=True)
+                    results = await asyncio.gather(*tasks[:2], return_exceptions=True)
+                    shutdown_failed |= any(
+                        isinstance(r, BaseException) for r in results
+                    )
             except TimeoutError:
+                shutdown_failed = True
                 for task in tasks[:2]:
                     task.cancel()
                 await asyncio.gather(*tasks[:2], return_exceptions=True)
@@ -318,6 +352,17 @@ async def run(args: argparse.Namespace) -> None:
                     )
 
             await engine.dispose()
+            if shutdown_failed or any(
+                server.lifespan.should_exit for server in servers
+            ):
+                raise ValueError(
+                    "Runtime shutdown failed; storage and exports retained"
+                )
+    if args.recording_run:
+        write_export(
+            args.artifacts_dir / "shutdown.json",
+            {"run_id": args.recording_run, "exports_verified": True},
+        )
 
 
 def main() -> None:
@@ -326,6 +371,12 @@ def main() -> None:
     parser.add_argument("--browser-test", action="store_true")
     parser.add_argument("--port", type=int, default=8002)
     parser.add_argument("--issuer-port", type=int, default=8003)
+    parser.add_argument("--bind", default="127.0.0.1", choices=("127.0.0.1", "0.0.0.0"))
+    parser.add_argument("--database-host", default="127.0.0.1")
+    parser.add_argument("--database-port", type=int, default=5432)
+    parser.add_argument(
+        "--recording-run", help="Retain storage for wrapper verification"
+    )
     parser.add_argument("--artifacts-dir", type=Path, required=True)
     parser.add_argument(
         "--budget-ledger",

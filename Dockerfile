@@ -39,6 +39,7 @@ COPY alembic/ ./alembic/
 COPY constitutions/ ./constitutions/
 COPY scenarios/ ./scenarios/
 COPY tariffs/ ./tariffs/
+COPY scripts/simulator_demo.py ./scripts/simulator_demo.py
 COPY --from=cards /build/hirz/mcp/ui/ ./hirz/mcp/ui/
 COPY --from=cards /build/hirz/companion/ui/ ./hirz/companion/ui/
 RUN uv sync --locked --no-dev --no-editable --no-cache \

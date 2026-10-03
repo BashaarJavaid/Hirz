@@ -18,6 +18,7 @@
 !scripts/dogwood.Cargo.lock
 !scripts/dogwood-clone.patch
 !scripts/dogwood-helper.rs
+!scripts/simulator_demo.py
 !hirz/
 !hirz/**
 !alembic.ini
