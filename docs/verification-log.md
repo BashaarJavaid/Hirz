@@ -11457,3 +11457,140 @@ Initial CI was submitted on `7906c91` after explicit author approval:
 They predate the bounded-ending fix and cannot close item 30. Local baseline
 service-free tests passed 1512 tests before that fix; combined coverage remains
 pending until integration finishes. No issue #7 repair is claimed.
+
+### Regression and container acceptance continuation — 2026-10-03
+
+The initial local service-free/integration sequence completed with **1512 and 199
+passed**, respectively, and **90% combined coverage** (14839 statements, 1557
+missed). Those processes loaded code before the ending fix; they are baseline
+evidence rather than a final-code regression claim. After that fix, the complete
+executor and companion-unlock suites passed **49 tests in 235.85 seconds**.
+The new cancellation-between-redemption-and-claim test is included. Local logs
+are `/tmp/hirz-item30-{unit,integration,coverage,ending-regression}.log`.
+
+The rebuilt image passed fresh parents Show
+(`hirz-demo-72de09765a904ef6904236811156eb0b`) and Dot
+(`hirz-demo-b02b1ab4437c4810855909492b0f309a`), each with **67 signed scenario
+rows** and successful independently verified cleanup. A subsequent evening Show
+run (`hirz-demo-93f640ca4adc4febb4b8b92d3265b620`) encountered the existing strict
+`409: This Echo already has an active turn` guard when card polling acquired the
+slot before the browser driver's voice submission. Its pending call did not
+settle within the shutdown allowance; the wrapper correctly failed and retained
+storage/evidence. This is not evidence that issue #7 is repaired.
+
+The browser helper now waits for an available Echo slot and retries only that
+explicit pre-acceptance refusal; accepted requests are never replayed. Web lint
+and both TypeScript configurations pass. Fresh evening Show
+(`hirz-demo-ae1051aaa6694473b6b99ced04c9e530`) then passed all **21 events** in
+**5.7 minutes**, including genuine server-side WebAuthn verification, phone plan
+consent surviving unchanged rule reactivation, and one verified bounded unlock.
+Its **5380 signed scenario rows** independently verified and its volume was
+removed only after successful runtime exit. Private browser logs, screenshots,
+playback, signed exports and cleanup receipts remain under each run directory.
+
+The backend fix is under required ordinary/latency CI
+[37153065576](https://github.com/BashaarJavaid/Hirz/actions/runs/37153065576)
+at `fc75c96`; the browser-only correction is pushed as `98bd312` with ordinary CI
+[37153846645](https://github.com/BashaarJavaid/Hirz/actions/runs/37153846645).
+Evening Dot, deliberate export/verification failures, real-phone rehearsal and
+final CI results remain pending at this entry.
+
+Fresh evening Dot (`hirz-demo-73166f926fc84e83a581439a72a3b7d8`) subsequently
+passed all **21 events in 6.0 minutes**, with **5136 signed scenario rows**, one
+verified bounded unlock, successful runtime exit and verified storage cleanup.
+All four final Compose cells are now exercised. A separate offline check
+reverified both exports from each cell against the saved demo key, checked all
+four 0700 run directories and 0600 invitation files, and confirmed **8 distinct
+invitations**. Both evening outputs meet the existing exact-50%-by-06:30 EV
+tolerance and one completed dishwasher-cycle assertions. Defaults and clocks
+were checked before playback, including no advancement across a real runtime
+tick while paused. Private matrix results and artifacts remain in `secrets/demo`.
+
+The development baseline comparison passes: `.env` SHA-256, original PostgreSQL
+container ID and migration `0005_execution_attempt` are identical to the saved
+pre-run baseline. No development migration/reset, paid inference, or external
+device/contact call was performed. The 17 service-free launcher checks that do
+not bind a port passed again; the separate occupied-port retry was denied by
+the execution sandbox (`PermissionError: [Errno 1] Operation not permitted`)
+and needs its previously authorized network-capable execution context.
+
+That rerun passed **all 18 focused checks in 4.39 seconds**, including a real
+occupied loopback port, and the documented repeated `demo.py init --origin ...`
+reported `Demo configuration validated and preserved.`
+
+Two deliberate failures were then exercised against fresh actual Compose runs,
+using a private test driver without adding production fault hooks:
+
+- Export failure: `hirz-demo-b6b251632b1747f1b0047b556347e9b1`. The driver
+  precreated the expected export directory after readiness; runtime export
+  failed. The wrapper returned **1** and retained its PostgreSQL volume.
+- Independent verification failure:
+  `hirz-demo-60b2a8c680534079b5079f3dea8b99b7`. After successful runtime export,
+  the driver preserved the original as `audit.original.json`, replaced the test
+  export with `{}`, and invoked the real verifier. `AuditError` caused wrapper
+  exit **1** and retained storage, despite the successful runtime receipt.
+
+Both runs have stopped simulator/PostgreSQL containers and **no cleanup receipt**;
+their private evidence and volumes remain. Exact results are in
+`secrets/demo/fault-results.json`. Failed startup, failed runtime settlement,
+failed export and failed independent verification have therefore all retained
+storage; no failed run was silently disposed of. The real-phone rehearsal and
+final CI results still gate closure.
+
+The documented foreground command started manual rehearsal
+`hirz-demo-51bb0b9130324fdbb5fc192e549113c3`, passed local/HTTPS readiness, and
+opened the standard browser at the saved trusted origin. The author received
+only its private invitation-file location and the phone walkthrough. The run is
+left attached for real enrollment, activation, explicit Echo consent and phone
+approval; physical interaction and verified shutdown are not yet claimed.
+
+### Item 30 closure — 2026-10-03
+
+The author confirmed: **“I did the full rehearsal, it worked end to end.”** This
+answers the requested real-phone enrollment, rule activation, explicit Mac Echo
+OAuth consent and authenticated approval/unlocked-to-locked walkthrough. The
+foreground recording run was then stopped with Ctrl-C through its original PTY.
+It exited **0**, printed `Verified shutdown; recording storage removed`, and
+retained its private evidence in
+`secrets/demo/runs/hirz-demo-51bb0b9130324fdbb5fc192e549113c3`.
+
+The saved demo key independently verifies both household exports after shutdown.
+The home export contains **10207 signed rows**, **2 constitution activations**,
+all **21 evening events completed**, and **1 verified bounded unlock and ending**.
+The parents export is valid and empty: this physical rehearsal exercised the
+evening, while parents Show/Dot coverage is the automated evidence above. The
+run's `cleanup.json` confirms verified exports and removed storage; Docker lists
+no remaining container, volume or network for that exact project. Both deliberate
+failure volumes and all earlier private evidence remain. A final comparison again
+finds the development `.env`, original PostgreSQL container and migration
+`0005_execution_attempt` unchanged (`secrets/demo/development-after-rehearsal.json`).
+
+Final automated gates:
+
+- [Ordinary CI 37153846645](https://github.com/BashaarJavaid/Hirz/actions/runs/37153846645)
+  passed on `98bd312`: **1516 service-free tests**, **200 integration tests**,
+  **90% combined coverage** (14839 statements, 1512 missed), lint/strict typing,
+  TypeScript tests, packaging, scenario checks and conformance. Browser acceptance
+  passed for companion, simulator and reference host, plus **46 Chromium card
+  tests**; native Cedar conformance passed **159 tests**. The release job remains
+  its explicit deferred placeholder, not publication or AWS deployment evidence.
+- [Required dispatch 37153065576](https://github.com/BashaarJavaid/Hirz/actions/runs/37153065576)
+  passed ordinary CI and both real latency gates on backend commit `fc75c96`.
+  `98bd312` changes only the browser test's pre-acceptance Echo-slot wait; backend,
+  dependencies and latency harness are identical. All **54 cases across 12 tools**
+  passed for each scenario with five warmups and 100 measured calls per case.
+  Worst case p95 was **204.505 ms** for evening and **206.011 ms** for Hourly
+  (`objective-greenest` in both), below **250 ms**. This is authenticated local
+  raw JSON-RPC round-trip timing; SDK reference timings are outside that gate.
+  Local retained logs are `/tmp/hirz-item30-final-{ci,latency}.log`; public CI logs
+  provide the durable redacted summaries.
+- The actual Compose image, four fresh browser cells, 18 focused launcher checks,
+  failure-retention probes, real rehearsal and independent shutdown verification
+  are recorded above. Docker/Compose startup-order and networking friction is
+  recorded in the existing item 30 friction entry. No other third-party friction
+  was earned during closure.
+
+Item 30 is complete for isolated scripted recording. This earns no repair claim
+for issue #7's unrelated shutdown paths and no new Web Push, Nova, real contacts,
+physical lock, Ring, Link or AWS guarantees. No inference ledger was supplied or
+paid model called. Closure changes after `98bd312` are documentation only.

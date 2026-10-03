@@ -130,18 +130,18 @@ The verified toolchain and scaffold setup are in `README.md`; use Node 24.
 
 Item 29 adds `HIRZ_LLM=off uv run --locked python -m scripts.simulator_demo --origin <HTTPS-origin> --artifacts-dir <new-private-dir>` for disposable authenticated playback; `--browser-test` uses virtual authenticators with real server verification. Real companion enrollment/activation and explicit Echo PKCE consent are required. Paid host configuration uses a separate durable ledger ($20 Haiku ceiling; $10 Nova ceiling against the same total); procedure and acceptance limitations are in `docs/development.md` and the item 29 evidence.
 
-Item 30 adds `uv run --locked python scripts/demo.py init --origin <HTTPS-origin>` and `uv run --locked python scripts/demo.py run` for isolated scripted recording. Trusted Tailscale forwarding to 8002 is required; enrollment, activation and Echo consent remain manual. Failed runs retain storage; only verified shutdown permits cleanup. Procedure: `docs/development.md#item-30-recording-stack`. Acceptance remains in progress.
+Item 30 adds `uv run --locked python scripts/demo.py init --origin <HTTPS-origin>` and `uv run --locked python scripts/demo.py run` for isolated scripted recording. Trusted Tailscale forwarding to 8002 is required; enrollment, activation and Echo consent remain manual. Failed runs retain storage; only verified shutdown permits cleanup. Procedure: `docs/development.md#item-30-recording-stack`; verified recording and shutdown evidence: `docs/verification-log.md#item-30`.
 
 ## Current phase
 
-**Phase 5 items 29 and 29a are complete; item 30 is in progress.**
-Recording packaging is implemented; acceptance remains in the
-[item 30 evidence](./docs/verification-log.md#item-30).
+**Phase 5 items 29, 29a and 30 are complete; next is Phase 6 item 31.**
+Scripted recording and verified shutdown pass
+([evidence](./docs/verification-log.md#item-30-closure--2026-10-03)).
 [Issue #7](https://github.com/BashaarJavaid/Hirz/issues/7) remains open.
-Item 28 still needs compatible-iPhone Web Push; Nova remains deferred to 29b.
+Item 28 needs compatible-iPhone Web Push; Nova remains deferred to 29b.
 Development stays on 0005; migrations remain manual. Preserve both inference
-ledgers; recording uses scripted mode only. Real contacts, physical locks and AWS
-security guarantees remain unverified.
+ledgers. Real contacts, physical locks, Ring, Link and AWS guarantees remain
+unverified.
 
 ---
 
