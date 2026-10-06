@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from hirz import db
 from hirz.api.app import create_app
 from hirz.audit import retain_export, write_export
+from hirz.companion import push, twin
 from hirz.companion.api import Companion
 from hirz.companion.auth import Config, initial_invitation
 from hirz.graph.models import ContactChannel, now
@@ -37,15 +38,31 @@ from hirz.pipeline.audit import AuditWriter
 from hirz.twin.disposable import disposable
 from hirz.twin.execution import bootstrap
 from hirz.twin.scenario import LoadedScenario
+from hirz.twin.world import TwinWorld
+
+
+async def background(companion: Companion, worlds: dict[UUID, TwinWorld]) -> None:
+    while True:
+        for household in worlds:
+            async with companion.pipeline(household) as p:
+                if config := push.Config.environment():
+                    await push.advance(p, config)
+                await twin.advance(p)
+        await asyncio.sleep(1)
 
 
 async def run(args: argparse.Namespace) -> None:
+    os.environ["HIRZ_DATABASE_HOST"] = args.database_host
+    os.environ["HIRZ_DATABASE_PORT"] = str(args.database_port)
     if args.budget_ledger and os.environ.get("HIRZ_LLM", "off") != "bedrock":
         raise ValueError(
             "Paid host requires explicit HIRZ_LLM=bedrock; off is scripted only"
         )
     args.artifacts_dir.mkdir(mode=0o700, parents=True, exist_ok=False)
     values = read_env(Path(".env"))
+    for name, value in values.items():
+        if name.startswith("HIRZ_PUSH_") or name.startswith("HIRZ_VAPID_"):
+            os.environ.setdefault(name, value)
     if args.recording_run and (
         args.budget_ledger or os.environ.get("HIRZ_LLM") != "off"
     ):
@@ -70,9 +87,7 @@ async def run(args: argparse.Namespace) -> None:
     )
     async with disposable(
         values,
-        url=db.database_url(values).set(
-            host=args.database_host, port=args.database_port
-        ),
+        url=db.database_url(values),
         retain=bool(args.recording_run),
     ) as connection:
         await bootstrap(loaded["demo-evening"], connection)
@@ -206,6 +221,7 @@ async def run(args: argparse.Namespace) -> None:
             await scenarios.run()
 
         tasks.append(asyncio.create_task(work()))
+        tasks.append(asyncio.create_task(background(companion, worlds)))
         if args.browser_test:
 
             async def browser_check() -> None:

@@ -11,6 +11,8 @@ import pytest
 from websockets.asyncio.server import ServerConnection, serve
 
 from hirz.api.app import app
+from hirz.db import database_url
+from hirz.local import LocalError
 from scripts import init_dev as dev
 
 
@@ -19,6 +21,21 @@ def env_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     path = tmp_path / ".env"
     monkeypatch.setattr(dev, "ENV_FILE", path)
     return path
+
+
+def test_database_url_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    values = {"POSTGRES_PASSWORD": "test-only"}
+    monkeypatch.delenv("HIRZ_DATABASE_HOST", raising=False)
+    monkeypatch.delenv("HIRZ_DATABASE_PORT", raising=False)
+    url = database_url(values)
+    assert (url.host, url.port) == ("127.0.0.1", 5432)
+    monkeypatch.setenv("HIRZ_DATABASE_HOST", "postgres")
+    monkeypatch.setenv("HIRZ_DATABASE_PORT", "6543")
+    url = database_url(values)
+    assert (url.host, url.port) == ("postgres", 6543)
+    monkeypatch.setenv("HIRZ_DATABASE_PORT", "abc")
+    with pytest.raises(LocalError):
+        database_url(values)
 
 
 def test_liveness_has_no_application_or_docs_routes() -> None:
