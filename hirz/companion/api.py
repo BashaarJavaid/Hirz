@@ -156,7 +156,7 @@ class Companion:
     def guard(
         self, request: Request, *, authenticated: bool = False
     ) -> tuple[str, str | None]:
-        token = request.cookies.get(auth.SESSION_COOKIE)
+        token = request.cookies.get(self.config.session_cookie)
         if authenticated and not token:
             raise ValueError("Sign in first")
         auth.guard(
@@ -165,7 +165,7 @@ class Companion:
             token,
             request.headers.get("x-hirz-csrf"),
         )
-        browser = request.cookies.get(auth.BROWSER_COOKIE)
+        browser = request.cookies.get(self.config.browser_cookie)
         if not browser:
             raise ValueError("Open the sign-in page first")
         return browser, token
@@ -174,7 +174,7 @@ class Companion:
     async def authorized(
         self, request: Request
     ) -> AsyncIterator[tuple[Pipeline, dict[str, Any]]]:
-        token = request.cookies.get(auth.SESSION_COOKIE, "")
+        token = request.cookies.get(self.config.session_cookie, "")
         if request.method != "GET":
             self.guard(request, authenticated=True)
         async with self.engine.begin() as c:
@@ -185,11 +185,11 @@ class Companion:
                 yield p, member
 
 
-def cookie(response: Response, name: str, token: str) -> None:
+def cookie(response: Response, name: str, token: str, *, secure: bool) -> None:
     response.set_cookie(
         name,
         token,
-        secure=True,
+        secure=secure,
         httponly=True,
         samesite="strict",
         max_age=43200,
@@ -247,10 +247,12 @@ def router(service: Companion) -> APIRouter:
     async def current(request: Request, response: Response) -> dict[str, Any]:
         cookie(
             response,
-            auth.BROWSER_COOKIE,
-            request.cookies.get(auth.BROWSER_COOKIE) or secrets.token_urlsafe(32),
+            service.config.browser_cookie,
+            request.cookies.get(service.config.browser_cookie)
+            or secrets.token_urlsafe(32),
+            secure=service.config.secure,
         )
-        token = request.cookies.get(auth.SESSION_COOKIE)
+        token = request.cookies.get(service.config.session_cookie)
         if not token:
             return {"authenticated": False}
         try:
@@ -266,9 +268,9 @@ def router(service: Companion) -> APIRouter:
                 }
         except ValueError:
             response.delete_cookie(
-                auth.SESSION_COOKIE,
+                service.config.session_cookie,
                 path="/",
-                secure=True,
+                secure=service.config.secure,
                 httponly=True,
                 samesite="strict",
             )
@@ -437,7 +439,12 @@ def router(service: Companion) -> APIRouter:
                             else:
                                 raise ValueError("Unsupported confirmation")
             if session_token := result.pop("session", None):
-                cookie(response, auth.SESSION_COOKIE, session_token)
+                cookie(
+                    response,
+                    service.config.session_cookie,
+                    session_token,
+                    secure=service.config.secure,
+                )
                 result["csrf"] = auth.csrf(session_token)
             return {"ok": True, **result}
         except policy.ReviewError as error:
@@ -459,9 +466,9 @@ def router(service: Companion) -> APIRouter:
                     )
                 )
             response.delete_cookie(
-                auth.SESSION_COOKIE,
+                service.config.session_cookie,
                 path="/",
-                secure=True,
+                secure=service.config.secure,
                 httponly=True,
                 samesite="strict",
             )
@@ -686,7 +693,7 @@ def router(service: Companion) -> APIRouter:
         if name not in TOOLS:
             raise HTTPException(404, "Unknown household operation")
         service.guard(request, authenticated=True)
-        token = request.cookies.get(auth.SESSION_COOKIE, "")
+        token = request.cookies.get(service.config.session_cookie, "")
         async with service.engine.begin() as c:
             member = await auth.session(c, token, now())
         async with service.pipeline(member["household_id"]) as p:
@@ -836,7 +843,7 @@ def router(service: Companion) -> APIRouter:
 
         from hirz.audit import export_document, verify_database
 
-        token = request.cookies.get(auth.SESSION_COOKIE, "")
+        token = request.cookies.get(service.config.session_cookie, "")
         async with service.engine.begin() as c:
             member = await auth.session(c, token, now())
         async with service.engine.connect() as c:

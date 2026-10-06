@@ -24,6 +24,27 @@ from tests.unit.test_pipeline import ident
 pytestmark = pytest.mark.integration
 
 
+def test_localhost_browser_cookie(scratch_database):
+    async def run():
+        async with connect(scratch_database) as c:
+            p = await setup(c, native=True)
+            config = auth.Config("http://localhost:8002", "localhost")
+            service = Companion(c.engine, p.audit, config)
+            async with httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=create_app(companion=service)),
+                base_url=config.origin,
+            ) as client:
+                response = await client.get("/api/auth/session")
+                assert response.status_code == 200
+                cookie = response.headers["set-cookie"]
+                assert cookie.startswith("hirz-browser=")
+                assert "secure" not in cookie.lower().split("; ")
+                assert "HttpOnly" in cookie
+                assert "SameSite=strict" in cookie
+
+    asyncio.run(run())
+
+
 def test_policy_bundle_cached_until_stored_hash_changes(scratch_database):
     async def run():
         async with connect(scratch_database) as c:

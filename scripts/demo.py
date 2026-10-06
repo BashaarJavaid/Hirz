@@ -133,7 +133,8 @@ def forwarding(origin: str) -> None:
 def initialize(origin: str) -> None:
     Config(origin, urlsplit(origin).hostname or "")
     command("docker", "info", "--format", "{{.ServerVersion}}")
-    forwarding(origin)
+    if urlsplit(origin).hostname != "localhost":
+        forwarding(origin)
     if (DEMO / ".env").exists() or (DEMO / ".env").is_symlink():
         configuration(origin)
         print("Demo configuration validated and preserved.")
@@ -275,7 +276,8 @@ def run() -> None:
     if os.getuid() == 0:
         raise LocalError("Run the recording launcher as a non-root user.")
     ports_available()
-    forwarding(values["HIRZ_DEMO_ORIGIN"])
+    if urlsplit(values["HIRZ_DEMO_ORIGIN"]).hostname != "localhost":
+        forwarding(values["HIRZ_DEMO_ORIGIN"])
     command("docker", "info", "--format", "{{.ServerVersion}}")
     private_dir(DEMO / "runs")
     run_id = "hirz-demo-" + uuid4().hex

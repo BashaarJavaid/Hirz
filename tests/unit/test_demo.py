@@ -34,6 +34,35 @@ def test_initialization_preserves_complete_config(initialized):
     assert path.read_bytes() == before
 
 
+@pytest.mark.parametrize("origin", ["http://localhost:8002", ORIGIN])
+def test_forwarding_required_only_outside_localhost(tmp_path, monkeypatch, origin):
+    monkeypatch.setattr(demo, "DEMO", tmp_path)
+    monkeypatch.setattr(demo, "command", lambda *args, **kwargs: "")
+
+    def forwarding(origin):
+        raise AssertionError("forwarding called")
+
+    monkeypatch.setattr(demo, "forwarding", forwarding)
+    if origin == ORIGIN:
+        with pytest.raises(AssertionError, match="forwarding called"):
+            demo.initialize(origin)
+        monkeypatch.setattr(demo, "forwarding", lambda origin: None)
+    demo.initialize(origin)
+    monkeypatch.setattr(demo, "forwarding", forwarding)
+    monkeypatch.setattr(demo, "ports_available", lambda: None)
+
+    def stop_before_startup(*args, **kwargs):
+        raise LocalError("reached startup")
+
+    monkeypatch.setattr(demo, "command", stop_before_startup)
+    if origin == ORIGIN:
+        with pytest.raises(AssertionError, match="forwarding called"):
+            demo.run()
+    else:
+        with pytest.raises(LocalError, match="reached startup"):
+            demo.run()
+
+
 @pytest.mark.parametrize(
     "change", ["partial", "malformed", "identity", "permissions", "symlink", "missing"]
 )
