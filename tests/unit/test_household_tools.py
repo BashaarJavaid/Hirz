@@ -102,6 +102,60 @@ def test_horizon_and_windows_use_household_time():
     assert PermissionInput(action="pause_automation", request_id="x").at is None
 
 
+def test_light_aliases_preserve_unique_household_targets():
+    from types import SimpleNamespace
+
+    from hirz.mcp.household import Clarification, HouseholdTools
+    from tests.unit.test_pipeline import HOME, PRINCIPAL
+
+    tools = HouseholdTools(
+        SimpleNamespace(
+            household_id=HOME, clock=lambda: datetime(2026, 9, 27, tzinfo=UTC)
+        ),
+        PRINCIPAL,
+    )
+    light = {"id": "light-one", "name": "Living room light", "kind": "light"}
+    snapshot = SimpleNamespace(
+        data={
+            "assets": [light],
+            "asset_bindings": [
+                {
+                    "asset_id": light["id"],
+                    "adapter": "twin",
+                    "entity_id": "light.living_room",
+                }
+            ],
+        }
+    )
+    for reference in (
+        "Living room",
+        "living room LAMP",
+        "Living room light",
+        light["id"],
+    ):
+        args = ActionInput(action="turn_on_light", room=reference, request_id="alias")
+        action, principal = tools.action(args, snapshot)
+        assert action.target.entity == "light.living_room"
+        assert principal == PRINCIPAL
+    snapshot.data["assets"].append(
+        light | {"id": "light-two", "name": "Living room lamp"}
+    )
+    with pytest.raises(Clarification):
+        tools.action(args.model_copy(update={"room": "Living room"}), snapshot)
+    with pytest.raises(Clarification):
+        tools.action(args.model_copy(update={"room": "Bedroom lamp"}), snapshot)
+    with pytest.raises(Clarification):
+        tools.action(
+            ActionInput(
+                action="request_door_unlock",
+                room="Living room lamp",
+                minutes=1,
+                request_id="lock",
+            ),
+            snapshot,
+        )
+
+
 @pytest.mark.parametrize(
     "text,expected",
     [
@@ -335,7 +389,7 @@ def test_host_keeps_usage_snapshot_for_each_reported_turn():
     assert host.turn("Again")["usage"]["inputTokens"] == 30
 
 
-def test_tools_list_size_and_narrow_output_boundary(capsys, caplog):
+def test_tools_list_size_and_narrow_output_boundary(capsys, caplog, monkeypatch):
     import asyncio
     import json
     from unittest.mock import AsyncMock
@@ -346,6 +400,13 @@ def test_tools_list_size_and_narrow_output_boundary(capsys, caplog):
     from hirz.mcp.runtime import register
     from hirz.mcp.server import create_server, what_can_you_do
     from hirz.mcp.transport import local_security
+
+    async def invoke(server, runtime, name, arguments):
+        return await runtime.call(name, arguments)
+
+    # This test injects arbitrary service results to exercise the output boundary;
+    # authenticated transport/elicitation are covered separately.
+    monkeypatch.setattr("hirz.mcp.elicitation.call", invoke)
 
     async def run():
         server = create_server(local_security(8000), authentication=True)

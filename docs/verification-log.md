@@ -8873,3 +8873,2741 @@ Entries above that name one of those databases as retained now describe a
 database that no longer exists. The numbers, fingerprints and CI links they
 record are unaffected. No development-database change and no repository code
 change was made.
+
+## Item 28 — in progress — 2026-09-25
+
+Item 28 is **not complete**. Implementation follows [ADR-019](./adr/ADR-019-companion.md).
+All database integration runs below use explicitly migrated disposable databases;
+the development schema remains 0005. Bedrock stayed off; no paid drafting or
+selection invocation was made and the existing spending ledger was not reset.
+
+Initial foundation checks:
+
+- `.venv/bin/pytest tests/unit/test_companion_auth.py tests/unit/test_companion_api.py tests/unit/test_pipeline.py tests/unit/test_constitution.py tests/unit/test_executor.py --no-cov --tb=short -q`: **152 passed** before the later delivery/scenario changes.
+- Companion credential, activation/rollback, unlock/relock and migration round-trip integration checks: **4 passed in 8.70s** through migration 0017. The credential/push integration files were subsequently renamed with `_database` suffixes to avoid pytest's duplicate-module-name collection error.
+- Controlled push delivery/retry checks: **2 passed in 4.64s**; success sends once, provider failure stops at three attempts, subscription material stays encrypted and out of audit payloads.
+- Initial full service-free run: **1457 passed, 8 failed**. Two native conformance failures exposed Python treating reserved governance condition failures as approvable asks, while native policy denied them; the shared evaluator now makes these terminal. Four risk-catalog assertions needed the four reserved classes. Two loopback WebSocket tests were denied by the execution sandbox; their rerun used loopback permissions.
+- After those fixes, `.venv/bin/pytest tests/cedar_conformance/test_local.py tests/unit/test_risk.py tests/unit/test_companion_drafting.py --no-cov --tb=short -q`: **477 passed in 85.73s**.
+- `HIRZ_LLM=off .venv/bin/pytest -m integration --cov=hirz --cov-append --tb=short -q`: **157 passed, 1467 deselected in 295.85s**, combined coverage **89%** for that run. Its retained console log is `/private/tmp/hirz-item28-integration.log`; subsequent changes require later verification.
+- Isolated Twin controls/check-in plus updated push tests: **3 passed in 6.67s**. The check-in test asserts that simulated replies add no authenticated approval votes or APPROVED audit events.
+- Genuine software-authenticator vote followed by worker unlock/relock, plus credential revocation between vote and dispatch: **2 passed in 5.10s**. The revoked-credential case leaves the twin locked.
+- Subsequent full service-free run with loopback permissions: `HIRZ_LLM=off .venv/bin/pytest --tb=short -q`: **1466 passed, 161 deselected in 235.35s**. Service-free coverage alone is **74%**; the required integration append must follow the final service-free run. Console log: `/private/tmp/hirz-item28-unit.log`.
+
+Browser evidence so far:
+
+- The in-app browser connection returned no available browser. Repository Playwright tests were run with the installed Chromium and a real virtual WebAuthn authenticator against the disposable FastAPI server. Only HTTPS transport was routed to loopback; registration/assertion signatures, cookies, CSRF, native policy and database mutations were real.
+- `HIRZ_LLM=off HIRZ_DOGWOOD=$PWD/.tools/dogwood .venv/bin/python -m scripts.companion_demo --origin https://hirz.example.test --port 8002 --artifacts-dir secrets/item28-browser-20260925-d`, followed by `HIRZ_BROWSER_ARTIFACTS=$PWD/secrets/item28-browser-20260925-d pnpm --filter web test:browser`: **1 passed in 6.9s**. This run registered a passkey, activated seed v7, reviewed a recorded manual YAML edit, activated v8 with a fresh assertion, exported audit, signed out and signed in. It is not evidence for the subsequently added recorded-English endpoint.
+- Retained private artifacts: `secrets/item28-browser-20260925-d/`. Rule-review screenshots at 390px light/dark and audit screenshots at 390px/1440px light/dark were produced. The reviewed rule image exposed a duplicate caveat, subsequently removed. These are interim screenshots, not the complete three-screen acceptance gate.
+- Graceful shutdown retained `536fa8ee-854e-56ca-8c5d-5ba418e710a0/audit.json` and `public-key.pem`; independent offline verification returned **valid, 8 rows**, fingerprint `385589f309b374189ea1b391f4a3ad193f3674cf7fb6e72e1a97caf76e21912b`. Parents export was empty. The disposable database was dropped.
+- Earlier browser attempts failed on missing explicit Dogwood configuration, an ambiguous test locator, and a duplicate YAML key in the recorded edit. These were fixed. Earlier failed disposable databases were retained; no reset of development data was used.
+- Uvicorn re-raises its shutdown signal, which initially cancelled audit-export cleanup. The demo process now installs outer shutdown handlers so its final export/drop can finish; the successful `d` run exercised that shutdown.
+- Expanded browser unlock testing found a current-time fixture observation rejected by Registry validation before an approval could be created. This remains under investigation; it is not a pass for the browser unlock gate.
+
+Private HTTPS was configured with the actual Tailscale hostname supplied by the
+author. The author enabled Serve, and HTTPS `/health` returned `{"status":"ok"}`.
+Real iPhone enrollment, notification reception and authenticated approval remain
+pending author/device evidence. The disposable iPhone process retains its private
+invitations under `secrets/item28-iphone-20260925-a/`.
+
+Outstanding acceptance includes final browser flows and three-screen visual/
+keyboard review, iPhone push/approval, final combined coverage and packaging,
+authenticated MCP conformance/isolation, runtime propagation with running processes,
+required CI latency gates, and the remaining adversarial lifecycle cases. No live
+Bedrock, real contact delivery, physical lock, AWS analysis, Link or remote signer
+claim is earned by these local results. Threat-model completion claims are unchanged.
+
+
+### Item 28 follow-up: running clock and the physical iPhone — 2026-09-25
+
+The author reports Home Screen installation and successful credential enrollment,
+with the recovery code saved, on **iOS 15.7.9**. Initial activation returned
+`this request has been cancelled by the user` immediately, without a device prompt;
+notifications reported `push is unavailable here. Your approval inbox remains usable`.
+The author has no iOS 16.4-or-later iPhone available and cannot update this device.
+Real iPhone Web Push therefore remains **unverified and currently blocked by the
+available OS**, not passed. Apple requires iOS 16.4 or later for Home Screen Web
+Push. A fresh-tap legacy WebAuthn path is under verification; the enrollment,
+recovery state and database were preserved during the server restart.
+
+The live private server was resumed from `secrets/item28-iphone-20260925-a/runtime.json`
+into `secrets/item28-iphone-20260925-b/` without reseeding or new invitations. Before
+recording restart metadata, a read-only check matched the original invitation digest
+and confirmed zero device lifecycles and zero twin checkpoints. No credentials,
+recovery code or signed rows were replaced. The development database is unchanged.
+
+Chromium run `secrets/item28-browser-20260925-k/` passed the expanded real-server
+WebAuthn flow (**1 passed, 1.4 minutes**): registration, initial v7 activation,
+fresh assertion, twin unlock, observed relock, recorded English patch review,
+v8 activation, signed export and subsequent login. Clean shutdown independently
+verified **343 signed home rows**, fingerprint
+`385589f309b374189ea1b391f4a3ad193f3674cf7fb6e72e1a97caf76e21912b`, plus an empty
+parents chain. Screenshots are private in the same directory. The background
+worker later failed when the household policy version changed; this run does not
+establish runtime propagation. The twin factory incorrectly compared mutable
+policy version/pause fields as physical household identity; a targeted fix retains
+all immutable household comparisons and cross-household rejection.
+
+Earlier runs f–j exposed clock drift between wall time and the twin, an exact
+comparison of two moving doorbell-event timestamps, and a lock read-back panel
+that disappeared after the visitor-context expiry. Shared clock validation,
+one-sample interactive events, and independent fresh lock observations address
+those defects; future-observation checks remain strict. Run l exercised the legacy
+fresh-tap UI successfully through unlock, then failed the running-clock relock:
+`Execution claim refused; no dispatch authorized`. Its **288 signed rows** and
+database were retained. The ending and its audit row sampled different times;
+the correction captures one timestamp, with a moving-clock integration regression.
+This failed run is not relock evidence.
+
+Additional checks: updated credential/pending-policy integration checks **3 passed
+in 7.55s**; validated-key push retry checks **2 passed in 4.55s**; the new interactive
+clock/key checks **4 passed in 1.08s**. Workspace Vitest now collects only source
+tests, avoiding accidental Playwright collection, and passes **5 tests** across
+the two apps. Packaging/CI now build both browser bundles. Final regressions,
+remaining adversarial cases, full screenshot review, physical assertion/approval,
+authenticated MCP propagation and CI gates remain outstanding; item 28 is incomplete.
+
+### Item 28 follow-up: activation race, browser checks and regression — 2026-09-25
+
+The author confirmed that the legacy fresh-tap path opened the device password
+prompt and activated **version 7, dogwood-local** on the iPhone. The subsequent
+unlock attempt appeared to do nothing, followed by a white screen. HTTPS returned
+502: the disposable server had stopped after its worker recorded a stale-v7
+observation refusal concurrently with v8 activation. The fail-closed decision was
+correct; treating that ordinary policy-change race as fatal was not. The shared
+observation ingestion path now retains the denial, reloads validated policy
+artifacts and makes one fresh authorized request when the fingerprint changed.
+A same-policy denial remains fatal. The existing physical account was resumed in
+`secrets/item28-iphone-20260925-d/`; HTTPS health returned `{"status":"ok"}`.
+No credential or recovery state was reset. The preceding `c` export independently
+verified **485 signed home rows** with the fingerprint recorded above.
+
+Verification in this follow-up:
+
+- Service-free suite: `HIRZ_LLM=off .venv/bin/pytest` (output retained at
+  `/private/tmp/hirz-item28-unit-final.log`): **1469 passed, 164 deselected,
+  2 warnings, 256.69s**. PostgreSQL append run (same environment,
+  `pytest -m integration --cov=hirz --cov-append`, output at
+  `/private/tmp/hirz-item28-integration-final.log`): **162 passed,
+  1471 deselected, 2 warnings, 320.84s**, **90% combined coverage**
+  (13,826 statements, 1,331 missed). Later edits below received targeted reruns;
+  these full-suite counts do not claim coverage of subsequent changes.
+- Bounded-unlock cases: **4 passed**; the new activation-race case initially
+  failed its audit-tail expectation because the authorized observation also
+  appends a twin checkpoint. After correcting that expectation, the race test
+  passed (**1 passed, 4 deselected, 3.39s**), checking v7 refusal, v8 reload,
+  authorized ingestion and checkpoint retention.
+- Contact removal: **1 passed, 9 deselected, 4.62s**; owner credential governance
+  removes current contact/channel records and a late simulated reply cannot
+  replace the `no_answer` contact-removed explanation.
+- Push: **3 passed, 7.46s**, no network; success, three controlled failures,
+  and expiry after one failed attempt. Expired/exhausted pending jobs now settle
+  to failed, and recipient eligibility is rechecked before dispatch.
+- Browser run `secrets/item28-browser-20260925-p/`: **1 passed, 1.5 minutes**,
+  using Chromium's virtual authenticator with actual server signature verification
+  and the legacy fresh-tap UI. Covers registration, initial v7 activation,
+  form/YAML value preservation, keyboard skip-link focus, twin unlock and observed
+  relock, recorded English v8 review/activation, signed export, simulated check-in
+  reply, logout and login. Run `o` failed a keyboard test that pressed Tab before
+  signed-in navigation mounted; waiting for navigation resolved that test timing.
+  No physical notification reception is inferred from Chromium results.
+- Run `p` clean shutdown independently verified **438 signed home rows** and an
+  empty parents chain, then dropped only its disposable database. Screenshots
+  include all three phone screens and Audit at 390×844/1440×900 in light/dark.
+  Rule-review phone light, unlock phone dark, check-in phone light and desktop
+  rule-review dark were visually inspected; spacing and complete contrast review
+  still need finishing. The phone-width overflow assertions pass.
+
+Real iPhone unlock/relock confirmation is pending the author's retry. Web Push
+remains blocked on the available iOS 15.7.9 device. Authenticated MCP proposal/
+activation propagation, final UI review, remaining adversarial cases and required
+CI gates remain owed. Item 28 is **incomplete**; Bedrock remained off, spending
+ledger untouched, development schema unchanged, and no new threat-model claim
+was made.
+
+### Item 28 follow-up: pending approvals, MCP and retained exports — 2026-09-25
+
+Authenticated regression command:
+`HIRZ_LLM=off HIRZ_DOGWOOD="$PWD/.tools/dogwood" PATH=/opt/homebrew/opt/node@24/bin:$PATH .venv/bin/python scripts/smoke_household_tools.py --audit-output secrets/item28-mcp-20260925-a.json --conformance-cli ../addon-check/dist/cli.js`.
+It passed the twelve-tool OAuth/SDK flow, worker/MCP restarts, scope refusal and
+independent conformance: **117 PASS, 0 FAIL, 0 WARN, 0 SKIP, 8 MANUAL**,
+`complete: true`, no missing evidence. The smoke independently verified **611
+signed rows** and dropped its disposable database. These are explicitly historical
+scenario fixtures; they do not by themselves verify live companion activation.
+
+The targeted command over `test_companion_unlock.py`, `test_companion_policy.py`,
+`test_companion_push_database.py` and `test_companion_twin_database.py`, with
+`-m integration --cov=hirz --cov-append --tb=short -q`, passed **12 tests in
+40.48s**. Combined coverage reached **91%** (13,833 statements, 1,286 missed).
+New coverage includes an unaffected pending security approval reissued under a
+new policy without extending its deadline, its successful subsequent unlock/
+relock, and a moving-clock unlock restored from a checkpoint after pause before
+its authorized relock. Two initial unrelated-policy test candidates were rejected
+by the existing tightening-only schema; the valid case changes HVAC approval TTL.
+A running `HouseholdRuntime` test also checks linked Alexa proposal persistence,
+queued/activated lifecycle, Alexa activation refusal, initial policy gating and
+subsequent decisions using v7 then v8 without reconstructing the runtime. This
+is an in-process runtime test, not the still-owed combined HTTP/browser voice flow.
+
+Browser run `q` passed **1 test in 1.5 minutes**, additionally submitting a proposal
+with drafting off, displaying its linked author and app surface, and activating
+its linked recorded candidate. All six portrait screenshots (three screens, both
+themes) were reviewed with corrected panel padding. Some desktop dark captures
+contained incomplete paint immediately after theme switching; those captures are
+not accepted visual evidence. The next capture run disables transitions through
+reduced-motion support and waits for two animation frames before capture.
+
+Run `q` shutdown exposed an audit-export dependency on the already-stopped native
+policy helper (`Native helper unavailable; no authorization`). The database was
+retained. Read-only export now uses the shared `hirz.audit.retain_export` helper,
+with no policy compilation or mutation. Independent recovery under
+`secrets/item28-browser-20260925-q-recovered/` verified **616 signed home rows**
+and an empty parents chain, using the original fingerprint above. Run `r` was
+stopped before browser work; it had loaded the old cleanup code and reproduced
+that shutdown failure. Neither failed shutdown discarded its database. A separate
+CLI verification of run `p` again reported **valid, 438 rows** against the trusted
+fingerprint.
+
+Workspace lint/types and all **5 Vitest tests** passed. Ruff and strict mypy passed
+(**174 source files**). `uv build` produced the wheel and sdist with both browser
+bundles. `docker build --target cards --tag hirz-item28-browser-build .` passed;
+`.dockerignore` now includes web sources and explicit scenario/deployment resources.
+Only the browser build stage was executed in that Docker check. Audit pagination
+and always-available proposal submission were added; English drafting remains off.
+No live provider or paid model call was made.
+
+### Item 28 latest retained state — 2026-09-25
+
+The final targeted service-free companion run passed **9 tests, 2 deprecation
+warnings, 2.36s**; Ruff and mypy again passed (174 source files), and the wheel/
+sdist rebuilt successfully. Browser run `s` passed **1 test, 1.5 minutes**,
+including the proposal inbox, real server WebAuthn verification, unlock/relock,
+recorded activation and simulated check-in. Reduced-motion mode and two repaint
+frames did **not** resolve missing image/button paint in the desktop dark screenshot;
+that visual gate remains unverified. Portrait captures are readable with action
+buttons in bounds. No full UI acceptance is claimed from DOM assertions alone.
+
+Without stopping the iPhone server, a read-only export in
+`secrets/item28-iphone-20260925-live-export/` independently verified **3,845 signed
+home rows** and an empty parents chain, against the same retained fingerprint.
+There are two activation events and no approved/verified device action in that
+physical test at the time of export. The author confirmed registration and initial
+activation; physical phone unlock/relock remains pending. The private server is
+still running on port 8002 with the preserved account/database and exact Tailscale
+origin. No development migration, paid model call or spending-ledger change occurred.
+
+Remaining closure evidence includes compatible-iPhone Web Push (unavailable on the
+provided iOS 15.7.9 device), physical approval/relock, complete visual/keyboard/
+contrast review (including the desktop dark rendering issue), the combined
+HTTP-authenticated voice-proposal-to-browser activation flow with running workers,
+remaining adversarial acceptance cases and CI latency runs for these changes.
+The final CI gate has not been run or linked. Item 28 remains incomplete.
+
+Run `s` exercised the corrected shutdown export successfully: **672 signed home
+rows verified**, empty parents chain, original fingerprint retained. Its disposable
+database was dropped after verification. This resolves the export's dependency on
+a stopped authorization helper; it does not resolve the desktop dark capture issue.
+Final `ruff format --check .`: **275 files already formatted**.
+
+### Item 28 phone follow-up: finding the approval card — 2026-09-25
+
+The author reported the doorbell button returning “Unlocking requires approval in
+your Hirz phone app.” A read-only inspection confirmed the new approval was
+pending: the generic tool response was accurate, but unhelpful inside that same
+phone app, and the card appeared below the notification/demo/read-back panels.
+The companion now gives an in-page review instruction and scrolls/focuses the
+specific new approval card once polling returns it. This changes navigation only;
+creation, eligibility, passkey confirmation and worker authorization are unchanged.
+Web eslint, strict TypeScript checks and production build passed. The browser
+regression now asserts focus on the newly created approval card.
+
+Browser run `secrets/item28-browser-20260925-t/`: **1 passed, 1.5 minutes**,
+including the new approval-card focus assertion and passkey unlock/verified relock.
+The physical iPhone result remains pending; this is Chromium virtual-authenticator
+evidence. The iPhone server/account stayed running throughout this isolated test.
+Run `t` shutdown independently verified **519 signed home rows** and an empty
+parents chain before dropping its disposable database. Final format check passed:
+**275 files already formatted**.
+
+### Item 28 physical iPhone approval and bounded twin relock — 2026-09-25
+
+The author reports **“it works”** after the in-page approval navigation fix on the
+same iOS 15.7.9 Home Screen app. Read-only inspection of the preserved iPhone
+account's database confirms **two verified twin unlock actions and their two
+verified locked endings**. The latest passkey approval is recorded at
+`2026-09-26T02:38:18.136661Z`; unlock read-back is `VERIFIED` at audit sequence
+**6115**, `02:38:19.547157Z`, and locked ending read-back is `VERIFIED` at sequence
+**6377**, `02:39:19.614902Z`—about one minute later. Both device states are labeled
+twin; this is real iPhone authentication with simulated device execution, not a
+physical lock or push notification test.
+
+A read-only export while the phone app remained running independently verified
+**6,651 signed home rows**, plus an empty parents chain, under
+`secrets/item28-iphone-20260925-unlock-confirmed/`, against trusted fingerprint
+`385589f309b374189ea1b391f4a3ad193f3674cf7fb6e72e1a97caf76e21912b`.
+The physical-phone approval → twin unlock → verified bounded relock gate now has
+both author confirmation and signed audit evidence. No enrollment reset, device
+state substitution, direct device write, development migration or model call was
+used to obtain this result.
+
+Item 28 is still incomplete: compatible-device iPhone Web Push, complete visual/
+keyboard/contrast acceptance, combined authenticated voice/browser propagation,
+remaining adversarial cases and CI gates remain outstanding as detailed above.
+
+### Item 28 local acceptance matrix and combined browser flow — 2026-09-25
+
+The previously generic "remaining UI/security checks" now have explicit evidence.
+Item 28 remains **incomplete** pending compatible-iPhone push reception and the
+required CI runs; the actual iPhone passkey/unlock/relock evidence above stands.
+No Bedrock calls, ledger reset, physical device actions or development migration.
+Read-only confirmation: development `alembic_version = 0005_execution_attempt`.
+
+New security checks use native Dogwood and disposable PostgreSQL: authenticated
+cross-household HTTP reads cannot select another household; foreign review,
+activation, credential-revocation and re-invitation IDs are refused; a genuine
+foreign credential cannot complete another session's ceremony; failed ceremonies
+cannot replay; authenticated cookies do not bypass CSRF/exact-origin checks.
+Owner recovery cannot use re-invitation; nonowners cannot issue re-invitations;
+issuing a replacement invalidates the prior invitation; completing it revokes
+old sessions and recovery grants. A session kept active every 20 minutes still
+expires at exactly 12 hours. Phone approval checks cover expiry, altered action
+hash, a newer doorbell press, revoked credentials before approval, recovery and
+expiry between approval and dispatch, duplicate votes, all-adult quorum, and
+approval redemption replay. The moving-clock relock test also activates a new
+security rule before pause/restart and proves the pre-authorized ending survives.
+A running executor reloads v8 and records DENY_CONSTITUTION/held for work queued
+under v7. A populated disposable 0005 database upgrades to head with unchanged
+unactivated v7/YAML and existing assets defaulting to unmanaged; invalid policy
+statuses/artifact combinations are refused.
+
+Commands (Node 24, Python 3.12, `HIRZ_LLM=off`, native `.tools/dogwood`):
+
+```sh
+.venv/bin/pytest --tb=short
+.venv/bin/pytest tests/unit/test_scenario_execution.py --cov=hirz --cov-append --tb=short -q
+.venv/bin/pytest -m integration --cov=hirz --cov-append --tb=short
+.venv/bin/pytest tests/integration/test_companion_policy.py tests/integration/test_companion_unlock.py tests/integration/test_companion_auth_database.py tests/integration/test_companion_http.py -m integration --cov=hirz --cov-append --tb=short -q
+.venv/bin/coverage report --fail-under=80
+.venv/bin/ruff check .
+.venv/bin/mypy hirz/ scripts/ alembic/
+pnpm -r lint
+pnpm -r typecheck
+pnpm -r test
+pnpm --filter web build
+uv build
+```
+
+The service-free run reported **1 failed, 1468 passed, 175 deselected, 2 warnings
+in 263.17s**: an old audit test patched `hirz.twin.execution.verify_database` after
+the export implementation had moved to `hirz.audit`. Correcting the patch target
+preserved its corruption rejection assertion; its entire module then passed
+**23 tests in 9.18s**. The full integration run reported **1 failed, 175 passed,
+1471 deselected, 2 warnings in 396.21s**: the new queued-action fixture tightened
+the general lights rule but initially left an invalid looser guest override.
+The corrected valid fixture also asserts the actual executor status (`held`)
+and the DENY_CONSTITUTION decision, rather than inventing a `denied` queue state.
+The final complete companion security selection passed **20 tests in 61.87s**,
+including the added populated-schema upgrade. Combined coverage is **91%**
+(13,834 statements, 1,189 missed). Ruff passed; mypy passed **175 source files**;
+workspace lint/types and **5 Vitest tests** passed. Both browser bundles build,
+and Python sdist/wheel build; wheel inspection confirms the companion index,
+manifest, service worker and icon are packaged. Final CI packaging checks now
+expect the actual **40** classes/situation groups and inspect the companion bundle.
+Private logs are `/private/tmp/hirz-item28-{unit-current,export-regression,integration-current,final-security,build-current}.log`.
+
+Combined flow, now also wired into CI's Python integration job:
+
+```sh
+HIRZ_LLM=off HIRZ_DOGWOOD="$PWD/.tools/dogwood" .venv/bin/python -m scripts.smoke_companion --artifacts-dir secrets/item28-combined-20260925-c
+```
+
+**1 Playwright test passed (1.8m)** through real loopback OAuth/PKCE, authenticated
+MCP, Chromium WebAuthn signatures and a separately running companion/worker.
+An unactivated MCP household is refused; v7 activates with a passkey; a phone
+approval unlocks the twin and the normal-clock worker verifies its one-minute
+relock. A recorded candidate that removes HVAC bounds/occupancy restrictions
+shows the unintended `never → auto` and `ask → auto` changes. Activation stays
+disabled until keyboard opening of the complete seven-line review. A real
+`propose_household_rule` MCP call appears as "From Malik via alexa · queued";
+a forged activation/passkey field is refused by the flat tool contract. The
+recorded English patch activates via the phone's fresh passkey, the proposal
+becomes activated, and the still-running MCP process reports v8. The audit has
+two CONSTITUTION_ACTIVATED rows. Simulated check-in, logout/login and export pass.
+
+The harness reuses existing OAuth/MCP process helpers; temporary MCP credentials
+are private files available only to the test runner, never page JavaScript.
+The production runtime still requires activation; historical smoke behavior
+remains an explicit isolated fixture. Browser run `a` failed only because the
+new assertion expected `ask → auto` where the actual bound was `never → auto`;
+`b` passed in 1.7m. Run `c` verifies the final mobile navigation (all six links
+visible), named passkey dialog, proposal/delivery polling, and waits for Audit
+content rather than accepting a loading screenshot. All owned test servers stop
+and their disposable databases drop after verified exports. The retained real
+phone enrollment remains untouched.
+
+**37 reviewed PNGs** in `secrets/item28-combined-20260925-c/phone/`: six pages ×
+390×844/1440×900 × light/dark, three specified phone screens × the same four
+combinations, and `unintended-loosening.png`. Automated checks cover native tab
+order/focus outlines on all pages, control names, image alternatives, actual text
+contrast including opacity, and no document horizontal overflow. The three
+special screens also pass contrast/name checks. The stored desktop dark PNGs
+render correctly when viewed individually; direct pixel verification resolved
+the misleading batched image display ([friction follow-up](./friction-log.md#follow-up-on-item-28-dark-captures--2026-09-25)).
+This is not a screen-reader or universal-device certification.
+
+Clean shutdown retained **419 valid signed home rows**, with an empty parents
+chain. Independent CLI verification of the retained `audit.json` under the
+previously trusted fingerprint
+`385589f309b374189ea1b391f4a3ad193f3674cf7fb6e72e1a97caf76e21912b`
+returned `status: valid`, `checked_count: 419`. Earlier runs `a`/`b` retained
+357/409 valid rows. Local anchoring remains explicitly absent. CI links and any
+further results will be appended below; no CI success is claimed here.
+
+### Item 28 CI acceptance — 2026-09-25
+
+Implementation commit `b537dc29cbfe807d91880fa88376d6c7cb8bf546` on
+`item-28-companion` was pushed, then dispatched with
+`gh workflow run ci.yml --ref item-28-companion`:
+[run 36214024113](https://github.com/BashaarJavaid/Hirz/actions/runs/36214024113).
+The duplicate automatic push run `36214024020` was canceled so the manual run
+could supply both ordinary jobs and the required latency matrix on the same SHA.
+No implementation changed during this run. Ubuntu 24.04, Python 3.12, Node
+24.21.0, pinned native Dogwood, locked dependencies and `HIRZ_LLM=off` were used;
+CI's explicitly migrated databases and Compose projects are disposable.
+
+All ten ordinary jobs passed. The existing release job is a placeholder and
+does not prove publication or deployment. Completed job logs were read with
+`gh api repos/BashaarJavaid/Hirz/actions/jobs/<job-id>/logs`; private local copies
+are `/private/tmp/hirz-item28-ci-{python,cedar,conformance,scenarios,build}.log`.
+
+| Check | Result |
+|---|---|
+| Service-free Python tests | 1,469 passed, 179 deselected, 2 warnings; 259.75s |
+| Disposable PostgreSQL integration, including authenticated MCP isolation | 177 passed, 1,471 deselected, 2 warnings; 399.55s |
+| Combined Python coverage | 91%; 13,834 statements, 1,187 missed; 80% gate passed |
+| Native Cedar/compiler agreement | 159 passed; 169.46s |
+| Combined companion browser acceptance | 1 passed; 1.7m; independent signed exports verified by the harness |
+| Unchanged reference host with real authenticated calls | 1 passed; 2.7s |
+| Linux Chromium card baselines and behavior | 38 passed; 1.8m |
+| Independent twelve-tool checker | 117 PASS, 0 FAIL/WARN/SKIP, 8 MANUAL; complete, no missing evidence |
+| MCP smoke audit | 628 signed rows, independently verified valid |
+| Packaging | Python sdist/wheel, fresh-wheel import/CLI, 40 catalogs, five cards, companion assets, Docker build and UID 10001 checks passed |
+| Scenarios | Evening, Hourly and parents scoped checks passed; real HA demo API lamp restoration verified |
+
+Python warnings are existing Starlette/httpx and AnyIO BlockingPortal deprecations.
+Both language lint/type jobs and workspace tests passed. The manual checker items
+remain its declared scope, not Amazon certification. The scenario job's historical
+fixtures do not provide companion authentication evidence; the separate companion
+flow does. Real HA demo API restoration is not physical-lock evidence.
+
+At this checkpoint both latency jobs were still running. Their final results will
+be appended below; this paragraph does not claim the full run has passed.
+
+#### Final CI result
+
+The same run completed **success** at `2026-09-26T04:06:18Z` (2026-09-25
+Pacific): all twelve jobs passed, including both manual latency jobs. Confirmed
+with `gh run view 36214024113 --json status,conclusion,headSha,event,jobs`;
+`gh run view 36214024113 --log` is retained privately at
+`/private/tmp/hirz-item28-ci-36214024113.log`. Separate timing logs are
+`/private/tmp/hirz-item28-ci-latency-{evening,hourly}.log`.
+
+Each scenario passed **54 cases and all twelve tool aggregates** at warm raw
+HTTP round-trip p95 ≤ 250 ms. Time of Day took **2,490.38s**; its maximum case p95
+was **186.037 ms** (`objective-greenest`) and maximum tool p95 **141.712 ms**
+(`get_household_plan`). Hourly took **2,982.22s**; the corresponding maxima were
+**222.861 ms** and **156.194 ms**, for the same case/tool. The established
+five-warmup/100-measured-sample, nearest-rank protocol, SDK reference checks,
+corpus and threshold are unchanged; no samples were discarded or failed run
+retried. These are local twin measurements on CI, not AWS/host cold-start claims.
+The complete payload-free timing tables below are extracted from those logs.
+
+UI, adversarial security, runtime propagation, independently verified retained
+audit exports, packaging, regression and required CI evidence are now recorded.
+**Item 28 remains incomplete only for actual Web Push reception and the resulting
+authenticated approval on a compatible iPhone Home Screen app.** The author's
+iOS 15.7.9 device cannot supply that gate, and no compatible replacement is
+available. Real phone passkey → twin unlock → verified relock already passed;
+it need not be repeated to stand in for push. Controlled push failure/retry
+tests do not prove device delivery. Bedrock remained off and the spending ledger
+was preserved. Real check-in delivery, live drafting, physical lock execution,
+AWS analysis, anchoring and signer-side passkey guarantees remain their explicitly
+deferred items. No threat-model claims were advanced.
+
+The subsequent evidence/roadmap/changelog/instruction-file commit changes only
+documentation; CI above verifies implementation `b537dc2`, not an unrun code
+revision. Final format/diff checks are recorded after the timing tables.
+
+**demo-evening / cases — raw round-trip milliseconds**
+
+| Name | n | Min | Median | p95 | Max | Gate | SDK n | SDK median | SDK p95 | SDK max |
+|---|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|
+| onboarding | 100 | 4.481 | 4.884 | 5.562 | 6.748 | PASS | 100 | 47.663 | 48.530 | 49.515 |
+| context-all | 100 | 14.549 | 54.049 | 55.076 | 137.148 | PASS | 100 | 66.121 | 70.023 | 75.067 |
+| context-people | 100 | 13.793 | 53.517 | 55.865 | 58.664 | PASS | — | — | — | — |
+| proposal-fresh | 100 | 43.333 | 83.562 | 94.714 | 177.604 | PASS | — | — | — | — |
+| proposal-retry | 100 | 49.558 | 50.931 | 52.836 | 147.966 | PASS | — | — | — | — |
+| plan-first | 100 | 80.939 | 82.948 | 90.940 | 204.074 | PASS | — | — | — | — |
+| plan-ready | 100 | 61.733 | 63.572 | 77.155 | 162.464 | PASS | — | — | — | — |
+| explain-summary | 100 | 35.345 | 36.380 | 114.367 | 200.583 | PASS | — | — | — | — |
+| explain-conflicts | 100 | 35.425 | 36.269 | 65.164 | 117.848 | PASS | — | — | — | — |
+| explain-goal | 100 | 35.365 | 36.276 | 42.410 | 128.023 | PASS | — | — | — | — |
+| explain-action | 100 | 36.071 | 36.843 | 114.379 | 396.341 | PASS | — | — | — | — |
+| plan-approval | 100 | 100.444 | 102.632 | 141.915 | 263.953 | PASS | — | — | — | — |
+| objective-most_comfortable | 100 | 96.423 | 99.865 | 177.762 | 191.380 | PASS | — | — | — | — |
+| stale-approval-most_comfortable | 100 | 68.004 | 69.815 | 76.000 | 177.227 | PASS | — | — | — | — |
+| objective-greenest | 100 | 104.137 | 107.416 | 186.037 | 228.309 | PASS | — | — | — | — |
+| stale-approval-greenest | 100 | 30.517 | 69.859 | 72.873 | 225.949 | PASS | — | — | — | — |
+| objective-cheapest | 100 | 99.044 | 102.614 | 185.940 | 197.124 | PASS | — | — | — | — |
+| stale-approval-cheapest | 100 | 30.903 | 69.651 | 76.181 | 163.207 | PASS | — | — | — | — |
+| revision-car | 100 | 95.625 | 102.044 | 168.491 | 322.674 | PASS | — | — | — | — |
+| revision-retry-car | 100 | 50.050 | 51.105 | 52.683 | 61.324 | PASS | — | — | — | — |
+| revision-dishwasher | 100 | 99.809 | 106.348 | 180.015 | 276.676 | PASS | — | — | — | — |
+| revision-retry-dishwasher | 100 | 11.216 | 51.509 | 53.274 | 54.862 | PASS | — | — | — | — |
+| revision-guest | 100 | 100.973 | 106.124 | 118.920 | 201.404 | PASS | — | — | — | — |
+| revision-retry-guest | 100 | 13.275 | 51.466 | 53.072 | 55.815 | PASS | — | — | — | — |
+| same-second-approval | 100 | 30.521 | 70.389 | 75.147 | 241.801 | PASS | — | — | — | — |
+| plan-cancel | 100 | 80.941 | 83.155 | 99.472 | 234.673 | PASS | — | — | — | — |
+| action-temperature | 100 | 40.080 | 79.869 | 87.311 | 145.803 | PASS | — | — | — | — |
+| action-door | 100 | 41.849 | 82.773 | 89.749 | 180.738 | PASS | — | — | — | — |
+| security-approval | 100 | 28.382 | 29.410 | 34.114 | 140.349 | PASS | — | — | — | — |
+| action-claimed-door | 100 | 41.071 | 42.238 | 50.061 | 302.894 | PASS | — | — | — | — |
+| action-ambiguous | 100 | 14.763 | 53.333 | 54.158 | 57.852 | PASS | — | — | — | — |
+| action-profile | 100 | 62.435 | 104.218 | 113.037 | 203.816 | PASS | — | — | — | — |
+| permission-preview | 100 | 22.233 | 62.063 | 64.140 | 142.030 | PASS | — | — | — | — |
+| light-fresh | 100 | 77.420 | 78.873 | 91.666 | 162.551 | PASS | — | — | — | — |
+| light-retry | 100 | 10.941 | 11.440 | 12.385 | 50.409 | PASS | — | — | — | — |
+| audit-today | 100 | 31.226 | 83.546 | 94.933 | 98.721 | PASS | — | — | — | — |
+| audit-last_night | 100 | 52.276 | 102.956 | 113.153 | 172.855 | PASS | — | — | — | — |
+| audit-first-page | 100 | 39.429 | 83.753 | 94.621 | 99.131 | PASS | — | — | — | — |
+| audit-next-page | 100 | 61.888 | 83.925 | 94.449 | 104.398 | PASS | — | — | — | — |
+| pause | 100 | 55.722 | 95.576 | 116.359 | 193.930 | PASS | — | — | — | — |
+| missing-input-request | 100 | 47.399 | 80.709 | 88.410 | 233.173 | PASS | — | — | — | — |
+| missing-input-failure | 100 | 12.385 | 52.574 | 53.271 | 56.723 | PASS | — | — | — | — |
+| risk-not_genuine | 100 | 44.996 | 85.339 | 96.701 | 167.756 | PASS | — | — | — | — |
+| risk-retry-not_genuine | 100 | 50.065 | 51.014 | 52.714 | 56.795 | PASS | — | — | — | — |
+| verify-start-not_genuine | 100 | 96.106 | 98.160 | 105.223 | 243.121 | PASS | — | — | — | — |
+| verify-retry-not_genuine | 100 | 14.032 | 51.462 | 53.251 | 132.586 | PASS | — | — | — | — |
+| verify-pending-not_genuine | 100 | 12.979 | 53.141 | 54.421 | 56.441 | PASS | — | — | — | — |
+| verify-not_genuine | 100 | 12.190 | 52.768 | 53.973 | 55.419 | PASS | — | — | — | — |
+| risk-no_answer | 100 | 47.590 | 85.692 | 143.975 | 166.791 | PASS | — | — | — | — |
+| risk-retry-no_answer | 100 | 11.415 | 51.015 | 51.907 | 129.060 | PASS | — | — | — | — |
+| verify-start-no_answer | 100 | 58.183 | 99.087 | 110.636 | 130.264 | PASS | — | — | — | — |
+| verify-retry-no_answer | 100 | 50.546 | 51.437 | 52.237 | 54.422 | PASS | — | — | — | — |
+| verify-pending-no_answer | 100 | 52.181 | 52.749 | 55.353 | 130.829 | PASS | — | — | — | — |
+| verify-no_answer | 100 | 14.730 | 52.755 | 54.624 | 56.650 | PASS | — | — | — | — |
+
+**demo-evening / tools — raw round-trip milliseconds**
+
+| Name | n | Min | Median | p95 | Max | Gate | SDK n | SDK median | SDK p95 | SDK max |
+|---|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|
+| what_can_you_do | 100 | 4.481 | 4.884 | 5.562 | 6.748 | PASS | — | — | — | — |
+| get_household_context | 200 | 13.793 | 53.964 | 55.382 | 137.148 | PASS | — | — | — | — |
+| propose_household_rule | 200 | 43.333 | 53.904 | 91.695 | 177.604 | PASS | — | — | — | — |
+| get_household_plan | 700 | 12.385 | 83.230 | 141.712 | 233.173 | PASS | — | — | — | — |
+| explain_plan | 400 | 35.345 | 36.459 | 96.793 | 396.341 | PASS | — | — | — | — |
+| approve_action | 700 | 28.382 | 70.258 | 107.135 | 263.953 | PASS | — | — | — | — |
+| revise_household_plan | 600 | 11.216 | 78.475 | 123.289 | 322.674 | PASS | — | — | — | — |
+| execute_household_action | 800 | 10.941 | 79.295 | 106.305 | 302.894 | PASS | — | — | — | — |
+| evaluate_permission | 100 | 22.233 | 62.063 | 64.140 | 142.030 | PASS | — | — | — | — |
+| get_action_audit | 400 | 31.226 | 86.392 | 106.826 | 172.855 | PASS | — | — | — | — |
+| assess_request_risk | 400 | 11.415 | 54.225 | 92.062 | 167.756 | PASS | — | — | — | — |
+| verify_trusted_identity | 800 | 12.190 | 52.806 | 99.463 | 243.121 | PASS | — | — | — | — |
+
+**demo-evening-hourly / cases — raw round-trip milliseconds**
+
+| Name | n | Min | Median | p95 | Max | Gate | SDK n | SDK median | SDK p95 | SDK max |
+|---|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|
+| onboarding | 100 | 5.511 | 5.942 | 7.269 | 8.679 | PASS | 100 | 50.369 | 51.862 | 54.545 |
+| context-all | 100 | 55.799 | 57.384 | 61.143 | 135.591 | PASS | 100 | 73.459 | 79.411 | 86.101 |
+| context-people | 100 | 54.688 | 56.676 | 61.281 | 62.019 | PASS | — | — | — | — |
+| proposal-fresh | 100 | 92.977 | 96.451 | 109.403 | 192.579 | PASS | — | — | — | — |
+| proposal-retry | 100 | 52.368 | 53.416 | 55.441 | 60.036 | PASS | — | — | — | — |
+| plan-first | 100 | 90.882 | 95.193 | 106.781 | 250.713 | PASS | — | — | — | — |
+| plan-ready | 100 | 78.858 | 82.562 | 148.987 | 182.071 | PASS | — | — | — | — |
+| explain-summary | 100 | 43.770 | 46.695 | 60.463 | 178.318 | PASS | — | — | — | — |
+| explain-conflicts | 100 | 44.262 | 46.831 | 123.135 | 160.752 | PASS | — | — | — | — |
+| explain-goal | 100 | 43.816 | 46.954 | 55.333 | 132.553 | PASS | — | — | — | — |
+| explain-action | 100 | 44.768 | 47.425 | 61.118 | 147.092 | PASS | — | — | — | — |
+| plan-approval | 100 | 125.389 | 132.028 | 160.926 | 242.324 | PASS | — | — | — | — |
+| objective-most_comfortable | 100 | 123.967 | 130.043 | 196.802 | 203.088 | PASS | — | — | — | — |
+| stale-approval-most_comfortable | 100 | 34.671 | 37.593 | 42.494 | 46.469 | PASS | — | — | — | — |
+| objective-greenest | 100 | 131.951 | 138.984 | 222.861 | 262.681 | PASS | — | — | — | — |
+| stale-approval-greenest | 100 | 34.829 | 37.720 | 43.762 | 125.918 | PASS | — | — | — | — |
+| objective-cheapest | 100 | 119.383 | 127.330 | 193.003 | 221.619 | PASS | — | — | — | — |
+| stale-approval-cheapest | 100 | 35.098 | 37.752 | 45.740 | 48.610 | PASS | — | — | — | — |
+| revision-car | 100 | 123.474 | 129.495 | 149.275 | 201.797 | PASS | — | — | — | — |
+| revision-retry-car | 100 | 52.409 | 53.877 | 56.028 | 134.728 | PASS | — | — | — | — |
+| revision-dishwasher | 100 | 114.739 | 119.867 | 131.372 | 142.330 | PASS | — | — | — | — |
+| revision-retry-dishwasher | 100 | 52.294 | 54.182 | 55.500 | 59.046 | PASS | — | — | — | — |
+| revision-guest | 100 | 116.703 | 120.584 | 137.699 | 194.855 | PASS | — | — | — | — |
+| revision-retry-guest | 100 | 52.929 | 54.091 | 56.814 | 58.792 | PASS | — | — | — | — |
+| same-second-approval | 100 | 38.228 | 78.793 | 87.250 | 92.663 | PASS | — | — | — | — |
+| plan-cancel | 100 | 106.773 | 111.416 | 132.293 | 184.308 | PASS | — | — | — | — |
+| action-temperature | 100 | 86.907 | 91.854 | 104.260 | 108.450 | PASS | — | — | — | — |
+| action-door | 100 | 51.047 | 55.011 | 64.698 | 137.701 | PASS | — | — | — | — |
+| security-approval | 100 | 34.490 | 36.897 | 43.626 | 49.674 | PASS | — | — | — | — |
+| action-claimed-door | 100 | 51.061 | 55.174 | 63.348 | 157.485 | PASS | — | — | — | — |
+| action-ambiguous | 100 | 14.890 | 16.719 | 20.509 | 32.509 | PASS | — | — | — | — |
+| action-profile | 100 | 77.855 | 83.170 | 101.902 | 159.429 | PASS | — | — | — | — |
+| permission-preview | 100 | 24.559 | 27.099 | 32.530 | 34.757 | PASS | — | — | — | — |
+| light-fresh | 100 | 85.023 | 88.776 | 99.528 | 192.179 | PASS | — | — | — | — |
+| light-retry | 100 | 13.322 | 14.244 | 17.811 | 99.428 | PASS | — | — | — | — |
+| audit-today | 100 | 25.527 | 44.045 | 57.107 | 60.782 | PASS | — | — | — | — |
+| audit-last_night | 100 | 64.797 | 94.559 | 104.725 | 119.578 | PASS | — | — | — | — |
+| audit-first-page | 100 | 30.008 | 83.310 | 97.379 | 108.507 | PASS | — | — | — | — |
+| audit-next-page | 100 | 40.842 | 84.183 | 96.407 | 104.854 | PASS | — | — | — | — |
+| pause | 100 | 72.489 | 112.409 | 126.259 | 197.492 | PASS | — | — | — | — |
+| missing-input-request | 100 | 48.440 | 52.061 | 62.637 | 131.869 | PASS | — | — | — | — |
+| missing-input-failure | 100 | 14.337 | 15.786 | 18.268 | 20.669 | PASS | — | — | — | — |
+| risk-not_genuine | 100 | 55.060 | 96.962 | 106.108 | 110.648 | PASS | — | — | — | — |
+| risk-retry-not_genuine | 100 | 51.807 | 53.537 | 57.143 | 148.743 | PASS | — | — | — | — |
+| verify-start-not_genuine | 100 | 111.128 | 115.214 | 127.343 | 209.617 | PASS | — | — | — | — |
+| verify-retry-not_genuine | 100 | 12.895 | 53.375 | 54.777 | 56.211 | PASS | — | — | — | — |
+| verify-pending-not_genuine | 100 | 14.227 | 55.430 | 57.050 | 59.127 | PASS | — | — | — | — |
+| verify-not_genuine | 100 | 15.059 | 55.183 | 57.399 | 123.503 | PASS | — | — | — | — |
+| risk-no_answer | 100 | 56.241 | 97.130 | 103.625 | 110.303 | PASS | — | — | — | — |
+| risk-retry-no_answer | 100 | 51.964 | 53.228 | 56.289 | 58.053 | PASS | — | — | — | — |
+| verify-start-no_answer | 100 | 110.892 | 116.054 | 130.304 | 185.107 | PASS | — | — | — | — |
+| verify-retry-no_answer | 100 | 13.340 | 53.261 | 54.314 | 122.251 | PASS | — | — | — | — |
+| verify-pending-no_answer | 100 | 14.459 | 55.121 | 56.623 | 57.866 | PASS | — | — | — | — |
+| verify-no_answer | 100 | 14.440 | 54.983 | 56.795 | 60.506 | PASS | — | — | — | — |
+
+**demo-evening-hourly / tools — raw round-trip milliseconds**
+
+| Name | n | Min | Median | p95 | Max | Gate | SDK n | SDK median | SDK p95 | SDK max |
+|---|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|
+| what_can_you_do | 100 | 5.511 | 5.942 | 7.269 | 8.679 | PASS | — | — | — | — |
+| get_household_context | 200 | 54.688 | 57.033 | 61.267 | 135.591 | PASS | — | — | — | — |
+| propose_household_rule | 200 | 52.368 | 76.506 | 102.206 | 192.579 | PASS | — | — | — | — |
+| get_household_plan | 700 | 14.337 | 96.742 | 156.194 | 262.681 | PASS | — | — | — | — |
+| explain_plan | 400 | 43.770 | 46.926 | 60.463 | 178.318 | PASS | — | — | — | — |
+| approve_action | 700 | 34.490 | 41.020 | 135.160 | 242.324 | PASS | — | — | — | — |
+| revise_household_plan | 600 | 52.294 | 115.044 | 136.525 | 201.797 | PASS | — | — | — | — |
+| execute_household_action | 800 | 13.322 | 78.002 | 113.789 | 197.492 | PASS | — | — | — | — |
+| evaluate_permission | 100 | 24.559 | 27.099 | 32.530 | 34.757 | PASS | — | — | — | — |
+| get_action_audit | 400 | 25.527 | 80.119 | 102.382 | 119.578 | PASS | — | — | — | — |
+| assess_request_risk | 400 | 51.807 | 57.023 | 102.003 | 148.743 | PASS | — | — | — | — |
+| verify_trusted_identity | 800 | 12.895 | 55.186 | 119.329 | 209.617 | PASS | — | — | — | — |
+
+Final record checks: `.venv/bin/ruff format --check .` reported **277 files
+already formatted**; `git diff --check` and `cmp AGENTS.md CLAUDE.md` exited 0.
+The format check is repeated after this evidence is recorded, before committing
+the documentation-only update with `[skip ci]`. No further third-party friction
+was encountered beyond the capture-review follow-up already recorded above.
+
+## Item 29
+
+### Local implementation checkpoint — 2026-09-26
+
+Item 29 remains **partial**. The implementation and boundary decisions are in
+[ADR-020](./adr/ADR-020-simulator.md); the repeatable launcher procedure is in
+[development](./development.md#item-29-disposable-simulator). Item 28's remaining
+physical Web Push check is unchanged.
+
+The first complete service-free run passed **1,477 tests**. The full PostgreSQL
+run passed **177 tests**, producing **89% combined coverage** (14,555 statements,
+1,672 missed at that checkpoint). The new real-HTTP elicitation integration test
+also passed: accept/decline/cancel of missing duration, independent PostgreSQL
+NOWAIT lock acquisition during the prompt, cross-account session rejection and
+unsupported-client typed clarification. Twelve simulator units cover expiry,
+switch cancellation, exact policy/principal/request bindings, invalid/timeout/revoked
+response refusal, origin/CSRF, stale prompt IDs, card CSP and concurrent aggregate
+spending. Four raw/SDK request identity/statistics checks pass with SSE/session IDs.
+The final full service-free rerun is recorded separately when finished.
+
+Commands used the existing `.venv` Python 3.12 environment, native `.tools/dogwood`
+and `.tools/dogwood-helper`, and Docker PostgreSQL with uniquely named disposable
+databases. No development migration ran. Early browser checks used the shell's
+Node 23; the final UI/keyboard run and repeated workspace checks explicitly selected
+`/opt/homebrew/opt/node@24/bin`. Workspace lint, TypeScript checking and five Vitest
+checks passed; strict mypy passed for 182 source files. Ruff checks passed, with
+final formatting still repeated after documentation updates.
+
+The official SDK OAuth smoke passed discovery, explicit S256 consent, authenticated
+session initialization, token refresh, denial, wrong-audience rejection and distinct
+adult/owner membership for the same subject in two homes. The full isolation corpus
+passed with signed exports. The independent twelve-tool checker passed **117 checks,
+zero failures/warnings/skips, eight manual items**, after a real MCP restart; its
+611-row export independently verified. Commands:
+
+```sh
+HIRZ_DOGWOOD="$PWD/.tools/dogwood" HIRZ_LLM=off .venv/bin/python scripts/smoke_oauth.py
+HIRZ_DOGWOOD="$PWD/.tools/dogwood" HIRZ_LLM=off .venv/bin/python scripts/smoke_tool_budget.py --mode isolation --artifacts-dir /tmp/hirz-item29-isolation
+HIRZ_DOGWOOD="$PWD/.tools/dogwood" HIRZ_LLM=off .venv/bin/python scripts/smoke_household_tools.py --audit-output /tmp/hirz-item29-conformance-audit.json --conformance-cli ../addon-check/dist/cli.js
+.venv/bin/pytest tests/integration/test_simulator_transport.py -m integration --cov=hirz --cov-append
+```
+
+Private evidence is retained under ignored `secrets/item29-20260926/`: `browser9`,
+`parents-dot4`, `parents-show1`, `evening-show2`, `isolation`, the conformance export
+and command logs. Browser tests used virtual authenticators with real companion
+verification/enrollment/activation endpoints and genuine PKCE consent/MCP calls.
+The basic test passed in 22.2 seconds on Node 24, including actual card result
+notifications, both themes/contrast, responsive captures, account clearing, no Dot
+iframe, keyboard focus into a confirmation, and refusal of the subsequent real MCP
+scalar question. The dark/light/mobile captures were reviewed; physical speech and
+screen-reader acceptance are not claimed.
+
+| Host | Evening Show | Evening Dot | Parents Show | Parents Dot |
+|---|---|---|---|---|
+| Scripted | Timeline/phone/ending verified | Corrected rerun in progress | Passed | Passed |
+| Haiku 4.5 | Pending credentials | Pending credentials | Pending credentials | Pending credentials |
+| Nova Lite | Pending credentials | Pending credentials | Pending credentials | Pending credentials |
+
+Parents Show/Dot reached all five events and retained 64/61 verified signed rows,
+respectively. Both used Mom's separate enrollment and seed activation, two separately
+confirmed tools at the scam beat, a selected `not_genuine` simulated reply through
+the genuine verification command, and a later explicit status request. No unsolicited
+speech was added by the reply. No real contact delivery is claimed.
+
+The corrected evening Show run reached 21 events, including the actual matching
+voice proposal, deterministic review and passkey activation of version 8; four
+separately confirmed constraint calls; unexpected-visitor denial; a distinct Dad
+link/history; and passkey approval with an actual unlocked read-back. Its 3,984-row
+signed chain contains the door's `VERIFIED` opening at `2026-10-14T00:05:00Z`, an
+`ENDING_AUTHORIZED` locked ending due at `00:15:00Z`, and the ending's `VERIFIED`
+event at exactly `00:15:00Z`. These are twin results. Source scenario deferred
+assertions, old snapshot savings and real-device/Link guarantees are not counted as
+passed by this new public-tool run. Final scenario state is retained by subsequent
+launcher runs, with dollar/kWh figures taken only from genuine returned plans.
+
+Earlier evening Dot playback reached the end but was **not accepted**: audit review
+found that the browser navigated away before the passkey ceremony completed. The
+test now waits for the unlocked read-back, playback refuses an unapproved companion
+beat, and launcher acceptance requires signed opening plus bounded ending evidence.
+Other discarded browser attempts exposed test redirect forwarding, null optional
+protocol fields in bridge notifications, dark-theme inheritance, a missing scenario
+adapter start, and same-timestamp observation ordering; these were corrected and
+rerun. Failed disposable databases were retained by the existing failure policy.
+Playwright routing friction is recorded once in the friction log.
+
+Both attempted live host checks stopped **before inference** with
+`CredentialRetrievalError: Error when retrieving credentials from custom-process`
+and `Your session has expired. Please reauthenticate using 'aws login'.`
+No CountTokens/inference call or reservation was reached; no paid completion is
+claimed. The existing $2 ledger was untouched. The user was asked to refresh
+`aws login --profile hirz`; further paid attempts must use the same separate item-29
+$5 ledger, recommended at `secrets/item29-host-budget.json` (none was charged by
+these failed credential checks). Current prices and sources are recorded in ADR-020.
+
+Remaining at this checkpoint: corrected evening Dot evidence and final-state review;
+eight live-model matrix cells and counting/failure acceptance with refreshed AWS
+credentials; physical Mac Chrome microphone/speaker and real-passkey simulator
+acceptance; the complete adversarial wait/resume/disconnect matrix beyond the
+specific checked cases; and required CI regression/latency gates. A local full
+latency diagnostic is running separately and is not the CI gate of record. No
+item-29 closure, harness extraction, recording Compose, real contact delivery,
+physical lock or AWS security claim is made.
+
+### Simulator continuation: energy end states and live provider checks — 2026-09-26
+
+The final service-free run completed **1,481 passed, 180 deselected**, with combined
+coverage still **89%** (14,623 statements, 1,617 missed). The subsequent requester
+review regression and real SDK transport run completed **2 passed in 9.87s** against
+disposable PostgreSQL/native Dogwood: policy changes during the prompt require a
+new confirmation, profile children receive independent decisions, and advancing
+wall time does not endlessly invalidate an immediate request. This policy-swap
+probe swaps an evaluated test bundle; it does not claim persisted passkey activation.
+
+End-state inspection disqualified the earlier evening Dot3 timeline result:
+its final car SOC was 0.3742427083333334 and dishwasher completions were zero.
+The public planning worker had ignored the explicit scenario EV deadline, and
+playback advanced past runtime approval requests. The worker now retains the
+scenario deadline, and playback pauses on new consent requirements. The current
+plan exposes the actual pending canonical Decision for public-tool approval.
+Dot4 then completed with **4,937 independently verified signed rows**, final SOC
+**0.49999999992435573**, one dishwasher completion, and a verified bounded door
+ending. Show3 additionally recorded that same SOC at **2026-10-14T11:30:00Z
+(06:30 Chicago)**, one completed dishwasher cycle and one signed bounded unlock.
+The browser test passed, but disposable cleanup failed with PostgreSQL
+`ObjectInUse` (one outstanding connection); that database was retained. The
+launcher now settles host/card requests before server teardown and audit export.
+These runs supersede the earlier timeline-only energy evidence; final reruns and
+CI remain outstanding.
+
+AWS login recovery required **`aws login --profile hirz-login`**, not the earlier
+suggested `hirz` profile: inspected configuration showed `hirz` delegates through
+`aws configure export-credentials --profile hirz-login --format process`.
+STS verified the refreshed credentials. Paid attempts now use the durable private
+`secrets/item29-host-budget.json`; all attempts remain included, and the existing
+$2 ledger is unchanged. **Haiku parents Dot passed in 31.9 seconds** with genuine
+risk assessment, verification start, human-selected simulated reply and an explicit
+follow-up status read. An earlier Haiku attempt selected only risk assessment;
+subsequent host guidance requires the identity check as well. Show attempts exposed
+an OAuth test navigation race and background-card history/speech interference;
+those checks are being rerun after fixes. No unpassed live cell is claimed.
+
+Nova's first Dot attempt stopped before inference. A separate free CountTokens
+probe reproduced `ValidationException: The provided model doesn't support counting tokens.`
+The four required Nova cells remain blocked by the approved pre-counting rule;
+no estimated count, substituted model or Nova inference was used. Exact third-party
+friction and links are in the friction log. Physical Chrome voice/passkey acceptance,
+the remaining adversarial matrix, final regression and required CI latency gates
+still prevent item closure.
+
+### Simulator acceptance continuation — 2026-09-26
+
+Service-free regression completed **1,481 passed, 181 deselected in 225.46s**;
+combined coverage remained **89%** (14,730 statements, 1,570 missed). The focused
+scalar, coordinator/time and appliance regression subsequently passed **75 tests
+in 7.01s**, including disconnect failure and an actual pending browser prompt
+cancelled by account switching. Node 24 workspace lint/type checks and all five
+Vitest checks passed; strict mypy passed 182 files. Full final integration and CI
+are still running at this checkpoint.
+
+Scripted evening Dot5 passed the full browser run with clean disposable cleanup,
+**4,799 independently verified signed rows**, one verified bounded door opening
+and ending, one dishwasher completion and SOC **0.49999999994957056** at the
+06:30 deadline. Haiku parents Dot2 and Show5 both completed with **100 signed rows**
+each. These private runs and logs are retained under `secrets/item29-20260926`.
+Evening Show4 was rejected despite completed browser playback: its dishwasher
+was one microsecond short of completion. The bounded appliance precision change
+is documented in ADR-006 and checked across appliance profiles; Show is rerunning.
+
+Paid evening attempts remain incomplete. They exposed parallel selections exceeding
+512 tokens, uppercase AM/PM parsing, an output-detail overflow, ambiguous time-field
+selection and redundant model reference questions. Native single-tool selection,
+field-specific validation, bounded output details and explicit reference guidance
+address those findings; no failed cell is counted as passed. The aggregate ledger
+retains every counted attempt. Nova remains blocked before inference by its native
+CountTokens rejection.
+
+CI run [36286231502](https://github.com/BashaarJavaid/Hirz/actions/runs/36286231502)
+passed the Python test/coverage stages but the combined Python job failed when the
+simulator launcher found no explicitly initialized simulated OAuth key. The workflow
+now runs `scripts/dev_oauth.py init` before the launcher. Its isolated latency jobs
+are still running; this is not a passing CI claim. The local concurrent latency
+diagnostic was interrupted after evening rounds and is not accepted as a gate.
+
+The author enabled Tailscale for physical acceptance. A separate scripted manual
+launcher is running at the existing tailnet HTTPS origin, forwarding to loopback
+8012 with issuer 8013, and private invitations in `manual1`. Physical voice and
+passkey results remain pending; no human result is inferred from readiness.
+
+### Final integration, Show evidence and human voice report — 2026-09-26
+
+Full disposable PostgreSQL regression completed **179 passed, 1,483 deselected in
+671.20s**, with combined coverage **90%** (14,737 statements, 1,534 missed). After
+adding a genuine-tool-receipt history check and punctuation-preserving scripted
+matching, the focused host suite passed **14 tests in 7.51s**, coverage **90%**
+(14,752 statements, 1,516 missed). No development database was migrated.
+
+Scripted evening Show5 passed in **5.9 minutes**, then independently verified
+**5,097 signed rows**, one bounded unlock/relock, one completed dishwasher cycle,
+and EV SOC **0.4999999999747853 at 06:30**. Final scripted parents Show and Dot
+completed with **70 and 73 signed rows**, respectively. The retained parents Show
+capture shows the genuine delayed-result card through the installed bridge.
+Review of the evening capture exposed a lag in the test SSE proxy: reading one
+network chunk did not forward the entire current backlog. It now forwards through
+the real server heartbeat and asserts a rendered Show card before capture. A new
+evening Show run checks this and spoken casing/punctuation through actual activation.
+
+Haiku parents Show final3 passed in **42.0 seconds** with **103 signed rows** after
+replacing Strands' cancelled selection placeholder with the real MCP tool receipt.
+Earlier continuations using a separate user-message receipt were not accepted as
+reliable model history. Final parents Dot completed in **1.0 minute**; remaining
+live evening cells are running, with all attempts still charged to the same ledger.
+
+The author reported **“it worked”** after testing Mac Chrome speech recognition
+and the spoken response over Tailscale. This records the human microphone/speaker
+check only. Phone rule activation and door approval/relock are being checked
+separately and remain pending until reported and matched to signed evidence.
+
+### Physical acceptance found and corrected a phone regression — 2026-09-26
+
+The author reported that choosing the rule sentence appeared to do nothing and
+the phone app was dark. The sentence control had only populated an off-screen
+input; it now focuses and scrolls that input into view for the separate Send action.
+The shared production bundle contained MCP SDK class static initialization blocks,
+which the previously verified iOS 15.7.9 phone cannot parse. Vite now targets
+Safari 15.4; the rebuilt bundle contains **zero static blocks**. The author then
+reported **“its working now.”** This confirms restored phone rendering; activation
+and security acceptance are not inferred from that statement. The backend was
+not restarted, preserving real enrollment and sessions. Exact third-party findings
+and primary documentation are recorded in the friction log.
+
+The latest MCP and host unit suite passed **90 tests in 10.20s** after clarifying
+that `request_door_unlock` initiates current-policy evaluation and creates a phone
+approval request when allowed; phone approval is not a prerequisite for selecting
+that tool. Voice still cannot grant security authority. Earlier live evening
+attempts that stopped without selecting this new request remain failed cells.
+
+CI run [36288404300](https://github.com/BashaarJavaid/Hirz/actions/runs/36288404300)
+was dispatched on `3ceb792`, superseding the earlier incomplete dispatch and
+cancelling the redundant push run. It predates the phone compatibility repair and
+therefore cannot be claimed as the final revision's complete gate.
+
+The rebuilt default browser acceptance passed **23.9 seconds** with real enrollment,
+PKCE, card initialization/result delivery, keyboard focus, both themes and narrow
+Dot layout. The retained light and narrow captures were visually reviewed.
+Recorded-sentence selection now has an explicit focus/value assertion. The author
+subsequently reported a phone sign-in failure after biometrics; a fresh HTTPS
+login-start probe returned **200/login**, isolating this from the repaired rendering
+problem. A prior-run credential is a suspected cause, not a verified server diagnosis.
+The author was directed to the existing current-run recovery flow, with its credential
+revocation effect explained. No credential bypass, reset or new invitation was issued.
+
+### Acceptance checkpoint and reference-host regression — 2026-09-26
+
+The author confirmed **“Version 8 is active”** after the current proposal's real
+phone passkey activation. The expected-arrival phone approval and bounded twin
+relock remain pending; the manual launcher stays running so its eventual signed
+export can corroborate these reports without losing the enrolled credentials.
+
+Scripted evening Show final2 completed in **6.0 minutes**, retaining **4,940 signed
+rows**, one verified bounded unlock/relock, one dishwasher completion and EV SOC
+**0.4999999999747853 at 06:30**. Its full-page capture was blank in the off-screen
+iframe despite a successful DOM visibility assertion; that capture is not accepted
+as visual evidence. The browser harness now scrolls the iframe into view before
+capture. Default browser acceptance then passed **17.9s**, with its painted Show
+card visually reviewed; a complete evening capture rerun is pending. An initial
+bridge-reconnection diagnosis was withdrawn after confirming the callback already
+has stable identity; no speculative bridge change was made.
+
+Paid debugging stopped at **$4.3714836 reserved across 248 counted attempts** in
+the existing item 29 ledger. This is a reserved upper bound, not billed spend or
+cap exhaustion. Both Haiku parents cells pass; both evening cells remain failed
+because the model can stop without selecting a tool after valid clarification.
+The host now explicitly offers a user-selected Scripted mode when no tool was
+submitted. No automatic fallback or further paid retry was made. Nova's four
+cells remain blocked by native CountTokens support. All four scripted scenario
+cells have completed authenticated execution; the repaired final evening Show
+capture is tracked separately. Source-file deferred assertions remain deferred.
+
+CI [36288404300](https://github.com/BashaarJavaid/Hirz/actions/runs/36288404300)
+failed the existing reference-host browser step: `Expected: "get_household_context"`,
+`Timeout: 15000ms`, `Error: element(s) not found`. The test-only OAuth relay still
+discarded MCP session headers and mislabeled SSE as JSON after the authenticated
+server became stateful. It now forwards/exposes the browser's session identifier,
+preserves the upstream media type and permits DELETE cleanup. It never shares
+the fixture client's SDK session or exposes its OAuth credential. The unchanged
+real reference-host test passed **3.0s**, with **404 independently verified signed
+rows** retained before disposable-database cleanup. The relay's optional GET
+stream continues to return 405, as permitted by the MCP transport contract.
+Latency jobs and the subsequent regression run have not yet completed at this
+checkpoint. Retained evidence is under `secrets/item29-20260926`; the development
+database remains unchanged.
+
+### Final painted capture and current-membership probes — 2026-09-26
+
+The complete scripted evening Show capture rerun passed in **3.8 minutes** with
+**4,741 signed rows**, one verified bounded unlock/relock, and EV SOC
+**0.4999999998487115 at 06:30**. The final capture visibly renders the genuine plan
+card through the installed bridge and was reviewed. It preserves the derived
+negative estimated saving rather than replacing it with a favorable number.
+Artifacts and independent signed exports are retained in
+`secrets/item29-20260926/evening-show-capture-final`.
+
+Transport review found that a revoked member's GET reconnect or elicitation
+response could reach the SDK because neither envelope names a protected tool.
+The gate now checks current membership before either reaches the SDK. The existing
+rollback-only PostgreSQL role-change probe verifies **403** for both paths while
+preserving generic onboarding. Three database tests passed **17.92s**; a further
+genuine SDK callback probe verifies that another authenticated household cannot
+answer the pending question (**404**) and that the legitimate callback still
+completes. Its two tests passed **15.06s**. Auth/host units passed **24 tests in
+11.25s**; combined retained Python coverage remains **90%**. These do not claim
+every possible live disconnect/revocation interleaving.
+
+The author activated v8 inside the installed phone app, then found Safari and the
+recovered Mac companion signed out. Those are separate sessions. The recorded-demo
+Constitution page now offers **Open local simulator** within the same app; the
+real-backend browser check passed **15.1s** while asserting playback controls remain
+available after that navigation. The manual backend was not restarted, and no
+cookie transfer, passkey reset or authentication shortcut was added. Physical
+door approval and relock are still pending the author's continuation.
+
+The same-app controls were authenticated, but their generic error copy incorrectly
+told the author to sign in when a voice beat remained unfinished. Playback now
+shows the existing sanitized API detail. A genuine browser regression advances
+to the first voice beat and verifies the third Next event request shows
+`Finish this utterance through the named linked Echo first`; it passed **19.6s**.
+The author then reported that exact message. The earlier proposal/activation had
+happened before the playback beat, so it did not satisfy that beat's fresh-utterance
+check. The author was directed to submit its sentence through Malik's linked Echo;
+the already active v8 does not need another activation.
+
+### Fullscreen sizing and first completed latency gate — 2026-09-26
+
+The author confirmed playback advances. A later attempt to preview the already
+activated recorded patch exposed its generic version-conflict error. The endpoint
+now returns a specific **409** naming the fixture's base and current versions;
+the original version guard remains enforced. Three focused companion tests passed
+**3.95s**. The manual backend remains unchanged in memory, so that revised backend
+message applies on the next launcher run; the author was directed to continue
+playback using the already active policy.
+
+The first fullscreen probe incorrectly targeted the inline-only verification card;
+it failed and is retained as a harness error. An evening rerun completed **3.9min**
+with **5,002 signed rows** and one verified bounded unlock/relock, but review of its
+fullscreen capture found clipped controls: the host still advertised an 800-pixel
+height inside a shorter browser window. The host now reports the iframe's actual
+layout dimensions through native ResizeObserver and the existing bridge. Default
+real-backend acceptance passed **21.7s**, then **21.0s** with an explicit resize to
+1000×600, whole-card bounds assertions and Close details verification. Both corrected
+captures were reviewed. The test uses the genuine audit card and retains its final
+transcript before tearing down HTTPS routing; no fixture substitutes its tool result.
+
+The Hourly job in
+[36288404300](https://github.com/BashaarJavaid/Hirz/actions/runs/36288404300)
+passed all **54 cases and 12 tools**, with maximum displayed warm p95 **159.843ms**
+(`objective-cheapest`) against the unchanged **250ms** gate. Its payload-free log is
+retained privately. This measures core transport revision `3ceb792`; later membership
+rejection and UI refinements are not represented as that exact revision. The main
+evening latency job and final regression run remain pending at this checkpoint.
+
+### Both CI latency gates — 2026-09-26
+
+Both timing jobs in
+[36288404300](https://github.com/BashaarJavaid/Hirz/actions/runs/36288404300)
+completed successfully on `3ceb792`. Each passed **54 cases and all 12 tools**
+against warm p95 ≤ **250ms**. Evening's maximum displayed case p95 was **230.150ms**
+(`objective-greenest`); Hourly's was **159.843ms** (`objective-cheapest`). Their
+payload-free logs are retained in `secrets/item29-20260926/ci-evening-latency.log`
+and `ci-hourly-latency.log`. The overall run failed its earlier reference-host
+relay step, whose repair and local retest are recorded above; this is a timing-job
+pass, not an overall green run. Final-source regression on `9af1ec2` remains
+in progress. Later membership rejection and UI refinements are not claimed as
+measured by this older timing revision.
+
+### Final-source CI and resumed manual acceptance — 2026-09-27
+
+[CI 36290958133](https://github.com/BashaarJavaid/Hirz/actions/runs/36290958133)
+completed **successfully** on source revision `9af1ec2`. Service-free Python tests
+passed **1,484 tests in 268.34s**; PostgreSQL integration passed **179 in 438.66s**.
+The fresh combined coverage gate passed at **89%** (14,755 statements, 1,678 missed),
+above the required 80%. Companion browser acceptance passed **1.8min**, simulator
+acceptance **19.8s**, the unchanged reference host **2.8s**, and **38** card browser
+checks passed in **1.8min**. Build, lint, strict typing, TypeScript tests, native
+Cedar conformance and scoped scenario regressions also passed. The scenario job
+verified real-API demo lamp restoration; its explicitly deferred assertions remain
+deferred. This push run skipped latency by design; the two successful dispatch
+jobs and their older measured revision are recorded immediately above.
+
+The independent tool checker passed **117 checks**, zero failures, warnings or
+skips, with **eight manual items** retained. Its **614-row** signed export verified
+offline. Completed Python, conformance and scenario job logs are retained privately
+under `secrets/item29-20260926/ci-final-*.log`. These CI results do not turn the
+failed Haiku evening cells, blocked Nova counting, remaining adversarial
+interleavings or physical acceptance into passes.
+
+When manual acceptance resumed, the author's Mac screenshot showed Malik's Echo
+selected but **Link Echo with consent**, indicating no current link in that browser
+session. The author was directed to consent again, submit the displayed evening
+sentence on the Mac and then advance playback in the authenticated phone app.
+The simulator's real-time session expiry is independent of scenario time. No
+server restart, policy reactivation, credential reset or authority shortcut was
+performed. Real phone door approval and bounded twin relock remain unconfirmed.
+
+### Recorded utterance apostrophes — 2026-09-27
+
+The author relinked Malik's Echo, then submitted `whats going on tonight?` and
+received the scripted unsupported response. Inspection reproduced the cause:
+the shared utterance key normalized case and sentence punctuation but retained
+apostrophes, so this differed from the recorded `What's going on tonight?`.
+The same key serves scripted selection and scenario beat completion. It now
+ignores straight and curly apostrophes in both paths; it still preserves letters,
+negation and numeric punctuation. The focused simulator suite passed **14 tests
+in 1.51s**, including the reported spelling, refusal of a negated light request
+without its apostrophe, and the existing decimal-value guard.
+
+The active manual backend was deliberately not restarted. The author was directed
+to use the existing Recorded utterances button and then Send, which supplies the
+exact supported sentence to that older process. No live hot patch or inferred
+scenario completion was performed. The earlier green CI remains evidence for
+`9af1ec2`, not this subsequent normalization change.
+
+### Manual approval crash and dispatch regression — 2026-09-27
+
+The author reached event 5 after the straight-apostrophe request and later reached
+the expected-arrival phone approval. The manual server then stopped with
+`PipelineError: Execution claim refused; no dispatch authorized`. Its failure
+cleanup retained database `hirz_ha_smoke_3673a2f2dcb0471fa0db8adf330be77b` and
+`secrets/item29-20260926/manual1` exports. Independent offline verification passed
+all **102,359 signed rows**. The phone's APPROVED event persisted, followed by
+redemption and ending authorization, but the opening has **no execution attempt**;
+the final twin read-back is **locked**, with **zero verified bounded unlocks**.
+Approval acceptance is not reported as door execution or manual acceptance.
+
+The one-minute request was scheduled at 00:04 and approved at the scenario's
+00:05 companion beat. The executor deliberately excludes security duration from
+the waiting deadline, but the duplicated final claim predicate did not. A real
+PostgreSQL/passkey regression with a 61-second wait and refreshed observations
+reproduced the exact PipelineError (**1 failed, 4.74s**) before the fix. The claim
+now calls the existing shared expiry helper. The companion security and executor
+integration suites then passed **45 tests in 107.36s**, covering delayed approval,
+bounded ending, moving clocks, credential revocation and authority expiry.
+
+Two card browser checks passed **4.8s**, testing actual-companion and unavailable
+preview messages while refusing card approval in both cases. The card now renders
+the service's speakable instead of a hardcoded preview limitation. Card build,
+TypeScript checking, lint and targeted strict Python typing passed. The full
+scripted evening browser rerun now requests **one minute**, so the scenario's
+one-minute companion transition exercises the original trigger; its final result
+is recorded below when complete. Paid inference was not used.
+
+A fresh explicitly migrated disposable run is available under
+`secrets/item29-20260927/manual2` at the same HTTPS origin. The crashed process lost
+its in-memory sessions; the author was given the new private initial invitation
+file and asked to enroll again. No existing enrollment was reset, old evidence was
+not deleted, and no active-policy or passkey bootstrap bypass was introduced. The
+development database was not migrated. The previously green CI predates this fix;
+fresh source regression and dispatch latency gates remain pending.
+
+The full scripted evening Show rerun passed **4.0min**, completing all **21 events**
+and retaining **4,989 independently verified signed rows** before cleanup. The
+one-minute opening verified at **00:05:00Z**, and its relock verified at its exact
+**00:06:00Z** due time. The EV reached **SOC 0.5 at 06:30 local** and the dishwasher
+completion assertion passed. Inline and resized fullscreen captures were reviewed;
+private artifacts are in `secrets/item29-20260927/delayed-unlock-browser`. Source
+deferred assertions remain deferred. The author's fresh manual enrollment succeeded;
+seed activation and the new run's manual door check remain pending.
+
+The separate punctuation revision `d052c62` also completed
+[green CI 36354289449](https://github.com/BashaarJavaid/Hirz/actions/runs/36354289449).
+It predates the dispatch repair and is not claimed as its regression gate. No new
+third-party friction was earned by this application bug; final formatting and
+synchronized instruction-file checks are run after this evidence update.
+
+### Blocked planning and stale approval regression — 2026-09-27
+
+The author reached event 19/21 in `manual2`, after real phone enrollment, seed
+activation and rule activation, and reported endless “The plan is still updating”
+speech/card refresh. Read-only inspection found a blocked refresh job, with the
+persisted reason “The physical workload is infeasible; no single member request
+was proven to resolve it.” The first plan had been approved, but its replacement
+had not: the subsequent approval receipt was `denied` / `PLAN_CHANGED`. Playback
+had counted that rejected call as completing the approval beat and advanced time.
+The current run is not claimed complete and has not been rewound, force-approved
+or given silently altered constraints. Its running process predates these fixes.
+
+The shared household plan path now distinguishes a blocked refresh from queued
+preparation across reads, explanations and approvals. The real PostgreSQL
+household-tool suite passed **11 tests in 28.02s**, including the new blocked-job
+regression for all three tool paths. Playback requires an affirmative approval
+with a canonical `execute` decision before completing the approval sentence.
+The browser regression submits the superseded version, verifies `PLAN_CHANGED`
+and Next-event HTTP 409, then reads and approves the genuine current plan.
+
+A read-only repeatable-read checkpoint of the author's actual manual run retained
+**13,677 independently verified signed rows** in
+`secrets/item29-20260927/manual2-checkpoint`. Phone-approved twin opening verified
+at **2026-10-14T00:05:00Z** and relock at **00:06:00Z**, before the **00:06:10Z**
+ending deadline. Together with the author's earlier Mac microphone/speaker and
+phone version-8 activation confirmations, this earns those manual gates; it does
+not earn full evening completion, physical-lock or AWS guarantees.
+
+The first fresh Show regression stopped at a later review with HTTP 409 after a
+valid action-approval vote; this failure is retained in
+`secrets/item29-20260927/stale-approval-browser`. The browser driver now reads the
+actual pending review again when another approval remains, rather than assuming
+every vote settles within 1.5 seconds. Other 409 responses still fail the test.
+Fresh Show/Dot outcomes and source CI are appended when available. No paid model
+calls or development-database migrations were made. No new third-party friction
+was earned: these were application and test-driver bugs.
+
+Both fresh scripted evening replays passed **21/21 events in 6.9 minutes each**:
+Show retained **5,035** signed rows (`stale-approval-show-final`), Dot **4,820**
+(`stale-approval-dot`), each with independent audit verification before disposable
+cleanup, one verified bounded unlock/relock, EV **SOC 0.5 at 06:30 local**, and
+one completed dishwasher cycle. Each explicitly tested rejected stale consent
+before accepting the current plan. Inline Show, resized fullscreen and Dot captures
+were reviewed. The source's deferred assertions remain deferred.
+
+The targeted MCP card browser check passed **1 test in 7.5s**: a preparation poll
+receives `PLAN_BLOCKED`, removes the preparation message and approval button,
+shows the blocked headline, and makes no further automatic polling calls. Targeted
+strict Python types, Ruff lint, web lint and web TypeScript checks passed; card
+TypeScript and final formatting checks follow this entry. The running manual
+session is preserved and still uses the earlier code; the repair applies on the
+next launcher run. Latest source CI/latency remains pending.
+
+Card TypeScript passed and final formatting reported **288 files already
+formatted**; `git diff --check` and identical instruction-file checks passed.
+Source revision `c1fb89f` was pushed and its required dispatch started as
+[CI 36358521484](https://github.com/BashaarJavaid/Hirz/actions/runs/36358521484).
+The previous dispatch `36356112537` had green regression jobs but unfinished
+latency jobs when superseded; those unfinished timings are not claimed as passes.
+The new run's results remain pending. This repair adds no paid inference, and
+item 29 remains partial for the previously recorded model/adversarial gaps.
+
+### Remaining acceptance probes — 2026-09-27
+
+While the source CI ran, the local host/transport acceptance suite was extended
+without changing application behavior or making paid inference calls. The fast
+PostgreSQL transport/authorization suite passed **10 tests in 36.22s** and host
+units passed **17 tests in 1.38s**. These use disposable migrated databases,
+the real SDK, OAuth linking and MCP server where listed; no development migration,
+credential reset, manual-session restart or unaudited persisted mutation occurred.
+
+| Boundary | Evidence and scope |
+|---|---|
+| Invalid scalar or injected answer | Genuine SDK calls reject negative/bool/missing duration, caller-supplied authority and changes to an unasked target; no new action rows |
+| Cancellation and late answer | Authenticated SSE request receives SDK cancellation; a late answer cannot create an action |
+| Disconnect/termination | Closing SSE and explicitly deleting the SDK session makes a late answer return 404; no action rows; a lost stream alone remains resumable by the transport contract |
+| Expired response credential | A correctly signed expired bearer is rejected with HTTP 401 before the elicitation response reaches the SDK |
+| Authority changes during a wait | The real OAuth gate's captured reauthorization callback rejects issuer-key revocation and a current child membership; membership uses a rollback-only database view, not a committed membership-edit bypass |
+| Exact requester confirmation | PostgreSQL service calls require renewed review after either the policy or resolved profile changes; each child action retains independent review; these invoke the elicitation wrapper directly rather than claiming live phone policy activation |
+| Accepted action/account switch | The actual host calls authenticated MCP; switching to Dad after Malik's accepted light request preserves the receipt under Malik, emits no stale speech, and retains exactly one light action |
+| Host limits and budget | Units exercise account concurrency, fresh history after model selection, five-dollar aggregate reservation races, counting failure, exhaustion and blocked automatic inference retries; maximum output remains 512 tokens |
+
+Existing real-SDK accept/decline/cancel, unsupported-client fallback, foreign-account
+reply rejection and transaction-release probes remain in the same suite. Credential
+revocation, changed hashes, new door presses and approval expiry before dispatch
+remain covered by the companion security suite in source CI. These are named
+boundary checks, not a claim to enumerate every possible concurrent interleaving.
+
+The first new cancellation probe incorrectly opened a second iterator on a consumed
+HTTP stream and failed; it now continues the original iterator. The first expiry
+probe held the Python SDK elicitation callback forever, blocking that client's own
+receive loop and timing out at 330 seconds. The corrected probe reads SSE directly
+and awaits the actual server's five-minute expiry; its result is appended below.
+The initial reconciliation assertion counted governance actions as device actions;
+the corrected check counts the specific light class and retains its canonical
+receipt. Failed test logs are retained alongside successful logs under
+`secrets/item29-20260927/adversarial-final`.
+
+Offline Haiku review identified the final Dot failure after “Which door? Front
+door or back door?” and the Show failure on the expected-arrival request after an
+earlier denied unlock. Both returned no tool selection. The retained transcripts
+do not contain the model's discarded non-question text or stop reason, so they do
+not establish whether it refused, narrated instead of selecting, or returned an
+empty completion. No speculative prompt change, forced tool selection or automatic
+retry was introduced, and neither evening cell is counted as repaired.
+
+After the author refreshed AWS login, free `CountTokens` requests in `us-east-1`
+for both `amazon.nova-lite-v1:0` and `us.amazon.nova-lite-v1:0` returned
+`ValidationException: The provided model doesn't support counting tokens.` The
+[current counting documentation](https://docs.aws.amazon.com/bedrock/latest/userguide/count-tokens.html)
+states counting is free and its alternative Mantle counting endpoint is
+Claude-specific; the [Nova Lite model card](https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-amazon-nova-lite.html)
+does not support Mantle. This offers no verified alternative for the approved Nova
+model. The existing friction entry already records this exact blocker; no duplicate
+entry is added. The item-29 ledger remains **$4.3714836 reserved across 248 attempts**;
+the separate two-dollar ledger is unchanged.
+
+The completed Python job in
+[CI 36358521484](https://github.com/BashaarJavaid/Hirz/actions/runs/36358521484)
+reports **1,484 service-free tests**, **184 integration tests**, and **89% combined
+coverage** (14,769 statements, 1,677 missed), plus companion browser **1.8min**,
+simulator **19.8s**, reference host **2.9s** and **40 card browser checks in 1.9min**.
+It covers application revision `c1fb89f`; these newly added acceptance tests require
+their own subsequent CI run. Both source latency jobs were still running at this
+checkpoint and are not claimed passed.
+
+The real-time SSE expiry probe passed **1 test in 307.73s** (including setup):
+the server returned `PROMPT_EXPIRED` after at least 299 and less than 330 seconds,
+and a subsequent accepted answer created no action. Its log is retained with the
+other acceptance artifacts. The newly added named adversarial checks therefore
+pass locally; the remaining item-29 blockers are the two Haiku evening cells,
+four Nova cells and completion of the applicable CI gates. No model failure is
+reclassified as success by the added deterministic tests.
+
+Acceptance revision `e672b67` is pushed; its new regression run is
+[CI 36360609096](https://github.com/BashaarJavaid/Hirz/actions/runs/36360609096).
+The prior application revision's push run
+[36358511893](https://github.com/BashaarJavaid/Hirz/actions/runs/36358511893) is green;
+its independent dispatch latency jobs continue without cancellation. Only tests
+and records changed in this acceptance revision. Repository Ruff lint, whitespace
+checks and synchronized instruction checks pass; final formatting reports
+**288 files already formatted**.
+
+### Approved inference amendment and Nova parents acceptance — 2026-09-27
+
+The author explicitly approved a $10 aggregate item-29 cap and the Nova-only
+maximum-context reservation exception ([ADR-020](./adr/ADR-020-simulator.md#approved-spending-and-nova-counting-amendment--2026-09-27)). The existing ledger
+started this work at $4.3714836 / 248 attempts; it was preserved, not reset, and
+the separate item-25 $2 ledger is unchanged. Nova reserves 330,000 input tokens
+and 512 maximum output tokens ($0.01992288) before every attempted inference.
+This bound is not measured usage or actual billing. Haiku still requires native
+CountTokens, and automatic inference retries remain disabled.
+
+Retained live failures now include the actual model response: Haiku refused a
+new expected-arrival request using its historical denied-unlock result; Nova reused
+a historical pending contact state without reading the delayed result. Explicit
+host selection/question/completion controls and focused role guidance address
+these paths. Earlier prompt-only attempts remain failed evidence. The runtime's
+combined verification path already assesses risk before contacting the trusted
+channel; playback had incorrectly required a redundant public assessment call.
+It now recognizes the real returned assessment and verification case.
+
+Nova parents Show (`parents-nova-show-combined`) and Dot (`parents-nova-dot-final`)
+each complete all five events, with **82 / 79 independently verified signed rows**
+and **23.7s / 27.2s** browser results respectively. Both run fresh disposable
+databases with real server-verified virtual passkeys, companion activation, Echo
+PKCE and authenticated MCP. The explicitly simulated reply changes the real case
+to `not_genuine`, no unsolicited speech occurs, and Dot mounts no card. Successful
+databases are removed only after verified exports; development is unchanged.
+Artifacts, model histories and reviewed-result transcripts are private under
+`secrets/item29-20260927/`. Failed attempts have separate directories and retained
+databases; none are relabeled as passing.
+
+The focused offline run passes **61 tests in 3.28s**, including concurrent cap
+enforcement preserving prior reservations, Nova's labeled bound, Haiku counting
+failure, exhausted budgets, disabled retries, and host controls that execute no
+MCP calls. Strict mypy passes for **182 files**. Additional integration/model runs
+are ongoing; the evening model cells and final-source CI remain owed.
+
+The earlier application revision's complete dispatch
+[CI 36358521484](https://github.com/BashaarJavaid/Hirz/actions/runs/36358521484)
+is now green, including both twelve-tool latency gates. These results cover
+`c1fb89f`, not the amendments above.
+
+The amended fast transport/isolation run passes **10 tests in 56.79s** (real
+five-minute timeout excluded because its unchanged server path was already tested
+above). The focused unit suite passes again: **61 tests in 2.12s**. Web lint and
+strict TypeScript checks pass. Nova parents Show/Dot captures were retained; Show
+visibly renders the simulated not-genuine reply through the card bridge.
+
+The next Haiku evening attempt reached the final planned-action review, but
+`approve_action` returned `REQUEST_REFUSED`: the model correctly copied the action
+and approval references but followed an inaccurate description telling it to omit
+the owning plan reference/version. The service's binding check was correct; only
+the description/prompt is corrected. Nova's evening attempts exposed missing scalar
+answers in the browser driver and one documented provider `ModelErrorException`;
+these remain failed runs. The driver now answers the original request text, additive
+operation, exact target from the reviewed clause and existing tonight horizon.
+No callback manufactures a tool result, approval, or household decision.
+
+Model context now preserves a genuine canonical EV action with the highest
+planned charge limit for each car. The former projection discarded all actions,
+while energy observations omit the planning target. This fixes the missing facts
+without inventing a target or sending every rendered action into inference.
+
+Regression CI `e672b67` completed **1,487 service-free / 192 integration tests**
+with **89% combined coverage** (14,769 statements, 1,571 missed), and passed
+companion, simulator and reference-host browser checks. Its final card browser
+step was canceled at the job's 30-minute allowance (`The operation was canceled.`);
+the run is not green. The real five-minute expiry probe accounts for most of the
+added duration. The Python CI job allowance is now 45 minutes; no test, timeout
+assertion or coverage requirement is removed. Log: `/tmp/item29-e672-python.log`,
+retained with the private acceptance evidence before closure.
+
+### One-off Nova diagnostic and shared light resolver — 2026-09-27
+
+The author approved exactly one 1,024-output-token Nova diagnostic. The
+selection-only replay reserved **$0.02004576** for 330,000 input plus 1,024 output
+tokens in the existing ledger before Converse. It returned
+`ModelErrorException: An error occurred (ModelErrorException) when calling the Converse operation: Model produced invalid sequence as part of ToolUse. Please refer to the model tool use troubleshooting guide.`
+No household tool executed, and there was no retry. Private result:
+`secrets/item29-20260927/nova-1024-authorized-once/result.json`.
+
+The retained ledger now contains **470 attempts / $9.19444186 reserved**, including
+exactly one entry above 512 output tokens; **$0.80555814** remains under the approved
+$10 cap. Reservations are upper bounds, not actual bills. The temporary diagnostic
+budget allowance was removed after the probe, restoring the fixed 512 validator;
+the application never adopted a higher output limit. The separate item-25 ledger
+is unchanged. This failure does not establish that a larger runtime limit would
+fix Nova, and no evening cell is counted as passing.
+
+The latest Haiku Dot attempt (`evening-haiku-dot-yes`) correctly submitted the
+compound constraints and plan approval, then failed at the living-room lamp beat.
+The public tool description accepts lamp/light synonyms, but the shared target
+resolver accepted only `Living room` and `Living room light`. That resolver is
+corrected for all three callers: execution, permission previews and profiles.
+The unit check covers aliases, exact references, ambiguity, unknown rooms and
+light names not resolving security targets; the PostgreSQL profile test executes
+the alias through the real Pipeline, worker verification and signed audit check.
+
+Focused verification passes **62 unit tests in 2.58s** and **11 PostgreSQL tests in
+20.77s**. Strict mypy passes for **182 source files**. The browser acceptance driver
+also answers the recorded final `Yes.` plan clarification explicitly, as it
+already did for `Do it.`; actual server confirmations and plan-version checks
+remain required. A new scripted Dot browser run and current CI are still in
+progress at this checkpoint. Both models' evening cells remain owed.
+
+The scripted evening Dot regression subsequently passed **all 21 events in 4.0min**,
+with **4,875 independently verified signed rows**, one verified bounded unlock and
+relock, EV SOC **0.49999999994957045** at the required time, and one dishwasher
+completion. Private evidence: `secrets/item29-20260927/evening-scripted-dot-lamp/`.
+The reviewed capture visibly shows event 21/21 and Dot without a card iframe.
+Exports were verified before the disposable database was dropped; development was
+unchanged. The final unit rerun passes **62 tests in 2.57s**, web lint/TypeScript
+pass, and strict mypy again passes for 182 files.
+
+The author then explicitly approved one **3,000-output-token** selection-only
+diagnostic. It reused the failed Nova history and actual public input schemas,
+reserved **$0.02052** before inference, and returned the same exact provider
+`ModelErrorException`. No tool executed and no automatic retry ran. The private
+script, exclusive attempt marker and result are retained in
+`secrets/item29-20260927/nova-3000-authorized-once/`; the application and its normal
+budget validator stayed at 512 throughout. The ledger now holds **471 attempts /
+$9.21496186 reserved**, leaving **$0.78503814** under its cap.
+
+A further normal-512 schema-isolation probe was prepared but automatic approval
+review rejected execution as outside the single diagnostic's authorization. It
+made no model call or reservation. Its offline check compares scalar validation
+samples across all twelve tools for `anyOf` versus a nullable `type` array;
+this is a hypothesis, not a verified fix. No request to send household history
+externally or incur further diagnostic spend is inferred from the one-off consent.
+The shared resolver correction is committed as `2def7e3`; its final-source CI
+remains owed. Prior-revision dispatch CI 36362954150 remains in progress.
+
+After the author separately approved that single schema probe, it ran once at the
+normal **512-token** limit, reserving **$0.01992288**, and returned the same Nova
+`ModelErrorException`. The saved input history and public tool names were unchanged;
+only the model-facing nullable scalar schemas used an equivalent `type` array.
+No household tool executed and no production schema change was retained. The
+private script, marker and result are in
+`secrets/item29-20260927/nova-nullable-schema-512/`. This hypothesis did not fix the
+failed request. The ledger now records **472 attempts / $9.23488474 reserved**,
+leaving **$0.76511526**. Further paid diagnostics are stopped at this checkpoint.
+
+The tested resolver fix and diagnostic records through the 3,000-token probe are
+pushed as `ddfb218`; its [current-source regression CI](https://github.com/BashaarJavaid/Hirz/actions/runs/36364320471)
+is pending/running, not claimed green. The earlier application revision's
+[latency dispatch](https://github.com/BashaarJavaid/Hirz/actions/runs/36362954150)
+continues independently. These later evidence-only notes do not change application
+code. Both models' evening acceptance cells remain incomplete.
+
+### Haiku-only repair and acceptance — 2026-09-27
+
+The author requested Haiku work first and approved a **$15 aggregate** ceiling for
+Haiku fixes and the evening Show/Dot checks. The existing ledger began this work at
+**$9.23488474 / 472 attempts**. Only Haiku's reservation ceiling changes; Nova keeps
+its $10 ceiling against the same total and receives no calls in this work. All
+runtime output limits remain 512, native Haiku counting stays mandatory, and the
+separate item-25 ledger is unchanged. Rates were rechecked against the cited AWS
+pricing source before inference. Details and rejected alternatives are in the
+[ADR amendment](./adr/ADR-020-simulator.md#haiku-only-acceptance-budget-extension--2026-09-27).
+
+The focused unit run passes **62 tests in 2.50s**, including a Haiku reservation
+above the existing $10 total, rejection at $15, Nova rejection at $10, native
+counting failure and disabled retries. Strict mypy passes for **182 files**.
+The first new disposable Haiku Dot run uses the already tested shared lamp alias
+and final-`Yes.` clarification fixes; its full acceptance result remains pending
+at this checkpoint.
+
+The earlier `a119833` dispatch's Python job is now green: **1,493 service-free /
+192 integration tests**, **89% combined coverage** (14,801 statements, 1,576 missed),
+companion browser **1.6min**, simulator **18.3s**, reference host **2.4s**, and **40
+card checks in 1.8min**. Its two latency jobs remain in progress. These counts cover
+that earlier revision, not the new Haiku budget extension. The completed job log
+is retained privately with the acceptance evidence.
+
+The first resumed Haiku Dot run (`evening-haiku-dot-15`) reached event 19 after all
+four compound revisions, successful plan approval, the correct unexpected-door
+denial, lamp execution, passkey-approved expected-arrival unlock, and the dishwasher
+revision. Final pending-action review failed: the model read `explain_plan`, then
+asked for an action reference that the browser driver could not supply (`Prompt
+reply: 422`). The full failed transcript/history, signed exports and disposable
+database are retained. This is not a passing matrix cell. Public descriptions and
+host guidance now require the actual current-plan read for status/approval review,
+while retaining direct explanation calls for why/how questions. The browser driver
+does not manufacture approval IDs. The focused regression suite remains green:
+**62 tests in 2.87s**; a fresh full Dot run is in progress.
+
+The next Dot run (`evening-haiku-dot-review`) used real pending-action references
+successfully. It was stopped at event 19 when repeated review beats were initially
+mistaken for a loop. Retained evidence shows different approved HVAC actions at
+advancing times through **05:30 UTC**, so stopping was premature; this is not an
+approval-loop defect or a passing cell. **6,762 signed rows** were independently
+verified and retained. Comparing its audit to scripted acceptance found the actual
+difference: a Pipeline-recorded `cheapest` objective change during the generic
+“Optimize energy tonight” request. That new priority produced additional HVAC
+adjustments requiring quiet-hours approvals. Guidance now preserves the existing
+priority for generic optimization, and the browser checks that the optional
+objective remains omitted. The stopped run's accepted changes are not undone.
+
+Current-source CI `ddfb218` failed after its companion browser assertions passed:
+`RuntimeError: Companion export/cleanup failed; retain the database and inspect demo.log`.
+The private child log was not uploaded by that workflow, so its underlying cause
+is not established. A local disposable reproduction passes **1 browser check in
+2.4min**, with **371 independently verified signed rows**, completed export and
+database cleanup. Evidence: `secrets/item29-20260927/haiku-companion-cleanup/`.
+That local pass does not turn the failed CI run green.
+
+The `a119833` latency dispatch finished: Hourly passes; evening fails the unchanged
+250 ms p95 gate for `objective-cheapest` at **250.041 ms**, with **142.426 ms median /
+343.407 ms maximum** over 100 measured calls. The equivalent Hourly case records
+**169.037 ms p95**. The small miss is still a failure; no samples or threshold are
+changed. Complete payload-free CI logs are retained with this checkpoint, and
+final-source timing verification remains required before item closure.
+
+The next Dot run (`evening-haiku-dot-objective`) preserved the planning priority
+but stopped at event 19 when native counting returned `TOKEN_COUNTING_UNAVAILABLE`.
+No inference was sent for that failed count. The underlying exception had not
+been retained. Subsequent free requests counted a small message and a wholly
+synthetic 40-message tool conversation successfully. Automatic approval review
+rejected a separate count-only replay of the retained household history; that
+request did not execute. No failed run is reclassified as passing.
+
+To reduce repeated input cost, selection context now omits the plan's opaque
+action-ID list while retaining actual plan/version references, pending decisions,
+constraints and the canonical EV target. Full MCP/card/transcript results are
+unchanged. The focused suite passes **62 tests in 2.65s**, including original-result
+immutability and retained approval references. Counting failures now log only
+their exception type for diagnosis. Fresh Show and Dot browser runs are in progress
+under the same approved $15 aggregate ledger; no Nova inference has run.
+
+### Haiku $20 verification extension — 2026-09-27
+
+The user explicitly approved raising the existing aggregate ceiling to **$20 for
+fresh Haiku Show/Dot verification only**. Nova remains capped at $10 against the
+same total and receives no calls. The original ledger retains **$14.98338244 over
+681 reservations** at this checkpoint, including failed/stopped attempts; the
+separate item-25 ledger is unchanged. Runtime output remains 512 tokens.
+
+The preceding `evening-haiku-dot-context` and `evening-haiku-show-context` runs both
+stopped honestly at the loaded $15 boundary. Dot retained **5,922 signed rows**,
+one verified bounded unlock and an incomplete timeline. Show retained **6,332
+signed rows** and one verified bounded unlock; its timeline reached the morning,
+but the “Good morning” model request was refused for exhausted budget, so its
+browser acceptance failed. Neither is a passing cell. The full signed exports,
+transcripts, model histories and verification reports remain private under
+`secrets/item29-20260927/`. Accepted actions were not undone.
+
+After the cap change, the focused simulator/household suite passes **62 tests in
+4.16s**, including refusal at the model-specific ceiling and preservation of
+previous reservations. Fresh acceptance runs proceed sequentially in disposable
+databases; development and the existing manual session remain untouched.
+
+The first $20 Dot attempt (`evening-haiku-dot-20`) reached all 21 timeline events,
+with **6,881 independently verified signed rows**, one verified bounded unlock,
+EV SOC **0.4999999999243559** at 06:30, and one completed dishwasher cycle. Browser
+acceptance nevertheless failed on “Good morning”: Haiku selected `finish_request`
+from history while that control was unavailable for the new request, reaching a
+host `KeyError: 'finish_request'`. This is not a passing cell. Selection now rejects
+any tool absent from the current advertised list, with regressions for unknown
+tools and stale completion controls. Morning briefing guidance requests fresh
+household context followed by the current plan, matching the recorded scenario;
+browser acceptance requires both genuine reads. The focused suite passes **64
+tests in 2.38s**. The ledger retains **$15.91306394 / 724 reservations** before the
+next fresh Show run.
+
+The broader local service-free run reports **1,492 passed / 2 failed** in 262.77s;
+both failures are sandbox `PermissionError` binding loopback WebSocket listeners.
+Those exact two tests pass with loopback access (**2 passed in 2.36s**). Web lint,
+TypeScript/browser type checks and strict mypy (**182 source files**) pass. This
+local run used `--no-cov`; combined coverage remains the CI gate, not an inferred
+claim from the local count. Commit `54671af` started dispatch
+[36368367122](https://github.com/BashaarJavaid/Hirz/actions/runs/36368367122), but the
+morning correction requires a subsequent source revision and fresh CI.
+
+The corrected-source Show run (`evening-haiku-show-20-morning`) stopped at the
+expected-arrival voice beat: native counting logged
+`Native token counting failed (InternalServerException)`. That call sent no
+inference; **2,520 signed rows** were independently verified and retained, with
+an incomplete timeline and no unlock yet. The aggregate remains **$16.38072894 /
+747 reservations** before a fresh Dot attempt. No counting bypass, automatic
+inference retry, model substitution or Nova call was introduced. The third-party
+failure is recorded in the friction log. Current source is `46eaf2c`; its required
+CI dispatch is [36368901000](https://github.com/BashaarJavaid/Hirz/actions/runs/36368901000).
+
+**Haiku evening Dot now passes** on `46eaf2c`: browser **1 passed in 6.9min**,
+all **21/21** events, **6,378 independently verified signed rows**, one bounded
+unlock with verified relock, EV SOC **0.49999999992435573** at 06:30, and one
+completed dishwasher cycle. “Good morning” selected fresh `get_household_context`
+then `get_household_plan`; every utterance completed without a mounted card.
+The final capture was reviewed: Haiku and simulated-source labels, Dot mode and
+21/21 are visible. Evidence is retained at
+`secrets/item29-20260927/evening-haiku-dot-20-morning/`; successful cleanup followed
+signed export. The same ledger is **$17.43902354 / 793 reservations** before the
+final fresh Show run. Show acceptance and final-source CI remain pending here.
+
+**Haiku evening Show now passes** on the same `46eaf2c` source: browser **1 passed
+in 6.9min**, **21/21** events, **6,419 independently verified signed rows**, one
+bounded unlock with verified relock, EV SOC **0.49999999994957045** at 06:30, and
+one completed dishwasher cycle. The morning turn reads context and plan; the real
+MCP Apps bridge renders the simulated card and user-controlled fullscreen view.
+Both captures were reviewed. Evidence is retained at
+`secrets/item29-20260927/evening-haiku-show-20-final/`; the disposable database was
+dropped after verified export, with development unchanged.
+
+Haiku now has passing evidence for both scenarios in both display modes. The
+final aggregate is **$18.44548614 / 838 reservations**, including all earlier
+models and failed attempts, with no Nova calls during this Haiku-only work and
+no further paid calls planned here. This is reserved maximum cost, not an AWS
+bill. Nova evening Show/Dot and final-source CI/latency remain outstanding at this
+checkpoint; item 29 remains partial. Scenario source deferrals, real delivery,
+Hirz Link and deployment claims are unchanged.
+
+Final ledger reconciliation sums all 838 retained reservations to exactly
+**$18.44548614**; all **157 calls after the $20 extension** are Haiku at 512 output
+tokens, and the ledger remains mode `0600`. At this checkpoint the current-source
+dispatch has green lint/types, TypeScript tests, build, release, both conformance
+jobs and scenario regression; its Python integration/browser job and both latency
+jobs are still running. No final combined-coverage or timing pass is claimed.
+
+### Item 29 closure with Nova deferred — 2026-09-27
+
+The author explicitly approved deferring Nova and closing item 29 if CI passed.
+ADR-020 records the amended acceptance scope: **eight required cells**, comprising
+Haiku and scripted mode × evening and parents × Show and Dot. All eight have
+passing evidence in this item. Nova's existing experimental implementation and
+failed diagnostics remain retained, with future acceptance tracked in item 29b;
+no failed Nova cell becomes a pass and no new inference was performed for closure.
+
+**Final regression CI passes:**
+[36370421146](https://github.com/BashaarJavaid/Hirz/actions/runs/36370421146), commit
+`2249438d5e49224cd65604c7d3e791efbcfc17f5`, has all ten ordinary jobs green:
+Python lint/types/tests, TypeScript lint/types/tests, build, release, scenario
+regression, native Cedar conformance and independent add-on conformance. Python
+reports **1,496 service-free tests** and **192 PostgreSQL integration tests**;
+combined coverage is **89%** (14,814 statements, 1,576 missed), exceeding the
+unchanged 80% requirement. Companion browser **1.8min**, simulator browser
+**20.9s**, authenticated reference host **2.7s**, and all **40 card checks in
+1.9min** pass. Native Cedar conformance reports **159 passed**.
+
+**Both required latency gates pass:** dispatch
+[36368901000](https://github.com/BashaarJavaid/Hirz/actions/runs/36368901000), commit
+`46eaf2ce73b0c6d04ba1a71c742275253708a496`, has green
+[evening](https://github.com/BashaarJavaid/Hirz/actions/runs/36368901000/job/108761013281)
+and [Hourly](https://github.com/BashaarJavaid/Hirz/actions/runs/36368901000/job/108761013137)
+jobs. Highest case p95 is **207.130 ms evening / 191.097 ms Hourly**, both
+`objective-greenest`, below the unchanged 250 ms gate. Every case uses five
+warmups and 100 measured calls, nearest-rank p95, with no discarded samples.
+The gate covers the authenticated local twin server round trip, not AWS ingress
+or cold start. `git diff --name-only 46eaf2c 2249438` contains only AGENTS.md,
+CLAUDE.md, CHANGELOG.md, ROADMAP.md, friction and verification documentation:
+both CI runs test identical runtime, tests, dependencies and workflow source.
+
+The dispatch's separate Python job failed after its companion browser passed,
+with `RuntimeError: Companion export/cleanup failed; retain the database and
+inspect demo.log`. That failed run remains failed; its underlying cleanup cause
+was not established. The later full green regression on identical runtime code
+supplies that gate, including successful cleanup. No threshold, test or coverage
+requirement was relaxed. Complete retrieved logs, including the earlier failure,
+are retained privately at `secrets/item29-20260927/closure/`.
+
+The preceding live Haiku evening evidence verifies **21/21 events per mode**, with
+**6,419 Show / 6,378 Dot signed rows**, bounded unlock/relock, the 50% EV target at
+06:30 and one completed dishwasher cycle. Earlier evidence supplies the other six
+cells, both themes, responsive/keyboard/focus checks and reviewed browser captures.
+The [manual checkpoint](#blocked-planning-and-stale-approval-regression--2026-09-27)
+retains **13,677 signed rows** from actual phone approval, with relock before its
+deadline; the author's Mac Chrome microphone/speaker and real-passkey version-8
+activation confirmations earn the remaining manual gates. The
+[adversarial probes](#remaining-acceptance-probes--2026-09-27) retain elicitation,
+authority-change, isolation, expiry, reconciliation and budget evidence.
+
+**Item 29 is complete within the explicitly amended scope.** Item 28 still owes
+compatible-iPhone Web Push acceptance. Nova, harness extraction, recording Compose,
+real contact delivery, source-scenario deferred assertions, Hirz Link, physical
+lock and AWS deployment/security acceptance retain their separate scope. The
+item-29 ledger remains **$18.44548614 / 838 reservations**; the item-25 $2 ledger
+is unchanged. No development migration, manual-session reset, credential change
+or additional paid call occurred during closure. Third-party friction was reviewed;
+the already recorded failures remain, with no invented explanation or workaround.
+
+## Item 29a
+
+### Extraction and local acceptance checkpoint — 2026-10-01
+
+Implementation follows [ADR-021](./adr/ADR-021-extracted-host-harness.md), including
+configured-origin discovery, no new paid inference, and the author's amended
+publication order. The independent source is staged in the isolated local clone
+`/private/tmp/hirz-item29a-addon-check` of `BashaarJavaid/addon-check`; the original
+sibling checkout remains untouched at this checkpoint. No package has been
+published yet. Hirz temporarily consumes a packed React tarball and locally
+installed Python wheel while the registry release is being verified. These are
+verification inputs, not the final dependency configuration.
+
+Local environment: macOS, Python 3.12.13, Node 24, uv 0.12.15, existing native
+Dogwood and PostgreSQL Compose service. Disposable test databases are explicitly
+migrated; the development database remains on 0005. No inference ledger was
+changed and no paid model was invoked.
+
+Independent checks completed:
+
+- Existing checker: `npm test`, **42 passed** with loopback sockets permitted.
+- `npm run lint`, `npm run typecheck`, `npm run build:host`: passed.
+- Python package `pytest`: **21 passed**, **95.31%** coverage over 128 statements.
+  Tests cover discovery/issuer/resource/endpoint binding, S256, one-use callbacks,
+  refresh serialization and revocation, optional refresh-token retention,
+  unsafe configuration, and SDK connection/elicitation delegation.
+- `npm test --workspace addon-host-example`: **2 browser checks passed**, including
+  the official unchanged `@modelcontextprotocol/server-basic-vanillajs@2.0.0`
+  `get-time` card, exact-call review for both initial and card calls, themes,
+  iframe-free Dot mode, silent replay, decline, CSRF and sibling-browser isolation.
+  Repeated after disabling remote JSON Schema reference retrieval; final run
+  **6.6 seconds**. The reference-card screenshot was visually reviewed.
+- Python wheel and sdist built with `uv build`; npm tarball inspected with
+  `npm pack --workspace addon-host`. Registry publication and registry installs
+  remain outstanding.
+
+Hirz checks completed at this checkpoint:
+
+- `pnpm -r lint`, `pnpm -r typecheck`, `pnpm -r test` and web build passed;
+  TypeScript units comprise **4 card + 1 web** tests. Existing Vite directive and
+  bundle-size warnings remain warnings.
+- Strict mypy passed over **182 source files**.
+- Focused simulator unit tests: **25 passed**, including sanitized discovery
+  failure; focused live transport checks: **5 passed**.
+- Fresh default simulator browser smoke: **1 passed**, **20 seconds**, including
+  enrollment, PKCE, bridge, Dot, household switching, themes and fullscreen;
+  private signed artifacts in `/private/tmp/hirz-item29a-browser`.
+- Full service-free run: **1,494 passed, 2 failed** because the sandbox denied
+  WebSocket fixture binds. Both affected `test_dev.websocket_token_contract`
+  cases subsequently passed with loopback permission. This is not described as
+  a single clean full-suite run. Full integration/combined coverage is pending.
+
+All four fresh **scripted** simulator matrix cells passed, each using a new
+launcher/database and virtual browser authenticators. Commands used
+`HIRZ_LLM=off HIRZ_DOGWOOD="$PWD/.tools/dogwood"`,
+`HIRZ_SIMULATOR_SCENARIO=<scenario>`, `HIRZ_SIMULATOR_DISPLAY=<show|dot>`, and
+`.venv/bin/python -m scripts.simulator_demo --origin https://hirz.example.test
+--artifacts-dir <new-private-dir> --browser-test`. Private artifacts are retained
+under `/private/tmp/hirz-item29a-matrix`; each launcher independently verified its
+signed exports before cleanup.
+
+| Scenario | Display | Timeline complete | Signed rows for selected scenario | Verified bounded twin unlocks |
+|---|---|---|---:|---:|
+| parents-scam-check | Show | Yes | 61 | 0 |
+| parents-scam-check | Dot | Yes | 61 | 0 |
+| demo-evening | Show | Yes | 4,996 | 1 |
+| demo-evening | Dot | Yes | 4,924 | 1 |
+
+These counts come from each retained `verification.json`, not inferred from a
+browser screenshot. The OAuth discovery challenge was subsequently changed to
+read response headers through a stream, avoiding an indefinite SSE response body;
+package tests passed after that change. A fresh default Hirz link smoke against
+the final wheel remains required. Prior Haiku matrix evidence is historical;
+Nova remains item 29b.
+
+A fresh physical-device session is running behind the author's existing private
+HTTPS proxy on ports 8012/8013, with private artifacts at
+`/private/tmp/hirz-item29a-phone`. HTTPS `/simulator` returned 200. Actual microphone,
+speaker, phone rule activation and phone-approved bounded twin unlock/relock
+confirmation are still owed; virtual authenticators do not earn those gates.
+Also outstanding: independent CI, final registry pins/clean installs, final Hirz
+regression and both latency CI gates. Item 29a remains partial.
+
+### Final local artifacts and integration — 2026-10-01
+
+The final wheel passed Hirz's fresh default browser smoke (**1 passed**, **23.5
+seconds**) at `/private/tmp/hirz-item29a-final-wheel-browser`; signed exports were
+retained and its disposable database dropped with development unchanged.
+Clean temporary npm and Python consumers installed the packed artifacts and
+imported all three public exports successfully. Python lint/format/strict types
+passed with the independent package's explicit configuration; Hirz lint/format
+also passed (**289 Python files**).
+
+The full PostgreSQL integration suite passed: **192 passed**, **1,498 deselected**,
+**2 warnings**, **801.95 seconds**. Its coverage appended to the earlier
+service-free run; `coverage report --fail-under=80` passed with **89%** combined
+coverage (**14,809 statements, 1,580 missed**). A fresh full service-free rerun with
+loopback permission is still running to replace the earlier sandbox-affected
+result with a single clean execution.
+
+Tested artifact SHA-256 values:
+
+- `addon-host-0.1.0.tgz` (8,563 bytes): `d63e671a42c3a89db92dd697c664bf30b6d77fd152ff7c61f4f43191636640db`.
+- `addon_host-0.1.0-py3-none-any.whl` (10,052 bytes): `1524b54f9c5eef36f255decdb988516891978a5db33e13a2df8b57f686161f02`.
+- `addon_host-0.1.0.tar.gz` (8,981 bytes): `5b6e85059485620902d6137c31df85b45a04fc149225026e7bf3e893ee03be09`.
+
+The wheel contains only `addon_host`, its typing marker and distribution/license
+metadata. npm contains its built JavaScript, declarations, CSS, README, license
+and package metadata. These hashes identify local tested artifacts, not a claim
+of registry publication.
+
+### Clean service-free rerun and frozen artifact correction — 2026-10-01
+
+The full service-free rerun with loopback permission passed cleanly:
+**1,496 passed**, **194 deselected**, **2 warnings**, **195.87 seconds**. It used
+`HIRZ_LLM=off HIRZ_DOGWOOD="$PWD/.tools/dogwood" .venv/bin/pytest --no-cov --tb=short`
+and preserved the already collected combined coverage. The checker tarball also
+passed its clean-consumer fixture gate: complete fixture exit 0, deliberately
+broken fixture exit 1 with `speech.estimate`.
+
+Final source review corrected explicit-port origin handling: port `0` remains a
+distinct configured origin instead of falling through to the default HTTPS port.
+The added regression and package suite pass (**22 tests**, **95.31% coverage**);
+independent lint/format/strict types pass. The rebuilt wheel was installed in Hirz
+and its clean consumer; public imports and explicit-port isolation passed.
+Hirz's final-wheel browser smoke passed again (**1 passed**, **20.5 seconds**),
+with exports/cleanup at `/private/tmp/hirz-item29a-release-wheel-browser`.
+This corrects the Python artifact hashes above; the npm artifact is unchanged:
+
+- Wheel (10,062 bytes): `5567b2b66e99b03cb0a2020139cd4427b0c9e39a7017561215f26675c8af61ce`.
+- Sdist (8,987 bytes): `2ed1aa42e50b7c27961e10bcd436dc1eb6ff640ba3b50db89de11ab7d9a3634f`.
+
+The reviewed source patch was applied to the previously clean sibling
+`/Users/bashaarjavaid/Projects/addon-check` checkout. The author approved a feature
+branch and draft PR for independent CI. Physical-device confirmations and registry
+credentials are still pending; no release or final Hirz CI success is claimed.
+
+### Independent source publication — 2026-10-01
+
+Pushed independent source commit
+`3e06850d4cf757640ca0c40f0567fa2474684789` on `item-29a-host-harness` and opened the
+author-approved [draft PR #1](https://github.com/BashaarJavaid/addon-check/pull/1).
+The [push CI run](https://github.com/BashaarJavaid/addon-check/actions/runs/36927638706)
+is in progress at this checkpoint. Frozen wheel source and packed React build
+bytes match the reviewed source/build. No merge or registry publication has
+occurred; this records source publication only.
+
+### Independent CI gate passed — 2026-10-01
+
+Both independent runs passed on source commit
+`3e06850d4cf757640ca0c40f0567fa2474684789`:
+[push CI](https://github.com/BashaarJavaid/addon-check/actions/runs/36927638706) and
+[draft-PR CI](https://github.com/BashaarJavaid/addon-check/actions/runs/36927667288).
+The `check` and `host` jobs verify the existing checker and the extracted package,
+including Linux browser checks and clean packed-artifact consumers.
+
+The author chose to retain Hirz's existing `item-29-simulator` branch for downstream
+changes and CI. No Hirz commit/push has occurred at this checkpoint: exact registry
+dependencies and final CI await publication. Registry authentication setup and
+fresh physical microphone/speaker/phone checks remain pending. The private manual
+session is still available; no physical result has been inferred or claimed.
+
+### Registry publication started — 2026-10-01
+
+The author confirmed credentials were already configured locally. npm identity
+verification succeeded, and the existing uv PyPI token was found when read with
+permission to access the credential store; its initial sandboxed lookup had been
+unable to read it. No credential value was printed or recorded.
+
+Uploaded the tested wheel and sdist to
+[PyPI addon-host 0.1.0](https://pypi.org/project/addon-host/0.1.0/). Registry metadata
+and freshly downloaded files match both final SHA-256 values above. A new temporary
+virtual environment installed `addon-host==0.1.0` from PyPI and imported all public
+exports; distribution metadata contains no local direct-URL install. Hirz now
+pins the exact release in `pyproject.toml` and `uv.lock`, retaining existing pinned
+dependencies.
+
+npm accepted the tested `addon-host@0.1.0` tarball after its required browser
+authentication, then reported that package processing could take a few minutes.
+The immediate registry-install attempt found only `0.0.0-stage`; the requested
+`0.1.0` endpoint returned 404. The exact-version consumer verification and pnpm
+lock update await processing; no placeholder version is accepted as the release.
+
+### Both registry releases verified — 2026-10-01
+
+[npm addon-host 0.1.0](https://www.npmjs.com/package/addon-host/v/0.1.0) became
+retrievable after registry processing. The downloaded public tarball matches
+SHA-256 `d63e671a42c3a89db92dd697c664bf30b6d77fd152ff7c61f4f43191636640db` exactly.
+A clean temporary npm consumer installed `addon-host@0.1.0`, React 19.2.0 and
+React DOM 19.2.0 from the registry and imported all public exports successfully.
+Both registry releases therefore match the tested local artifacts.
+
+Hirz's manifests and locks now use exact registry versions, with no temporary file
+dependency. `uv sync --locked` replaced the local wheel with PyPI 0.1.0, without
+upgrading the existing pins. pnpm 12.4.2 added a version-specific
+`minimumReleaseAgeExclude: [addon-host@0.1.0]` entry for the just-published,
+hash-verified dependency; no global age policy was disabled. The initial attempted
+`--prefer-online` flag is unsupported by pnpm 12.4.2; plain `pnpm install
+--lockfile-only` succeeded once the release was available.
+
+The manual session's HTTPS endpoint still returns 200. The author requested and
+received the exact Mac/iPhone walkthrough; physical results are still pending.
+
+### Hirz registry-based CI dispatched — 2026-10-01
+
+Committed and pushed Hirz integration as
+`03fd83ca3e1137d82e7664af33e8f9b9a99a02ed` on the author's selected existing
+`item-29-simulator` branch. Dispatched the complete
+[CI run 36929232686](https://github.com/BashaarJavaid/Hirz/actions/runs/36929232686),
+including both latency scenarios. Cancelled only the redundant push-triggered
+[run 36929191280](https://github.com/BashaarJavaid/Hirz/actions/runs/36929191280)
+for the same commit; the dispatched run remains the gate of record.
+
+With registry dependencies installed, local TypeScript lint/types/tests and web
+build passed again; Python lint/format and strict mypy passed. The physical-device
+walkthrough now lives in [development](./development.md#fresh-mac-microphone-and-iphone-passkey-walkthrough).
+At this checkpoint CI lint/types, TypeScript tests, packaging/container and
+independent conformance have passed; scenario, native conformance, full Python
+regression and both latency jobs are still running. No final CI or physical-device
+acceptance is claimed yet.
+
+### Physical walkthrough blocked at plan consent — 2026-10-01
+
+The author reported `PLAN_CHANGED` on the Mac at event 6/21 and
+`Finish this utterance through the named linked Echo first` when advancing on
+the phone, and confirmed pressing the plan's Approve button without unlinking
+or relinking the Echo. Read-only inspection of the active disposable session
+found app-surface `PLAN_APPROVED` at audit sequence 3974, followed by activation
+of constitution version 9 at sequence 5169 and inherited scheduler consent at
+sequence 5370. Versions 8 and 9 differ only in their version field; the rules
+are identical. The current plan is version 6, approved, and its refresh job is
+idle at generation 9. The scenario's voice-beat check requires a successful
+Echo `approve_action` after the beat begins, while the plan service refuses
+fresh consent for an already approved plan. The app approval therefore leaves
+this voice-only walkthrough gate stuck. No policy rollback, database mutation,
+scenario bypass or session reset was performed during diagnosis. The author's
+choice between recognizing audited phone consent and a fresh Echo-only run is
+pending; physical acceptance remains incomplete.
+
+### Audited phone consent recovery verified — 2026-10-01
+
+The author chose to recognize audited phone plan approval while preserving all
+approval checks. The scenario now accepts that existing consent only for a
+current-plan approval beat, with the named member, current fresh approved plan,
+matching committed execute grant and app approval in the same household and
+plan lineage. Plan authorization, phone security approval and other voice beats
+are unchanged; [ADR-020](./adr/ADR-020-simulator.md#recognize-audited-phone-plan-consent--2026-10-01)
+records the decision.
+
+`uv run --locked pytest tests/integration/test_simulator_transport.py -m integration
+-k current_audited --no-cov --tb=short`: **2 passed, 8 deselected in 6.97s**.
+The real-Pipeline cases reject proposed and refreshing plans, another member,
+unrelated scripts, voice-only consent and cancelled plans; app consent remains
+recognized after an autonomous replacement. Both signed audit chains verify.
+`uv run --locked pytest tests/unit/test_simulator.py --no-cov --tb=short`:
+**25 passed in 2.06s**. Ruff, strict mypy for the changed module, web lint and both
+web TypeScript configurations pass.
+
+Ran `HIRZ_LLM=off HIRZ_SIMULATOR_SCENARIO=demo-evening uv run --locked python -m
+scripts.simulator_demo --origin https://hirz.example.test --port 8022
+--issuer-port 8023 --artifacts-dir /private/tmp/hirz-item29a-phone-consent-regression
+--browser-test`, with Node 24 and native Dogwood. **1 browser test passed in
+4.3 minutes**. The browser first verifies that a stale Echo approval cannot
+advance, approves the current plan on Tonight, activates unchanged rules as
+version 9 using a virtual passkey, waits for inherited consent and advances
+without duplicate Echo approval. Playback completes **21/21 events**, verifies
+**5,033 signed rows** and **one bounded unlock/relock**, reaches 50 percent EV
+charge by the required deadline within the existing numerical tolerance, and
+completes one dishwasher cycle. The private export contains activations 7, 8
+and 9 and one app-surface plan approval. Unexpected-visitor refusal, later
+per-action consent and phone security approval still execute their existing
+checks. The separate disposable database was dropped; development was unchanged.
+
+The original Mac/iPhone session remains running with its old loaded code. The
+launcher has no state-preserving reload; a fresh manual launch requires the
+author's restart choice and renewed enrollment. This browser result uses virtual
+WebAuthn and is not physical-device acceptance. The prior source CI has passed
+regression and is still running both latency jobs at this checkpoint.
+
+### Author-approved manual restart and Hourly gate failure — 2026-10-01
+
+The author explicitly requested the restart. Graceful shutdown of the original
+`/private/tmp/hirz-item29a-phone` launcher retained and independently verified
+**15,945 home-household audit rows**, with zero bounded unlocks and the evening
+timeline incomplete. The parents household had zero rows. The old disposable
+database was dropped and development was unchanged. Started the verified
+`4fd4336a9840902a964903df6883ebb27a0d75d5` fix with the same private HTTPS origin,
+ports 8012/8013, `HIRZ_LLM=off` and native Dogwood, retaining new evidence under
+`/private/tmp/hirz-item29a-phone-restart`. HTTPS `/simulator` returns 200 and the
+fresh two-household invitations file has mode 0600; invitation contents were not
+printed. Fresh phone enrollment, rule activation and Echo linking remain manual.
+
+The original registry-based [CI run 36929232686](https://github.com/BashaarJavaid/Hirz/actions/runs/36929232686)
+passed regression, but its Hourly latency job failed after **2,293.57 seconds**:
+`AssertionError: ('Warm p95 budget exceeded', ['revision-guest', 'pause'])`.
+Each case retains 100 measured samples: `revision-guest` median **66.719 ms**,
+p95 **252.803 ms**; `pause` median **57.746 ms**, p95 **275.725 ms**. Both exceed
+the unchanged **250 ms** per-case threshold. All twelve pooled tool results are
+under budget, which does not override either case failure. No cause has yet been
+established and no gate was retried or relaxed. The evening latency job is still
+running. Regression for the phone-consent fix is separately running in
+[CI run 36932903935](https://github.com/BashaarJavaid/Hirz/actions/runs/36932903935).
+Item 29a remains incomplete.
+
+### Named Echo diagnosis at event 16 — 2026-10-01
+
+The author reached event 16/21 in the restarted physical session and reported a
+successful dishwasher revision followed by the named-Echo utterance blocker.
+Read-only inspection found both current-time constraint receipts attributed to
+Malik; the scenario explicitly assigns this beat to Dad. Supplied the existing
+Dad Echo selection/linking procedure and the later switch back to Malik at event
+18. No gate change, session reset or household mutation was performed during
+diagnosis. The manual procedure now states these account switches for anyone
+continuing beyond its original event-15 acceptance endpoint. Physical microphone,
+speaker and unlock/relock confirmation remain unreported.
+
+The original registry-based CI run has now completed: the evening latency job
+passed and the Hourly job failed as recorded above. The phone-consent fix's
+separate regression run still has its Python test job in progress.
+
+### Pending device-action consent at event 19 — 2026-10-01
+
+The author reported being unable to approve at event 19/21. Read-only inspection
+found current plan version 11 in `awaiting_approval`, an idle refresh job at
+generation 17, and one pending `energy.hvac_adjust` for `hvac.guest_room` in that
+plan. The explicit scenario clock was 23:31:00.000002 local; the request expires
+at 00:01:00.000002 and was not expired. Supplied the existing fresh-plan read and
+“Approve the pending action” flow on Malik's Echo, instead of repeated overall
+plan consent. The operator did not submit approval, alter the request or advance
+the scenario. Added this continuation step to the manual procedure; author
+confirmation of the result is pending.
+
+### Pending-action card correction verified — 2026-10-01
+
+At event 21/21 the author reported no Next-event error, then a plan estimate and
+`Approve plan` after “Good morning.” Read-only inspection found plan version 12
+waiting for a guest-room HVAC action, with an idle refresh job and a live pending
+approval. Its persisted estimate and UTC horizon matched the displayed negative
+estimate and Pacific times. The root cause was presentation precedence: pending
+plan reads returned the Decision only in `decisions`, while the decorator chose
+the plan view first and considered `awaiting_approval` eligible for whole-plan
+approval. The author explicitly approved correcting this card.
+
+The read now also supplies the same canonical Decision in `decision`, and its
+existing action-approval presentation takes precedence over the estimate. The
+plan resource admits this presentation only with a matching plan ID/version;
+Approve/Deny submit those references plus the exact action and approval IDs.
+The device-specific spoken description becomes the approval headline. Whole-plan
+approval is offered only for a proposed plan. The Pipeline and phone-only security
+requirements are unchanged
+([ADR-018](./adr/ADR-018-mcp-app-cards.md#pending-plan-action-presentation-correction--2026-10-01)).
+
+Verification:
+
+- Real database card integration: **4 passed in 9.21s**. New cases create a
+  Pipeline-authorized plan, wait for an actual ASK, verify the card's exact
+  references, reject a stale version, then approve or deny. Only the approved
+  action executes and verifies; both audit chains validate. The initial test
+  incorrectly expected an immediate `execute` Decision from a successful planned
+  vote and failed once; it now checks the existing `APPROVED`/`REJECTED` vote
+  receipt and independently verifies subsequent execution. Runtime voting was
+  not changed to accommodate the test.
+- Python card unit checks: **4 passed in 1.65s**. TypeScript card unit checks:
+  **4 passed**. Ruff, strict mypy for both changed Python modules, card lint,
+  both TypeScript configurations and all five self-contained card builds pass.
+- Fresh authenticated fixture smoke at
+  `/private/tmp/hirz-item29a-pending-card`: five card fixtures, **399 home and 3
+  parents audit rows**, both independently valid. Its disposable database was
+  dropped; development was unchanged.
+- Unchanged pinned reference host with the actual built cards: **8 browser
+  checks passed in 9.5s**, covering planned/unplanned Approve/Deny and phone-only
+  security in both resource contexts. Two further mismatched-plan-ID/version
+  checks passed in **4.1s**. Browser plan-action envelopes explicitly combine
+  generated fixture data; real binding and execution are covered by the
+  database integration above. No visual baseline was replaced.
+
+Regression CI for the earlier phone-consent fix
+[36932903935](https://github.com/BashaarJavaid/Hirz/actions/runs/36932903935)
+has now passed on `4fd4336`; this predates the pending-card correction. The
+current manual session retains its previously loaded code and has not been
+restarted. Physical microphone/speaker and observed unlock/relock confirmation,
+new-source regression and the previously failed Hourly latency gate remain open;
+no acceptance or timing failure is relabeled as a pass.
+
+### Latest regression and live-session snapshot — 2026-10-01
+
+[Regression CI 36938433701](https://github.com/BashaarJavaid/Hirz/actions/runs/36938433701)
+passed on `9492a5f5c0bdd3b72ee69afcce700ad3590fee8e`, including the pending-action
+card correction. This push run does not execute the workflow-dispatch latency
+matrix; the previously failed Hourly gate remains open.
+
+A read-only snapshot of the still-running manual session was retained separately
+at `/private/tmp/hirz-item29a-live-audit-snapshot`: **38,523 home rows valid**,
+parents chain empty. The existing `retain_export` helper independently verified
+the exported signatures and chain under its own repeatable-read transaction.
+An initial wrapper incorrectly opened a transaction first and was refused with
+`Audit verification requires an idle connection`; no household mutation occurred.
+The corrected call uses the helper's transaction ownership. This is an audit
+snapshot, not final playback evidence or an anchored completeness claim.
+
+The author explicitly reported that none of the requested fresh physical
+microphone, speaker, phone-passkey activation or observed unlock/relock checks
+had yet been performed. All remain pending; reaching 21/21 is not substituted
+for those observations. The live session has not been reset.
+
+### Hourly latency diagnosis started — 2026-10-01
+
+A temporary, private profiler reused the existing Hourly fixture and ten complete
+`home_round` lifecycles in its own disposable database, with Bedrock off. It traced
+SQL durations and Python work only for guest revision/retry and pause calls. The
+largest instrumented method durations were **169.25 ms guest revision** and
+**110.58 ms pause**; these exclude parts of transport and include profiling
+cost, so they are neither comparable gate samples nor a latency pass.
+Artifacts: `/private/tmp/hirz-item29a-hourly-profile`; temporary driver:
+`/private/tmp/hirz_item29a_profile.py`. The concurrent private manual simulator
+remained running, so this is diagnostic work under local load.
+
+All ten lifecycle rounds completed. The diagnostic's final reuse of the full
+gate's export wrapper failed because it requires a nonempty parents audit, while
+this deliberately home-only run performed no parents calls. Both already-written
+exports were independently checked: **15,810 home rows valid, parents empty**.
+Only the resulting inactive diagnostic database was then dropped; the live
+simulator and development databases were untouched. The longer diagnostic uses
+`retain_export`, which correctly accepts an empty chain, and adds garbage-
+collection timing. No production code, threshold, warmup count or gate sample
+count has been changed; the original failed CI result remains the gate of record.
+
+### Approved restart with the pending-card fix — 2026-10-01
+
+The author approved saving the current session and restarting with the tested
+card correction. Graceful shutdown of `/private/tmp/hirz-item29a-phone-restart`
+retained **42,903 valid home audit rows**, an empty parents chain, and the final
+playback/verification reports. The evening reports `timeline_complete: true`
+and **one verified bounded twin unlock**; parents playback was incomplete.
+These automated records do not establish the still-unperformed physical checks.
+The launcher exited successfully and dropped only its disposable database.
+
+All five card resources were rebuilt. A fresh launcher now uses
+`/private/tmp/hirz-item29a-physical-final` at the same private HTTPS origin, ports
+8012/8013, with Bedrock off; local `/health` returned **200**. New invitations stay
+in its private file. The author received the new invitation-copy command and
+fresh iPhone enrollment/activation and Mac Show/Dot audio steps. No passkey or
+approval was performed on the author's behalf; development remains unchanged.
+
+### Approved payload-free CI diagnostic — 2026-10-01
+
+The author approved adding and running an opt-in diagnostic on GitHub's runner.
+The workflow input defaults off, and reports/summaries explicitly mark enabled
+runs as **diagnostic, not acceptance gates**. It preserves the case corpus,
+warmups, sample counts, signed verification and 250 ms assertions. The disposable
+MCP process reports method wall/thread-CPU time, query count/total, its three
+slowest query fingerprints/times and GC timings. Normal benchmark startup does
+not install hooks; production startup is unchanged
+([ADR-017](./adr/ADR-017-tool-latency-and-isolation.md#opt-in-timing-diagnosis--2026-10-01)).
+
+The benchmark unit suite passes **5 tests in 4.21s**, including preservation of
+successful results and exceptions and exclusion of input, SQL, response and
+error text from diagnostic output. Ruff and strict mypy for all three affected
+scripts pass. A real authenticated Hourly lifecycle at
+`/private/tmp/hirz-item29a-ci-trace-smoke` completed with **47 structurally checked
+payload-free diagnostic records**, **1,577 valid home audit rows** and an empty
+parents chain. Cleanup dropped only that disposable database. This short local
+smoke validates instrumentation, not latency acceptance. Final format check:
+**290 files already formatted**.
+
+The approved diagnostic dispatch is
+[36944414312](https://github.com/BashaarJavaid/Hirz/actions/runs/36944414312),
+source `fd476a48e7074824d833b08d9c5949a15f4c1fb4`, on the existing
+`item-29-simulator` branch. Both scenario timing jobs started with the diagnostic
+input enabled. Their eventual result will not replace the failed acceptance
+run or independently close item 29a.
+
+### Full local diagnostic retained — 2026-10-01
+
+The longer temporary profiler completed **105 complete Hourly home lifecycles**
+and retained **315 method traces** at
+`/private/tmp/hirz-item29a-hourly-profile-long` (driver:
+`/private/tmp/hirz_item29a_profile_long.py`). `retain_export` independently
+verified **166,102 home audit rows**, with an empty parents chain. The driver
+exited successfully and dropped only its disposable database. The current
+manual simulator and development database remain unchanged.
+
+`method-summary.json` retains all 105 observations per method, including those
+corresponding to normal gate warmups: guest revision median **101.562 ms**,
+p95 **215.813 ms**, maximum **324.589 ms**; pause median **95.642 ms**, p95
+**212.207 ms**, maximum **628.370 ms**. Guest retries are separately retained.
+These are instrumented method timings, not raw HTTP gate samples: they include
+cProfile/SQL/GC tracing, exclude surrounding request work, and ran alongside the
+manual simulator and, during part of the run, local builds/tests. No acceptance
+pass or CI equivalence is claimed.
+
+Four full garbage collections were captured across these methods: two fresh
+guest revisions, one retry and one pause. The longest was **136.598 ms**; other
+slow calls had no full collection and showed delays spread across database
+round trips and Python work. The trace does not establish the cause of the
+original CI failure. The approved CI diagnostic remains in progress; production
+behavior has not been optimized on an unproven explanation.
+
+The diagnostic dispatch's [ordinary Python/browser job](https://github.com/BashaarJavaid/Hirz/actions/runs/36944414312/job/110643080644)
+passed on `fd476a4`: **1,497 service-free tests** in 251.67s, **196 integration
+tests** in 768.63s and **90% combined coverage** (14,829 statements, 1,517 missed).
+The companion, simulator and authenticated-card browser checks each passed;
+Linux card baselines/behavior report **46 passed in 2.0m**. All other ordinary
+jobs also passed. The retained job log is
+`/private/tmp/hirz-item29a-ci-regression-fd476a4.log`; both instrumented timing
+jobs are still running, so this does not close the outstanding latency gate.
+
+### Pending-action MCP output contract — 2026-10-01
+
+At 19/21 the author reported “Waiting for household information / This card's
+data is unavailable. Ask Hirz again.” Read-only inspection of the current private
+simulator found plan version 6 awaiting approval and a valid pending Decision;
+the server logged `household_tool_failed tool=get_household_plan
+error=ValidationError`. The earlier card fix supplied singular `decision`,
+`action` and an approval presentation, but `GetHouseholdPlanData` omitted those
+fields and permitted only a plan presentation. The registered MCP boundary
+therefore correctly refused the undeclared output.
+
+The narrow contract now declares the existing canonical Decision/Action and
+approval presentation. The real pending-action integration check passes its
+result through the registered MCP handler before testing exact binding, stale
+refusal, approval/denial execution and signed audit verification. All **4 card
+integration tests pass in 15.30s**; **39 household-tool unit tests pass in 4.35s**.
+The tool list remains **115,034 bytes**, largest tool **17,927 bytes**, within
+unchanged limits. Ruff, formatting and strict mypy for the contract pass. No
+input validation, authorization, consent or execution check was relaxed.
+
+A separate full browser check at
+`/private/tmp/hirz-item29a-plan-contract-regression` stopped at 6/21: its
+phone-consent/unchanged-v9-activation branch hit `Execution claim refused; no
+dispatch authorized`. The retained audit ends with an EXECUTE grant followed by
+CONSTITUTION_ACTIVATED; no subsequent dispatch was authorized. This suggests a
+policy-change race but does not yet establish its exact failing predicate.
+The scenario task stopped and its final timeline assertion failed; this is not
+a passing walkthrough. Cleanup retained **864 verified home audit rows**, an
+empty parents chain and the failed disposable database for investigation.
+The author's active 19/21 session was not restarted or changed.
+
+### Author-confirmed physical checks — 2026-10-01
+
+For the fresh `/private/tmp/hirz-item29a-physical-final` session, the author
+answered “all of these are done” to the explicit checklist: Show microphone
+recognition and audible reply; Dot microphone recognition and audible reply;
+phone-passkey activation of version 8; and door read-back changing from unlocked
+to locked. These are author-observed physical results, separate from automated
+browser assertions. They were completed before the 19/21 card-output error;
+that error and remaining regression/latency gates still prevent item closure.
+
+The independent **scripted voice-consent Show walkthrough passed all 21 events
+in 3.9m**, including two pending reviews at 19/21 and the morning read. Artifacts:
+`/private/tmp/hirz-item29a-plan-contract-voice`. Its retained transcript includes
+**three successful pending-action plan responses**, each carrying the declared
+Action/Decision and an approval presentation matching its plan; none reports
+`isError`. Cleanup independently verified **5,011 home audit rows**, an empty
+parents chain and **one bounded twin unlock**, then dropped its disposable
+database. This verifies the contract correction through actual authenticated
+MCP/browser traffic; the earlier phone-consent/activation failure remains open.
+
+The author then explicitly approved saving evidence and restarting to load the
+contract fix. Graceful shutdown of `hirz-item29a-physical-final` retained
+**12,886 verified home audit rows**, an empty parents chain and **one bounded
+twin unlock**; playback remained incomplete at the reported pending review.
+The old launcher exited successfully and dropped only its disposable database.
+A fresh session uses `/private/tmp/hirz-item29a-contract-restart` at the same
+private HTTPS origin and ports 8012/8013, with Bedrock off. The author-confirmed
+physical checks above remain evidence; no repeat is required just for restart.
+
+The correction was pushed as `1ab2c3ea065114b97d999e1e580bddfb9f5b4a43` on the
+existing branch; [regression CI 36948789970](https://github.com/BashaarJavaid/Hirz/actions/runs/36948789970)
+is in progress. The restarted local simulator returned `/health` **200**.
+The separate approved timing diagnostic remains running and was not cancelled.
+
+Checking run history also exposed an earlier, separate
+[push CI failure on fd476a4](https://github.com/BashaarJavaid/Hirz/actions/runs/36944414612/job/110643076890):
+the companion browser assertion passed, but `scripts/smoke_companion.py:178`
+timed out waiting 60 seconds for its child to exit. This differs from the
+successful ordinary jobs in diagnostic dispatch 36944414312 on the same source.
+Its direct retained log is
+`/private/tmp/hirz-item29a-prior-push-failure-complete.log`. The teardown timeout
+remains to investigate; no rerun or acceptance pass is substituted for it.
+
+### Completed manual walkthrough and diagnostic results — 2026-10-01
+
+The author explicitly confirmed “All 21 steps completed without errors” in the
+fresh `hirz-item29a-contract-restart` session. The earlier explicit Show/Dot
+audio, phone-passkey v8 activation and unlocked-to-locked observations remain
+recorded above. A read-only live snapshot at
+`/private/tmp/hirz-item29a-completed-live-snapshot` independently verified
+**10,776 home audit rows** and an empty parents chain. The running simulator was
+not stopped or changed; the snapshot does not claim later rows or a final tail.
+
+Current-source [regression CI 36948789970](https://github.com/BashaarJavaid/Hirz/actions/runs/36948789970)
+passed on `1ab2c3e`: **1,497 service-free tests** (262.37s), **196 integration
+tests** (786.19s), **90% combined coverage** (14,831 statements, 1,523 missed),
+and successful companion, simulator and authenticated-card browser checks.
+Linux card tests report **46 passed**. All ordinary jobs passed; latency was
+skipped on this push as designed. The retained Python job log is
+`/private/tmp/hirz-item29a-regression-1ab2c3e.log`. The prior teardown timeout is
+not relabeled as a pass and no root cause is claimed from this later success.
+
+The approved [diagnostic dispatch 36944414312](https://github.com/BashaarJavaid/Hirz/actions/runs/36944414312)
+completed successfully for both scenarios on `fd476a4`. Each retained trace
+contains **6,531 method records**. Highest per-case HTTP p95 was **242.723 ms**
+(Evening, objective-greenest) and **238.255 ms** (Hourly, objective-greenest).
+Hourly revision-guest p95 was **96.729 ms** and pause p95 **83.715 ms**; neither
+original failure reproduced. Sample counts, warmups and thresholds were unchanged.
+These instrumented results remain **diagnostic, not acceptance gates**.
+
+Evening recorded 75 generation-2 collections (maximum **116.638 ms**); Hourly
+recorded 77 (maximum **108.682 ms**). Of method calls over 200 ms, 27/28 Evening
+and 33/33 Hourly calls included a full collection. This associates full GC with
+slow instrumented calls, but does not establish the original failure's cause;
+method timings also exclude surrounding HTTP work. No GC disabling, threshold
+change or speculative performance optimization was applied. Direct completed
+logs are `/private/tmp/hirz-item29a-ci-diagnostic-{evening,hourly}-complete.log`;
+the Hourly method summary is retained alongside them. A single normal gate on
+final source and recovery behavior for the separate activation/dispatch refusal
+were submitted to the author for explicit decisions.
+
+### Approved stale-plan dispatch recovery — 2026-10-01
+
+The author approved fixing and testing recovery, and authorized **one normal
+acceptance dispatch on final source**, with all samples and the 250 ms limit
+unchanged. The diagnostic pass is not substituted for that run.
+
+A deterministic integration test reproduced `Execution claim refused; no
+dispatch authorized` by committing a real passkey-gated rule activation on a
+second connection between redemption and claim. The first restrictive fixture
+was itself invalid (a global `never` would loosen existing per-role overrides);
+it was corrected to a valid owner-specific tightening before testing recovery.
+No production grammar or validation was changed to accommodate the fixture.
+
+The shared plan-authority predicate now raises a specific `ValueError` subtype
+for its existing refusal condition. The claim transaction rolls back without
+writing an attempt and preserves the connection so the executor can release its
+session lock. The executor ends that sweep and leaves later ticks to the existing
+refresh/redemption path. Other claim errors still become fatal Pipeline errors.
+This applies at the shared HA/twin boundary, not only in the simulator. The
+[ADR amendment](./adr/ADR-020-simulator.md#recover-a-refused-stale-plan-dispatch--2026-10-01)
+records the approved behavior and rejected alternatives.
+
+The two deterministic activation cases initially passed in **8.26s**: unchanged
+rules permit a separately submitted fresh action, while a new owner `never`
+refuses it; neither dispatches the old grant. Both verify signed audit and lock
+release. An additional audit-failure case explicitly checks that infrastructure
+errors still propagate. The related unit suite passes **133 tests in 6.99s**.
+Ruff passes, all **290 files** pass formatting, and strict mypy passes for the
+four affected production files. Broader executor/refresh/passkey integration and
+the previously failed phone-consent browser path are running before publication.
+
+The broader integration run completed: **63 passed in 212.06s** across
+`test_companion_unlock.py`, `test_executor_database.py` and
+`test_refresh_database.py`. This includes the added fatal audit-failure case,
+concurrent worker claims, tampered endings, approval expiry/revocation, durable
+refresh consent, plan cancellation and rollback checks.
+
+The formerly failing **phone-consent Show browser path passed all 21 events in
+5.0m** at `/private/tmp/hirz-item29a-activation-recovery`, including concurrent
+unchanged version-9 activation, pending plan-action reviews and morning reads.
+Cleanup exited successfully and dropped only its disposable database. No new
+physical repetition or paid inference was required for this recovery correction.
+
+That browser run independently verified **5,412 home audit rows**, an empty
+parents chain and **one bounded twin unlock**.
+
+The final recovery source is `bf50e54cf85b798a3bfd700aad7db50817db374c` on
+`item-29-simulator`. The **single authorized normal acceptance dispatch** is
+[36952637731](https://github.com/BashaarJavaid/Hirz/actions/runs/36952637731),
+with `latency_diagnostic=false`; push regression is
+[36952597602](https://github.com/BashaarJavaid/Hirz/actions/runs/36952597602).
+Both were started on that exact source. The remaining scripted parents Show/Dot
+and evening Dot cells are being repeated against the same source. The author's
+completed manual session remains running, with its signed read-only snapshot
+already retained; no additional manual repetition is requested.
+
+### Final-source scripted matrix — 2026-10-01
+
+All four scripted cells pass on `bf50e54`, with Bedrock off and independent signed
+exports. Each launcher exited successfully and dropped its own disposable database;
+the unselected household had an empty audit chain. No paid inference was used.
+
+| Scenario | Display | Completed events | Verified selected-household rows | Bounded twin unlocks | Private artifacts |
+|---|---|---:|---:|---:|---|
+| Evening, phone consent and v9 activation | Show | 21/21 | 5,412 | 1 | `/private/tmp/hirz-item29a-activation-recovery` |
+| Evening | Dot | 21/21 | 5,545 | 1 | `/private/tmp/hirz-item29a-final-demo-evening-dot` |
+| Parents scam check | Show | 5/5 | 61 | 0 | `/private/tmp/hirz-item29a-final-parents-scam-check-show` |
+| Parents scam check | Dot | 5/5 | 58 | 0 | `/private/tmp/hirz-item29a-final-parents-scam-check-dot` |
+
+The evening Show cell took 5.0m and Dot 3.7m. The parents browser assertions
+include the authenticated `not_genuine` contact reply and no unsolicited speech;
+Dot asserts no card iframe. Final-source CI remains in progress.
+
+### Final manual-session export and shutdown — 2026-10-01
+
+After the author explicitly approved saving final evidence and stopping the
+simulator, graceful shutdown of `/private/tmp/hirz-item29a-contract-restart`
+completed successfully. The final playback records **21/21 evening events** and
+`timeline_complete: true`; independent export verification retained **22,896 home
+audit rows** and **one verified bounded twin unlock**. The unselected parents
+chain is empty (its separate final-source scripted checks are recorded above).
+The launcher dropped only its disposable database and reported development
+unchanged. The private simulator is now offline; its final signed evidence and
+playback reports remain local. No second restart or physical repetition was done.
+
+### Normal acceptance dispatch: companion teardown failure — 2026-10-01
+
+The normal dispatch's Python job
+[110668695495](https://github.com/BashaarJavaid/Hirz/actions/runs/36952637731/job/110668695495)
+passed **1,497 service-free tests** (265.11s), **199 integration tests** (815.04s)
+and **90% combined coverage** (14,837 statements, 1,517 missed). Its companion
+browser assertions passed in **1.8m**, but `scripts/smoke_companion.py:178` again
+raised `TimeoutError` while waiting 60 seconds for the companion child to exit.
+The job failed; later simulator/card browser steps were not reached in that job.
+The same-source [push regression 36952597602](https://github.com/BashaarJavaid/Hirz/actions/runs/36952597602)
+passed all its ordinary jobs, showing that cleanup failure is intermittent.
+Neither result erases the other. The retained failed log is
+`/private/tmp/hirz-item29a-final-python-failure.log`.
+
+Both normal latency jobs remain running and are left untouched. The author was
+asked whether to fix/test the companion shutdown without weakening export or
+acceptance checks. A single disposable local diagnostic uses a temporary
+`sitecustomize.py` to record coroutine filenames, line numbers and cancellation
+counts to a private log every ten seconds; it contains no payloads/locals and
+changes neither application code nor the existing 60-second smoke timeout.
+Artifacts are `/private/tmp/hirz-item29a-shutdown-probe`; tracing lives outside the
+repository at `/private/tmp/hirz-item29a-shutdown-trace`. No cause or fix is yet
+claimed, and the failed job is not replaced by an automatic rerun.
+
+The local shutdown diagnostic did **not reproduce** the hang: browser assertions
+passed in 1.7m, the child exited normally, **440 home audit rows** verified, the
+parents chain was empty and its disposable database was dropped. No production
+or timeout change was made. The CI child log was not published, so the available
+CI trace identifies the parent's wait timeout but cannot distinguish HTTP drain,
+worker cancellation, native-helper shutdown or audit export. Further shutdown
+changes remain subject to the pending author decision; a successful diagnostic
+is not described as fixing the recurring CI failure.
+
+### Normal latency acceptance completed — 2026-10-01
+
+The single authorized normal dispatch on `bf50e54`,
+[36952637731](https://github.com/BashaarJavaid/Hirz/actions/runs/36952637731),
+completed both latency jobs successfully with `latency_diagnostic=false`.
+Each scenario retained all **54 cases**, **100 measured samples per case**,
+the existing five warmups and the **250 ms** case/tool p95 ceiling. No failed
+samples were removed and no additional latency run was started.
+
+| Scenario | Highest case p95 | Highest aggregate tool p95 | Job |
+|---|---:|---:|---|
+| Evening | 234.511 ms (`objective-greenest`) | 167.994 ms (`get_household_plan`, 700 samples) | [110668695453](https://github.com/BashaarJavaid/Hirz/actions/runs/36952637731/job/110668695453) |
+| Hourly | 237.254 ms (`objective-greenest`) | 167.178 ms (`get_household_plan`, 700 samples) | [110668695567](https://github.com/BashaarJavaid/Hirz/actions/runs/36952637731/job/110668695567) |
+
+All twelve aggregate tool gates passed in each scenario. Private job logs are
+`/private/tmp/hirz-item29a-final-latency-evening.log` and
+`/private/tmp/hirz-item29a-final-latency-hourly.log`. The workflow as a whole
+remains **failed** because of the companion teardown timeout recorded above;
+these passing latency results do not erase that failure or explain the earlier
+latency failure. The author subsequently approved investigating, fixing and
+testing companion shutdown, with exports and acceptance checks preserved.
+
+### Companion shutdown diagnosis authorized — 2026-10-01
+
+A second local probe used the same temporary coroutine tracer at 250 ms intervals
+in `/private/tmp/hirz-item29a-shutdown-fast-probe`. It also did not reproduce the
+hang: browser acceptance passed in 1.7m, **430 home rows** independently verified,
+the parents chain was empty, and disposable cleanup completed. The probe is
+diagnostic evidence only; another local pass does not resolve the CI failure.
+
+The companion smoke now asks its child for coroutine locations only after the
+unchanged 60-second shutdown wait fails. The child has an explicit diagnostic
+flag and a SIGUSR1 handler; it emits filenames and line numbers, including
+awaits inside async context managers, without task representations, source text,
+locals or request data. The parent publishes only that marked diagnostic line
+and re-raises the original timeout. No raw private log or credential artifact is
+uploaded, no failed run is turned into success, and no latency job is restarted.
+One targeted unit test verifies context traversal and omission of task/frame
+payloads; it passed, and strict mypy passed for both changed scripts. Ordinary
+push CI will exercise the diagnostic on Linux; the shutdown cause remains unknown.
+
+Diagnostic commit `d33796dfc9b4c3020589f37e10d5d9ea888233da` triggered ordinary
+[push CI 36964641407](https://github.com/BashaarJavaid/Hirz/actions/runs/36964641407);
+no latency dispatch was added. Twelve bounded local probes stopped fresh,
+unactivated companion fixtures at offsets across one worker cycle: all exited
+successfully in **0.469–0.639 seconds**, with empty signed chains and disposable
+database cleanup. These probes used `/private/tmp/hirz-item29a-shutdown-phases`
+and did not reproduce the CI hang. A separate real-child signal probe captured
+nine coroutine stacks containing only filenames/line numbers, then completed
+ordinary export and cleanup in **0.515 seconds**; its private artifacts are
+`/private/tmp/hirz-item29a-shutdown-signal`. It verifies the diagnostic path, not a
+shutdown fix or physical/browser acceptance.
+
+Twelve further local probes in `/private/tmp/hirz-item29a-shutdown-active`
+enrolled a virtual browser passkey and activated home v7 through the ordinary
+companion UI before stopping at the same worker-cycle offsets. Every launcher
+exited zero, independently verified its signed exports and dropped its own
+database; shutdown took **0.434–0.613 seconds**. These active-policy probes also
+did not reproduce the hang. No activation row or passkey authority was inserted
+by a bootstrap shortcut, no physical device was used, and the normal acceptance
+timeout was unchanged. CI has passed database regressions and coverage and is
+preparing its browser checks; no shutdown fix is yet claimed.
+
+### Instrumented ordinary CI completed without reproduction — 2026-10-01
+
+[Push CI 36964641407](https://github.com/BashaarJavaid/Hirz/actions/runs/36964641407)
+passed all ordinary jobs on `d33796d`. Its Python job passed **1,498 service-free
+tests** in 168.79s and **199 integration tests** in 665.13s, with **90% combined
+coverage** (14,837 statements, 1,517 missed). Companion browser acceptance passed
+in **1.6m**, followed by successful child exit and independently verified exports;
+the shutdown diagnostic did not fire. Simulator browser acceptance passed in
+17.6s, the live reference-host browser check in 2.2s, and all **46 Linux card
+checks** passed in 1.8m. The retained job log is
+`/private/tmp/hirz-item29a-shutdown-diagnostic-python.log`.
+
+This pass does not explain or repair the two recorded shutdown timeouts. Item
+29a remains partial. A concrete, syntax-checked workflow change is prepared to
+run three independent disposable companion checks, retaining every assertion
+and the 60-second shutdown limit; the existing fail-fast shell would stop the
+step at its first failure. It is **not pushed or run** pending the author's
+decision, and it introduces no latency dispatch. No third-party defect or
+workaround is claimed: the available evidence still does not identify the cause.
+
+The author approved the prepared three-check diagnostic. The existing companion
+CI step now runs three independent disposable sessions and stops on its first
+failure; this is a bounded reproduction attempt, not retries until green.
+The 60-second shutdown wait, signed-export requirements, browser assertions,
+ordinary downstream checks and job timeout are unchanged. No latency dispatch
+is authorized or added by this change.
+
+The approved bounded diagnostic is commit
+`21ed80bc44de82682bdbf082e2b62995e14e6e36`, running as ordinary
+[push CI 36967258986](https://github.com/BashaarJavaid/Hirz/actions/runs/36967258986).
+Its three companion invocations use distinct private artifact directories and
+fresh disposable databases. The earlier normal latency results remain attached
+to `bf50e54`; this diagnostic introduces no application or authorization change.
+
+### Approved three-session diagnostic completed — 2026-10-01
+
+[CI 36967258986](https://github.com/BashaarJavaid/Hirz/actions/runs/36967258986)
+passed every ordinary job on `21ed80b`. All **three independent companion
+sessions** passed browser assertions, child shutdown and independently verified
+signed exports; browser times were **1.8m, 1.7m and 1.7m**. The log contains three
+explicit companion `PASS` summaries and no `COMPANION_SHUTDOWN_STACKS` record.
+The unchanged fail-fast step did not retry any failure. No latency job ran.
+
+The same Python job passed **1,498 service-free tests** in 259.16s and **199
+integration tests** in 776.79s, with **90% combined coverage** (14,837 statements,
+1,517 missed). Simulator browser acceptance passed in 19.8s, the authenticated
+reference-host check in 2.7s, and all **46 Linux card checks** in 2.0m. The retained
+log is `/private/tmp/hirz-item29a-three-shutdown-python.log`.
+
+The bounded diagnostic did **not reproduce or fix** the two earlier shutdown
+timeouts. Root cause remains unknown; CPython's
+[subprocess-cancellation report](https://github.com/python/cpython/issues/103847)
+is only a candidate explanation, not an attribution of the Hirz failures.
+The normal single-session workflow has been restored locally, and a separate
+defect report is prepared at `/private/tmp/hirz-item29a-shutdown-followup.md`.
+Neither that restoration nor an issue has been published yet. Item 29a remains
+partial pending the author's decision whether to keep the shutdown investigation
+as a closure blocker or explicitly defer it to the separate open defect.
+
+
+### Item 29a closure with shutdown follow-up — 2026-10-01
+
+The author instructed “close 29a” after being offered closure with the unfixed
+companion shutdown defect tracked separately. The defect is now open as
+[issue #7](https://github.com/BashaarJavaid/Hirz/issues/7); its cause remains
+unknown and no shutdown repair is claimed. This explicitly defers that defect
+from item 29a closure, as recorded in the
+[ADR-021 amendment](./adr/ADR-021-extracted-host-harness.md#closure-and-shutdown-deferral--2026-10-01).
+
+Closure relies on the retained [registry release verification](#both-registry-releases-verified--2026-10-01),
+independent reference-server proof, [final scripted matrix](#final-source-scripted-matrix--2026-10-01),
+[physical checks](#author-confirmed-physical-checks--2026-10-01),
+[completed manual walkthrough](#completed-manual-walkthrough-and-diagnostic-results--2026-10-01),
+and [final signed manual export](#final-manual-session-export-and-shutdown--2026-10-01).
+Both [normal latency gates](#normal-latency-acceptance-completed--2026-10-01)
+passed on application commit `bf50e54`; that dispatch's overall failure remains
+recorded. The later [ordinary CI](https://github.com/BashaarJavaid/Hirz/actions/runs/36967258986)
+passed on `21ed80b`, including the bounded three-session diagnostic documented
+above. Neither passing diagnostics nor this closure erase earlier failures.
+
+The temporary three-session loop is restored to the ordinary single companion
+invocation. Payload-free timeout diagnostics, the shutdown limit, failure
+propagation, signed-export requirements and all acceptance thresholds remain.
+Closure changes only records and that workflow restoration; application and
+package code are unchanged. No new latency dispatch, paid inference, manual
+session, database migration, package release or merge is part of this closure.
+The independent package PR remains draft. No third-party friction entry is
+added because the shutdown cause has not been attributed to a third-party tool.
+
+Closure validation passed: the workflow parses with the original single-session
+command, AGENTS/CLAUDE are byte-identical, Current phase is 72 words, prior
+verification evidence is an unchanged prefix, and `git diff --check` is clean.
+The closure commit's push will trigger ordinary CI; it is not a new latency
+acceptance dispatch and is not represented here as a completed run.
+
+## Item 30
+
+### Recording implementation checks — 2026-10-03
+
+Implemented the approved recording packaging in ADR-020: separate private
+credentials, a fresh Compose project/volume per foreground invocation, paused
+scripted readiness, non-root runtime and verified-export cleanup. Initial local
+checks (macOS arm64, Python 3.12.13) passed:
+
+- `uv run --locked pytest tests/unit/test_demo.py --no-cov`: **18 passed**,
+  including configuration preservation/refusal, private permissions, occupied
+  ports, readiness timeout, browser fallback, and startup/runtime/export/shutdown
+  cleanup refusal.
+- `pnpm -r lint`, `pnpm -r typecheck`, `pnpm -r test`: passed; cards **4 tests**,
+  web **1 test**. Python Ruff and strict mypy: passed, **184 source files**.
+- Both UI builds and `uv build`: passed; sdist and wheel produced. Packaging was
+  rerun with network access after sandbox DNS refused the pinned build backend.
+- Author approved switching the existing Tailscale forwarding from loopback 8012
+  to 8002 and preparing a real-phone rehearsal. Dedicated initialization created
+  `secrets/demo/.env`; no development credentials were replaced. Private baseline
+  records the development database at `0005_execution_attempt`.
+
+This entry is implementation evidence only. Compose startup/shutdown, fresh-run
+and failure checks, four scripted browser cells, the manual recording rehearsal,
+combined Python coverage, ordinary CI and both latency gates remain owed here.
+Issue #7 is not claimed fixed; Nova, Web Push, contacts, Ring, Link and AWS retain
+their prior status. No paid inference was invoked.
+
+### Compose startup and bounded-ending diagnosis — 2026-10-03
+
+Three failed startup runs were retained under `secrets/demo/runs/`, with their
+volumes and available private evidence:
+
+- `hirz-demo-4cfe0e1f9c3a4f19a5758100e058184f`: bootstrap expected `/app/.env`;
+  the mount was corrected instead of adding a second bootstrap configuration.
+  Wrapper exited 1 at the 180-second readiness deadline.
+- `hirz-demo-963ab937385c44b1881dafb03d62198b`: readiness compared timestamp
+  strings rather than instants; canonical UTC is the requested Chicago time.
+  The comparison was corrected and regression checked.
+- `hirz-demo-a173c9d9b54e4bcaada89de8049c7aa9`: Docker omitted requested
+  publications on an internal-only bridge. Wrapper exited 1 after its deadline;
+  storage remained even though runtime export/shutdown succeeded. See the
+  [friction entry](./friction-log.md#item-30--internal-bridge-silently-omits-published-ports--2026-10-03).
+
+The dedicated ordinary bridge then passed readiness, including trusted HTTPS.
+Initial parents Show (`hirz-demo-4731e51a626245c9abbf5c2a6d7138eb`) and Dot
+(`hirz-demo-03e93aab51ab471f9ad43c09aa6236d6`) browser runs passed, each with 64
+signed scenario rows and independently verified cleanup. Each fresh database had
+2 households, 0 active policies and 0 passkeys; invitation hashes differed.
+Live Docker inspection confirmed UID 501/GID 20, `.env` mode 0600,
+`HIRZ_LLM=off`, no AWS/HA environment keys, only 127.0.0.1:8002/8003 published,
+and no PostgreSQL publication. Node 24.21.0 lint/type/unit checks also passed.
+
+The first evening Show run (`hirz-demo-b29aa6cfbeaf49119019964a4fdb4362`)
+failed at 17:45 with `PipelineError: Execution claim refused; no dispatch authorized`.
+Read-only inspection of retained database
+`hirz_ha_smoke_ccd4f44ae4554ef29bad9ed03007261f` found one verified ending and
+one scheduled ending whose opening was cancelled with no execution attempt.
+Its strict verifier correctly refused that orphan. The database was stopped
+again after inspection; no retained history was changed.
+
+The [atomic ending amendment](./adr/ADR-020-simulator.md#commit-bounded-endings-with-the-opening-claim--2026-10-03)
+fixes the cause. The new cancellation-between-redemption-and-claim regression was
+run against `7906c91` in memory and failed exactly `assert 1 == 0` (one orphan
+ending). The corrected executor suite passes 30 tests; passkey regressions and
+fresh four-cell Compose acceptance are still running at this entry.
+
+Initial CI was submitted on `7906c91` after explicit author approval:
+[push](https://github.com/BashaarJavaid/Hirz/actions/runs/37152419807) and
+[dispatch](https://github.com/BashaarJavaid/Hirz/actions/runs/37152419186).
+They predate the bounded-ending fix and cannot close item 30. Local baseline
+service-free tests passed 1512 tests before that fix; combined coverage remains
+pending until integration finishes. No issue #7 repair is claimed.
+
+### Regression and container acceptance continuation — 2026-10-03
+
+The initial local service-free/integration sequence completed with **1512 and 199
+passed**, respectively, and **90% combined coverage** (14839 statements, 1557
+missed). Those processes loaded code before the ending fix; they are baseline
+evidence rather than a final-code regression claim. After that fix, the complete
+executor and companion-unlock suites passed **49 tests in 235.85 seconds**.
+The new cancellation-between-redemption-and-claim test is included. Local logs
+are `/tmp/hirz-item30-{unit,integration,coverage,ending-regression}.log`.
+
+The rebuilt image passed fresh parents Show
+(`hirz-demo-72de09765a904ef6904236811156eb0b`) and Dot
+(`hirz-demo-b02b1ab4437c4810855909492b0f309a`), each with **67 signed scenario
+rows** and successful independently verified cleanup. A subsequent evening Show
+run (`hirz-demo-93f640ca4adc4febb4b8b92d3265b620`) encountered the existing strict
+`409: This Echo already has an active turn` guard when card polling acquired the
+slot before the browser driver's voice submission. Its pending call did not
+settle within the shutdown allowance; the wrapper correctly failed and retained
+storage/evidence. This is not evidence that issue #7 is repaired.
+
+The browser helper now waits for an available Echo slot and retries only that
+explicit pre-acceptance refusal; accepted requests are never replayed. Web lint
+and both TypeScript configurations pass. Fresh evening Show
+(`hirz-demo-ae1051aaa6694473b6b99ced04c9e530`) then passed all **21 events** in
+**5.7 minutes**, including genuine server-side WebAuthn verification, phone plan
+consent surviving unchanged rule reactivation, and one verified bounded unlock.
+Its **5380 signed scenario rows** independently verified and its volume was
+removed only after successful runtime exit. Private browser logs, screenshots,
+playback, signed exports and cleanup receipts remain under each run directory.
+
+The backend fix is under required ordinary/latency CI
+[37153065576](https://github.com/BashaarJavaid/Hirz/actions/runs/37153065576)
+at `fc75c96`; the browser-only correction is pushed as `98bd312` with ordinary CI
+[37153846645](https://github.com/BashaarJavaid/Hirz/actions/runs/37153846645).
+Evening Dot, deliberate export/verification failures, real-phone rehearsal and
+final CI results remain pending at this entry.
+
+Fresh evening Dot (`hirz-demo-73166f926fc84e83a581439a72a3b7d8`) subsequently
+passed all **21 events in 6.0 minutes**, with **5136 signed scenario rows**, one
+verified bounded unlock, successful runtime exit and verified storage cleanup.
+All four final Compose cells are now exercised. A separate offline check
+reverified both exports from each cell against the saved demo key, checked all
+four 0700 run directories and 0600 invitation files, and confirmed **8 distinct
+invitations**. Both evening outputs meet the existing exact-50%-by-06:30 EV
+tolerance and one completed dishwasher-cycle assertions. Defaults and clocks
+were checked before playback, including no advancement across a real runtime
+tick while paused. Private matrix results and artifacts remain in `secrets/demo`.
+
+The development baseline comparison passes: `.env` SHA-256, original PostgreSQL
+container ID and migration `0005_execution_attempt` are identical to the saved
+pre-run baseline. No development migration/reset, paid inference, or external
+device/contact call was performed. The 17 service-free launcher checks that do
+not bind a port passed again; the separate occupied-port retry was denied by
+the execution sandbox (`PermissionError: [Errno 1] Operation not permitted`)
+and needs its previously authorized network-capable execution context.
+
+That rerun passed **all 18 focused checks in 4.39 seconds**, including a real
+occupied loopback port, and the documented repeated `demo.py init --origin ...`
+reported `Demo configuration validated and preserved.`
+
+Two deliberate failures were then exercised against fresh actual Compose runs,
+using a private test driver without adding production fault hooks:
+
+- Export failure: `hirz-demo-b6b251632b1747f1b0047b556347e9b1`. The driver
+  precreated the expected export directory after readiness; runtime export
+  failed. The wrapper returned **1** and retained its PostgreSQL volume.
+- Independent verification failure:
+  `hirz-demo-60b2a8c680534079b5079f3dea8b99b7`. After successful runtime export,
+  the driver preserved the original as `audit.original.json`, replaced the test
+  export with `{}`, and invoked the real verifier. `AuditError` caused wrapper
+  exit **1** and retained storage, despite the successful runtime receipt.
+
+Both runs have stopped simulator/PostgreSQL containers and **no cleanup receipt**;
+their private evidence and volumes remain. Exact results are in
+`secrets/demo/fault-results.json`. Failed startup, failed runtime settlement,
+failed export and failed independent verification have therefore all retained
+storage; no failed run was silently disposed of. The real-phone rehearsal and
+final CI results still gate closure.
+
+The documented foreground command started manual rehearsal
+`hirz-demo-51bb0b9130324fdbb5fc192e549113c3`, passed local/HTTPS readiness, and
+opened the standard browser at the saved trusted origin. The author received
+only its private invitation-file location and the phone walkthrough. The run is
+left attached for real enrollment, activation, explicit Echo consent and phone
+approval; physical interaction and verified shutdown are not yet claimed.
+
+### Item 30 closure — 2026-10-03
+
+The author confirmed: **“I did the full rehearsal, it worked end to end.”** This
+answers the requested real-phone enrollment, rule activation, explicit Mac Echo
+OAuth consent and authenticated approval/unlocked-to-locked walkthrough. The
+foreground recording run was then stopped with Ctrl-C through its original PTY.
+It exited **0**, printed `Verified shutdown; recording storage removed`, and
+retained its private evidence in
+`secrets/demo/runs/hirz-demo-51bb0b9130324fdbb5fc192e549113c3`.
+
+The saved demo key independently verifies both household exports after shutdown.
+The home export contains **10207 signed rows**, **2 constitution activations**,
+all **21 evening events completed**, and **1 verified bounded unlock and ending**.
+The parents export is valid and empty: this physical rehearsal exercised the
+evening, while parents Show/Dot coverage is the automated evidence above. The
+run's `cleanup.json` confirms verified exports and removed storage; Docker lists
+no remaining container, volume or network for that exact project. Both deliberate
+failure volumes and all earlier private evidence remain. A final comparison again
+finds the development `.env`, original PostgreSQL container and migration
+`0005_execution_attempt` unchanged (`secrets/demo/development-after-rehearsal.json`).
+
+Final automated gates:
+
+- [Ordinary CI 37153846645](https://github.com/BashaarJavaid/Hirz/actions/runs/37153846645)
+  passed on `98bd312`: **1516 service-free tests**, **200 integration tests**,
+  **90% combined coverage** (14839 statements, 1512 missed), lint/strict typing,
+  TypeScript tests, packaging, scenario checks and conformance. Browser acceptance
+  passed for companion, simulator and reference host, plus **46 Chromium card
+  tests**; native Cedar conformance passed **159 tests**. The release job remains
+  its explicit deferred placeholder, not publication or AWS deployment evidence.
+- [Required dispatch 37153065576](https://github.com/BashaarJavaid/Hirz/actions/runs/37153065576)
+  passed ordinary CI and both real latency gates on backend commit `fc75c96`.
+  `98bd312` changes only the browser test's pre-acceptance Echo-slot wait; backend,
+  dependencies and latency harness are identical. All **54 cases across 12 tools**
+  passed for each scenario with five warmups and 100 measured calls per case.
+  Worst case p95 was **204.505 ms** for evening and **206.011 ms** for Hourly
+  (`objective-greenest` in both), below **250 ms**. This is authenticated local
+  raw JSON-RPC round-trip timing; SDK reference timings are outside that gate.
+  Local retained logs are `/tmp/hirz-item30-final-{ci,latency}.log`; public CI logs
+  provide the durable redacted summaries.
+- The actual Compose image, four fresh browser cells, 18 focused launcher checks,
+  failure-retention probes, real rehearsal and independent shutdown verification
+  are recorded above. Docker/Compose startup-order and networking friction is
+  recorded in the existing item 30 friction entry. No other third-party friction
+  was earned during closure.
+
+Item 30 is complete for isolated scripted recording. This earns no repair claim
+for issue #7's unrelated shutdown paths and no new Web Push, Nova, real contacts,
+physical lock, Ring, Link or AWS guarantees. No inference ledger was supplied or
+paid model called. Closure changes after `98bd312` are documentation only.
+
+### Phase 5 promotion dispatch — 2026-10-06
+
+[Dispatch 37503482368](https://github.com/BashaarJavaid/Hirz/actions/runs/37503482368)
+on `a24c5a7654b440650d2ed19159ecfbbe2dbc69fb` passed all ten ordinary jobs
+and `latency (demo-evening)`. `latency (demo-evening-hourly)` failed the
+**250 ms** warm p95 gate in the run's summary:
+
+- `objective-most_comfortable`: **258.391 ms** p95.
+- `objective-cheapest`: **254.834 ms** p95.
+
+The code exercised by the latency gate is identical to `fc75c96`, where both
+gates passed in [dispatch 37153065576](https://github.com/BashaarJavaid/Hirz/actions/runs/37153065576).
+This run is recorded as **failed**; no retry was made. By the author's decision,
+the documentation-only Phase 5 promotion to `main` proceeds on the ordinary jobs;
+latency remains required before item closure and submission, not this promotion.
+The Hourly objective cases' headroom is now a tracked follow-up; no fix is claimed.

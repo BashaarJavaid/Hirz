@@ -1268,8 +1268,17 @@ CI, including isolation. **Dispatch CI once before closing any roadmap item that
 changes the pipeline, tools, executor, refresh or storage, and once before
 submission; record each run in the evidence log.** Open the repository's
 **Actions → CI → Run workflow**, select the branch, and click **Run workflow**.
-This runs both latency matrix jobs alongside the ordinary jobs. See the
+Leave **latency_diagnostic** unchecked for acceptance. This runs both latency
+matrix jobs alongside the ordinary jobs. See the
 [closure amendment](./adr/ADR-017-tool-latency-and-isolation.md#closure-amendment--2026-09-24).
+
+For an explicitly authorized timing investigation, check **latency_diagnostic**
+or dispatch with `gh workflow run ci.yml --ref <branch> -f latency_diagnostic=true`.
+The benchmark emits `DIAGNOSTIC_NOT_GATE` timing records containing only catalog
+tool names, query fingerprints/counts/durations and garbage-collection timings.
+It still runs every case and assertion. Its report has `diagnostic: true`; even a
+successful workflow is **not an acceptance gate**. Normal dispatches keep the
+hooks disabled. Private reports and signed exports remain unuploaded.
 
 To compare a private local `report.json` with a CI run's payload-free timing
 summary, first match the commit, scenario and measurement protocol; distinguish
@@ -1404,3 +1413,375 @@ Retain private fixture/audit artifacts locally; CI publishes only payload-free
 summaries. The [item 27 closure](./verification-log.md#item-27-closure--2026-09-24)
 records the approved screenshots and passing gates. Future relevant changes follow
 the authenticated CI dispatch requirement in the item 26 procedure above.
+
+
+## Companion app (item 28, acceptance still in progress)
+
+Use Node 24 and the locked dependencies. Build both browser bundles before Python
+packaging or production startup:
+
+```sh
+uv sync --locked
+pnpm install --frozen-lockfile
+pnpm --filter mcp-app build
+pnpm --filter web build
+```
+
+The companion uses `/api` and the six same-origin routes; Vite proxies `/api` to
+the local backend during development. WebAuthn requires the exact configured
+HTTPS origin and RP hostname. Initial synthetic owners enroll using explicitly
+issued local invitations; the simulated OAuth issuer cannot sign them in.
+
+For private iPhone testing, install Tailscale on the Mac and iPhone, sign both in
+to the same tailnet, and enable HTTPS/Serve in the account. Use the actual Mac DNS
+name, not an example name:
+
+```sh
+uv run --locked python -m scripts.init_companion --origin https://YOUR-MAC.YOUR-TAILNET.ts.net
+HIRZ_LLM=off HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run --locked python -m scripts.companion_demo --origin https://YOUR-MAC.YOUR-TAILNET.ts.net --port 8002 --artifacts-dir secrets/NEW-PHONE-RUN
+tailscale serve --bg http://127.0.0.1:8002
+```
+
+The initializer preserves existing audit and push keys in the regular mode-0600
+`.env`; partial or conflicting identity configuration is refused. Never copy
+private keys or invitations into audit evidence, screenshots, or documentation.
+The demo explicitly creates and migrates a disposable database through 0018; it
+never upgrades the development database (which remains on 0005). Normal startup
+does not apply migrations. On clean demo shutdown it verifies and retains signed
+exports before dropping the disposable database. Its enrollments are disposable.
+
+Open the URL in Safari, choose Add to Home Screen, and launch the installed app.
+Read the one-use invitation from the private artifact directory, enroll a real
+passkey, and save the recovery code. Activate the initial policy in Constitution
+with a fresh passkey. Initial activation preserves home v7 and parents v1. On
+Approvals, enable notifications with the explicit button; permission and delivery
+remain separate from approval. The labeled doorbell control is available only
+in this disposable fixture. It requests a one-minute twin unlock; approval must
+use a fresh passkey, and both unlock and bounded relock require read-back.
+
+Recovery codes grant enrollment only: successful replacement enrollment consumes
+the code, revokes previous keys/sessions/unused security votes, and returns a
+replacement code. Save that code immediately. Passkeys may sync across devices;
+owners are encouraged to add another distinct credential. Revoking the last key
+requires explicit lockout confirmation. An owner with no remaining passkey and
+no recovery code cannot recover in product. Local invitation issuance refuses
+members with credential history and must never be used as an account reset.
+
+With `HIRZ_LLM=off`, voice proposals remain queued for manual editing. Only an
+explicit disposable demo offers the visibly labeled recorded English patch.
+Live drafting needs `HIRZ_LLM=bedrock` and an explicitly configured model ID;
+provider failures leave form/YAML editing available. No model activates policy.
+
+Browser verification starts a fresh disposable companion, an authenticated MCP
+process and a simulated OAuth issuer. It keeps those processes running through
+policy activation, checks the six pages and retains signed exports on shutdown:
+
+```sh
+pnpm --filter web build
+HIRZ_LLM=off HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run --locked python -m scripts.smoke_companion --artifacts-dir secrets/NEW-BROWSER-RUN
+```
+
+The harness supplies private MCP credentials to the test runner, never to page
+JavaScript. Keep its artifact directory private; it includes one-use invitations
+and temporary authentication material. The browser sees `https://hirz.example.test`
+while transport goes to the isolated loopback server. The same command runs in CI.
+Do not point these tests at a retained phone enrollment.
+
+Chromium uses its virtual authenticator with real server signature verification.
+This is separate from the required real iPhone Home Screen push/passkey gate.
+Stop owned test servers after retaining evidence; `tailscale serve reset` removes
+the private proxy when no longer needed. See [item 28 evidence](./verification-log.md#item-28--in-progress--2026-09-25)
+for the current results and outstanding gates. Twin check-ins are simulated;
+physical locks, real contact verification, live paid drafting and AWS policy
+analysis are not verified by these procedures.
+
+
+A retained disposable phone run can be resumed without changing credentials or
+issuing invitations. Its private `runtime.json` binds the original database,
+origin and twin configuration. Stop the old process first, then use
+`--resume-from secrets/OLD-RUN --artifacts-dir secrets/NEW-RUN` with the same
+origin. Resumed runs retain their database on shutdown. An ordinary new run still
+uses a fresh database; do not confuse its new invitations with account recovery.
+Only disposable `hirz_ha_smoke_` databases are accepted. A worker failure retains
+evidence and stops the demo instead of silently leaving a dead worker behind.
+
+The current phone fixture intentionally has no whole-night planning inputs;
+Tonight reports blocked preparation honestly. Use the configured existing worker
+and scenario inputs for planning acceptance. On iOS 15, the additional Continue
+with passkey tap preserves a fresh browser user gesture; physical-device
+verification remains recorded separately. iPhone Web Push requires **iOS 16.4 or
+later** ([Apple](https://developer.apple.com/documentation/usernotifications/sending-web-push-notifications-in-web-apps-and-browsers));
+an older phone can use the inbox but cannot satisfy the push acceptance gate.
+
+Companion Twin runs use the deployment working directory's `scenarios/`,
+`constitutions/` and `tariffs/`, alongside `alembic.ini` and `alembic/` for explicit
+migration of their isolated databases. Run an installed wheel from that prepared
+checkout/deployment directory; the wheel carries browser assets, not an implicit
+household setup or migration. The container copies these repository resources
+explicitly. No startup migration is introduced.
+
+## Item 29 disposable simulator
+
+Build the existing cards and companion bundle (`pnpm --filter mcp-app build` and
+`pnpm --filter web build`), start the existing PostgreSQL service, and use Node 24,
+Python 3.12 and the pinned native Dogwood build. The development database is never
+migrated by this launcher. Configure a trusted HTTPS origin forwarding to loopback
+8002 using the existing companion HTTPS procedure. Explicitly initialize the
+simulated issuer key if missing (`uv run --locked python scripts/dev_oauth.py init`),
+then run:
+
+```sh
+HIRZ_DOGWOOD="$PWD/.tools/dogwood" HIRZ_LLM=off uv run --locked python -m scripts.simulator_demo --origin https://YOUR-LOCAL-HOST --artifacts-dir /tmp/item29-run-unique
+```
+
+The launcher explicitly migrates one newly named disposable database, supplies
+both labeled twin households, and starts the issuer on loopback 8003 and the
+MCP/companion/simulator on 8002. `--port` and `--issuer-port` can isolate concurrent
+checks. Keep the artifact directory private: `invitations.json` contains the initial
+Mom and Malik invitations. Enroll each in its own browser profile/companion session,
+activate its seed policy with a real passkey, then link the named Echo using explicit
+PKCE consent. Dad links separately to the home. No pre-enrolled key or active-policy
+fixture is installed. `/simulator` itself is independent of companion login.
+Recorded speech ignores casing and sentence punctuation while preserving words and
+numeric values; unknown free text remains unsupported.
+
+The installed iPhone app and Safari keep separate sessions. In the installed
+demo app, Constitution's **Open local simulator** link preserves its companion
+session for playback controls. The Mac Echo can remain separately linked while
+the phone advances the shared household scenario. Recovery revokes the member's
+previous companion sessions; it does not authorize another browser or revoke Echo
+OAuth linking. Do not recover repeatedly merely to move between browsers.
+
+Scenario controls require the matching companion household. Only the selected
+scenario advances; 1×, 60× and Next event pause at interaction beats. Complete the
+named Echo’s utterance, exact confirmations and any phone interaction before
+continuing. Read the updated plan before approving its returned version. After
+`PLAN_CHANGED`, read the current plan and confirm it again; a rejected approval
+cannot complete the playback beat. `PLAN_BLOCKED` means the worker has stopped,
+so polling is not a recovery. Review the actual household requests and device
+state; a fresh scenario requires a launcher restart, not a clock rewind. At the
+parents’ reply beat choose an explicitly simulated answer, then ask again for the
+result. Recorded rule review requires its matching voice proposal and passkey
+activation. A fresh run requires restarting the launcher. Shutdown independently
+verifies and exports both signed audit chains before successful database cleanup;
+failed runs retain their disposable database and private evidence.
+
+For model selection only, set `HIRZ_LLM=bedrock`, `AWS_PROFILE=hirz` and add
+`--budget-ledger secrets/item29-host-budget.json`. Preserve this same separate
+aggregate ledger across every model, restart and attempted run. The approved Haiku
+acceptance extension raises its total ceiling to $20; Nova retains a $10 ceiling
+against the same total and is not part of the Haiku-only verification work. Never use/reset the
+existing $2 ledger. Haiku native token counting and maximum-output reservation precede inference.
+The approved Nova exception reserves 330,000 input tokens (its published 300K
+context ceiling plus 10%) and 512 maximum output tokens per attempt, even for
+short requests; this is a cost bound, not a measured token count. Expired credentials,
+Haiku counting failure and cap exhaustion stop the turn.
+Select scripted mode explicitly to continue. Pricing and model IDs are in ADR-020;
+recheck pricing before later paid invocations. Drafting stays on the labeled recorded
+patch and narration uses deterministic tool speech during acceptance.
+
+Item 29 is accepted for Haiku and scripted mode. Nova is deferred to item 29b by
+author approval; its existing experimental option is not a verified evening host.
+Use Haiku for the live demo. No further Nova inference is authorized by this
+deferral, and its failed-run evidence and reservations must remain intact.
+
+The Python CI job has a 45-minute allowance, including the real five-minute MCP
+prompt-expiry probe and the browser suites. Its combined coverage threshold is
+unchanged.
+
+Automated browser checks use the real backend with virtual authenticators:
+
+```sh
+HIRZ_DOGWOOD="$PWD/.tools/dogwood" HIRZ_LLM=off uv run --locked python -m scripts.simulator_demo --origin https://hirz.example.test --artifacts-dir /tmp/item29-browser-unique --browser-test
+```
+
+The test forwards its HTTPS requests to loopback without substituting authentication,
+MCP results or mutations. It explicitly forwards genuine OAuth callback redirects;
+its SSE proxy forwards the genuine backlog through each heartbeat on reconnect
+because Playwright buffers fetch responses. `HIRZ_SIMULATOR_SCENARIO=parents-scam-check|demo-evening` and
+`HIRZ_SIMULATOR_DISPLAY=show|dot` select full scripted playback; `HIRZ_SIMULATOR_MODEL=haiku` with the paid launcher configuration selects the accepted live host matrix. Use a fresh launcher
+for each matrix cell. The default checks enrollment, linking, cards, switching,
+themes and narrow layout. Real Mac Chrome microphone/speaker and physical-passkey
+rule/unlock/relock acceptance remain separate human checks. Evidence and all open
+matrix/gate results belong in [item 29](./verification-log.md#item-29).
+
+The configured AWS process profile refreshes through `aws login --profile hirz-login`;
+verify it with `aws sts get-caller-identity --profile hirz --no-cli-pager`.
+The verified Nova Lite endpoint rejects CountTokens; the approved context-ceiling
+reservation exception is documented in ADR-020. See the item 29 friction entry.
+Playback pauses again if execution needs a new action approval: read the current
+plan, then explicitly approve or decline its pending action before continuing.
+
+## Item 29a extracted host packages
+
+The independent sources and runnable reference example live in
+[`BashaarJavaid/addon-check`](https://github.com/BashaarJavaid/addon-check).
+Its `packages/react` publishes npm `addon-host`; `packages/python` publishes
+PyPI `addon-host` (`addon_host` import). The standalone example's README documents
+loopback startup and explicitly configured OAuth registrations. It uses no Hirz
+credentials, household fixtures or inference.
+
+Release acceptance follows [ADR-021](./adr/ADR-021-extracted-host-harness.md): run
+independent package CI and full local Hirz checks against packed artifacts before
+uploading those tested artifacts. Inspect the npm tarball and Python sdist/wheel,
+verify imports in clean consumers, then publish version 0.1.0 to both registries.
+After publication, pin `addon-host` to exactly `0.1.0` in `apps/web/package.json`
+and `addon-host==0.1.0` in `pyproject.toml`, regenerate the pnpm/uv locks, and verify
+clean registry installs. Temporary file dependencies are not a release result.
+
+Run ordinary Hirz CI and dispatch its existing two-scenario latency matrix against
+the released dependencies before closing 29a. Repeat the four scripted simulator
+cells with fresh disposable launchers and separately repeat actual microphone,
+speaker and phone-passkey checks using the item 29 procedure above. Do not enable
+Bedrock or change either inference ledger for this extraction. Record all evidence
+and outstanding gates under [item 29a](./verification-log.md#item-29a).
+
+### Fresh Mac microphone and iPhone passkey walkthrough
+
+Use a fresh item 29 launcher and its private `invitations.json`. Connect both
+Mac and iPhone to the configured private HTTPS origin. Keep one iPhone Safari
+session throughout; the installed Home Screen app has a separate session.
+
+1. On the phone, open `/constitution`, expand **Set up a passkey or recover
+   access**, and use the first invitation's token (Malik, home household).
+   **Enroll a passkey**, complete phone verification, save the recovery code,
+   and choose **I saved my recovery code**. Transfer invitations privately;
+   never paste them into chat or evidence.
+2. Leave the initial YAML unchanged. Choose **Preview changes**, then
+   **Activate with passkey**. Confirm **Version 7 · active**.
+3. In Mac Chrome, open `/simulator`, choose **Malik's Echo**, **Scripted**, and
+   **Link Echo with consent**. Select Malik in the home household and approve
+   the simulated OAuth consent. The loopback issuer runs on the Mac, so perform
+   Echo linking there. Phone companion enrollment remains separate.
+4. Enable **Speak responses** and select **Echo Show**. **Push to talk**, allow
+   the microphone, and say “What can you do?” Recognition submits automatically.
+   Check recognized text and audible speech. Repeat in **Echo Dot · voice only**;
+   no iframe/card should appear. Return to Show for the remaining walkthrough.
+5. On the phone, follow **Open local simulator** from Constitution. Select
+   `demo-evening` and use **Next event** to reach event **2/21**. On the Mac,
+   speak the displayed unexpected-visitor rule proposal, review its exact
+   commitment and confirm. Wait for the proposal response before advancing the
+   phone to **3/21**.
+6. On phone Constitution, choose **Use this sentence while editing** under the
+   proposal, **Preview recorded English patch**, and **Complete review (…) and
+   YAML changes**. Review and **Activate with passkey**; confirm **Version 8 ·
+   active**. Return through **Open local simulator**.
+7. Advance with the phone, completing each voice beat on the Mac before advancing:
+
+   | Event | Required interaction |
+   |---|---|
+   | 4/21 | Ask the displayed tonight-plan question; if preparation is pending, wait and ask again until a plan is available. |
+   | 5/21 | Submit the displayed car/guest-room/dishwasher sentence and review each exact change. Prompt values are car 50%; guest room 72°F from current scenario time until 07:00 tomorrow; dishwasher after 23:31. |
+   | 6/21 | Read the current plan with “What's going on tonight?”, then “Do it.” and confirm that version. Alternatively, review and approve it on the phone's Tonight page. After approval succeeds, use Next event; do not approve an already approved plan again. A stale, unapproved plan needs a fresh read and renewed confirmation. |
+   | 7/21 | Unexpected doorbell observation; advance. |
+   | 8/21 | “Let them in.”, one minute if asked, and exact confirmation. The unexpected-visitor rule must refuse the unlock. |
+   | 9/21 | Submit and confirm the displayed living-room lamp request. |
+   | 10–11/21 | Motion and expected-arrival doorbell observations; advance. |
+   | 12/21 | “That's my mom, let her in.”, one minute and exact confirmation; then advance to 13/21. |
+
+8. On phone `/approvals`, review the simulated one-minute unlock and choose
+   **Approve with passkey**. Complete phone verification and wait for **Door
+   read-back: unlocked**.
+9. Return to the phone simulator and advance through **14/21** to **15/21**.
+   Open Approvals again and confirm **Door read-back: locked**. This advances the
+   scenario beyond the bounded ending; do not substitute real-world wall time
+   while the scenario remains paused.
+10. Report actual microphone/speaker behavior in Show and Dot, version-8 passkey
+    activation, and the observed unlocked-to-locked transition. Stop at a failed
+    step and retain its exact visible error. The operator independently verifies
+    signed exports on launcher shutdown before recording acceptance. Completing
+    this walkthrough is physical interaction evidence, not full-night playback,
+    physical-lock, Web Push or Hirz Link evidence.
+
+If continuing the evening beyond this phone acceptance check, event **16/21**
+requires **Dad's Echo** on the Mac. Select that Echo and link it with Dad's home
+account if needed, then submit the displayed dishwasher sentence and finish its
+confirmations before advancing the phone. A successful request from Malik does
+not finish Dad's scripted turn. Switch back to **Malik's Echo** for event
+**18/21** and the remaining voice beats.
+
+At event **19/21**, a plan may pause for an individual device action after its
+overall consent succeeds. On Malik's Echo, ask “What's going on tonight?”, review
+the stated action, then say “Approve the pending action” and complete its
+confirmation. Advance only after the response succeeds; repeat if another
+action needs consent. Reapproving the whole plan does not answer these requests.
+
+## Item 30 recording stack
+
+Use Docker Desktop, Python 3.12/uv and Tailscale on the recording computer. Configure
+trusted HTTPS forwarding to loopback 8002 before initialization, using the companion
+HTTPS procedure. The phone must trust and reach that same origin; Echo OAuth linking
+uses the recording computer's loopback issuer. Ports 8002 and 8003 must be free.
+
+```sh
+uv run --locked python scripts/demo.py init --origin https://YOUR-LOCAL-HOST
+uv run --locked python scripts/demo.py run
+```
+
+Initialization creates separate recording credentials in `secrets/demo/.env`
+(mode 0600). Repeating it preserves a complete valid file. Back up that original
+file privately. Never replace keys/passwords alongside retained recording state;
+restore the original configuration if it is partial, malformed, absent, or has a
+conflicting origin. No development migration, seed or reset is performed.
+
+Each foreground invocation builds the existing image and creates a unique Compose
+project, PostgreSQL volume and `secrets/demo/runs/<run-id>` directory (0700).
+PostgreSQL is not published; the runtime runs as your non-root UID/GID. The image
+includes the UI bundles and native Dogwood. No HA, AWS or inference credentials
+are supplied. Build time is separate from the 180-second readiness allowance.
+The wrapper validates the private receipt, local endpoints and trusted HTTPS before
+opening `/simulator`; if the browser opener fails, open its printed URL manually.
+
+The initial screen uses Malik's Echo, Scripted, dark theme, Echo Show, speech off.
+Evening is selected and paused at 2026-10-13 17:30 America/Chicago before its first
+event; parents stays paused at 17:00. Seed 20261013 and scenario files are unchanged.
+Devices/contact replies remain simulated and rate provenance remains published.
+Readiness means this seeded paused state, **not** a preauthenticated household.
+
+The launcher prints only the private invitation-file location. Open that file
+locally, enroll each owner in a separate companion session with a real passkey,
+activate each seed policy, then explicitly approve the appropriate Echo OAuth
+consent on the recording computer. Follow the item 29 rehearsal above for rule
+activation and phone approval. Every fresh run needs fresh enrollment and linking.
+Do not publish invitations, recovery codes, private logs or whole artifact folders.
+
+Keep the terminal attached. Ctrl-C stops the runtime first, allows up to 120
+seconds for settlement/exports, then independently verifies both households against
+the saved audit key. Successful cleanup removes only that run's containers,
+network and database volume; credentials and evidence remain. `cleanup.json` records
+successful removal. `ready.json`, `shutdown.json`, playback, verification results,
+per-household signed exports and private logs live below the run directory.
+
+On any startup, runtime, export, verification or shutdown failure, the command
+returns nonzero and retains storage. Inspect that run's private logs and `run.json`;
+`docker ps -a --filter label=org.hirz.recording=v1` lists recording containers only.
+Do not restart its simulator as a recovery: bootstrap intentionally requires a
+fresh artifact directory and never resumes a recording. Restore missing credentials,
+fix the cause and start a new run, preserving the old evidence and database.
+For diagnosis, start only the failed run's PostgreSQL container and inspect or dump
+its disposable database using `docker exec`; keep dumps in that run's 0700 folder
+with mode 0600. Stop it afterward. Development resources never enter this procedure.
+
+Explicit disposal of a failed run is destructive and forfeits any unexported
+history. After retaining the evidence you need and deciding to discard that exact
+run, use its **literal** `hirz-demo-<id>` from `run.json`:
+
+```sh
+recording_run=hirz-demo-REPLACE_WITH_EXACT_FAILED_RUN_ID
+docker stop --time 120 "${recording_run}-simulator-1"
+docker stop "${recording_run}-postgres-1"
+docker rm "${recording_run}-simulator-1" "${recording_run}-postgres-1"
+docker volume rm "${recording_run}_postgres"
+docker network rm "${recording_run}_default"
+```
+
+Never use a global prune or a development Compose project for recording cleanup.
+A failed run is never deleted automatically, even when some exports are valid.
+
+For automated recording acceptance, run the existing Playwright simulator test
+against the running Compose image with `HIRZ_BROWSER_ORIGIN` set to the saved
+origin, `HIRZ_SIMULATOR_ARTIFACTS` pointing to its `artifacts` directory,
+`HIRZ_SIMULATOR_SCENARIO=demo-evening|parents-scam-check` and
+`HIRZ_SIMULATOR_DISPLAY=show|dot` (see the test's display variable). Use a fresh
+run per cell. Virtual authenticators still undergo real server-side WebAuthn
+verification; they do not replace the manual real-phone rehearsal.

@@ -3,8 +3,9 @@
 **Item 25 approved local contract (implemented).** The authenticated factory exposes all twelve
 names below. The generic unauthenticated app still exposes only onboarding.
 The implemented contract is in `hirz/mcp/contracts.py`; [ADR-015](./adr/ADR-015-household-tools.md)
-records the approved choices and trust vocabulary. Voice and native structured
-rendering are supported; cards, elicitation and the full simulator remain pending.
+records the approved choices and trust vocabulary. Cards are implemented in item 27. Item 29 adds authenticated SDK sessions/SSE and
+scalar elicitation while preserving the twelve flat tool schemas. Full simulator
+acceptance remains tracked in [the evidence log](./verification-log.md#item-29).
 
 | Tool | Scope | Implemented inputs and behavior |
 |---|---|---|
@@ -13,13 +14,29 @@ rendering are supported; cards, elicitation and the full simulator remain pendin
 | get_household_plan | plan | horizon defaults to tonight; optional objective (cheapest, most_comfortable, greenest); request_id when enqueueing or choosing an objective; existing canonical Plan or durable preparation status. |
 | revise_household_plan | plan | text, applies_to, kind, operation, change and applicable scalar values; atomic constraint recording and refresh invalidation. |
 | explain_plan | read | Optional plan_id and focus (summary, conflicts, action/goal reference); stored facts and bounded narration. |
-| approve_action | act | approved, exact plan_id/version or action_id/approval_id, request_id; stale consent refused; security remains unresolved. |
+| approve_action | act | approved, exact plan_id/version for plans, plus action_id/approval_id for a planned pending action; immediate pending actions omit plan references; request_id; stale consent refused; security remains passkey-gated. |
 | execute_household_action | act | action plus applicable profile, room, temperature_f, percent, minutes, beneficiary, claimed_requester; request_id; queued execution. |
 | assess_request_risk | verify | text, claimed_party, party, optional presented_number, request_id; deterministic advice, no contact initiation. |
 | verify_trusted_identity | verify | operation start/status; case_id/contact, text for a new request and request_id for start; private simulated app checks only. |
 | propose_household_rule | plan | text, request_id; records the sentence with CONSTITUTION_PROPOSED, without drafting, delivery or activation. |
 | evaluate_permission | read | Shared action fields, optional at and required request_id; current policy preview with DRY_RUN, no authority. |
 | get_action_audit | read | window or action_id, limit default 20/max 100 and cursor; newest-first consumer summaries. |
+
+Starting `verify_trusted_identity` with `contact` and `text` runs the deterministic
+risk assessment before opening the case; a separate assessment call is unnecessary.
+Passing `case_id` instead continues an existing assessment. A later status question
+requires a fresh `operation=status` read, since earlier pending results can be stale.
+
+Current plan status and pending-action review use `get_household_plan`, whose
+decisions include approval references. `explain_plan` answers why/how questions
+from stored plan facts; its explanation does not supply pending approvals. A host
+missing approval references reads the current plan, then asks by household
+description if several actions need disambiguation. It never asks the user to
+supply an internal action or approval ID.
+
+Generic requests to optimize energy preserve the household's current priority by
+omitting `objective`. Selecting `cheapest`, `greenest` or `most_comfortable` is a
+separate explicit priority change, with its own confirmation and plan review.
 
 The action enum is generated from consumer_actions metadata in risk/classes.yaml:
 charge_car, stop_charging, set_temperature, turn_on_light, turn_off_light,
@@ -37,6 +54,10 @@ There is no permanent learning. Tonight/overnight/tomorrow_morning end at the ne
 local 08:00; next_24h ends 24 hours after creation. Existing horizons stay fixed.
 
 Inputs reject unknown fields, irrelevant parameters and invalid combinations.
+Plan reads, explanations and approval return `unavailable` / `PLAN_BLOCKED` when
+the persisted refresh job is blocked; no stale Plan is supplied for approval.
+Only work still pending returns `preparing`. A `PLAN_CHANGED` approval rejection
+requires reviewing and confirming the current version again.
 Text is bounded to 2,000 characters, names/references to 200, request keys to 128.
 Each tool returns its own strict typed `speakable`/`data` envelope, with only the
 data fields that tool can return ([per-tool schemas](./adr/ADR-015-household-tools.md#per-tool-output-schemas--2026-09-24)). Speech has at most 20 headline words, two
@@ -219,3 +240,39 @@ requires the explicit startup evidence mapping described in
 Counts independently deduplicate device action IDs for autonomous execution,
 ASK, DENY and VERIFIED read-back. Categories can overlap; previews, bookkeeping
 and private contact cases are excluded. Pagination changes only the decision list.
+
+
+### Companion integration amendment — 2026-09-25
+
+The twelve flat tool schemas remain unchanged. Under an active policy, eligible
+security requests create a phone approval and direct the linked member to the
+authenticated Approvals page. Voice security approval is still refused; neither
+spoken identity nor a caller-supplied verification flag authorizes it. Any linked
+member may propose a rule or pause; resume is app-only for adult-lineage members.
+
+`propose_household_rule` stores its linked author, sentence, surface and lifecycle.
+With `HIRZ_LLM=off`, it remains queued for manual form/YAML editing. Bedrock mode
+uses the durable worker and an explicitly configured model; tool calls never call
+it. Owner activation requires review and a fresh passkey, including proposals
+originating on Alexa. Historical disposable smokes retain explicitly labeled
+unactivated-policy behavior. [Acceptance status](./verification-log.md#item-28--in-progress--2026-09-25)
+remains incomplete.
+
+## Item 29 transport and elicitation
+
+Authenticated requests initialize an SDK-managed Streamable HTTP session and send
+its `Mcp-Session-Id` on subsequent POST/GET/DELETE requests. All requests authenticate;
+session possession alone grants nothing. Session ownership includes the linked
+household/account/scopes. Anonymous discovery/onboarding retains stateless JSON.
+Clients linking after anonymous discovery must initialize a fresh authenticated
+session. GET supports the SDK event stream; there is no separate legacy SSE endpoint.
+
+Clients advertising form elicitation receive scalar questions derived from the
+existing input schemas and household clarification results. Values are revalidated
+before existing services run. Accept, decline, cancel and five-minute expiry are
+bounded; unsupported clients retain typed clarification. A requester-confirmation
+prompt is bound to the exact action, linked principal and current policy. Database
+transactions/locks unwind before prompts; resumed calls reauthorize and re-resolve
+references. Claimed names never raise authority. Host commitment review is separate;
+there is no new caller-supplied authority Boolean, voice security approval or voice
+constitution activation. See [ADR-020](./adr/ADR-020-simulator.md).

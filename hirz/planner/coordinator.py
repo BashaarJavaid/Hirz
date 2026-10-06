@@ -54,9 +54,12 @@ if TYPE_CHECKING:
 class Clarification(ValueError):
     """A bounded request could not be resolved without asking the member."""
 
-    def __init__(self, message: str, *, options: tuple[str, ...] = ()):
+    def __init__(
+        self, message: str, *, options: tuple[str, ...] = (), field: str | None = None
+    ):
         super().__init__(message)
         self.options = options
+        self.field = field
 
 
 class Intake(Model):
@@ -141,7 +144,7 @@ def numbers(text: str) -> str:
 
 
 def time_at(text: str, at: datetime, end: datetime, timezone: str) -> datetime:
-    if re.match(r"^\d{4}-\d{2}-\d{2}[ t]", text):
+    if re.match(r"^\d{4}-\d{2}-\d{2}[ t]", text, re.IGNORECASE):
         try:
             explicit = datetime.fromisoformat(text)
             instant = utc(explicit)
@@ -155,7 +158,7 @@ def time_at(text: str, at: datetime, end: datetime, timezone: str) -> datetime:
             raise Clarification(
                 "Please give a date and UTC offset valid in the household timezone and planning horizon."
             ) from None
-    match = re.fullmatch(r"(\d{1,2})(?::(\d{2}))?\s*(am|pm)?", text.strip())
+    match = re.fullmatch(r"(\d{1,2})(?::(\d{2}))?\s*(am|pm)?", text.strip().lower())
     if not match or (not match[3] and match[2] is None):
         raise Clarification("Please specify AM or PM, or a 24-hour time such as 23:00.")
     hour, minute = int(match[1]), int(match[2] or 0)

@@ -39,6 +39,12 @@ Principles taken from the guide: reduced content density (fewer metadata fields,
 5. **No internal IDs, class names, or JSON** on any card.
 6. **Three motions, all CSS transitions, no animation library:** the EV bar moves when the plan changes by voice; the verification card goes from *pending* to the result, on its own, because Alexa cannot speak unprompted; the door goes locked → unlocked → relocked.
 
+When a plan is waiting for an individual action, its card shows that pending
+action's existing approval view, including the device-specific description, rule,
+risk band and permitted response controls. It does not offer whole-plan approval.
+Security actions retain the phone-only response path
+([ADR-018](./adr/ADR-018-mcp-app-cards.md#pending-plan-action-presentation-correction--2026-10-01)).
+
 ## 4. The seven hand-designed screens
 
 These appear on camera, so they are designed by hand. Every other companion page (Household, Audit, Twin, the YAML view, settings) uses Tailwind + shadcn/ui defaults with no custom design work.
@@ -59,7 +65,25 @@ Minimal: a wordmark, one accent color, one typeface. No logo project. Following 
 
 ## 6. The simulator frame
 
-The Echo Show frame is the hero; the tool-call transcript is a slim rail beside it, not a second pane of equal weight. An honesty banner names the emulation and the model in use. A switch selects whose Echo it is ("Mom's Echo", "Malik's Echo"). Echo Dot mode hides cards entirely.
+The Echo Show frame is the hero; the tool-call transcript is a slim rail beside it, not a second pane of equal weight. An honesty banner names the emulation and the model in use. The account switch offers Mom’s, Malik’s and Dad’s Echo with explicit consent and
+separate histories. Echo Dot mode mounts no card iframe. The responsive 1280×800
+Show canvas has a 280-pixel transcript rail, stacked below on narrow windows.
+Light/dark themes apply to the host and bridge context; fullscreen is user-operated.
+Pending questions take keyboard focus. Push-to-talk stops synthesized speech,
+while synthesis stops recognition; US-English browser voices have a typed/visible
+fallback. Spoken yes/no or a single scalar can answer each pending question; fields are asked
+one at a time and retain a labeled typed form. The transcript distinguishes processing
+from human wait, and reconnection never re-speaks old results. Rule activation and
+security approval link to the independently authenticated companion app.
+
+Playback is a companion-authorized control. A contact reply is explicitly labeled
+simulated, updates the genuine verification case, and is spoken only after a new
+status request. Scenario completion and physical microphone/passkey acceptance are
+tracked in the [item 29 evidence](./verification-log.md#item-29).
+
+The accepted item 29 host modes are Haiku and scripted. Nova's experimental option
+is retained, with acceptance deferred to item 29b; it is not part of the verified
+demo matrix (ADR-020).
 
 ## 7. Spoken lines
 

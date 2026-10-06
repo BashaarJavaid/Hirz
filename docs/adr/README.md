@@ -23,3 +23,9 @@ One file per consequential decision, each with the alternatives that were reject
 - [`ADR-016-add-on-conformance-checker.md`](./ADR-016-add-on-conformance-checker.md) — independent explicit-case MCP checker, source distinctions, scoped evidence and disposable Hirz integration
 - [`ADR-017-tool-latency-and-isolation.md`](./ADR-017-tool-latency-and-isolation.md) — authenticated local timing protocol, audited lifecycle corpus and concurrent household-isolation gate
 - [`ADR-018-mcp-app-cards.md`](./ADR-018-mcp-app-cards.md) — five bridge-only cards, deterministic presentation, evidence mapping, unchanged reference host and browser gates
+
+- [ADR-019-companion.md](./ADR-019-companion.md) — passkey companion, policy lifecycle, phone approvals and bounded twin scope
+
+- [ADR-020-simulator.md](./ADR-020-simulator.md) — local authenticated host, stateful MCP elicitation, independent Echo histories and bounded inference; Haiku/scripted closure with Nova acceptance deferred
+
+- [ADR-021-extracted-host-harness.md](./ADR-021-extracted-host-harness.md) — independent Python/React host packages, explicit runner and item 29a acceptance

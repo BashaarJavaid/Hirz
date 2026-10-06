@@ -1,5 +1,5 @@
-name: Build MCP cards
-description: Build the five local assets before authenticated startup or packaging
+name: Build browser assets
+description: Build the five MCP cards and the companion assets before authenticated startup or packaging
 runs:
   using: composite
   steps:
@@ -11,5 +11,5 @@ runs:
       with:
         cache: false
         run_install: false
-    - run: pnpm install --frozen-lockfile && pnpm --filter mcp-app build
+    - run: pnpm install --frozen-lockfile && pnpm --filter mcp-app build && pnpm --filter web build
       shell: bash

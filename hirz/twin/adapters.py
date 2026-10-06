@@ -114,9 +114,13 @@ def factories(world: TwinWorld) -> dict[Key, Factory]:
 
     def factory(cls: type[TwinAdapter]) -> Factory:
         def create(household: Household) -> Adapter:
-            # A mixed home keeps its real rate plan; the explicit simulation copy
-            # uses twin prices. Every other household field must still match.
-            if household.model_copy(update={"rate_plan": "twin"}) != world.household:
+            # Live policy activation and pause change governance, not which
+            # physical twin these factories belong to. A mixed home also keeps
+            # its real rate plan while its explicit simulation uses twin prices.
+            runtime = {"rate_plan", "constitution_version", "autonomy_paused"}
+            if household.model_dump(exclude=runtime) != world.household.model_dump(
+                exclude=runtime
+            ):
                 raise AdapterError("Twin factory belongs to another household.")
             return cls(world)
 

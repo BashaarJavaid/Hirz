@@ -1,6 +1,7 @@
 """The benchmark cannot hide a slow path by pooling or omitting samples."""
 
 import asyncio
+import gc
 import json
 import sys
 import time
@@ -29,6 +30,61 @@ from scripts.smoke_tool_budget import (
 from scripts.tool_selection import CASES
 
 
+def test_diagnostic_redacts_inputs_and_preserves_success_and_failure(
+    monkeypatch, capsys
+):
+    from scripts import tool_budget_diagnostic as diagnostic
+
+    listeners = {}
+    monkeypatch.setattr(
+        diagnostic.event,
+        "listen",
+        lambda engine, name, callback: listeners.__setitem__(name, callback),
+    )
+    monkeypatch.setattr(gc, "callbacks", [])
+    expected = response("Private response content")
+
+    async def original(name, arguments):
+        context = SimpleNamespace()
+        query = (
+            None,
+            None,
+            "SELECT 'private SQL text'",
+            {"secret": "token"},
+            context,
+            False,
+        )
+        listeners["before_cursor_execute"](*query)
+        gc.callbacks[0]("start", {"generation": 2})
+        await asyncio.sleep(0)
+        gc.callbacks[0]("stop", {"generation": 2})
+        listeners["after_cursor_execute"](*query)
+        if arguments.get("fail"):
+            raise ValueError("Private error")
+        return expected
+
+    runtime = SimpleNamespace(call=original)
+    diagnostic.install(SimpleNamespace(sync_engine=object()), runtime)
+
+    async def run():
+        assert await runtime.call("get_household_plan", {"secret": "token"}) is expected
+        with pytest.raises(ValueError, match="Private error"):
+            await runtime.call("private unknown tool", {"fail": True})
+
+    asyncio.run(run())
+    output = capsys.readouterr().out
+    assert "private" not in output.lower() and "token" not in output
+    rows = [
+        json.loads(line.removeprefix("DIAGNOSTIC_NOT_GATE "))
+        for line in output.splitlines()
+    ]
+    assert [row["tool"] for row in rows] == ["get_household_plan", "unknown"]
+    for row in rows:
+        assert row["query_count"] == 1 and row["query_ms"] >= 0
+        assert len(row["slowest_queries"][0]["fingerprint"]) == 64
+        assert len(row["gc"]) == 1 and row["gc"][0]["generation"] == 2
+
+
 @pytest.mark.parametrize(
     "case,tool,args",
     [
@@ -43,6 +99,10 @@ def test_raw_request_is_byte_identical_to_sdk(case, tool, args):
         value = response("Request identity fixture").model_dump(mode="json")
 
         def serve(request):
+            if request.method == "GET":
+                return httpx.Response(405)
+            if request.method == "DELETE":
+                return httpx.Response(200)
             body = json.loads(request.content)
             if body["method"] == "notifications/initialized":
                 return httpx.Response(202)
@@ -50,7 +110,7 @@ def test_raw_request_is_byte_identical_to_sdk(case, tool, args):
                 result = {
                     "protocolVersion": "2025-11-25",
                     "capabilities": {},
-                    "serverInfo": {"name": "stateless-fixture", "version": "1"},
+                    "serverInfo": {"name": "session-fixture", "version": "1"},
                 }
             elif body["method"] == "tools/list":
                 result = {
@@ -75,6 +135,7 @@ def test_raw_request_is_byte_identical_to_sdk(case, tool, args):
                                 "accept",
                                 "content-type",
                                 "mcp-protocol-version",
+                                "mcp-session-id",
                             )
                         ),
                         request.content,
@@ -82,7 +143,14 @@ def test_raw_request_is_byte_identical_to_sdk(case, tool, args):
                 )
                 result = {"content": [], "structuredContent": value, "isError": False}
             return httpx.Response(
-                200, json={"jsonrpc": "2.0", "id": body["id"], "result": result}
+                200,
+                headers={
+                    "Content-Type": "text/event-stream",
+                    "Mcp-Session-Id": "fixture",
+                },
+                text="event: message\ndata: "
+                + json.dumps({"jsonrpc": "2.0", "id": body["id"], "result": result})
+                + "\n\n",
             )
 
         url = "http://127.0.0.1:8000/mcp"
@@ -118,7 +186,7 @@ def test_raw_request_is_byte_identical_to_sdk(case, tool, args):
                 async with ClientSession(read, write) as session:
                     initialized = await session.initialize()
                     await session.list_tools()
-                    assert sid() is None
+                    assert sid() == "fixture"
                     client = Client(
                         session,
                         storage,
@@ -127,8 +195,9 @@ def test_raw_request_is_byte_identical_to_sdk(case, tool, args):
                         http,
                         url,
                         initialized.protocolVersion,
+                        "fixture",
                     )
-                    # Independent stateless request sequences: align IDs for an
+                    # Independent raw/SDK request sequences: align IDs for an
                     # exact byte comparison after initialize=0 and tools/list=1.
                     client.request_id = 2
                     client.measuring = True

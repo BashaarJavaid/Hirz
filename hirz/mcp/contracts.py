@@ -37,7 +37,7 @@ FIELD_DESCRIPTIONS = {
     "scope": "Which household information to read: people, energy, environment, constraints, member, or all.",
     "member": "One household member's exact displayed name or returned reference; required only for member scope.",
     "horizon": "Tonight, overnight and tomorrow morning end at the next household-local 8 AM; next_24h covers 24 hours.",
-    "objective": "Optional temporary planning priority: cheapest minimizes electricity and wear cost; greenest reduces grid electricity, not measured emissions; most_comfortable minimizes occupied-room temperature deviation. Changing it requires request_id and a newly reviewed plan.",
+    "objective": "Omit for current-plan reads and general optimization requests; preserve the existing household priority. Set only when the user explicitly requests a different priority: cheapest minimizes electricity and wear cost; greenest reduces grid electricity, not measured emissions; most_comfortable minimizes occupied-room temperature deviation. Changing it requires request_id and a newly reviewed plan.",
     "request_id": "Host-generated retry key. Reuse only for an identical request; use a new key for changed intent.",
     "text": "The user's exact request or proposed rule, retained as provenance; never a source of identity or permissions.",
     "applies_to": "Exact household device or room name, or returned target reference; car means the unique household EV.",
@@ -48,8 +48,8 @@ FIELD_DESCRIPTIONS = {
     "temperature_f": "Requested room temperature in degrees Fahrenheit; never guess a missing temperature.",
     "lower_f": "Lower temperature bound in degrees Fahrenheit; supply with upper_f for a temperature range.",
     "upper_f": "Upper temperature bound in degrees Fahrenheit; supply with lower_f for a temperature range.",
-    "at": "Explicit household-local AM/PM or 24-hour time; ambiguous dates or daylight-saving times need a date and UTC offset.",
-    "window_start": "Optional temporary constraint start, expressed as an explicit household-local time.",
+    "at": "Required time for charge_after, car_ready_by, appliance_after and appliance_ready_by. Explicit household-local AM/PM or 24-hour time; ambiguous dates or daylight-saving times need a date and UTC offset.",
+    "window_start": "Optional temporary constraint start. Omit to start now; supply only a user-requested explicit household-local time, never 'tonight'. This is not the appliance or charging earliest start; those use at.",
     "window_end": "Optional constraint ending. Otherwise ends with the current plan, or after 24 hours when no plan exists.",
     "constraint_id": "Returned reference of the exact constraint being replaced or removed.",
     "claimed_author": "Name claimed in the sentence; recorded as unverified and never used to grant authority.",
@@ -136,6 +136,14 @@ class PlanInput(Input):
         return self
 
 
+REVISION_VALUES = {
+    "car_target": {"percent"},
+    "car_limit": {"percent"},
+    "temperature": {"temperature_f"},
+    "temperature_range": {"lower_f", "upper_f"},
+}
+
+
 class RevisionInput(Input):
     text: Sentence
     applies_to: Reference
@@ -178,12 +186,7 @@ class RevisionInput(Input):
         required = (
             set()
             if self.operation == "remove"
-            else {
-                "car_target": {"percent"},
-                "car_limit": {"percent"},
-                "temperature": {"temperature_f"},
-                "temperature_range": {"lower_f", "upper_f"},
-            }.get(self.change, {"at"})
+            else REVISION_VALUES.get(self.change, {"at"})
         )
         supplied = {
             k
@@ -381,9 +384,12 @@ class GetHouseholdContextResult(ToolResult):
 
 class GetHouseholdPlanData(ToolData):
     plan: Plan | None = None
+    decision: Decision | None = None
+    decisions: tuple[Decision, ...] = ()
+    action: Action | None = None
     actions: tuple[Action, ...] = ()
     reference: str | None = None
-    presentation: PlanCard | None = None
+    presentation: PlanCard | ApprovalCard | None = None
 
 
 class GetHouseholdPlanResult(ToolResult):
@@ -527,7 +533,7 @@ TOOLS: dict[str, tuple[type[Input], str, str]] = {
     "get_household_plan": (
         PlanInput,
         "plan",
-        "Read the current plan or request its preparation, including requests to optimize energy tonight. Use the default objective when none is specified; no clarification is needed just to start planning. No execution consent is implied.",
+        "Read the current plan and its pending action approvals, or request preparation, including requests to optimize energy tonight. Use this for current status and approval review; returned decisions contain pending approval references. Use the default objective when none is specified; no clarification is needed just to start planning. No execution consent is implied.",
     ),
     "revise_household_plan": (
         RevisionInput,
@@ -537,17 +543,17 @@ TOOLS: dict[str, tuple[type[Input], str, str]] = {
     "explain_plan": (
         ExplainInput,
         "read",
-        "Answer why or how a plan was arranged using stored facts. Call directly with focus=summary for a general explanation; omit plan_id for the current plan. No preliminary get_household_plan call is needed.",
+        "Answer why or how a plan was arranged using stored facts. Call directly with focus=summary for an explanation; omit plan_id for the current plan. Explanations do not contain pending approval references: use get_household_plan for current status or approval review. No preliminary read is needed for a why/how question.",
     ),
     "approve_action": (
         ApprovalInput,
         "act",
-        "Submit the user's approval or rejection for server validation. For a reviewed plan, provide approved, plan_id, version and request_id; omit action_id and approval_id. For a pending action, provide approved, action_id, approval_id and request_id; omit plan_id and version. User-supplied references are sufficient: copy them verbatim without another confirmation or preliminary fetch. The server refuses missing, stale or foreign references and never approves an unseen replacement. Door approvals require a phone.",
+        "Submit the user's approval or rejection for server validation. For a reviewed plan, provide approved, plan_id, version and request_id; omit action_id and approval_id. For a pending action within a plan, also provide that plan_id and version together with action_id and approval_id. Only an immediate action outside a plan omits plan_id and version. Copy exact returned or user-supplied references. The server refuses missing, stale or foreign references and never approves an unseen replacement. Door approvals require a phone.",
     ),
     "execute_household_action": (
         ActionInput,
         "act",
-        "Request one device setting change, a configured household profile, a door unlock, or pause automation. Profiles use action=apply_profile and the named profile. Future automation may change settings. Ask for missing values. Money cannot be moved.",
+        "Request one device setting change, a configured household profile, a door unlock, or pause automation. A new unlock request uses action=request_door_unlock with room and minutes BEFORE phone approval: this tool evaluates current conditions and creates the phone request if allowed. A historical denial does not decide a new request. Voice never grants security approval. Profiles use action=apply_profile and the named profile. Future automation may change settings. Ask for missing values. Money cannot be moved.",
     ),
     "assess_request_risk": (
         RiskInput,
@@ -557,12 +563,12 @@ TOOLS: dict[str, tuple[type[Input], str, str]] = {
     "verify_trusted_identity": (
         VerifyInput,
         "verify",
-        "Explicitly start a simulated contact check or read its status after the user asks again. No real communication is available.",
+        "Start a simulated contact check or read its current status. Starting with contact and text first assesses the request's risk, then opens the check; a separate assess_request_risk call is unnecessary. Starting with case_id checks an existing assessment. When the user asks again, call operation=status to read the latest reply even if an earlier result was pending. No real communication is available.",
     ),
     "propose_household_rule": (
         ProposalInput,
         "plan",
-        "Record a proposed household rule sentence. Does not draft, activate, or send anything to a phone.",
+        "Record a proposed household rule sentence for the companion inbox. A worker may draft it; only an owner's phone passkey can activate it.",
     ),
     "evaluate_permission": (
         PermissionInput,

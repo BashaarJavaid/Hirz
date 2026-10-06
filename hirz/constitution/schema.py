@@ -194,6 +194,45 @@ class Constitution(Model):
         )
 
     def rule(self, action_class: str, role: Role) -> Rule:
+        if action_class in {"governance.contacts", "governance.twin"}:
+            reserved_operations = (
+                ("remove",)
+                if action_class == "governance.contacts"
+                else ("start", "pause", "resume", "step", "inject", "publish")
+            )
+            return Rule(
+                mode="auto",
+                conditions=(
+                    '(requester.surface == "app" or (requester.surface == "scheduler" and action.params.operation == "publish"))'
+                    if action_class == "governance.twin"
+                    else 'requester.surface == "app"',
+                    'requester.role == "owner"',
+                    "("
+                    + " or ".join(
+                        f'action.params.operation == "{op}"'
+                        for op in reserved_operations
+                    )
+                    + ")",
+                ),
+            )
+        if action_class == "governance.constitution":
+            return Rule(
+                mode="auto",
+                conditions=(
+                    '(requester.surface == "app" or (requester.surface == "scheduler" and (action.params.operation == "draft" or action.params.operation == "draft_failed")))',
+                    '(action.params.operation == "draft" or action.params.operation == "draft_failed" or action.params.operation == "review" or action.params.operation == "activate" or action.params.operation == "dismiss")',
+                    '((action.params.operation != "activate" and action.params.operation != "dismiss") or requester.role == "owner")',
+                ),
+            )
+        if action_class == "governance.credentials":
+            return Rule(
+                mode="auto",
+                conditions=(
+                    'requester.surface == "app"',
+                    '(action.params.operation == "enroll" or action.params.operation == "recover" or action.params.operation == "revoke" or action.params.operation == "reinvite")',
+                    '(action.params.operation != "reinvite" or requester.role == "owner")',
+                ),
+            )
         if action_class == "governance.memory":
             operations = (
                 ("append_turn", "reject")

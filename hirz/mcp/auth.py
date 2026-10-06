@@ -229,9 +229,11 @@ class OAuthGate:
         cache: KeyCache | None,
         engine: AsyncEngine | None,
         tool_scopes: dict[str, str],
+        anonymous: ASGIApp | None = None,
     ) -> None:
         self.app, self.cache, self.engine = app, cache, engine
         self.tool_scopes = tool_scopes
+        self.anonymous = anonymous
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http" or scope["path"] != "/mcp":
@@ -306,7 +308,7 @@ class OAuthGate:
             and isinstance(value.get("params"), dict)
             and value["params"].get("name") == "what_can_you_do"
         )
-        if required or contextual:
+        if required or contextual or access:
             if access is None:
                 await error(
                     401, "invalid_token", "Link your account to use household tools."
@@ -345,7 +347,14 @@ class OAuthGate:
                 )
                 return
             if member.member_id is None or member.role in ("child", "unknown"):
-                if required:
+                # A resumed stream or elicitation reply needs current membership,
+                # even though it carries no tools/call scope to inspect.
+                if (
+                    required
+                    or request.method == "GET"
+                    or isinstance(value, dict)
+                    and ("result" in value or "error" in value)
+                ):
                     await error(
                         403,
                         "account_not_linked",
@@ -355,6 +364,42 @@ class OAuthGate:
                 identity = (
                     None  # Generic onboarding remains available without member access.
                 )
+        # SDK session ownership includes the household as well as the subject.
+        # Only the SDK sees the namespaced subject; domain provenance stays unchanged.
+        scope["user"] = (
+            AuthenticatedUser(
+                access.model_copy(
+                    update={
+                        "subject": f"{access.claims['household_id']}:{access.subject}:{','.join(sorted(access.scopes))}"
+                    }
+                )
+            )
+            if access and access.claims
+            else None
+        )
+        scope["hirz_identity"] = identity
+        scope["hirz_access"] = access
+
+        async def reauthorize() -> Identity | None:
+            if access is None:
+                return None
+            assert self.cache is not None and self.engine is not None
+            current = await self.cache.verify_token(access.token)
+            if current is None or (required and required not in current.scopes):
+                raise ValueError("Account authorization expired while waiting")
+            assert identity is not None
+            async with self.engine.connect() as connection:
+                member = await resolve_member(
+                    connection, identity.household_id, identity.principal
+                )
+            if member.member_id != identity.member.member_id or member.role in (
+                "unknown",
+                "child",
+            ):
+                raise ValueError("Account membership changed while waiting")
+            return Identity(identity.household_id, identity.principal, member)
+
+        scope["hirz_reauthorize"] = reauthorize
         sent = False
 
         async def replay() -> Message:
@@ -367,7 +412,14 @@ class OAuthGate:
         auth_token = auth_context_var.set(AuthenticatedUser(access) if access else None)
         identity_token = identity_context.set(identity)
         try:
-            await self.app(scope, replay, send)
+            target = (
+                self.anonymous
+                if access is None
+                and self.anonymous is not None
+                and not request.headers.get("mcp-session-id")
+                else self.app
+            )
+            await target(scope, replay, send)
         finally:
             identity_context.reset(identity_token)
             auth_context_var.reset(auth_token)

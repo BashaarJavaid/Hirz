@@ -41,6 +41,7 @@ from hirz.audit import (
 )
 from hirz.executor.local import compose
 from hirz.executor.observations import ingest
+from hirz.graph.models import now
 from hirz.graph.seeds import load_seeds, read_seed
 from hirz.local import read_env, signing_key
 from hirz.mcp.auth import SCOPES, KeyCache
@@ -54,7 +55,7 @@ from hirz.pipeline.models import Principal
 from hirz.twin.disposable import disposable
 from hirz.twin.execution import bootstrap
 from hirz.twin.scenario import LoadedScenario
-from scripts.smoke_oauth import Login, Storage, process
+from scripts.smoke_oauth import Login, Storage, authenticate, process
 from tests.conftest import assert_no_identifiers
 
 
@@ -71,12 +72,21 @@ def serve(listener: socket.socket, config: dict[str, Any]) -> None:
     runtime = HouseholdRuntime(
         engine,
         AuditWriter(signing_key(read_env(Path(".env")))),
-        clock=lambda: datetime.fromisoformat(Path(config["clock_file"]).read_text()),
-        profiles=load_profiles(Path(config["profiles"])),
+        allow_unvalidated_fixture=config.get("historical_fixture", True),
+        clock=(lambda: datetime.fromisoformat(Path(config["clock_file"]).read_text()))
+        if config.get("clock_file")
+        else now,
+        profiles=load_profiles(Path(config["profiles"]))
+        if config.get("profiles")
+        else None,
         card_evidence=load_card_evidence(
             Path(config["card_evidence"]) if config.get("card_evidence") else None
         ),
     )
+    if os.environ.get("HIRZ_BUDGET_DIAGNOSTIC") == "1":
+        from scripts.tool_budget_diagnostic import install
+
+        install(engine, runtime)
     app = create_app(
         port=listener.getsockname()[1],
         cache=KeyCache(config["issuer"], config["resource"]),
@@ -132,6 +142,7 @@ async def worker(database: str, scenario: str) -> None:
         "-c",
         "from hirz.cli import main; raise SystemExit(main())",
         "worker",
+        "--historical-fixture",
         "--household",
         str(read_seed(Path("constitutions/quinn-home.yaml")).household_id),
         "--once",
@@ -279,6 +290,7 @@ async def smoke(
                     async with httpx.AsyncClient(
                         auth=auth, trust_env=False, timeout=60
                     ) as http:
+                        await authenticate(http, str(config["resource"]))
                         async with streamable_http_client(
                             config["resource"], http_client=http
                         ) as (read, write, _):

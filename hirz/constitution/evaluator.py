@@ -86,6 +86,13 @@ def resolve(
     name, role = action.action_class, action.requested_by.role
     rule = policy.rule(name, role)
     mode = policy.role_mode(name, role)
+    if name == "governance.credentials" and (
+        not action.params.get("member_id")
+        or not action.requested_by.member_id
+        or role != "owner"
+        and action.params["member_id"] != action.requested_by.member_id
+    ):
+        mode = "never"
     conditions_met = True
     errors: set[str] = set()
     diagnostics: list[Diagnostic] = []
@@ -116,7 +123,9 @@ def resolve(
             except FactError as exc:
                 mode = "never"
                 errors.update(exc.paths)
-        for condition in () if hard_only else rule.conditions:
+        for condition in (
+            rule.conditions if not hard_only or name.startswith("governance.") else ()
+        ):
             try:
                 conditions_met = (
                     evaluate(parse(condition), values, facts) and conditions_met
@@ -135,7 +144,9 @@ def resolve(
                 # An unresolved earlier branch prevents choosing a later branch.
                 break
         if mode == "auto" and (not conditions_met or errors):
-            mode = "ask"
+            # Reserved governance authority is terminal, matching native forbids;
+            # collecting approvals can never turn an invalid surface/role into one.
+            mode = "never" if name.startswith("governance.") else "ask"
     if errors:
         diagnostics.append(Diagnostic(code="POLICY_ERROR", paths=tuple(sorted(errors))))
     if mode == "never" and not diagnostics:

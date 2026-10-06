@@ -209,6 +209,25 @@ class Login:
         )
 
 
+async def authenticate(
+    client: httpx.AsyncClient, resource: str, tool: str = "get_household_context"
+) -> None:
+    """Discover/consent before opening a stateful session; no session can execute this probe."""
+    response = await client.post(
+        resource,
+        headers={"Accept": "application/json, text/event-stream"},
+        json={
+            "jsonrpc": "2.0",
+            "id": "link",
+            "method": "tools/call",
+            "params": {"name": tool, "arguments": {}},
+        },
+    )
+    assert response.status_code == 400, (
+        "Authenticated pre-session request must require initialization"
+    )
+
+
 async def link(
     config: dict[str, Any], login: Login
 ) -> tuple[dict[str, Any], OAuthToken]:
@@ -226,6 +245,7 @@ async def link(
         login.callback_result,
     )
     async with httpx.AsyncClient(auth=auth, trust_env=False, timeout=310) as client:
+        await authenticate(client, config["resource"], "oauth_probe")
         async with streamable_http_client(config["resource"], http_client=client) as (
             read,
             write,
@@ -233,7 +253,7 @@ async def link(
         ):
             async with ClientSession(read, write) as session:
                 await session.initialize()
-                assert sid() is None
+                assert sid() is not None
                 assert {t.name for t in (await session.list_tools()).tools} == {
                     "what_can_you_do",
                     "oauth_probe",

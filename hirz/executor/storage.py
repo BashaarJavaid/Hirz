@@ -1,5 +1,6 @@
 """Household-scoped lifecycle writes, inside the Pipeline graph transaction."""
 
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
@@ -215,20 +216,22 @@ async def repeated(p: "Pipeline", stored: dict[str, Any]) -> Decision:
     )
 
 
-async def authorize_ending(p: "Pipeline", action: Action, decision: Decision) -> None:
+async def authorize_ending(
+    p: "Pipeline", action: Action, decision: Decision, *, at: datetime
+) -> None:
     from hirz.executor.contracts import ending
     from hirz.pipeline.models import Principal
     from hirz.pipeline.service import identity
 
     if action.revert is None:
         return
-    end = ending(action)
+    end = ending(action, start=at)
     opening = await row(p, action.action_id)
     principal = Principal.model_validate(opening["principal"])
     seq = await p.audit.append(
         p.connection,
         p.household_id,
-        p.clock(),
+        at,
         EventType.ENDING_AUTHORIZED,
         {
             "opening": action.action_id,
@@ -271,7 +274,11 @@ async def validate_ending(p: "Pipeline", action: Action, grant: dict[str, Any]) 
         or parent["execution_attempt_seq"] is None
         or parent["grant_seq"] != grant["payload"]["grant_seq"]
         or opening.content_hash != grant["payload"]["opening_hash"]
-        or digest(ending(opening).model_dump(mode="json", by_alias=True))
+        or digest(
+            ending(opening, start=grant["created_at"]).model_dump(
+                mode="json", by_alias=True
+            )
+        )
         != digest(action.model_dump(mode="json", by_alias=True))
         or digest(grant["payload"]["ending"])
         != digest(action.model_dump(mode="json", by_alias=True))

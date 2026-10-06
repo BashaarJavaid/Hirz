@@ -147,6 +147,11 @@ def main() -> int:
     worker_parser.add_argument("--household", type=UUID, required=True)
     worker_parser.add_argument("--once", action="store_true")
     worker_parser.add_argument(
+        "--historical-fixture",
+        action="store_true",
+        help="Allow unactivated historical policies only in disposable smoke databases",
+    )
+    worker_parser.add_argument(
         "--database", default="hirz", help="Explicit local database (no migrations)"
     )
     add_commands(commands)

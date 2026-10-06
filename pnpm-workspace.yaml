@@ -1,2 +1,4 @@
 packages:
   - apps/*
+minimumReleaseAgeExclude:
+  - addon-host@0.1.0

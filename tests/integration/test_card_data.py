@@ -14,6 +14,105 @@ from scripts.smoke_executor import PRINCIPAL
 pytestmark = pytest.mark.integration
 
 
+@pytest.mark.parametrize("approved", [True, False])
+def test_plan_read_presents_exact_pending_action_consent(
+    scratch_database, approved, monkeypatch
+):
+    from mcp import types
+    from test_executor_database import environment, proposal, runtime_for
+
+    from hirz.executor.plans import PlanService
+    from hirz.mcp.contracts import GetHouseholdPlanResult
+    from hirz.mcp.runtime import register
+    from hirz.mcp.server import create_server
+    from hirz.mcp.transport import local_security
+    from hirz.pipeline.service import PolicyBundle
+
+    async def run():
+        async with connect(scratch_database) as connection:
+            p, world, registry, executor = await environment(connection)
+            try:
+                raw = p.bundle.policy().model_dump()
+                raw["per_role"]["owner"] = {"environment.lights": {"mode": "ask"}}
+                p.bundle = await PolicyBundle.validate(
+                    p.household_id,
+                    type(p.bundle.policy()).model_validate(raw),
+                    p.boundary,
+                )
+                service = PlanService(p)
+                plan, actions = proposal(world)
+                await service.record(
+                    plan, actions, PRINCIPAL, runtime=runtime_for(plan)
+                )
+                await service.approve(plan.plan_id, PRINCIPAL)
+                pending = (await executor.sweep())[0]
+                assert pending.decision == "ask" and pending.approval
+                tools = HouseholdTools(p, PRINCIPAL)
+
+                async def invoke(server, runtime, name, arguments):
+                    return await runtime.call(name, arguments)
+
+                # Exercise the actual registered MCP output boundary as well as
+                # Pipeline-created consent; transport authentication has its own gate.
+                monkeypatch.setattr("hirz.mcp.elicitation.call", invoke)
+                server = create_server(local_security(8000), authentication=True)
+                register(server, tools)
+                handler = server._mcp_server.request_handlers[types.CallToolRequest]
+                returned = await handler(
+                    types.CallToolRequest(
+                        method="tools/call",
+                        params=types.CallToolRequestParams(
+                            name="get_household_plan", arguments={}
+                        ),
+                    )
+                )
+                assert not returned.root.isError
+                answer = GetHouseholdPlanResult.model_validate(
+                    returned.root.structuredContent
+                )
+                data, card = answer.data, answer.data.presentation
+                assert data.plan.status == "awaiting_approval"
+                assert card.kind == "approval" and card.can_respond
+                assert card.label == answer.speakable.details[0]
+                assert not card.phone_required
+                assert (card.plan_id, card.version) == (plan.plan_id, plan.version)
+                assert data.decision == data.decisions[0]
+                assert data.decision.action_id == actions[0].action_id
+                assert (
+                    data.decision.approval.approval_id == pending.approval.approval_id
+                )
+                consent = dict(
+                    plan_id=card.plan_id,
+                    version=card.version,
+                    action_id=data.decision.action_id,
+                    approval_id=data.decision.approval.approval_id,
+                    approved=approved,
+                )
+                stale = await tools.call(
+                    "approve_action",
+                    consent | {"version": card.version + 1, "request_id": "stale-card"},
+                )
+                assert stale.data.code == "PLAN_CHANGED"
+                voted = await tools.call(
+                    "approve_action", consent | {"request_id": "pending-card"}
+                )
+                assert voted.data.decision.event_type.value == (
+                    "APPROVED" if approved else "REJECTED"
+                )
+                executions = await executor.sweep()
+                assert bool(executions) == approved
+                if approved:
+                    assert executions[0].status == "verified"
+                evidence, _ = await verify_database(
+                    connection, p.household_id, p.audit.key.public_key()
+                )
+                assert evidence["status"] == "valid"
+            finally:
+                await registry.close()
+
+    asyncio.run(run())
+
+
 def test_plan_details_scorecard_pagination_and_foreign_action(scratch_database):
     async def run():
         async with connect(scratch_database) as connection:

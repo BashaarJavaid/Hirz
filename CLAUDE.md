@@ -61,6 +61,7 @@ When closing an item: append the evidence entry first, then the one-sentence roa
 - **Approved item 24 temporary dev OAuth state (2026-09-23):** the simulated local issuer may keep consent transactions, codes and refresh families in memory without Pipeline decisions. This creates no household records, account links, device actions or fabricated audit events; restart loses grants. Signing-key initialization is explicit, separate from the audit key, and refuses malformed existing keys (ADR-014).
 - **Approved item 25 verified-channel fixture bootstrap (2026-09-23):** initial, explicitly labeled verified phone/app channel fixtures may be installed only in disposable twin databases before runtime work. All subsequent case changes require Pipeline decisions; this grants no runtime channel-editing surface, real contact delivery or security authority (ADR-015).
 - **Approved item 26 isolation fixture (2026-09-23):** an explicitly labeled disposable copy of the home fixture may use distinct household/account identities for symmetric plan, constraint and approval probes, alongside the actual home/parents checks. Only initial fixture bootstrap is exempt; all runtime records still require Pipeline decisions (ADR-017).
+- **Approved item 28 authentication bookkeeping (2026-09-25):** pre-login WebAuthn challenges, server sessions and explicitly issued initial invitations for existing demo members may persist without Pipeline decisions. Enrollment completion, credential/recovery changes and household mutations still require Pipeline decisions and audit. Initial invitations cannot reset an enrolled member; simulated OAuth grants no companion authority (ADR-019).
 - **Fail closed** for anything whose failure would weaken a guarantee (Postgres, audit write, boundary evaluation, risk exception). If unsure whether something fails open or closed, it's closed. `ARCHITECTURE.md` §9.
 - **Twin is labeled.** Every observation carries `source: real | real API, demo devices | twin`; tool outputs and detail views show it. Cards show two states, `live` and `simulated` (anything not plainly `real` shows as simulated). A published rate table is `real (published ComEd rate)`, never "live". Never present twin data as real. Hosted-demo households bind `twin` adapters only. Falling back from a real device to its twin is a scenario and demo feature: in a real household an unreachable device is `unavailable; actual state unknown`, and a twin read-back never verifies a real device.
 - **No Hirz process outside the home holds a device credential in AWS mode.** The Home Assistant token stays with Hirz Link in the house; the home obeys only commands signed by the KMS key that only the `hirz-actions` Lambda role may use; write-capable cloud credentials are readable by that role only. A change that hands the worker or the `mcp` role something it can act with is wrong (ADR-009). Local mode has no outside boundary and is labeled `dogwood-local`. The claim covers bugs and bypass paths, not a compromised worker (`THREAT_MODEL.md`; ADR-010 and item 38d narrow that for `security.*`). The signer recomputes the action hash and never trusts the worker's; a command names one home and runs once; and Link owns the ending of a bounded operation, so a relock never depends on the cloud. Hirz governs the actions Hirz takes: never write that it controls everything Alexa can do.
@@ -127,14 +128,20 @@ The verified toolchain and scaffold setup are in `README.md`; use Node 24.
 - `cd infra/cdk && pnpm cdk deploy` / `pnpm cdk destroy` — the AWS stack for the judging window.
 - `HIRZ_LLM=off|bedrock`, `HIRZ_ADAPTERS=devices:ha,ev:twin,energy:real,...` — runtime configuration.
 
+Item 29 adds `HIRZ_LLM=off uv run --locked python -m scripts.simulator_demo --origin <HTTPS-origin> --artifacts-dir <new-private-dir>` for disposable authenticated playback; `--browser-test` uses virtual authenticators with real server verification. Real companion enrollment/activation and explicit Echo PKCE consent are required. Paid host configuration uses a separate durable ledger ($20 Haiku ceiling; $10 Nova ceiling against the same total); procedure and acceptance limitations are in `docs/development.md` and the item 29 evidence.
+
+Item 30 adds `uv run --locked python scripts/demo.py init --origin <HTTPS-origin>` and `uv run --locked python scripts/demo.py run` for isolated scripted recording. Trusted Tailscale forwarding to 8002 is required; enrollment, activation and Echo consent remain manual. Failed runs retain storage; only verified shutdown permits cleanup. Procedure: `docs/development.md#item-30-recording-stack`; verified recording and shutdown evidence: `docs/verification-log.md#item-30`.
+
 ## Current phase
 
-**Phase 4 is complete through item 27; Phase 5 item 28 is next.** The five MCP
-cards pass reviewed browser, packaging, conformance and authenticated CI gates
-([evidence](./docs/verification-log.md#item-27-closure--2026-09-24)). Development stays
-on 0005; migrations through 0013 remain manual. Keep Bedrock off and the $2 ledger
-preserved. AWS/Alexa host overhead remains item 38; real phone/security execution
-remains unverified.
+**Phase 5 items 29, 29a and 30 are complete; next is Phase 6 item 31.**
+Scripted recording and verified shutdown pass
+([evidence](./docs/verification-log.md#item-30-closure--2026-10-03)).
+[Issue #7](https://github.com/BashaarJavaid/Hirz/issues/7) remains open.
+Item 28 needs compatible-iPhone Web Push; Nova remains deferred to 29b.
+Development stays on 0005; migrations remain manual. Preserve both inference
+ledgers. Real contacts, physical locks, Ring, Link and AWS guarantees remain
+unverified.
 
 ---
 

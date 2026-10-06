@@ -29,3 +29,7 @@ tests/benchmarks/reports/
 hirz/mcp/ui/
 apps/mcp-app/test-results/
 apps/mcp-app/playwright-report/
+
+hirz/companion/ui/
+apps/web/test-results/
+apps/web/playwright-report/

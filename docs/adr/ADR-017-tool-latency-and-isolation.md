@@ -463,3 +463,29 @@ without a closure decision; requiring a local macOS pass makes Docker Desktop
 disk outliers the acceptance criterion; treating the CI runner as an AWS
 measurement claims ingress, cold start and Alexa host costs this gate does not
 measure. The corpus, sample counts and 250 ms threshold remain unchanged.
+
+## Stateful transport measurement amendment — 2026-09-26
+
+Item 29's [ADR-020](./ADR-020-simulator.md) changes authenticated replies to SSE.
+The gate still times raw authenticated tools/call POST through the complete response
+body, now including SSE framing and `Mcp-Session-Id`; decoding/schema assertions stay
+outside the timer. Clients link before initialization and reuse an account-bound
+session. Raw/SDK byte-identity tests now include that session header. Human prompt
+latency, waiting and post-answer processing are separate simulator measurements;
+ordinary calls retain the existing budget and required CI gate of record.
+
+## Opt-in timing diagnosis — 2026-10-01
+
+The author approved an opt-in diagnostic mode for investigating the item 29a
+Hourly failure on the same CI runner type. The disposable MCP benchmark process
+records tool method wall/CPU times, SQL count/total and its three slowest query
+fingerprints/times, plus garbage-collection generation/duration. Tool names use
+the closed catalog. Arguments, SQL text/parameters, results, errors and household
+identifiers are never logged by the diagnostic.
+
+`latency_diagnostic` defaults to false. Enabling it retains the existing corpus,
+five warmups, 100 measured samples, signed exports and 250 ms assertions, but
+marks reports and summaries as diagnostic only. Instrumentation and synchronous
+logging affect timing; a diagnostic pass cannot close an acceptance gate. Normal
+runs install no hooks. Rejected retrying the failed gate without diagnosis,
+changing its threshold or publishing private payloads for profiling.

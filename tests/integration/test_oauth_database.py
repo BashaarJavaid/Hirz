@@ -19,9 +19,98 @@ from tests.integration.test_database import (  # noqa: F401
     migrate,
     scratch_database,  # noqa: F401
 )
+from tests.mcp_transport import post
 from tests.unit.test_oauth import call, claims, consent, encode, gated, provider, tokens
 
 pytestmark = pytest.mark.integration
+
+
+@pytest.mark.parametrize("change", ["membership", "token"])
+def test_original_request_reauthorizes_after_wait(
+    scratch_database,  # noqa: F811
+    monkeypatch,
+    change,
+):
+    """Exercise the gate's captured request authority after an external change.
+
+    Membership uses a rollback-only graph view, as in the existing role probe;
+    no unaudited runtime membership change is committed.
+    """
+    from starlette.requests import Request
+    from starlette.responses import JSONResponse
+
+    import hirz.mcp.auth as auth
+    from hirz.mcp.auth import OAuthGate
+    from tests.unit.test_oauth import cache_for
+
+    async def run():
+        seed = read_seed(Path("constitutions/quinn-home.yaml"))
+        async with connect(scratch_database) as c:
+            await migrate(c)
+            await load_seeds(c, [seed], now)
+        p = provider()
+        cache = await cache_for(p)
+        token = encode(p, claims(p))
+        engine = create_async_engine(scratch_database, hide_parameters=True)
+        waiting, resume = asyncio.Event(), asyncio.Event()
+
+        async def pending(scope, receive, send):
+            request = Request(scope)
+            waiting.set()
+            await resume.wait()
+            try:
+                await request.scope["hirz_reauthorize"]()
+            except ValueError:
+                response = JSONResponse({"resumed": False}, status_code=403)
+            else:
+                response = JSONResponse({"resumed": True})
+            await response(scope, receive, send)
+
+        try:
+            app = OAuthGate(
+                pending,
+                cache=cache,
+                engine=engine,
+                tool_scopes={"oauth_probe": "hirz:read"},
+            )
+            async with httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=app), base_url="http://127.0.0.1:8000"
+            ) as client:
+                task = asyncio.create_task(
+                    client.post(
+                        "/mcp",
+                        headers={"Authorization": "Bearer " + token},
+                        json=call(),
+                    )
+                )
+                await asyncio.wait_for(waiting.wait(), 5)
+                if change == "token":
+                    # Removing the trusted issuer key models revocation; the
+                    # original bearer is genuinely revalidated, not cached.
+                    cache.keys.clear()
+                    resume.set()
+                    assert (await task).status_code == 403
+                else:
+                    async with connect(scratch_database) as changed:
+                        async with changed.begin():
+                            await changed.execute(
+                                db.members.update()
+                                .where(db.members.c.household_id == seed.household_id)
+                                .values(role="child")
+                            )
+                            original = auth.resolve_member
+
+                            async def current(connection, household, principal):
+                                return await original(changed, household, principal)
+
+                            monkeypatch.setattr(auth, "resolve_member", current)
+                            resume.set()
+                            assert (await task).status_code == 403
+                            await changed.rollback()
+        finally:
+            await engine.dispose()
+
+    asyncio.run(run())
 
 
 def test_scope_household_roles_current_membership_and_no_writes(scratch_database):  # noqa: F811
@@ -49,7 +138,8 @@ def test_scope_household_roles_current_membership_and_no_writes(scratch_database
             engine = create_async_engine(scratch_database, hide_parameters=True)
             async with gated(p, engine, required) as (client, cache):
                 for i, t in enumerate(issued):
-                    response = await client.post(
+                    response = await post(
+                        client,
                         "/mcp",
                         json=call(),
                         headers={"authorization": "Bearer " + t["access_token"]},
@@ -67,7 +157,8 @@ def test_scope_household_roles_current_membership_and_no_writes(scratch_database
                         and value["speaker"] is None
                     )
                 wrong_scope = next(scope for scope in SCOPES if scope != required)
-                response = await client.post(
+                response = await post(
+                    client,
                     "/mcp",
                     json=call(),
                     headers={
@@ -82,7 +173,8 @@ def test_scope_household_roles_current_membership_and_no_writes(scratch_database
                 # Same subject has distinct membership/role per household, concurrently.
                 responses = await asyncio.gather(
                     *(
-                        client.post(
+                        post(
+                            client,
                             "/mcp",
                             json=call(),
                             headers={
@@ -122,8 +214,11 @@ def test_scope_household_roles_current_membership_and_no_writes(scratch_database
                     passkey_verified=True,
                 ),
             )
-            response = await client.post(
-                "/mcp", json=call(), headers={"authorization": "Bearer " + adult}
+            response = await post(
+                client,
+                "/mcp",
+                json=call(),
+                headers={"authorization": "Bearer " + adult},
             )
             assert (
                 response.json()["result"]["structuredContent"]["data"]["role"]
@@ -134,15 +229,36 @@ def test_scope_household_roles_current_membership_and_no_writes(scratch_database
                     "authorization": "Bearer " + encode(p, claims(p, sub=subject))
                 }
                 assert (
-                    await client.post("/mcp", json=call(), headers=headers)
+                    await post(client, "/mcp", json=call(), headers=headers)
                 ).status_code == 403
                 assert (
-                    await client.post(
-                        "/mcp", json=call("what_can_you_do"), headers=headers
+                    await post(
+                        client, "/mcp", json=call("what_can_you_do"), headers=headers
                     )
                 ).status_code == 200
             # Rollback-only mutation simulates an externally committed membership change
             # through the same connection supplied to the resolver. No mutation is retained.
+            session_headers = {
+                "authorization": "Bearer " + adult,
+                "Accept": "application/json, text/event-stream",
+                "MCP-Protocol-Version": "2025-11-25",
+            }
+            opened = await client.post(
+                "/mcp",
+                headers=session_headers,
+                json={
+                    "jsonrpc": "2.0",
+                    "id": "membership-session",
+                    "method": "initialize",
+                    "params": {
+                        "protocolVersion": "2025-11-25",
+                        "clientInfo": {"name": "membership-probe", "version": "1"},
+                        "capabilities": {},
+                    },
+                },
+            )
+            assert opened.status_code == 200
+            session_headers["MCP-Session-Id"] = opened.headers["mcp-session-id"]
             async with connect(scratch_database) as c:
                 async with c.begin():
                     await c.execute(
@@ -159,24 +275,45 @@ def test_scope_household_roles_current_membership_and_no_writes(scratch_database
 
                     with pytest.MonkeyPatch.context() as patch:
                         patch.setattr(auth, "resolve_member", current)
+                        async with asyncio.timeout(2):
+                            assert (
+                                await client.get("/mcp", headers=session_headers)
+                            ).status_code == 403
                         assert (
                             await client.post(
+                                "/mcp",
+                                headers=session_headers,
+                                json={
+                                    "jsonrpc": "2.0",
+                                    "id": "pending-elicitation",
+                                    "result": {"action": "accept", "content": {}},
+                                },
+                            )
+                        ).status_code == 403
+                        assert (
+                            await post(
+                                client,
                                 "/mcp",
                                 json=call(),
                                 headers={"authorization": "Bearer " + adult},
                             )
                         ).status_code == 403
                         assert (
-                            await client.post(
+                            await post(
+                                client,
                                 "/mcp",
                                 json=call("what_can_you_do"),
                                 headers={"authorization": "Bearer " + adult},
                             )
                         ).status_code == 200
                     await c.rollback()
+            await client.delete("/mcp", headers=session_headers)
             assert (
-                await client.post(
-                    "/mcp", json=call(), headers={"authorization": "Bearer " + adult}
+                await post(
+                    client,
+                    "/mcp",
+                    json=call(),
+                    headers={"authorization": "Bearer " + adult},
                 )
             ).status_code == 200
 

@@ -204,6 +204,19 @@ def compile_policy(
                     f"{literal(allowed_roles)}.contains({INPUT}.requester_role)",
                     *requirements(common),
                     *(
+                        [
+                            conjunction(
+                                [
+                                    has("action.params.member_id"),
+                                    has("requester.member_id"),
+                                    f'({INPUT}.requester_role == "owner" || {INPUT}.{field("action.params.member_id")} == {INPUT}.{field("requester.member_id")})',
+                                ]
+                            )
+                        ]
+                        if name == "governance.credentials"
+                        else []
+                    ),
+                    *(
                         [expression(parse(c)) for c in common.conditions]
                         if name.startswith("governance.")
                         else []

@@ -261,7 +261,7 @@ async def decorate(
         )
     if data.presentation is not None:
         return answer
-    if data.plan:
+    if data.plan and not (data.decision and data.decision.decision == "ask"):
         if data.status == "queued":
             return answer  # Consent acknowledgement; a plan read supplies its timeline.
         plan = data.plan
@@ -322,7 +322,7 @@ async def decorate(
                 [a for a in snapshot.data["assets"] if a["kind"] == "ev"]
             )
             == 1,
-            can_approve=plan.status in {"proposed", "awaiting_approval"}
+            can_approve=plan.status == "proposed"
             and len(actions) == len(plan.actions)
             and plan.horizon.end > at,
         )
@@ -403,7 +403,9 @@ async def decorate(
                 approval_plan = Plan.model_validate(document) if document else None
             card_approval = ApprovalCard(
                 **base,
-                label=action_label(action),
+                label=answer.speakable.details[0]
+                if data.plan and answer.speakable.details
+                else action_label(action),
                 rule=f"Household rule, version {decision.constitution.version}: {decision.constitution.mode}",
                 risk_band=decision.risk.band if decision.risk else "Unavailable",
                 phone_required=security,

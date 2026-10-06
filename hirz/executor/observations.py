@@ -109,6 +109,22 @@ async def ingest(p: "Pipeline", registry: Registry, principal: Principal) -> Dec
     )
     try:
         result = await p.redeem(action, scheduler)
+        if result.decision != "execute" and p.require_active:
+            # Activation can win the race after a worker loaded its bundle.
+            # Keep the denied decision, reload validated artifacts, and make one
+            # fresh request. A same-policy refusal is never retried or bypassed.
+            from hirz.executor.local import policy
+
+            current = await policy(p)
+            if current.fingerprint != p.bundle.fingerprint:
+                p.bundle = current
+                action = governance(
+                    p,
+                    "record_observations",
+                    {"batch_hash": digest([o.model_dump(mode="json") for o in batch])},
+                    scheduler,
+                )
+                result = await p.redeem(action, scheduler)
         if result.decision != "execute":
             raise ValueError("Observation ingestion was not authorized")
         return result

@@ -53,8 +53,15 @@ def check_text(body: bytes) -> None:
 
 
 class MCPGuard:
-    def __init__(self, app: ASGIApp, security: TransportSecuritySettings) -> None:
+    def __init__(
+        self,
+        app: ASGIApp,
+        security: TransportSecuritySettings,
+        *,
+        sessions: bool = False,
+    ) -> None:
         self.app = app
+        self.sessions = sessions
         self.security = TransportSecurityMiddleware(security)
         self.bounded = RequestBodyLimitMiddleware(self.checked_body, MAX_BODY_BYTES)
 
@@ -88,7 +95,7 @@ class MCPGuard:
             )
             return
 
-        if scope["method"] == "GET" and scope["path"] == "/mcp":
+        if not self.sessions and scope["method"] == "GET" and scope["path"] == "/mcp":
             await Response(status_code=405, headers={"Allow": "POST, DELETE"})(
                 scope, receive, send
             )

@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from hirz import db
 from hirz.executor.contracts import SUPPORTED, validate
 from hirz.executor.plans import PlanService, get, governance
-from hirz.executor.refresh import RefreshService, fresh
+from hirz.executor.refresh import RefreshService, fresh, job
 from hirz.executor.runtime import RuntimeInputs
 from hirz.explainer.core import (
     approved_figures,
@@ -22,6 +22,7 @@ from hirz.explainer.core import (
     local_time,
     safe_text,
 )
+from hirz.explainer.models import Speakable
 from hirz.graph.context import ContextSnapshot, project
 from hirz.graph.models import ConstraintSpec
 from hirz.mcp.contracts import (
@@ -45,6 +46,7 @@ from hirz.mcp.contracts import (
 from hirz.mcp.persistence import command
 from hirz.mcp.presentation import Annualized
 from hirz.mcp.profiles import Profile, ProfileName
+from hirz.pipeline.confirmation import review_context
 from hirz.pipeline.hashing import action_hash, digest
 from hirz.pipeline.models import (
     Action,
@@ -105,6 +107,15 @@ def horizon_end(at: datetime, timezone: str, horizon: str) -> datetime:
     return end.astimezone(UTC)
 
 
+def field_time(
+    field: str, text: str, at: datetime, end: datetime, timezone: str
+) -> datetime:
+    try:
+        return time_at(text, at, end, timezone)
+    except Clarification as exc:
+        raise Clarification(str(exc), options=exc.options, field=field) from exc
+
+
 def audit_window(
     at: datetime, timezone: str, window: str | None
 ) -> tuple[datetime, datetime]:
@@ -162,10 +173,22 @@ class HouseholdTools:
                     or row.constitution_version != p.bundle.policy().version
                 ):
                     raise ValueError(
-                        "Household policy changed; restart the local server."
+                        "Household policy changed; retry with the current rules."
                     )
             member = await p.requester(self.principal)
-            if member.member_id is None or member.role in {"unknown", "child"}:
+            if not await p.credential_current(self.principal):
+                raise ValueError("The session credential has been revoked.")
+            if (
+                member.member_id is None
+                or member.role == "unknown"
+                or member.role == "child"
+                and name != "propose_household_rule"
+                and not (
+                    name == "execute_household_action"
+                    and isinstance(args, ActionInput)
+                    and args.action == "pause_automation"
+                )
+            ):
                 raise ValueError("This linked account cannot access household tools.")
             principal_hash = digest(identity(self.principal))
             request_id = getattr(args, "request_id", None)
@@ -203,7 +226,7 @@ class HouseholdTools:
                     "Please clarify this household request.",
                     details=(str(exc),),
                     status="clarification",
-                    code="CLARIFY",
+                    code="CLARIFY_" + exc.field.upper() if exc.field else "CLARIFY",
                     options=exc.options or ("Give the missing details",),
                 )
             if request_id:
@@ -298,7 +321,9 @@ class HouseholdTools:
             return response(
                 "Your proposed rule is recorded. It has not been activated.",
                 details=(
-                    "Phone delivery and activation are unavailable in this preview.",
+                    "Review the proposal in the companion app; an owner activates it with a passkey."
+                    if p.require_active
+                    else "Phone delivery and activation are unavailable in this preview.",
                 ),
                 status="recorded",
                 reference=decision.action_id,
@@ -322,11 +347,8 @@ class HouseholdTools:
                 raise Clarification(
                     "Choose the summary, conflicts, or an action or goal in this plan."
                 )
-            if plan.status == "refreshing" or not await fresh(p, stored):
-                return response(
-                    "The plan is still updating. Ask again when its replacement is ready.",
-                    status="preparing",
-                )
+            if waiting := await self.pending_plan(stored):
+                return waiting
             # Stored narration is already figure-checked; never call a provider here.
             if args.focus == "summary":
                 return Result.model_validate(
@@ -388,7 +410,8 @@ class HouseholdTools:
             action, lowered = self.action(args, snapshot)
             if isinstance(args, PermissionInput):
                 at = (
-                    time_at(
+                    field_time(
+                        "at",
                         args.at,
                         p.clock(),
                         p.clock() + timedelta(days=2),
@@ -420,6 +443,8 @@ class HouseholdTools:
                 return response(
                     "The household rules block this door request."
                     if decision.decision == "deny"
+                    else "Unlocking requires approval in your Hirz phone app."
+                    if p.require_active
                     else "Door unlocking requires phone approval, which is unavailable in this preview.",
                     status="denied"
                     if decision.decision == "deny"
@@ -478,6 +503,17 @@ class HouseholdTools:
                 ),
                 snapshot,
             )
+            if (review := review_context.get()) and child.expected_effect:
+                child = child.model_copy(
+                    update={
+                        "expected_effect": child.expected_effect.model_copy(
+                            update={
+                                "by": review.immediate_at(self.p.clock())
+                                + timedelta(seconds=30)
+                            }
+                        )
+                    }
+                )
             children.append(validate(child))
         targets = [(a.target.adapter, a.target.entity) for a in children]
         if len(set(targets)) != len(targets):
@@ -507,7 +543,8 @@ class HouseholdTools:
         )
         if isinstance(args, PermissionInput):
             at = (
-                time_at(
+                field_time(
+                    "at",
                     args.at,
                     self.p.clock(),
                     self.p.clock() + timedelta(days=2),
@@ -550,7 +587,9 @@ class HouseholdTools:
             assert action.expected_effect
             action = action.model_copy(
                 update={
-                    "scheduled_for": self.p.clock(),
+                    "scheduled_for": review.immediate_at(self.p.clock())
+                    if (review := review_context.get())
+                    else self.p.clock(),
                     "expected_effect": action.expected_effect.model_copy(
                         update={"by": self.p.clock() + timedelta(seconds=30)}
                     ),
@@ -607,12 +646,13 @@ class HouseholdTools:
         reference = args.room
         if reference:
             suffix = {"light": " light", "lock": " lock"}.get(kind)
-            matching = [
-                r
-                for r in candidates
-                if str(r["name"]).casefold()
-                in {reference.casefold(), reference.casefold() + (suffix or "")}
-            ]
+            names = {reference.casefold(), reference.casefold() + (suffix or "")}
+            if kind == "light":
+                room = reference.casefold()
+                if room.endswith((" light", " lamp")):
+                    room = room.rsplit(" ", 1)[0]
+                names.update({room + " light", room + " lamp"})
+            matching = [r for r in candidates if str(r["name"]).casefold() in names]
             if len(matching) == 1:
                 reference = str(matching[0]["id"])
         asset = unique(candidates, reference)
@@ -655,13 +695,22 @@ class HouseholdTools:
                 raise Clarification(
                     "For how many minutes are you requesting the door unlock?"
                 )
-            params = {"open_minutes": args.minutes}
+            params = {"open_minutes": args.minutes, "locked": False}
         else:
             params = {"on": args.action == "turn_on_light"}
         name = CONSUMER_ACTIONS[args.action]
         attr = SUPPORTED.get(name, ("", "locked"))[1]
         result = Action(
-            action_id=uuid4().hex,
+            action_id=uuid5(
+                p.household_id,
+                digest(
+                    {
+                        "request": args.request_id,
+                        "principal": identity(principal),
+                        "target": target.model_dump(),
+                    }
+                ),
+            ).hex,
             **{"class": name},
             target=target,
             params=params,
@@ -670,25 +719,55 @@ class HouseholdTools:
             ),
             reason=reason,
             content_hash="",
-            scheduled_for=p.clock(),
+            scheduled_for=review.immediate_at(p.clock())
+            if (review := review_context.get())
+            else p.clock(),
             expected_effect=ExpectedEffect(
                 entity=target.entity,
                 attr=attr,
                 value=params.get(attr, False),
-                by=p.clock() + timedelta(seconds=30),
+                by=p.clock() + timedelta(minutes=10)
+                if args.action == "request_door_unlock"
+                else p.clock() + timedelta(seconds=30),
             ),
             revert=Revert(
                 after_s=args.minutes * 60,
                 inverse=Inverse(
-                    **{"class": name}, target=target, params={"charging": False}
+                    **{"class": name},
+                    target=target,
+                    params={"locked": True, "open_minutes": 0}
+                    if args.action == "request_door_unlock"
+                    else {"charging": False},
                 ),
             )
-            if args.action == "charge_car" and args.minutes
+            if args.action in {"charge_car", "request_door_unlock"} and args.minutes
             else None,
         )
         return result.model_copy(
             update={"content_hash": action_hash(result)}
         ), principal
+
+    async def pending_plan(self, stored: dict[str, Any]) -> Result | None:
+        current = await job(self.p, stored)
+        if current and current["state"] == "blocked":
+            return response(
+                "The plan is blocked. It is not still loading.",
+                details=(
+                    "Review your household requests and device state before changing the plan.",
+                ),
+                status="unavailable",
+                code="PLAN_BLOCKED",
+                reference=stored["plan_id"],
+            )
+        if stored["document"]["status"] == "refreshing" or not await fresh(
+            self.p, stored
+        ):
+            return response(
+                "The plan is still updating. Ask again shortly.",
+                status="preparing",
+                reference=stored["plan_id"],
+            )
+        return None
 
     async def plan(self, args: PlanInput, snapshot: ContextSnapshot) -> Result:
         p = self.p
@@ -750,15 +829,91 @@ class HouseholdTools:
             )
             stored = await get(p, plan.plan_id)
             plan = Plan.model_validate(stored["document"])
-            if plan.status == "refreshing" or not await fresh(p, stored):
-                return response(
-                    "The plan is still updating. Ask again shortly.",
-                    status="preparing",
-                    reference=plan.plan_id,
+            if waiting := await self.pending_plan(stored):
+                return waiting
+            pending_decisions = (
+                (
+                    await p.connection.execute(
+                        sa.select(db.audit_log.c.payload, db.actions.c.proposal)
+                        .join(
+                            db.approvals,
+                            sa.and_(
+                                db.approvals.c.household_id
+                                == db.audit_log.c.household_id,
+                                db.approvals.c.approval_id
+                                == db.audit_log.c.payload["approval"][
+                                    "approval_id"
+                                ].astext,
+                            ),
+                        )
+                        .join(
+                            db.actions,
+                            sa.and_(
+                                db.actions.c.household_id
+                                == db.approvals.c.household_id,
+                                db.actions.c.action_id == db.approvals.c.action_id,
+                            ),
+                        )
+                        .where(
+                            p.scope(db.audit_log),
+                            db.approvals.c.status == "pending",
+                            db.approvals.c.expires_at > p.clock(),
+                            db.actions.c.proposal["plan_id"].astext == plan.plan_id,
+                        )
+                        .order_by(db.audit_log.c.seq.desc())
+                        .limit(1)
+                    )
                 )
-            return Result.model_validate(
-                {"speakable": plan.speakable, "data": {"plan": plan}}
+                .mappings()
+                .all()
             )
+            if pending_decisions:
+                from hirz.mcp.card_data import action_label
+
+                row = pending_decisions[0]
+                action = Action.model_validate(row["proposal"])
+                assets = {
+                    str(b["asset_id"])
+                    for b in snapshot.data["asset_bindings"]
+                    if b["adapter"] == action.target.adapter
+                    and b["entity_id"] == action.target.entity
+                }
+                names = [
+                    display_name(str(a["name"]))
+                    for a in snapshot.data["assets"]
+                    if str(a["id"]) in assets
+                ]
+                return response(
+                    "Your plan is waiting for an action approval.",
+                    details=(
+                        (names[0] + ": " if len(names) == 1 and names[0] else "")
+                        + action_label(action),
+                        *row["payload"]["speakable"]["details"],
+                    ),
+                    options=(
+                        "Approve the pending action",
+                        "Decline the pending action",
+                    ),
+                    plan=plan,
+                    decision=row["payload"],
+                    decisions=(row["payload"],),
+                )
+            speech = Speakable.model_validate(plan.speakable)
+            details = speech.details
+            if stored["runtime"]:
+                workload = RuntimeInputs.model_validate(stored["runtime"]).workload
+                if workload.ev:
+                    details = (
+                        *details[:2],
+                        f"The car target is {workload.ev_target * 100:g} percent by {local_time(workload.ev_deadline, context(snapshot))}.",
+                    )
+            return response(
+                speech.headline,
+                details=details,
+                options=speech.options,
+                plan=plan,
+            )
+
         pending = (
             (
                 await p.connection.execute(
@@ -889,12 +1044,12 @@ class HouseholdTools:
                 "temperature_range": "temperature_band",
             }[args.change]
             start = (
-                time_at(args.window_start, p.clock(), end, timezone)
+                field_time("window_start", args.window_start, p.clock(), end, timezone)
                 if args.window_start
                 else p.clock()
             )
             finish = (
-                time_at(args.window_end, start, end, timezone)
+                field_time("window_end", args.window_end, start, end, timezone)
                 if args.window_end
                 else end
             )
@@ -910,7 +1065,9 @@ class HouseholdTools:
                     if args.temperature_f is not None
                     else args.lower_f,
                     upper=args.upper_f,
-                    at=time_at(args.at, start, finish, timezone) if args.at else None,
+                    at=field_time("at", args.at, start, finish, timezone)
+                    if args.at
+                    else None,
                 )
             )
         intake = Intake(
@@ -990,14 +1147,17 @@ class HouseholdTools:
         if args.plan_id:
             stored = await get(p, args.plan_id)
             plan = Plan.model_validate(stored["document"])
-            if (
-                plan.version != args.version
-                or plan.status in {"superseded", "abandoned", "completed"}
-                or (
-                    args.approved
-                    and (plan.status == "refreshing" or not await fresh(p, stored))
-                )
-            ):
+            changed = plan.version != args.version or plan.status in {
+                "superseded",
+                "abandoned",
+                "completed",
+            }
+            if args.approved and not changed:
+                waiting = await self.pending_plan(stored)
+                if waiting and waiting.data.code == "PLAN_BLOCKED":
+                    return waiting
+                changed = waiting is not None
+            if changed:
                 return response(
                     "The plan is still updating or has changed. Review the current version before approving.",
                     status="denied",
@@ -1047,9 +1207,15 @@ class HouseholdTools:
         ):
             raise ValueError("That approval is unavailable for this request.")
         action = Action.model_validate(row["proposal"])
-        if action.action_class.startswith("security."):
+        if action.action_class.startswith("security.") and not (
+            self.principal.surface == "app"
+            and self.principal.credential_id
+            and self.principal.passkey_verified
+        ):
             return response(
-                "Phone approval is required and unavailable in this preview. The door request remains unresolved.",
+                "Review this security request in the companion app and approve it with your passkey."
+                if p.require_active
+                else "Phone approval is required and unavailable in this preview. The door request remains unresolved.",
                 status="phone_required",
             )
         decision = await p.vote_locked(

@@ -733,6 +733,11 @@ worker reloads the selected local policy, identity, observations, approval and
 budget before stage 7 and the durable dispatch claim. Command-state verification
 checks setpoint/control state, never future temperature or delivered EV energy.
 
+The executor and final dispatch claim share one expiry predicate. A security
+unlock's bounded duration begins at its authorized opening, not during phone
+approval waiting; approval expiry and the opening's `expected_effect.by` still
+limit when dispatch may begin (ADR-020, delayed phone approval amendment).
+
 `PlanService.record/approve/revise/cancel` commits governance decisions and canonical
 plans. Plan consent and the separate electricity-plus-wear budget grant do not
 replace device rules, quorum or approval TTL. Explicit revisions need fresh consent;
@@ -742,12 +747,17 @@ notifications here are pending member-addressed records, without delivery claims
 For plan approval, the call commits consent and its budget allocation and returns “being queued”; after due bounded endings, the worker atomically materializes every signed per-action scheduling event from that durable approved plan, with cancellation/revision, overlap and execution-time checks preserved ([amendment](./docs/adr/ADR-017-tool-latency-and-isolation.md#scheduling-and-harness-amendment--2026-09-24)).
 
 `Executor.sweep/rollback` uses a household session lock and closes transactions
-during HA calls. Exact bounded endings are persisted before dispatch and survive
+during HA calls. Exact bounded endings are persisted atomically with the validated opening attempt, before dispatch, and survive
 pause, cancellation, revision and policy changes. They run before due openings,
 under their original operation grant, with distinct durable claims and read-back.
 Late starts shorten intervals; expired openings are skipped, overdue endings retained.
 Reversible failures may retry once through a fresh Action; uncertain originals are
 never resent. Ordinary rollback uses a captured inverse through current policy.
+
+A plan-authority change between redemption and dispatch refuses the claim without
+a device write and ends the current sweep. The next tick refreshes and evaluates
+current authority; it never reuses the stale grant. Audit/database failures and
+invalid claims still fail closed as errors ([recovery amendment](./docs/adr/ADR-020-simulator.md#recover-a-refused-stale-plan-dispatch--2026-10-01)).
 
 `0007_execution_lifecycle` adds action scheduling/recovery fields, `plans`,
 `plan_actions`, `pending_notifications` and `twin_checkpoints`. All keys and audit
@@ -771,7 +781,7 @@ The trust layer. Two halves: gating physical actions (through the pipeline like 
 
 - **Trusted contacts and verified channels.** A contact may or may not be a member and may live in another Hirz household (Malik is a trusted contact of his parents' household and answers from his own app; no login spans two households in v1). Each contact has channels verified out-of-band at setup (a code sent to the number, a confirmation tapped in the contact's own Hirz app). A channel presented during a request is compared against verified channels; it is never added as verified because a caller said so.
 - **Request assessment.** `assess_request_risk` extracts signals from the member's description of the request with a small deterministic signal set (financial ask, urgency language, secrecy ask, third-party recipient, unverified channel, claimed authority such as "the bank" or "Amazon"). Signals are weighted into a band; `scam_pattern` fires when a financial or access request coincides with an unverified channel and urgency. The LLM is allowed only to extract the signals as structured output when `HIRZ_LLM` is on; the weighting and the band are code, and the model's signals are unioned with the keyword extractor's, so a model can add a warning and never remove one. Schema validation checks the shape of an extraction, not its truth, so the tests include wrong and empty model outputs. A model therefore influences Protect's advice and nothing else. Runtime risk accepts only the deterministic trusted-code scam flag, never the union with model-extracted signals. Besides the already-CRITICAL money and access-code classes, `scam_pattern` can raise the LOW-base `finance.verify_request` to CRITICAL, whose pipeline terminal is VERIFY (§5.3); it does not authorize a financial or security action. Hirz cannot see the call. A presented number is compared with the contact's verified channels only when the member reads it out, and the answer is "matches the number you have saved" or "does not match", never "it is really him", because caller ID can be forged; when no number is given Hirz says nothing about it. The check through the verified contact is offered at every band, including LOW, not only when `scam_pattern` fires. In offline mode a keyword extractor does the same job with lower recall, and the response says so.
-- **Verification methods** (in order of strength): confirmation in the subject's own Hirz app (push, biometric-gated by the phone), a call-back to a verified number (real: telephony provider adapter, out of hackathon scope; twin: simulated), the household safe word (compared as a hash, never spoken by Hirz), and a verified email. `verify_trusted_identity` opens a `VerificationCase`, sends the check-in, and reports status. The check-in names the specific request ("Did you just call her from another number asking for $500?") with three answers: **No, that wasn't me**, **Yes, that was me**, **I'll call her**. A yes confirms that request and nothing more, and Hirz still tells the member to talk to the contact on their saved number. Alexa cannot speak when the reply arrives, so the first response says "ask me again in a minute", the card and the member's phone update on their own, and the result is spoken when the member asks. No reply by the expiry is `no_answer`: "Malik hasn't answered. Don't send anything. Call the number you have saved for him."
+- **Verification methods** (in order of strength): confirmation in the subject's own Hirz app (push, biometric-gated by the phone), a call-back to a verified number (real: telephony provider adapter, out of hackathon scope; twin: simulated), the household safe word (compared as a hash, never spoken by Hirz), and a verified email. `verify_trusted_identity` opens a `VerificationCase`, sends the check-in, and reports status. The check-in names the specific request ("Did you just call her from another number asking for $1000?") with three answers: **No, that wasn't me**, **Yes, that was me**, **I'll call her**. A yes confirms that request and nothing more, and Hirz still tells the member to talk to the contact on their saved number. Alexa cannot speak when the reply arrives, so the first response says "ask me again in a minute", the card and the member's phone update on their own, and the result is spoken when the member asks. No reply by the expiry is `no_answer`: "Malik hasn't answered. Don't send anything. Call the number you have saved for him."
 - **Organization verification.** `assess_request_risk` with `claimed_party: organization` checks a claimed organization's presented channel against the household's stored verified contacts for that organization (the utility's real number saved at onboarding) and against a small curated registry shipped with Hirz. Hirz never asserts an organization is legitimate from information the caller supplied; it says "matches your saved contact", "does not match", or "not enough information".
 - **Doorbell flow (Ring).** Ring events arrive by webhook (HMAC-SHA256 verified). Four are used: `button_press` and `motion_detected` (with its `human`/`animal`/`vehicle` classification: "a vehicle arrived at 6:58, Mom is expected at 7:00") feed the `visitor_context`; `device_offline` on the doorbell raises the `state_stale` factor for `security.door_unlock`; `device_online` clears it. Protect matches a press against expected arrivals in `Schedule`, produces a `visitor_context` (expected: Mom at 19:00 ± 30 min; unexpected: unknown), and the companion app and the MCP App show the snapshot with that context. Three facts stay separate in the data and in every sentence: someone is expected around now; a visitor is at the door; an authenticated member has confirmed who it is. The schedule never turns the second into the third. Approval text reads "Someone is at the front door. Mom is expected now.", never "Unlock for Mom", and a stranger who rings inside Mom's window gets the same sentence and the same phone approval (`scenarios/stranger-in-window.yaml`). An *unexpected visitor* means a press that matches no expected arrival window; it does not mean a person Hirz failed to recognize, because Hirz recognizes nobody. Ring is an event and media source only; its Partner API has no lock or access-control capability. Any unlock is a `security.door_unlock` action on the `devices` adapter (a Home Assistant lock, real or twin) through the pipeline; when the household's constitution carries `never_for: [unexpected_visitor]`, it applies as a hard veto (it is the household's rule, not a built-in floor; without it an unexpected visitor is an `ask` on the phone). No face recognition: Hirz never claims to identify a person from video ([THREAT_MODEL](./THREAT_MODEL.md)).
 - **Courier correlation.** A known pattern: the call comes first, then someone arrives to collect. Rule, in code: a CRITICAL `VerificationCase` opened in the last 60 minutes plus an unexpected visitor at the same household's door → warn the member ("Someone you're not expecting is at the door, right after that call. Don't hand anything over.") and notify the contact Hirz verified, as a `communication.contact_trusted_contact` action through the pipeline. It can only warn and notify. It never says the visitor is the scammer, the same discipline as no face recognition.
@@ -1207,6 +1217,20 @@ server-side and does not change production Origin/Host guards. Detailed behavior
 
 ### 5.14 Companion API and web app
 
+**Item 28 implementation scope (2026-09-25).** The same-origin `/api` router and
+six companion pages use real server-verified WebAuthn and credential-bound,
+Secure/HttpOnly/SameSite sessions (30-minute idle, 12-hour absolute). Five-minute
+ceremonies are one-use, origin/RP checked and session/CSRF bound. Initial enrollment
+uses explicit invitations to existing linked demo members, not simulated OAuth.
+The narrow pre-login bookkeeping exception, reserved governance operations and
+policy lifecycle are specified in [ADR-019](./docs/adr/ADR-019-companion.md).
+A voice queues a proposal; an owner reviews and activates its exact candidate
+under a fresh assertion. Asset management is an explicit declaration, default false.
+The check-in screen is simulated, and real contact verification, Simulator and
+tamper playground remain later items. Actual iPhone push is unverified; see the
+[item 28 evidence](./docs/verification-log.md#item-28--in-progress--2026-09-25).
+
+
 FastAPI companion API (served by the `worker` role, separate router, session auth; locally in the same container as the MCP server, in AWS on the worker service because a browser cannot reach a router inside the Runtime) and a React app with these pages: **Tonight** (current plan, approve/change, and the pause switch), **Approvals** (inbox with the Decision's reasoning and a one-tap approve/deny, web push), **Constitution** (form editor, YAML view, plain-English drafting with diff preview, Cedar view, analysis warnings, version history and rollback), **Household** (members, roles, passkeys and recovery, trusted contacts with channel verification and removal, assets each shown as *managed through Hirz* or *not managed*, schedules), **Audit** (chain view, filters, export, verify button), **Twin** (scenario picker, clock speed, event injection, adapter source badges, and the tamper playground: take a signed command from the demo household, change a field, replay it, readdress it to another home, or strip the signature, and watch Link's verification refuse it and say why; it runs Link's real verification code against the development key and is labeled simulated), **Simulator** (§5.15). The Constitution page also holds the inbox of rules proposed by voice, each opening the same diff-and-activate screen. UI stack: Tailwind and shadcn/ui for the companion app, plain CSS custom properties carrying Amazon's tokens for the MCP App cards (they load in a sandboxed iframe, so the bundle stays small and dependency-free). Seven screens are designed by hand because they appear on camera (the four Echo Show cards, and on the phone the rule diff, the check-in, and the unlock approval); the rest use library defaults (`docs/design.md`).
 
 **Hosted demo.** During the judging window the worker serves the web app publicly. A "Start demo" button seeds a fresh throwaway household from the demo seed with a temporary login and a 24-hour lifetime, so judges cannot trample each other. Two safety rules: a demo household can bind only `twin` adapters (the registry refuses anything else for it, so nobody on the internet reaches Hirz Link or the real plug, and a test asserts it), and the emulator's Bedrock calls are rate-limited per visitor under the budget alarm with the scripted host as fallback.
@@ -1217,15 +1241,56 @@ Accessibility is a requirement: the app is keyboard-complete with screen-reader 
 
 ### 5.15 Hirz Simulator
 
-Because add-on access is gated and there is no device, the simulator is the primary demo surface and is built to the real contract:
+The explicitly enabled `/simulator` route shares the companion React app. Its
+FastAPI host (`hirz/host`) holds OAuth tokens, histories and prompts in server
+memory behind an opaque browser cookie. Mom links to the parents’ household;
+Malik and Dad link independently to the home. Companion sessions remain separate
+and authorize only their own household. Browser/session expiry uses real time;
+scenario clocks never extend authority.
 
-- **Emulated host.** A Strands agent on Bedrock, Claude Haiku 4.5 by default (the most reliable tool-caller available; which model class Alexa+ runs is not public, so no model is claimed as a stand-in) with Nova Lite selectable in the simulator's settings, and a system prompt encoding Alexa+'s functional requirements: pick tools from `tools/list`, honor `speakable`, at most 5 options, no jargon, ask before commitments, voice-only vs screen behavior. It is a genuine MCP client hitting the genuine Hirz MCP server over Streamable HTTP with a real bearer token; nothing is short-circuited.
-- **Host bridge.** The simulator implements the MCP Apps host side (`ui/initialize`, tool-result notifications, sandboxed iframe with CSP) so the same MCP App bundles render here and on a real Echo Show.
-- **Voice.** Browser speech recognition and synthesis; a push-to-talk button; transcripts show the tool calls the emulator made, which is exactly what a judge needs to see.
-- **Device modes.** Echo Show (screen + voice; the frame renders at 1280×800, Amazon's 768×480 base canvas × 1.667) and Echo Dot (voice only, cards hidden).
-- **Whose Echo.** A switch between linked accounts ("Mom's Echo", "Malik's Echo"), each with its own token and household, which is how the two-home demo and the isolation test are driven.
-- **Built on the open-source harness.** The generic parts (the real MCP client with OAuth, the MCP Apps host bridge in the Echo Show frame, the voice-only mode, the tool-call transcript) live in a separate Apache-2.0 repository together with the add-on conformance checker, and `apps/web` consumes them as a dependency (`ROADMAP.md` items 25a, 29a). The scenario clock, the live/simulated badges, and the account switch stay here. If the extraction slips, the simulator stays in this repo and nothing else changes.
-- **Honesty.** A banner states it is an emulation of the Alexa+ host, not Alexa, and names the model in use. The optional community Skill bridge is documented in [ADR-007](./docs/adr/ADR-007-alexa-surface-strategy.md) for anyone with an Echo who wants to hear it on hardware.
+Each turn opens a genuine authenticated MCP SDK session. The pinned Strands host
+selects sequential calls; deterministic services make every decision. Exact host
+commitments are distinct from constitution requester confirmation. Missing scalar
+values and household ambiguities use SDK elicitation; transactions unwind before
+human waits and resumed calls recheck current authority/policy. No elicitation can
+activate a constitution or approve security actions. Account changes cancel prompts
+and suppress stale speech without undoing accepted actions.
+
+The extracted `addon-host` React library supplies the MCP Apps bridge, transcript
+and native voice hook; its Python `addon_host` library supplies in-memory OAuth
+discovery/PKCE/refresh and initialized SDK connections. Hirz retains HTTP/browser
+sessions, household JWT checks, selection, consent, scenario controls and source
+labels. OAuth metadata and endpoints are restricted to configured MCP/issuer
+origins, with pre-registered public clients and no automatic tool retries
+([ADR-021](./docs/adr/ADR-021-extracted-host-harness.md)).
+
+The MCP Apps bridge initializes opaque sandboxed cards and forwards actual
+protocol results without credentials. Show scales a 1280×800 canvas; Dot mounts no
+iframe. The transcript records processing and human-wait timing, with structured
+results collapsed. US-English push-to-talk and speech synthesis retain typed input
+and visible text when unavailable. Replayed or delayed contact events do not speak
+until requested. Both themes and a stacked narrow layout use existing app styling.
+
+`HIRZ_LLM=off` supports recorded utterances and deterministic prompt responses.
+With explicit paid configuration, Haiku 4.5 is the accepted default. Nova Lite's
+experimental implementation remains selectable, but its acceptance is deferred
+to item 29b; item 29 is complete for Haiku and scripted mode (ADR-020).
+The separate item-29 aggregate ledger ($20 Haiku ceiling, $10 Nova ceiling against
+the same total) reserves counted Haiku input or Nova’s published
+context ceiling plus 10%, and maximum output before inference; eight tool calls per utterance, 512 output tokens per model call,
+no automatic inference retries, and no silent fallback. Model changes start fresh
+conversations. Operational setup and acceptance remain in
+[development](./docs/development.md#item-29-disposable-simulator); decisions and
+rejected alternatives are in [ADR-020](./docs/adr/ADR-020-simulator.md).
+
+The disposable launcher requires real companion enrollment and seed activation,
+then pauses scenario playback at voice, confirmation and companion beats. Household
+controls and simulated contact replies require that household’s companion session.
+Only one scenario advances; action deadlines are serviced before the next event.
+Runtime mutations use existing Pipeline paths and cleanup retains verified signed
+exports. Harness release acceptance remains item 29a, recording Compose item 30,
+and real contact delivery, Link and AWS remain separate work. None are implied by
+local twin verification.
 
 ### 5.16 AWS topology
 
@@ -1369,7 +1434,7 @@ or any attempt audit row, preserving evidence even if a claim pointer was remove
 - **Requester confirmation.** For classes listed in the constitution's `verification.require_requester_confirmation`, Hirz elicits "Who am I talking to?" from the household's member list before proceeding, and records the answer as *claimed*, not verified. Claimed identity can only lower authority (a claim of "guest" is honored), never raise it above the linked account's role. It exists so a member can voluntarily step down, not as an identity check.
 - **Speaker hook.** `requested_by.speaker` is an optional field, `null` on every surface today. If Alexa ever passes a recognized-speaker identifier with a confidence level, it maps to a member through `member_accounts` and is subject to the same rule as a claimed role: it can lower or match the token's authority, never raise it. Hirz never derives a speaker itself (`THREAT_MODEL.md`). The absence of this field in the add-on contract is logged as a Critical feature request in `docs/friction-log.md`.
 - **Children and guests.** Child profiles cannot link; requests come through a parent's account and the constitution's `child_requests` rules apply (`ask` the parent, or `never`). Unlinked users get the guest experience.
-- **Companion app.** Separate Hirz login (email + passkey) bound to the same `member` row; the app is where trusted-contact channel verification and approvals with quorum happen. A member can enroll more than one passkey (a phone and a laptop) and is given a one-time recovery code at setup. A member who has lost every passkey signs in with the recovery code and enrolls a new one; without the code, the household's owner re-invites them. An owner with neither has no in-product path in v1, which is why setup asks the owner for a second passkey. Losing a phone never loosens anything: pending security approvals simply expire. A lost device's passkey is revoked on the Household page.
+- **Companion app.** Separate passkey login bound to the existing linked `member` row. Initial local enrollment requires an explicitly issued invitation; email is not a login authority. Recovery codes permit enrollment only, never approval. Successful recovery consumes the code, revokes old credentials/sessions/unused security votes, and issues a replacement code. An owner may re-invite another linked member, but cannot reset their own account this way. Owners without a remaining passkey or recovery code have no in-product recovery; setup encourages a second distinct credential without requiring one, and explains that passkeys can sync. Credential revocation invalidates its sessions and unused votes immediately, with another check at redemption. Last-key revocation requires explicit lockout confirmation.
 
 Local item 24 implements a separate simulated issuer and authenticated startup;
 [ADR-014](./docs/adr/ADR-014-local-oauth.md) specifies the lifetimes, limits,
@@ -1583,7 +1648,7 @@ jobs:
 ## 14. Deployment
 
 - **Local (everyday).** `compose.dev.yml`: Postgres 16, Home Assistant with the demo integration pre-configured, Hirz (one container running both roles: MCP server, and the worker with the companion API and scheduler), the web app (`apps/web`: companion pages plus the simulator route) and the MCP App card bundle (`apps/mcp-app`) served by Vite in dev or by Hirz in prod mode, optional `observability` profile with Jaeger. No AWS account required; `HIRZ_LLM=off` by default, `HIRZ_LLM=bedrock` with local AWS credentials to use Bedrock.
-- **Demo (recording).** `compose.demo.yml` seeds the demo household and constitution, starts the demo-evening scenario paused at 17:30, and opens the simulator in Echo Show mode.
+- **Demo (recording).** `scripts/demo.py init --origin <HTTPS-origin>` initializes separate private credentials; `run` builds the existing image and launches `compose.demo.yml` under a unique project with private PostgreSQL storage. The existing simulator seeds both households with unactivated policies, selects evening paused at 17:30 (parents at 17:00), and opens dark Echo Show mode with speech off. The non-root runtime publishes only loopback 8002/8003 and forces scripted operation. Real enrollment, policy activation and Echo consent remain manual. Readiness checks include trusted HTTPS; cleanup requires a successful runtime exit and independently verified exports from both households. Failed storage is retained. [Lifecycle and recovery](./docs/development.md#item-30-recording-stack); [decision](./docs/adr/ADR-020-simulator.md#recording-packaging-and-lifecycle--2026-10-03).
 - **AWS (judging window).** `infra/cdk`: Cognito user pool and app client (PKCE), AgentCore Runtime (Hirz image, `mcp` role, MCP protocol, CUSTOM_JWT), the worker service (Hirz image, `worker` role, App Runner smallest size), AgentCore Gateway + policy engine + `hirz-actions` Lambda target, the KMS signing key, the S3 Object Lock anchor bucket, AgentCore Memory, AgentCore Identity credential providers, EventBridge Scheduler + tick Lambda targeting the worker (one-time schedules per action plus a one-minute rule that drives the sweep and the pollers), RDS Postgres (smallest class), Bedrock model access, CloudWatch. `cdk deploy` then `hirz doctor --aws` verifies PRM, `401` challenge, a tool call through the Runtime, an "act" tool whose action the worker executes within 10 s, a policy decision through the Gateway, a signed command accepted by Hirz Link and an unsigned one refused, an audit anchor written and verified, the companion API over HTTPS, the hosted demo's "Start demo" path, and a scheduled tick. Hirz Link runs in the home (`docker compose -f compose.link.yml up -d` next to Home Assistant) and dials out to the worker. `cdk destroy` after judging.
 - **Not built in v1.** Multi-region, multi-replica Runtime coordination for a single household, telephony call-backs, native mobile apps, a login that spans two households (a caregiver view across homes), a physical-Echo demo (the community Skill bridge is used only for one read-only gallery clip in Amazon's developer-console simulator, ADR-007), a constitution domain for read and disclosure permissions (what may be spoken on a shared Echo is fixed in code today: no channel values, no verification history).
 

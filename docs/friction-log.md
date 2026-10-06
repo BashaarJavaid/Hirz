@@ -648,3 +648,230 @@ checks passed. See the [completion evidence](./verification-log.md#publication-a
   **2026-09-24 author decision:** approved the separate strict browser-test config
   with dependency declaration checking skipped. All pins and full application
   type-checking remain unchanged; browser test source is still checked.
+
+
+## Item 28: WebAuthn gesture handling on iOS 15 — 2026-09-25
+
+- **Tool/task:** Safari/Home Screen WebAuthn on the author's iOS 15.7.9 iPhone.
+  **Steps/expected:** enroll a credential, then activate the initial policy using
+  another fresh credential assertion after fetching a challenge.
+  **Actual:** enrollment succeeded, but activation immediately reported
+  `this request has been cancelled by the user` without displaying a verification
+  prompt. **Severity:** Major. **Workaround under verification:** a native dialog
+  supplies a new explicit click after the server challenge arrives on iOS before
+  version 16. No authentication verification is bypassed. The suspected cause is
+  loss of the user gesture across asynchronous option fetching, documented in
+  [WebKit's authentication guidance](https://webkit.org/blog/11312/meet-face-id-and-touch-id-for-the-web/)
+  and [SimpleWebAuthn's browser quirks](https://simplewebauthn.dev/docs/advanced/browser-quirks).
+  This diagnosis is not yet confirmed on the physical phone. **Suggestion:**
+  distinguish absent user activation from actual cancellation in the browser error.
+
+**2026-09-25 follow-up to the iOS WebAuthn entry:** the author confirmed that the
+fresh-tap “Continue with passkey” path opened the device password prompt and
+activated version 7. The available iOS 15.7.9 device still cannot verify Home
+Screen Web Push; no newer or upgradable iPhone is available for that gate.
+
+## Item 28: incomplete desktop dark browser captures — 2026-09-25
+
+- **Tool/task:** pinned Playwright 1.57.0 Chromium screenshots at 1440×900 after
+  changing `colorScheme`; [screenshot documentation](https://playwright.dev/docs/screenshots).
+  **Expected:** the visible SVG snapshot and passkey button labels appear in both
+  theme captures. **Observed:** desktop dark captures in private browser runs `q`
+  and `s` contain solid rectangles where parts of the image and button labels
+  appear in light/portrait captures. No screenshot exception was emitted; the
+  browser flow and DOM assertions passed. **Severity:** Minor for implementation,
+  blocking acceptance of those visual artifacts. **Attempted mitigation:** disable
+  transitions using reduced-motion mode and wait for two repaint frames; the
+  missing paint persisted. Cause remains unconfirmed, including whether it is
+  app rendering or capture behavior. No workaround or visual pass is claimed.
+  **Suggestion:** expose a capture diagnostic when a screenshot differs from the
+  otherwise queryable visible document.
+
+### Follow-up on item 28 dark captures — 2026-09-25
+
+The apparent omission reproduced while reviewing multiple images together, but
+reopening the **same unchanged PNG** individually displayed the button text and
+complete SVG. A direct stdlib PNG decode of
+`secrets/item28-combined-20260925-c/phone/unlock-1440-dark.png` found 162 colors
+and 435 near-white pixels in the primary-label rectangle, and 279 colors in the
+snapshot rectangle; SHA-256
+`9f504a57d0834e25e21ea4c5ee5bda063d0574141f404406a546555d1c223c6e`.
+The stored screenshot is not missing those pixels. This narrows the issue to the
+image-review path; it does **not** establish a Chromium rendering defect. Review
+originals individually before attributing a visual defect to the app. No app
+repaint workaround was added. The earlier reports remain as observed history.
+
+## Item 29: Playwright HTTPS OAuth redirects and SSE forwarding — 2026-09-26
+
+- **Tool/task:** Playwright 1.57.0 routing a trusted test HTTPS origin to the
+  disposable loopback simulator while retaining genuine PKCE and passkey checks.
+  **Steps/expected:** forward the issuer’s approved callback and the callback’s
+  redirect to `/simulator` through `browserContext.route`; forward the SSE stream
+  with `route.fetch`. **Actual:** redirected navigation bypassed the routing handler
+  and failed with `net::ERR_NAME_NOT_RESOLVED`; unbounded SSE cannot be returned by
+  the buffering fetch/fulfill path. **Severity:** Minor. **Workaround:** capture the
+  genuine consent Location, navigate to the genuine callback explicitly, and finish
+  its redirect with a separate routed navigation; forward actual server SSE chunks
+  on reconnect. No code, token, assertion or tool result is fabricated. Redirect
+  handling is documented in [Playwright routing](https://playwright.dev/docs/api/class-browsercontext#browser-context-route).
+  **Suggestion:** provide an explicit redirect-interception option and a streaming
+  response forwarding API for local authenticated integration tests.
+
+## Item 29: Nova Lite cannot satisfy pre-inference token counting — 2026-09-26
+
+- **Tool/task:** Amazon Bedrock `CountTokens` for `amazon.nova-lite-v1:0`,
+  called before the approved simulator's paid inference in `us-east-1`.
+  **Steps/expected:** count a Converse request before reserving its input plus
+  maximum output in the separate $5 ledger. The real Nova Dot browser attempt
+  stopped before inference; an isolated free `CountTokens` request containing
+  only `Hello` reproduced the same response.
+  **Exact error:** `An error occurred (ValidationException) when calling the CountTokens operation: The provided model doesn't support counting tokens.`
+  **Severity:** Blocker for the four required Nova acceptance cells.
+  **Workaround:** stop, retain the failure, and offer an explicit scripted-mode
+  switch. No estimated token count, model substitution, or paid Nova call was used.
+  **Feature request:** support `CountTokens` for Nova Lite and make per-model
+  counting support explicit in the [model card](https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-amazon-nova-lite.html)
+  and [CountTokens contract](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_CountTokens.html).
+
+## Item 29: Bedrock's native single-tool control placement — 2026-09-26
+
+- **Tool/task:** Strands/Bedrock Converse with Haiku 4.5, a 512-token output limit,
+  and sequential host confirmation of a compound request.
+  **Steps/expected:** request one tool per model response. Prompt instructions alone
+  still produced three parallel tool blocks and `MaxTokensReachedException`;
+  incomplete calls were not executed. Applying Anthropic's native `tool_choice`
+  object through `additionalModelRequestFields` then returned:
+  `An error occurred (ValidationException) when calling the Converse operation: The additional field tool_choice/type conflicts with the existing field toolConfig.toolChoice.auto. Remove tool_choice/type and try again.`
+  **Severity:** Minor. **Verified workaround:** pass only
+  `{"tool_choice":{"disable_parallel_tool_use":true}}` in additional model
+  request fields, leaving Converse's `toolConfig.toolChoice.auto` intact.
+  The counted/reserved diagnostic then returned one complete tool call within
+  512 tokens. Failed attempts remain charged against the same aggregate ledger;
+  no automatic retry was added.
+  **Feature request:** document the Converse-specific placement alongside
+  [Anthropic's parallel-tool control](https://platform.claude.com/docs/en/agents-and-tools/tool-use/parallel-tool-use)
+  and [Converse auto tool choice](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_AutoToolChoice.html).
+
+## Item 29: bridge dependency syntax blanks the older companion phone — 2026-09-26
+
+- **Tool/task:** Vite 8 production bundling with the installed MCP Apps bridge.
+- **Severity:** Major.
+- **Expected/observed:** The companion had previously worked on the author's
+  iOS 15.7.9 device. After the simulator imported the bridge into the shared
+  bundle, the author reported “my phone app is just dark, its not working.”
+  Inspection found MCP SDK class static initialization blocks in the generated
+  JavaScript. No phone-console exception was captured or invented.
+- **Documentation:** [Vite build target](https://vite.dev/config/build-options)
+  defaults to Safari/iOS 16.4; [WebKit's Safari 16.4 notes](https://webkit.org/blog/13966/webkit-features-in-safari-16-4/)
+  identify static initialization blocks as newly supported.
+- **Workaround:** Explicit `build.target: "safari15.4"`; the rebuilt bundle contains
+  zero class static blocks. Serve the rebuilt static files without restarting the
+  authenticated manual backend. The author subsequently confirmed restored phone rendering.
+- **Feature request:** Make transitive SDK syntax requirements easier to detect
+  when adding a bridge to an application with an older supported browser target.
+
+## Item 29: full-page iframe capture required scrolling — 2026-09-26
+
+- **Tool/task:** Playwright Chromium full-page simulator evidence capture.
+- **Severity:** Minor.
+- **Expected/observed:** The card's `toBeVisible()` assertion passed, but reviewed
+  full-page captures contained a blank iframe region below the viewport. No
+  exception was raised. This cost repeated scenario runs and manual artifact review.
+- **Documentation:** [Full-page screenshots](https://playwright.dev/docs/screenshots#full-page-screenshots)
+  capture the scrollable page; [visibility checks](https://playwright.dev/docs/actionability#visible)
+  check geometry and CSS visibility, not whether an off-screen iframe has painted.
+- **Workaround:** Scroll the iframe into view before capture, keep the existing
+  visibility assertion, and review the resulting artifact. The corrected full
+  evening capture visibly contains the genuine card.
+- **Feature request:** Document iframe painting limitations for full-page captures
+  or expose a capture diagnostic when an otherwise visible frame is unpainted.
+
+## Item 29: Nova tool schema restrictions — 2026-09-27
+
+- **Tool/task:** Nova Lite through Strands/Bedrock Converse, using the real MCP
+  tool schemas and the approved 512-token response limit.
+- **Severity:** Major.
+- **Expected/observed:** Parents Show/Dot completed, but the evening compound
+  request stopped with the exact provider error:
+  `An error occurred (ModelErrorException) when calling the Converse operation: Model produced invalid sequence as part of ToolUse. Please refer to the model tool use troubleshooting guide.`
+  Earlier prompt-only selection corrections cost over fifteen minutes; failures
+  and their reservations remain retained.
+- **Documentation:** [Nova tool troubleshooting](https://docs.aws.amazon.com/nova/latest/userguide/tools-troubleshooting.html)
+  allows only `type`, `properties`, and `required` at a tool schema's root, and
+  recommends `temperature=0` plus `topK=1`. Generic MCP schemas contain additional
+  JSON Schema fields that this model does not support.
+- **Change under verification:** Filter only the model-facing root schema and use
+  greedy decoding; leave public schemas and strict MCP validation intact. The
+  error may also indicate output truncation; no unverified root-cause claim or
+  higher output cap is made.
+- **Feature request:** Reject unsupported schema fields at request validation with
+  a precise field path instead of discovering incompatibility during generation.
+
+- **Follow-up:** Greedy decoding and the root-schema filter did not resolve the
+  evening compound-request failure. Two separate reserved replay probes also
+  returned the same exact error: the documented `</tool>` stop sequence, and
+  removing the model-generated request key. Those unsuccessful experimental
+  changes were reverted. Nova parents Show/Dot pass; evening remains unverified.
+- **Authorized diagnostic:** One selection-only request with a 1,024-token output
+  limit returned the same provider error. No household tools executed. The
+  temporary allowance was removed; this result does not prove truncation, and
+  the production host retains its 512-token maximum.
+- **Further authorized diagnostic:** The author then approved one 3,000-token
+  selection-only request against the same failed input. That request also returned
+  the same provider error. Increasing the output allowance has not established a
+  fix; no permanent runtime increase or additional retry was made.
+- **Schema isolation:** A separately authorized 512-token selection probe using
+  equivalent nullable scalar `type` arrays instead of `anyOf` also returned the
+  same error on the saved failing request. The experimental schema change was
+  not adopted; no tool execution or automatic retry occurred.
+
+## Item 29: Haiku native token counting returns a server error — 2026-09-27
+
+- **Tool/task:** Bedrock `CountTokens` before Haiku 4.5 simulator selection.
+- **Severity:** Major.
+- **Expected/observed:** The fresh Show acceptance run reached the expected-arrival
+  request, then native counting failed. The retained, payload-free diagnostic is
+  exactly `Native token counting failed (InternalServerException)`. The underlying
+  provider message was not logged, so no more specific cause is claimed. Earlier
+  calls in the same run counted successfully.
+- **Impact/workaround:** The host stopped before inference, as required; full
+  acceptance did not finish. Counting remains mandatory, no automatic retry was
+  added, and all prior reservations remain in the durable ledger. A fresh full
+  acceptance run uses the existing approved aggregate allowance.
+- **Feature request:** Improve reliability and actionable, payload-free diagnostic
+  details for [CountTokens server errors](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_CountTokens.html).
+
+## Item 29a — npm optional React peer resolution — 2026-10-01
+
+- **Tool / URL:** npm workspace installation; https://docs.npmjs.com/cli/v11/using-npm/workspaces/
+- **Severity:** Minor.
+- **What happened:** Installing the extracted host workspace with React and React DOM 19.2.0 pinned in the example failed while resolving MCP Apps 2.0.0's optional React DOM peer.
+- **Exact error:** `npm error ERESOLVE could not resolve`; `npm error Conflicting peer dependency: react@19.3.0`; `npm error peer react@"^19.3.0" from react-dom@19.3.0`.
+- **Workaround being verified:** Pin the same React/React DOM 19.2.0 test dependencies at the workspace root; do not disable peer validation.
+- **Feature request:** Resolve compatible workspace pins before selecting a newer optional peer, or identify the workspace placement causing the conflict.
+
+The workspace-root pins and npm overrides did not resolve the conflict. Explicit
+React and React DOM 19.2.0 peer constraints on `addon-host` did: installation
+completed with zero reported vulnerabilities. The shell initially selected Node
+23.11.0; subsequent verification uses the repository-required Homebrew Node 24.
+
+## Item 30 — internal bridge silently omits published ports — 2026-10-03
+
+- **Tool / URL:** Docker Engine 29.7.2 on Docker Desktop/macOS;
+  https://docs.docker.com/compose/how-tos/networking/ and
+  https://docs.docker.com/engine/network/port-publishing/.
+- **Severity:** Minor.
+- **What happened:** The initial recording network used `internal: true` with
+  explicit loopback port mappings. Both servers started inside the container,
+  but Docker accepted the configuration without creating host bindings:
+  `NetworkSettings.Ports` was exactly `{"8002/tcp":[],"8003/tcp":[]}`.
+- **Exact error:** The host HTTP probe returned
+  `ConnectError: [Errno 61] Connection refused`; trusted HTTPS returned HTTP 502.
+  Compose itself emitted no configuration error.
+- **Workaround:** Use the run's ordinary dedicated Compose bridge, publish only
+  simulator/issuer ports on 127.0.0.1, and leave PostgreSQL unpublished. Docker's
+  Compose networking guide documents that an internal network has no connection
+  to the host network interfaces. No host-network mode or public binding is used.
+- **Feature request:** Reject or warn about requested port publications that an
+  internal-only network cannot provide, instead of reporting a started service
+  with empty effective bindings.

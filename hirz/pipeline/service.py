@@ -156,6 +156,8 @@ class Pipeline:
         boundary: Dogwood,
         audit: AuditWriter,
         clock: Callable[[], datetime] = now,
+        *,
+        require_active: bool = False,
     ):
         self.connection, self.bundle, self.boundary, self.audit, self.clock = (
             connection,
@@ -165,12 +167,14 @@ class Pipeline:
             clock,
         )
         self.household_id = bundle.household_id
+        self.require_active = require_active
         self.repo = GraphRepository(connection, self.household_id)
         self._observation_batch: tuple[Any, ...] | None = None
         self._observation_world: Any = None
         self._refresh_command: dict[str, Any] | None = None
         self._memory_turn: Any = None
         self._household_command: dict[str, Any] | None = None
+        self._companion_command: Action | None = None
         self._snapshot: tuple[int, datetime, ContextSnapshot, str] | None = None
         self._members: tuple[int, dict[tuple[str, str, str], Requester]] | None = None
         self._refresh_fingerprint: tuple[int, str, dict[str, Any]] | None = None
@@ -315,6 +319,40 @@ class Pipeline:
             None,
             {},
         )
+        if self.require_active:
+            row = (
+                (
+                    await self.connection.execute(
+                        sa.select(db.constitution_versions)
+                        .join(
+                            db.households,
+                            sa.and_(
+                                db.households.c.id
+                                == db.constitution_versions.c.household_id,
+                                db.households.c.constitution_version
+                                == db.constitution_versions.c.version,
+                            ),
+                        )
+                        .where(db.households.c.id == self.household_id)
+                    )
+                )
+                .mappings()
+                .one_or_none()
+            )
+            bootstrap = action.action_class == "governance.constitution" or (
+                action.action_class == "governance.credentials"
+                and action.params.get("operation") in {"enroll", "recover"}
+            )
+            if (
+                row is None
+                or row["version"] != policy.version
+                or (
+                    row["status"] == "active"
+                    and row["compiled_cedar"] != self.bundle.compiled.policy
+                )
+                or (row["status"] != "active" and not bootstrap)
+            ):
+                return ev
         if action.action_class in {
             "governance.record_constraint",
             "governance.withdraw_constraint",
@@ -337,6 +375,18 @@ class Pipeline:
 
             try:
                 await prepare_memory(self, action, principal)
+            except ValueError:
+                return ev
+        if action.action_class in {
+            "governance.credentials",
+            "governance.constitution",
+            "governance.contacts",
+            "governance.twin",
+        }:
+            from hirz.companion.governance import prepare as prepare_companion
+
+            try:
+                await prepare_companion(self, action, principal)
             except ValueError:
                 return ev
         from hirz.mcp.persistence import CLASSES as tool_classes
@@ -490,6 +540,7 @@ class Pipeline:
         if (
             action.action_class in policy.verification.require_requester_confirmation
             and not principal.requester_confirmed
+            and not await self.confirmed_requester(action, requester)
         ):
             return result(ev, EventType.ASK_REQUESTER_CONFIRMATION)
         if ev.diagnostics:
@@ -565,7 +616,15 @@ class Pipeline:
 
             end = ending(action).model_copy(update={"plan_id": None})
             other = await self.assess(
-                end, principal, Decimal(0), evidence, at, preview=preview
+                end,
+                principal.model_copy(update={"requester_confirmed": True})
+                if action.action_class == "security.door_unlock"
+                and ev.decision.event_type != EventType.ASK_REQUESTER_CONFIRMATION
+                else principal,
+                Decimal(0),
+                evidence,
+                at,
+                preview=preview,
             )
             ev.gates["ending"] = other.gates
             if other.decision.decision in {"deny", "verify"} or (
@@ -793,11 +852,30 @@ class Pipeline:
         cost: Decimal | None,
         at: datetime,
     ) -> Evaluation:
-        if ev.decision.decision != "ask" or ev.decision.event_type in {
-            EventType.ASK_UNRESOLVED_CONDITION,
-            EventType.ASK_REQUESTER_CONFIRMATION,
-        }:
+        if (
+            ev.decision.decision != "ask"
+            or ev.decision.event_type == EventType.ASK_UNRESOLVED_CONDITION
+            or (
+                ev.decision.event_type == EventType.ASK_REQUESTER_CONFIRMATION
+                and not (
+                    self.require_active and action.action_class.startswith("security.")
+                )
+            )
+        ):
             return ev
+        if ev.decision.event_type == EventType.ASK_REQUESTER_CONFIRMATION:
+            # Describe the full gates for the phone review, without granting the
+            # hypothetical confirmation. Redemption still requires its signed vote.
+            confirmed = await self.assess_operation(
+                action,
+                principal.model_copy(update={"requester_confirmed": True}),
+                cost,
+                (),
+                at,
+            )
+            if confirmed.decision.decision in {"deny", "verify"}:
+                return confirmed
+            ev.gates, ev.outcomes = confirmed.gates, confirmed.outcomes
         binding = self.binding(action, principal, cost, ev)
         if ev.facts and "doorbell" in ev.facts.policy.values:
             binding["doorbell"] = wire(ev.facts.policy.values["doorbell"])
@@ -976,6 +1054,7 @@ class Pipeline:
                 row["member_id"] in eligible
                 and str(row["member_id"]) == member.member_id
                 and self.channel_allowed(voter, ev)
+                and await self.credential_current(voter)
             ):
                 if not row["approved"]:
                     return False, None
@@ -989,6 +1068,63 @@ class Pipeline:
         if satisfied:
             approval["approved_at"] = max(vote_times)
         return satisfied, next(iter(accepted.values()), None)
+
+    async def credential_current(self, principal: Principal) -> bool:
+        if principal.credential_id is None:
+            return True  # Internal historical fixtures have no companion credential.
+        member = await self.requester(principal)
+        return bool(
+            await self.connection.scalar(
+                sa.select(db.member_passkeys.c.credential_id).where(
+                    self.scope(db.member_passkeys),
+                    db.member_passkeys.c.member_id == member.member_id,
+                    db.member_passkeys.c.credential_id == principal.credential_id,
+                    db.member_passkeys.c.revoked_at.is_(None),
+                )
+            )
+        )
+
+    async def confirmed_requester(self, action: Action, requester: Requester) -> bool:
+        if (
+            not self.require_active
+            or not action.action_class.startswith("security.")
+            or requester.member_id is None
+        ):
+            return False
+        rows = (
+            await self.connection.execute(
+                sa.select(db.approval_votes.c.principal)
+                .join(
+                    db.approvals,
+                    sa.and_(
+                        db.approvals.c.household_id == db.approval_votes.c.household_id,
+                        db.approvals.c.approval_id == db.approval_votes.c.approval_id,
+                    ),
+                )
+                .where(
+                    self.scope(db.approval_votes),
+                    db.approval_votes.c.member_id == UUID(requester.member_id),
+                    db.approval_votes.c.approved.is_(True),
+                    db.approvals.c.action_id == action.action_id,
+                    db.approvals.c.status.in_(["pending", "approved"]),
+                    db.approvals.c.expires_at > self.clock(),
+                    db.approvals.c.binding["policy"].astext == self.bundle.fingerprint,
+                )
+            )
+        ).scalars()
+        for raw in rows:
+            voter = Principal.model_validate(raw)
+            if (
+                voter.surface == "app"
+                and voter.credential_id
+                and voter.passkey_verified
+                and voter.requester_confirmed
+                and voter.verified_action_hash == action.content_hash
+                and await self.credential_current(voter)
+                and (await self.requester(voter)).member_id == requester.member_id
+            ):
+                return True
+        return False
 
     @staticmethod
     def channel_allowed(principal: Principal, ev: Evaluation) -> bool:
@@ -1069,6 +1205,19 @@ class Pipeline:
             raise PipelineError("An owned Pipeline transaction is required")
         action = ingest(action)
         principal = Principal.model_validate(principal.model_dump())
+        from hirz.pipeline.confirmation import RequesterReview, review_context
+
+        review = (
+            review_context.get()
+            if principal.surface == "alexa"
+            and not action.action_class.startswith("security.")
+            else None
+        )
+        review_binding = (
+            review.binding(self.bundle.fingerprint, action, principal) if review else ""
+        )
+        if review and review_binding in review.accepted:
+            principal = principal.model_copy(update={"requester_confirmed": True})
         estimate(cost)
         at = utc(self.clock())
         if action.action_class == "governance.memory":
@@ -1097,6 +1246,9 @@ class Pipeline:
             at,
             bound_press=bound_press,
         )
+        if review and ev.decision.event_type == EventType.ASK_REQUESTER_CONFIRMATION:
+            # Unwind the entire tool transaction before asking a human.
+            raise RequesterReview(review_binding, action)
         if not matched:
             ev = result(ev, EventType.DENY_APPROVAL_MISMATCH)
         elif granted is not None:
@@ -1185,7 +1337,15 @@ class Pipeline:
             from hirz.executor.contracts import ending
 
             end = ending(action).model_copy(update={"plan_id": None})
-            ending_evaluation = await self.assess(end, principal, Decimal(0), (), at)
+            ending_evaluation = await self.assess(
+                end,
+                principal.model_copy(update={"requester_confirmed": True})
+                if action.action_class == "security.door_unlock"
+                else principal,
+                Decimal(0),
+                (),
+                at,
+            )
             if ending_evaluation.decision.decision in {"deny", "verify"}:
                 return result(ev, EventType.DENY_CONSTITUTION)
             if ending_evaluation.decision.decision == "ask" and not approval:
@@ -1247,10 +1407,6 @@ class Pipeline:
                     | {"decision": ev.decision.model_dump(mode="json", by_alias=True)}
                 )
             )
-        if stored_execution and action.revert:
-            from hirz.executor.storage import authorize_ending
-
-            await authorize_ending(self, action, ev.decision)
         if action.action_class in {
             "governance.record_constraint",
             "governance.withdraw_constraint",
@@ -1285,6 +1441,8 @@ class Pipeline:
 
     async def claim_execution(self, action: Action, decision: Decision) -> int:
         """Commit one local HA dispatch attempt before any service request."""
+        from hirz.executor.contracts import PlanAuthorityChanged, expired
+
         if self.connection.in_transaction():
             raise PipelineError("Execution requires an idle connection")
         try:
@@ -1299,7 +1457,10 @@ class Pipeline:
                     "energy.ev_charge",
                     "energy.battery_dispatch",
                     "energy.appliance_start",
+                    "security.door_unlock",
                 }
+                or action.action_class == "security.door_unlock"
+                and action.target.adapter != "twin"
                 or decision.decision != "execute"
                 or decision.event_type != EventType.EXECUTE
                 or decision.action_id != action.action_id
@@ -1366,15 +1527,7 @@ class Pipeline:
                         row["execution_status"] != "scheduled"
                         or at < row["due_at"]
                         or not lifecycle.get("ending_of")
-                        and (
-                            action.expected_effect is None
-                            or at >= action.expected_effect.by
-                            or action.revert is not None
-                            and action.scheduled_for is not None
-                            and at
-                            >= action.scheduled_for
-                            + timedelta(seconds=action.revert.after_s)
-                        )
+                        and expired(action, at)
                     )
                 ):
                     raise ValueError
@@ -1415,6 +1568,12 @@ class Pipeline:
                     and str(binding["asset_id"]) != action.target.zone
                 ):
                     raise ValueError
+                if lifecycle and action.revert:
+                    from hirz.executor.storage import authorize_ending
+
+                    # Commit the ending with the opening's validated attempt.
+                    # A refused claim must not leave an orphan ending to dispatch.
+                    await authorize_ending(self, action, decision, at=at)
                 seq = await self.audit.append(
                     self.connection,
                     self.household_id,
@@ -1442,6 +1601,10 @@ class Pipeline:
                     )
                 )
             return seq
+        except PlanAuthorityChanged:
+            # No attempt was written. The transaction rolled back; preserve the
+            # worker's connection so its session lock can be released normally.
+            raise
         except Exception:
             await self.connection.invalidate()
             await self.connection.rollback()
@@ -1619,6 +1782,7 @@ class Pipeline:
             approval["status"] == "rejected"
             or member.role not in outcome.approval.approver_roles
             or not self.channel_allowed(principal, ev)
+            or not await self.credential_current(principal)
         ):
             event = EventType.DENY_APPROVAL_UNAUTHORIZED
         else:

@@ -6,6 +6,68 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-10-06: Record the failed Hourly latency dispatch on the promotion candidate and promote Phase 5 to main on the ordinary jobs ([evidence](./docs/verification-log.md#phase-5-promotion-dispatch--2026-10-06)).
+
+- 2026-10-03: Complete item 30 after fresh Compose acceptance, real-phone rehearsal, independently verified shutdown, failure retention and required regression/latency CI ([evidence](./docs/verification-log.md#item-30-closure--2026-10-03)).
+
+- 2026-10-03: Persist bounded endings with validated opening attempts so a refused opening cannot leave an orphan ending; preserve pre-dispatch durability and strict verification ([ADR-020](./docs/adr/ADR-020-simulator.md#commit-bounded-endings-with-the-opening-claim--2026-10-03)).
+
+- 2026-10-03: Add the isolated scripted recording launcher and Compose packaging, with private credential preservation and cleanup gated on signed exports; acceptance remains in progress ([ADR-020](./docs/adr/ADR-020-simulator.md#recording-packaging-and-lifecycle--2026-10-03), [evidence](./docs/verification-log.md#item-30)).
+
+- 2026-10-01: Close item 29a with author-approved shutdown-defect follow-up and restore the ordinary single companion CI session ([decision](./docs/adr/ADR-021-extracted-host-harness.md#closure-and-shutdown-deferral--2026-10-01), [evidence](./docs/verification-log.md#item-29a-closure-with-shutdown-follow-up--2026-10-01)).
+
+- 2026-10-01: Run the approved bounded three-session companion CI probe to investigate intermittent teardown failure, stopping on the first error ([evidence](./docs/verification-log.md#instrumented-ordinary-ci-completed-without-reproduction--2026-10-01)).
+
+- 2026-10-01: Capture payload-free coroutine locations when the companion smoke times out during shutdown, retaining the failure and signed-export requirements ([evidence](./docs/verification-log.md#companion-shutdown-diagnosis-authorized--2026-10-01)).
+
+- 2026-10-01: Let the local executor recover on a later sweep when concurrent rule activation invalidates a plan before dispatch, preserving fresh authorization and fatal handling of audit/database errors ([ADR-020](./docs/adr/ADR-020-simulator.md#recover-a-refused-stale-plan-dispatch--2026-10-01)).
+
+- 2026-10-01: Correct the plan tool's narrow MCP output contract so pending device-action approval cards reach the simulator instead of an unavailable-data error ([ADR-018](./docs/adr/ADR-018-mcp-app-cards.md#pending-action-mcp-contract-correction--2026-10-01)).
+
+- 2026-10-01: Add opt-in, payload-free CI timing diagnostics to investigate the outstanding Hourly gate without changing acceptance criteria ([ADR-017](./docs/adr/ADR-017-tool-latency-and-isolation.md#opt-in-timing-diagnosis--2026-10-01)).
+
+- 2026-10-01: Show the pending device-action approval card when a plan waits for consent, bind its controls to the matching plan version, and remove misleading whole-plan approval in that state ([ADR-018](./docs/adr/ADR-018-mcp-app-cards.md#pending-plan-action-presentation-correction--2026-10-01)).
+
+- 2026-10-01: Let simulator plan-consent steps recognize audited phone approval, including consent preserved by a refresh, so a valid companion approval does not strand the walkthrough ([ADR-020](./docs/adr/ADR-020-simulator.md#recognize-audited-phone-plan-consent--2026-10-01)).
+
+- 2026-10-01: Extract the simulator's OAuth/MCP client, card bridge, transcript and voice primitives into independent `addon-host` packages while retaining Hirz's household and consent boundaries; publish exact 0.1.0 packages on npm/PyPI and retain physical-device/final-CI acceptance gates ([ADR-021](./docs/adr/ADR-021-extracted-host-harness.md), [evidence](./docs/verification-log.md#item-29a)).
+
+- 2026-09-27: Close item 29 for Haiku and scripted mode after regression and latency gates passed; defer optional Nova acceptance to item 29b by author approval ([decision](./docs/adr/ADR-020-simulator.md#approved-nova-deferral-and-item-29-closure--2026-09-27), [closure evidence](./docs/verification-log.md#item-29-closure-with-nova-deferred--2026-09-27)).
+
+- 2026-09-27: Complete Haiku evening Show/Dot acceptance with verified twin end states and reviewed cards, within the approved aggregate ledger; item 29 remains partial for Nova evening and final CI ([evidence](./docs/verification-log.md#haiku-20-verification-extension--2026-09-27)).
+
+- 2026-09-27: Reject model-selected tools absent from the current tool list and request fresh reads for the morning briefing; retain the failed final-turn acceptance evidence ([evidence](./docs/verification-log.md#haiku-20-verification-extension--2026-09-27)).
+
+- 2026-09-27: Preserve household priorities during generic Haiku optimization, use current-plan reads for pending approvals, and reduce redundant selection context; apply the approved Haiku-only $20 aggregate verification ceiling ([decision](./docs/adr/ADR-020-simulator.md#second-haiku-only-verification-extension--2026-09-27), [evidence](./docs/verification-log.md#haiku-20-verification-extension--2026-09-27)).
+
+- 2026-09-27: Resolve light/lamp aliases in the shared household action path; retain the failed, single authorized Nova diagnostic with the runtime still capped at 512 output tokens ([decision](./docs/adr/ADR-020-simulator.md#single-diagnostic-and-device-name-correction--2026-09-27), [evidence](./docs/verification-log.md#one-off-nova-diagnostic-and-shared-light-resolver--2026-09-27)).
+
+- 2026-09-27: Apply the approved aggregate $10/Nova reservation amendment, make host steps explicit, and recognize combined risk/contact verification in playback ([ADR-020](./docs/adr/ADR-020-simulator.md#approved-spending-and-nova-counting-amendment--2026-09-27), [evidence](./docs/verification-log.md#approved-inference-amendment-and-nova-parents-acceptance--2026-09-27)).
+
+- 2026-09-27: Extend simulator acceptance for real prompt expiry, late replies, authority changes, accepted-action reconciliation and fail-closed inference budgeting; reconfirm the Nova counting blocker without inference spend ([evidence](./docs/verification-log.md#remaining-acceptance-probes--2026-09-27)).
+
+- 2026-09-27: Report blocked planning honestly, require accepted consent before advancing scenario approval beats, and retain the successful real-phone twin unlock/relock ([ADR-020](./docs/adr/ADR-020-simulator.md#rejected-consent-and-blocked-planning-amendment--2026-09-27), [evidence](./docs/verification-log.md#blocked-planning-and-stale-approval-regression--2026-09-27)).
+
+- 2026-09-27: Share executor/dispatch expiry checks so phone-approval waiting does not consume a bounded unlock's duration; render actual phone-approval availability and retain the failed manual run ([ADR-020](./docs/adr/ADR-020-simulator.md#delayed-phone-approval-amendment--2026-09-27), [evidence](./docs/verification-log.md#manual-approval-crash-and-dispatch-regression--2026-09-27)).
+
+- 2026-09-27: Accept omitted apostrophes consistently in recorded simulator requests and playback matching ([evidence](./docs/verification-log.md#recorded-utterance-apostrophes--2026-09-27)).
+
+- 2026-09-27: Record green simulator regression CI and both timing gates; preserve the outstanding model and manual acceptance limits ([evidence](./docs/verification-log.md#final-source-ci-and-resumed-manual-acceptance--2026-09-27)).
+
+- 2026-09-26: Keep fullscreen cards within the actual browser height and explain recorded-patch version conflicts ([evidence](./docs/verification-log.md#fullscreen-sizing-and-first-completed-latency-gate--2026-09-26)).
+
+- 2026-09-26: Recheck membership for MCP stream reconnects and elicitation replies; keep installed-app simulator navigation within its existing companion session and report specific playback blockers ([ADR-020](./docs/adr/ADR-020-simulator.md), [evidence](./docs/verification-log.md#final-painted-capture-and-current-membership-probes--2026-09-26)).
+
+- 2026-09-26: Preserve MCP session headers and SSE media types in the reference-host test relay; retain explicit model fallback and partial acceptance findings ([evidence](./docs/verification-log.md#acceptance-checkpoint-and-reference-host-regression--2026-09-26)).
+
+- 2026-09-26: Restore the previously verified iOS 15 companion after importing the MCP bridge by targeting Safari 15.4; make recorded requests focus their populated input ([evidence](./docs/verification-log.md#physical-acceptance-found-and-corrected-a-phone-regression--2026-09-26)).
+
+- 2026-09-26: Harden simulator compound selections, time clarification, cancellation receipts and scenario consent pauses; verify full evening twin end states and retain Nova’s fail-closed counting limitation ([ADR-020](./docs/adr/ADR-020-simulator.md), [evidence](./docs/verification-log.md#simulator-acceptance-continuation--2026-09-26)).
+
+- 2026-09-26: Add the local authenticated simulator, SDK-managed MCP sessions and scalar elicitation, reusable card bridge, independent Echo histories and bounded host inference; retain item 29 as partial pending its full acceptance matrix ([ADR-020](./docs/adr/ADR-020-simulator.md), [evidence](./docs/verification-log.md#item-29)).
+
+- 2026-09-25: Build the authenticated companion, fix portrait navigation, and pass UI, adversarial security, browser and CI acceptance; item 28 remains incomplete only for compatible-iPhone push reception and approval ([ADR-019](./docs/adr/ADR-019-companion.md), [evidence](./docs/verification-log.md#item-28-ci-acceptance--2026-09-25)).
+
 - 2026-09-24: Add five authenticated local MCP App cards, deterministic presentation and retained-evidence scorecards, packaged static resources, and reference-host browser checks; close item 27 after author-approved visuals and passing packaging, conformance, isolation and authenticated CI latency gates ([ADR-018](./docs/adr/ADR-018-mcp-app-cards.md), [evidence](./docs/verification-log.md#item-27--2026-09-24)).
 
 - 2026-09-24: Close item 26b after author review of the CI runner’s local authenticated MCP raw JSON-RPC round-trip gate; require manual latency dispatch before relevant item closures and submission, with AWS ingress, cold start and Alexa host overhead remaining item 38 ([closure](./docs/verification-log.md#closure--2026-09-24), [ADR-017](./docs/adr/ADR-017-tool-latency-and-isolation.md#closure-amendment--2026-09-24)).
@@ -54,6 +116,10 @@ All notable changes are documented here. The format follows
 - 2026-09-21: Record [terminal HA dispatch attempts and fresh-action retries](./docs/adr/ADR-006-twin-first-adapters.md#terminal-ha-dispatch-attempts--2026-09-21-author-approved) and the Phase 2 review's [Phase 3 carry-overs and ordered-plug follow-up](./ROADMAP.md).
 
 ### Fixed
+
+- 2026-09-25: Bring a newly requested twin unlock approval into view and explain the next passkey step inside the phone app ([item 28 evidence](./docs/verification-log.md#item-28--in-progress--2026-09-25)).
+
+- 2026-09-25: Preserve companion sessions through the policy-change worker fix, show door-request outcomes, correct portrait panel spacing and export retained audit evidence independently of the stopped policy helper ([item 28 evidence](./docs/verification-log.md#item-28--in-progress--2026-09-25)).
 
 - 2026-09-24: Add shared test/smoke checks for identifiers and braces in speech, and distinguish the unmeasured AWS latency budget from local CI results ([evidence](./docs/verification-log.md#phase-4-review-batch-1--2026-09-24)).
 - 2026-09-24: Set the separate addon-check repository's Node requirement to 22 or later and update its GitHub About metadata; retain the tested CI pin and published version ([evidence](./docs/verification-log.md#phase-4-review-batch-1--2026-09-24)).
@@ -107,6 +173,10 @@ All notable changes are documented here. The format follows
   to include item 9's pause/resume actions; [verification](./docs/verification-log.md#item-9-ci-build-check--2026-09-18).
 
 ### Added
+
+- 2026-09-25: Record real iPhone passkey approval with signed twin unlock/relock evidence; item 28 remains incomplete pending its other gates ([evidence](./docs/verification-log.md#item-28-physical-iphone-approval-and-bounded-twin-relock--2026-09-25)).
+
+- 2026-09-25: Build the authenticated companion foundation, policy lifecycle, encrypted push delivery and isolated Twin controls; item 28 remains in progress pending its complete acceptance gates ([ADR-019](./docs/adr/ADR-019-companion.md), [partial evidence](./docs/verification-log.md#item-28--in-progress--2026-09-25)).
 
 - 2026-09-23: Add the local stateless JSON MCP endpoint and typed generic onboarding tool,
   with fixed loopback guards and real SDK/Inspector checks; OAuth and household
