@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-10-06: Record the failed Hourly latency dispatch on the promotion candidate and promote Phase 5 to main on the ordinary jobs ([evidence](./docs/verification-log.md#phase-5-promotion-dispatch--2026-10-06)).
+
 - 2026-10-03: Complete item 30 after fresh Compose acceptance, real-phone rehearsal, independently verified shutdown, failure retention and required regression/latency CI ([evidence](./docs/verification-log.md#item-30-closure--2026-10-03)).
 
 - 2026-10-03: Persist bounded endings with validated opening attempts so a refused opening cannot leave an orphan ending; preserve pre-dispatch durability and strict verification ([ADR-020](./docs/adr/ADR-020-simulator.md#commit-bounded-endings-with-the-opening-claim--2026-10-03)).

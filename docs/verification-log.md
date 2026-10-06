@@ -11594,3 +11594,20 @@ Item 30 is complete for isolated scripted recording. This earns no repair claim
 for issue #7's unrelated shutdown paths and no new Web Push, Nova, real contacts,
 physical lock, Ring, Link or AWS guarantees. No inference ledger was supplied or
 paid model called. Closure changes after `98bd312` are documentation only.
+
+### Phase 5 promotion dispatch — 2026-10-06
+
+[Dispatch 37503482368](https://github.com/BashaarJavaid/Hirz/actions/runs/37503482368)
+on `a24c5a7654b440650d2ed19159ecfbbe2dbc69fb` passed all ten ordinary jobs
+and `latency (demo-evening)`. `latency (demo-evening-hourly)` failed the
+**250 ms** warm p95 gate in the run's summary:
+
+- `objective-most_comfortable`: **258.391 ms** p95.
+- `objective-cheapest`: **254.834 ms** p95.
+
+The code exercised by the latency gate is identical to `fc75c96`, where both
+gates passed in [dispatch 37153065576](https://github.com/BashaarJavaid/Hirz/actions/runs/37153065576).
+This run is recorded as **failed**; no retry was made. By the author's decision,
+the documentation-only Phase 5 promotion to `main` proceeds on the ordinary jobs;
+latency remains required before item closure and submission, not this promotion.
+The Hourly objective cases' headroom is now a tracked follow-up; no fix is claimed.
