@@ -97,6 +97,7 @@ class Companion:
             raise ValueError("Phone twin fixtures require a disposable database")
         self.engine, self.audit, self.config = engine, audit, config
         self.boundary = Dogwood()
+        self.bundles: dict[UUID, tuple[PolicyBundle, str]] = {}
         self.demo_world = demo_world
         self.demo_worlds = demo_worlds or (
             {demo_world.household.id: demo_world} if demo_world else {}
@@ -127,9 +128,18 @@ class Companion:
             )
             if row is None or auth.digest(row["yaml"]) != row["hash"]:
                 raise ValueError("Household policy unavailable")
-            bundle = await PolicyBundle.validate(
-                household, loads(row["yaml"]), self.boundary
-            )
+            live = self.boundary.live
+            # Cache only within the helper lifespan: CLI validation cannot prepare it.
+            cached = self.bundles.get(household) if live else None
+            # No lock: concurrent first validations of the same hash are idempotent.
+            if cached is None or cached[1] != row["hash"]:
+                bundle = await PolicyBundle.validate(
+                    household, loads(row["yaml"]), self.boundary
+                )
+                if live:
+                    self.bundles[household] = bundle, row["hash"]
+            else:
+                bundle = cached[0]
             await c.rollback()
             # Disposable observations and their validation use the same clock.
             # A monotonic twin clock can drift ahead of wall time; do not relax
