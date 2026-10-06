@@ -107,8 +107,6 @@ jobs:
         run: pnpm --filter mcp-app exec node reference-host.mjs
       - name: Install pinned Chromium for the authenticated relay
         run: pnpm --filter mcp-app exec playwright install --with-deps chromium
-      - name: Companion voice proposal, passkeys, twin endings and accessibility
-        run: uv run --locked python -m scripts.smoke_companion --artifacts-dir "$RUNNER_TEMP/companion"
       - name: Simulator enrollment, PKCE, bridge, Dot and account switching
         run: |
           uv run --locked python scripts/dev_oauth.py init
@@ -122,6 +120,50 @@ jobs:
           -w /work/apps/mcp-app -e HIRZ_CARD_FIXTURES=/fixtures/fixtures.json -e CI=1
           mcr.microsoft.com/playwright:v1.57.0-noble@sha256:3bed4b1a12f2338642f3d8cba28e291deef3c66bd4a964bbeb3e57bbff511dbd
           node node_modules/@playwright/test/cli.js test
+      - name: Service status on failure (no configuration or raw logs)
+        if: failure()
+        run: >-
+          docker ps -a
+          --filter "label=com.docker.compose.project=$COMPOSE_PROJECT_NAME"
+          --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+      - name: Remove only this runner's Compose resources and credentials
+        if: always()
+        run: |
+          trap 'rm -f .env' EXIT
+          if [ -f .env ]; then
+            docker compose -f compose.dev.yml down --volumes --remove-orphans
+          fi
+
+  companion:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      HIRZ_LLM: "off"
+      COMPOSE_PROJECT_NAME: hirz-companion-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/build-cards
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version: "0.12.15"
+          enable-cache: false
+      - run: uv python install
+      - run: uv sync --locked
+      - name: Build pinned native Dogwood (required)
+        run: |
+          rustup toolchain install 1.98.1 --profile minimal
+          RUSTUP_TOOLCHAIN=1.98.1 uv run --locked python scripts/build_dogwood.py
+          echo "HIRZ_DOGWOOD=$PWD/.tools/dogwood" >> "$GITHUB_ENV"
+      - name: Initialize isolated local services
+        run: |
+          uv run --locked python scripts/init_dev.py
+          docker compose -f compose.dev.yml up -d --wait postgres
+      - name: Install pinned Chromium for the authenticated relay
+        run: pnpm --filter mcp-app exec playwright install --with-deps chromium
+      - name: Companion voice proposal, passkeys, twin endings and accessibility
+        run: uv run --locked python -m scripts.smoke_companion --artifacts-dir "$RUNNER_TEMP/companion"
       - name: Service status on failure (no configuration or raw logs)
         if: failure()
         run: >-
@@ -224,7 +266,7 @@ jobs:
       - run: pnpm -r test
       - name: Browser coverage location
         run: |
-          echo 'Authenticated companion, simulator and MCP card browser checks run in python-test; full simulator matrices remain in item 29 evidence.' | tee -a "$GITHUB_STEP_SUMMARY"
+          echo 'Authenticated companion browser checks run in the companion job; simulator and MCP card browser checks run in python-test; full simulator matrices remain in item 29 evidence.' | tee -a "$GITHUB_STEP_SUMMARY"
 
   conformance:
     runs-on: ubuntu-24.04
