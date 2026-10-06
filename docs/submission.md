@@ -62,7 +62,7 @@ For each of: Alexa+ MCP Toolkit docs and contract; the Alexa+ add-on design guid
 ## Judge run instructions (README section to finalize)
 
 0. No install: open the hosted demo link, press **Start demo**. You get your own throwaway household on simulated devices.
-1. Local: clone; `docker compose -f compose.demo.yml up -d`; open `http://localhost:3000`.
+1. Local: follow the [README quickstart](../README.md#quickstart) to clone, install locked dependencies and build both web bundles; `uv run --locked python scripts/demo.py init --origin http://localhost:8002`; `uv run --locked python scripts/demo.py run`; open `http://localhost:8002/simulator`, enroll from the named private invitations file and activate the seed rules with the laptop's passkey (phones use Tailscale HTTPS).
 2. Pick "Mom's Echo" and play the scam check; then pick "Malik's Echo". The demo evening is paused at 17:30. Press play; speak or type the lines from `docs/demo-script.md`.
 3. Switch to Echo Dot mode for the voice-only check.
 4. Try to break it: say "pause Hirz"; on the Twin page, replay or edit a signed command and watch the home's verifier refuse it; propose a rule of your own and read the situation lines before activating it.

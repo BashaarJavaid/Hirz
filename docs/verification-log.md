@@ -11611,3 +11611,126 @@ This run is recorded as **failed**; no retry was made. By the author's decision,
 the documentation-only Phase 5 promotion to `main` proceeds on the ordinary jobs;
 latency remains required before item closure and submission, not this promotion.
 The Hourly objective cases' headroom is now a tracked follow-up; no fix is claimed.
+
+
+## Phase 5 review fixes — 2026-10-06
+
+These are the already-run local checks and CI results supplied for the fixes on
+`phase-5-fixes`, in branch order; this records pass reruns no runtime or browser
+checks. Commands below identify the verification entrypoints; `...` abbreviates
+suite selection or private artifact/image paths, not a literal shell argument.
+Local browser checks use disposable households, simulated devices and real
+server-side passkey verification with Playwright virtual authenticators.
+
+### 5ee8873 — Lifespan-scoped companion policy cache
+
+Commit `5ee8873` caches the companion's validated policy bundle by stored hash
+only within the native helper lifespan, revalidating after the hash changes
+([ADR-019 amendment](./adr/ADR-019-companion.md#lifespan-scoped-policy-cache--2026-10-06)).
+`uv run --locked pytest ... -m integration --no-cov` over the companion integration
+suites reported **36 passed**; `HIRZ_LLM=off uv run --locked python -m
+scripts.smoke_companion --artifacts-dir ...` reported **PASS**. CI also verified
+the committed fix. The first attempt cached before the helper lifespan and broke
+enrollment; that attempt was corrected, which is why the cache is lifespan-scoped.
+No cross-lifespan cache, cached authorization decision or runtime fallback is
+claimed; the failed enrollment attempt is not counted as a pass.
+
+### b8eaf85 — Simulator Twin replay and push delivery
+
+Commit `b8eaf85` runs Twin replay and configured push delivery in the simulator
+launcher. `db.database_url` honors `HIRZ_DATABASE_HOST` and
+`HIRZ_DATABASE_PORT`; the launcher sets them from its database arguments so
+nested replay can reach PostgreSQL inside `compose.demo.yml`.
+
+- `uv run --locked pytest ... --no-cov`: focused unit checks **22 passed**;
+  `uv run --locked pytest ... -m integration --no-cov`: **11 passed**.
+- `HIRZ_DATABASE_HOST=<unreachable-host> uv run --locked hirz doctor`: Postgres
+  line **FAIL**; the localhost override reported Postgres **PASS**. These are
+  Postgres-line results, not a claim that every doctor check passed.
+- `HIRZ_DATABASE_HOST=localhost uv run --locked hirz scenario run
+  scenarios/demo-evening.yaml --headless --assert`: **exit 0** under the override.
+- `HIRZ_LLM=off uv run --locked python -m scripts.simulator_demo --origin
+  https://hirz.example.test --artifacts-dir ... --browser-test`: **PASS**, now
+  exercising the Twin page and its check-in card after **five one-minute steps**.
+
+CI verified the fix. Browser and headless checks do not establish the author's
+manual Twin-page check inside recording Compose on the Tailscale origin, which
+remains pending; running the delivery loop does not close item 28's Web Push gate.
+
+### bf72ec0 — Runtime dependencies
+
+Commit `bf72ec0` declares `strands-agents==1.57.0` and `jsonschema==4.26.0`
+as runtime dependencies. `uv build`, fresh-wheel installation/import checks
+(`python -c 'import strands, jsonschema'`), and the corresponding `docker build`
+and `docker run ... python -c 'import strands, jsonschema'` checks **PASS**;
+`docker image inspect` reported **173,788,842 bytes**. CI also verified packaging.
+This proves the imports are present in installed artifacts, not a live Bedrock
+call, model-quality result or new inference-budget authorization.
+
+### 3318a41 — Companion page split
+
+Commit `3318a41` splits the companion into one file per page under `pages/`,
+shared `components/primitives.tsx`, and `types.ts`. The companion source line-length
+check found **zero lines over 120 characters**. Both browser suites passed:
+`HIRZ_LLM=off uv run --locked python -m scripts.smoke_companion --artifacts-dir ...`
+and `HIRZ_LLM=off uv run --locked python -m scripts.simulator_demo --origin
+https://hirz.example.test --artifacts-dir ... --browser-test`. CI verified the
+refactor. This is a move/reformat with no behavior change, not new page behavior
+or additional design work; the browser evidence does not close physical-device gates.
+
+### d9a7dfc — Separate companion CI job
+
+Commit `d9a7dfc` moves `uv run --locked python -m scripts.smoke_companion
+--artifacts-dir "$RUNNER_TEMP/companion"` into the independent `companion` job.
+There are now **twelve job IDs**. [CI run 37527844834](https://github.com/BashaarJavaid/Hirz/actions/runs/37527844834)
+is green: `companion` **470 s**, `python-test` **1,861 s**. Separating the browser
+smoke prevents its shutdown from blocking the Python coverage gate.
+[Issue #7](https://github.com/BashaarJavaid/Hirz/issues/7) remains open; no shutdown
+fix is claimed, and the successful release placeholder is not deployment evidence.
+
+### 3495260 — Localhost companion origin
+
+Commit `3495260` accepts `http://localhost` with RP ID `localhost`. On that origin
+only, cookies omit the `__Host-` prefix and `Secure` flag; HttpOnly and SameSite
+strict remain. The localhost simulator/Playwright browser check
+(`HIRZ_BROWSER_ORIGIN=http://localhost:8002 HIRZ_LLM=off uv run --locked python -m
+scripts.simulator_demo --origin http://localhost:8002 --artifacts-dir ... --browser-test`) completed real
+server-verified enrollment in **30.2 s**. HTTPS smokes remain unchanged, and CI
+verified the fix. This is single-machine localhost support, not arbitrary HTTP
+origins, a physical laptop-passkey check or phone access over HTTP.
+
+### 366e7fc — Freeze the MCP startup generation
+
+Commit `366e7fc` calls `gc.freeze()` at the end of MCP lifespan startup, before
+serving requests, leaving collection enabled and thresholds unchanged.
+`uv run --locked pytest tests/unit/test_mcp.py --no-cov` reported **77 passed**;
+Ruff lint/format and mypy passed. [Push run 37535295733](https://github.com/BashaarJavaid/Hirz/actions/runs/37535295733)
+is green. The lifespan check verifies the frozen-object count increases and
+unfreezes during cleanup. The change is kept under the precommitted rule recorded
+in the following amendment; no disabled collection or relaxed latency gate is claimed.
+
+### 6ce499b — Frozen-generation diagnostic record
+
+Commit `6ce499b` records [ADR-017's frozen startup generation amendment](./adr/ADR-017-tool-latency-and-isolation.md#frozen-startup-generation--2026-10-06).
+The instrumented workflow dispatch runs `HIRZ_BUDGET_ARTIFACTS=... uv run --locked
+pytest tests/latency -m latency --no-cov -s`; retained baseline/new job logs were
+compared with the private `phase5-fixes-10-gc/compare.py` script.
+[Diagnostic dispatch 37535311007](https://github.com/BashaarJavaid/Hirz/actions/runs/37535311007)
+completed all **13 jobs** successfully (the latency matrix expands one job ID).
+
+| Diagnostic | Time-of-Day: before → after | Hourly: before → after |
+|---|---|---|
+| Maximum full-collection pause | 116.638 → 6.676 ms | 108.682 → 13.973 ms |
+| Highest case p95 | 242.723 → 168.008 ms | 238.255 → 143.883 ms |
+
+**KEEP**: both maximum generation-2 pauses are at most half their baselines, and
+none of the six objective-case p95 comparisons regress. The full comparison,
+rejected alternatives and private evidence location belong to the ADR amendment.
+This instrumented dispatch is diagnostic evidence, not a normal acceptance-gate
+run, AWS latency measurement or proof that issue #7 is fixed.
+
+### Pending Compose Twin check and friction
+
+The author's manual Twin-page check inside the recording Compose stack on the
+Tailscale HTTPS origin is **pending**; no pass is claimed. No third-party friction
+was encountered in these fixes, so no friction-log entry was earned.

@@ -6,6 +6,20 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-10-06: Cache validated companion policy bundles only within the native helper lifespan ([ADR-019](./docs/adr/ADR-019-companion.md#lifespan-scoped-policy-cache--2026-10-06)).
+
+- 2026-10-06: Run Twin replay and push delivery in the simulator launcher and propagate database host/port overrides ([evidence](./docs/verification-log.md#b8eaf85--simulator-twin-replay-and-push-delivery)).
+
+- 2026-10-06: Include pinned Strands and jsonschema in installed runtime dependencies ([evidence](./docs/verification-log.md#bf72ec0--runtime-dependencies)).
+
+- 2026-10-06: Split companion pages and shared primitives/types into separate files without changing behavior ([evidence](./docs/verification-log.md#3318a41--companion-page-split)).
+
+- 2026-10-06: Isolate the companion browser smoke in its own CI job; issue #7 remains open ([evidence](./docs/verification-log.md#d9a7dfc--separate-companion-ci-job)).
+
+- 2026-10-06: Accept the localhost HTTP companion origin for single-machine enrollment while retaining HTTPS for phones ([evidence](./docs/verification-log.md#3495260--localhost-companion-origin)).
+
+- 2026-10-06: Freeze the MCP startup generation under the precommitted diagnostic rule to reduce full-collection pauses ([ADR-017](./docs/adr/ADR-017-tool-latency-and-isolation.md#frozen-startup-generation--2026-10-06)).
+
 - 2026-10-06: Record the failed Hourly latency dispatch on the promotion candidate and promote Phase 5 to main on the ordinary jobs ([evidence](./docs/verification-log.md#phase-5-promotion-dispatch--2026-10-06)).
 
 - 2026-10-03: Complete item 30 after fresh Compose acceptance, real-phone rehearsal, independently verified shutdown, failure retention and required regression/latency CI ([evidence](./docs/verification-log.md#item-30-closure--2026-10-03)).

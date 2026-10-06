@@ -47,7 +47,7 @@ Security actions retain the phone-only response path
 
 ## 4. The seven hand-designed screens
 
-These appear on camera, so they are designed by hand. Every other companion page (Household, Audit, Twin, the YAML view, settings) uses Tailwind + shadcn/ui defaults with no custom design work.
+These appear on camera, so they are designed by hand. The companion uses Tailwind with one shadcn/ui button and hand-written CSS. Every other companion page (Household, Audit, Twin, the YAML view, settings) uses that shared styling with no custom design work.
 
 | # | Screen | Surface | Inline content | Fullscreen |
 |---|---|---|---|---|

@@ -262,8 +262,10 @@ The Python package has a liveness endpoint, local-development bootstrap checks,
 the foundation and versioned household graph managed by Alembic, and `hirz doctor`.
 Item 6 adds explicit demo seeding and redacted current/historical context reads;
 see [graph development procedures](./docs/development.md). The `web` and `mcp-app`
-workspaces still contain import smoke tests only. The internal decision pipeline
-and read-only `hirz decide` preview now exist; device execution remains pending.
+workspaces contain the companion pages, simulator, MCP App cards, unit tests and
+browser suites. The decision pipeline, read-only `hirz decide` preview and durable
+local worker execution are implemented; the dev Compose Hirz container remains
+liveness only.
 See [decision preview prerequisites](./docs/development.md#decision-preview-item-11).
 
 Verified toolchain: Python **3.12.13**, uv **0.12.15**, Node **24.21.0**, and pnpm
@@ -312,16 +314,17 @@ The Python test job initializes an isolated Compose stack and runs migrations,
 tests. Generated credentials stay in the runner's ignored `.env`; cleanup removes
 only that run's containers, volumes, and credentials.
 
-All eleven architecture job IDs are present. Scenarios and local Cedar checks run;
+All twelve architecture job IDs are present, including the separate `companion` browser-smoke job. Scenarios and local Cedar checks run;
 add-on conformance runs the pinned [addon-check](https://github.com/BashaarJavaid/addon-check)
 against disposable households ([procedure](./docs/development.md#independent-add-on-checks-item-25a)).
-Latency and release remain **successful placeholders** with explicit deferrals. Browser tests and
-frontend bundles are also deferred. No AWS secrets or publication are involved.
+Latency runs both scenario gates on manual dispatch; release remains a
+**successful placeholder**. Browser suites and frontend bundles are implemented.
+No AWS secrets or publication are involved.
 There are no cross-run dependency/Docker caches or artifact uploads.
 
 On GitHub, open **Actions → CI → Run workflow** for manual dispatch.
-Phase 0 item 4 is complete (2026-09-17): all eleven jobs passed in the
-[main run](https://github.com/BashaarJavaid/Hirz/actions/runs/35310102678).
+Phase 0 item 4 is complete (2026-09-17); the workflow now has twelve job IDs,
+including `companion` ([split-job evidence](./docs/verification-log.md#d9a7dfc--separate-companion-ci-job)).
 Green placeholders do not claim application behavior or protection. Item 5
 was subsequently completed as recorded in [the roadmap](./ROADMAP.md).
 
@@ -357,8 +360,11 @@ configuration for deployment is deferred.
 | PostgreSQL | `localhost:5432` | Database/user `hirz`; foundation, graph/history, and context view after migration |
 | Jaeger, optional | <http://localhost:16686> | In-memory traces; no Hirz instrumentation yet |
 
-All published ports bind to `127.0.0.1`. Hirz has no `/ready`, MCP, API docs, worker,
-or companion pages yet. Its runtime contains no device credentials. The development
+All published ports bind to `127.0.0.1`. The dev Hirz container serves process
+liveness only, with no `/ready`, MCP, API docs, worker or companion pages in that
+container. Authenticated MCP, the local worker, companion pages and simulator are
+implemented and run through the explicit launchers described in the quickstart.
+The dev container contains no device credentials. The development
 container sets `HIRZ_LLM=off` and needs no AWS account. HA uses “Hirz Demo,” English,
 `America/Chicago`, US customary units, username `hirz`, and display name “Hirz Developer.”
 Retrieve the generated password privately from `.env` to sign into HA.
@@ -460,21 +466,29 @@ This deletes both the database and HA state. Remove only `HA_TOKEN` from `.env`
 (preserving unrelated entries), then rerun the first-start commands. Ordinary
 shutdown uses `down` without `--volumes`. Never use this reset to recover a token.
 
-## Quickstart (target state, see `ROADMAP.md` Phase 0)
+## Quickstart
+
+Use Python 3.12, Node 24, uv, pnpm and a running Docker Desktop:
 
 ```bash
 git clone https://github.com/BashaarJavaid/Hirz && cd Hirz
 uv sync --locked
-uv run python scripts/init_dev.py
-docker compose -f compose.dev.yml up -d          # Postgres 16 + Home Assistant (demo devices) + Hirz
-uv sync && uv run alembic upgrade head
-uv run hirz scenario run scenarios/demo-evening.yaml --speed 60   # the whole evening in 3 minutes
-open http://localhost:3000                       # companion app + simulator
+pnpm install --frozen-lockfile
+pnpm --filter mcp-app build && pnpm --filter web build
+uv run --locked python scripts/demo.py init --origin http://localhost:8002
+uv run --locked python scripts/demo.py run
+open http://localhost:8002/simulator
 ```
 
-During the judging window there is also a hosted demo: one click seeds a throwaway household on simulated devices only, so nothing needs installing (the link is in the Devpost testing instructions). No AWS account is required for the local path. `HIRZ_LLM=off` runs every flow deterministically with canned explanations, which is what CI uses and what a judge with no credentials can run.
+Keep the launcher running. Enroll from the private invitations file it names,
+activate the seed rules with the laptop's passkey, then explicitly approve Echo
+linking in the simulator. This isolated recording stack uses simulated devices
+and scripted responses; no AWS account is required. Each fresh run requires fresh
+enrollment and linking.
 
-For an isolated scripted recording, initialize once with `uv run --locked python scripts/demo.py init --origin <HTTPS-origin>`, then use `uv run --locked python scripts/demo.py run`. Trusted Tailscale HTTPS forwarding is required; [recording setup and shutdown](./docs/development.md#item-30-recording-stack) covers fresh passkey enrollment and retained failures.
+A phone needs the Tailscale HTTPS origin instead of localhost; see
+[recording setup and shutdown](./docs/development.md#item-30-recording-stack).
+The hosted demo remains planned under item 38c.
 
 ## Documentation
 

@@ -82,7 +82,7 @@ graph TB
 2. Core never knows whether an adapter is real or twin. The adapter registry decides at startup from configuration (§5.11).
 3. Every state-changing path, from any surface, goes through the Decision Pipeline (§3). There is no admin back door that executes an action without a `Decision` and an audit row.
 4. AWS services are backends behind Core interfaces, never callers of Core except the scheduler tick. Local mode replaces each with an in-process equivalent so the full product runs with no AWS account.
-5. Core is one image with two roles selected by an entrypoint flag. **`mcp`** serves the MCP server only: it reads Postgres, runs pipeline stages 1–6, writes decisions, approvals, and constraints, and hands anything that must act to the worker by writing the action as `scheduled` with `scheduled_for = now`. It never calls an adapter or the Gateway. **`worker`** is the one long-lived process: scheduler sweep, adapter pollers, the relay endpoints for Hirz Link, the Executor (stage 7 through the Gateway; on a permit the command comes back signed and the worker relays it to Hirz Link, or the Lambda calls the cloud adapter), the Ring webhook endpoint, the companion API, and web push. In AWS the worker holds no credential that can act on a device (§5.17). Locally Compose runs both roles in one container; in AWS the `mcp` role runs on AgentCore Runtime and the `worker` role on one small always-on service (§5.16).
+5. Core is one image with two roles selected by an entrypoint flag. **`mcp`** serves the MCP server only: it reads Postgres, runs pipeline stages 1–6, writes decisions, approvals, and constraints, and hands anything that must act to the worker by writing the action as `scheduled` with `scheduled_for = now`. It never calls an adapter or the Gateway. **`worker`** is the one long-lived process: scheduler sweep, adapter pollers, the relay endpoints for Hirz Link, the Executor (stage 7 through the Gateway; on a permit the command comes back signed and the worker relays it to Hirz Link, or the Lambda calls the cloud adapter), the Ring webhook endpoint, the companion API, and web push. In AWS the worker holds no credential that can act on a device (§5.17). Local launchers assemble these services; the dev Compose Hirz container is liveness only (§14); in AWS the `mcp` role runs on AgentCore Runtime and the `worker` role on one small always-on service (§5.16).
 
 ---
 
@@ -1351,7 +1351,8 @@ specified in §6.2.
 
 | Table | Purpose |
 |---|---|
-| `households`, `members`, `member_accounts` (provider, `sub`), `member_passkeys` (credential id, public key, added_at, revoked_at), `trusted_contacts`, `contact_channels` (kind, value_hash, verified_at) | Graph: people and trust |
+| `households`, `members`, `member_accounts` (provider, `sub`), `trusted_contacts`, `contact_channels` (kind, value_hash, verified_at) | Graph: people and trust |
+| `member_passkeys` (credential_id, household_id, member_id, public_key, sign_count, label, added_at, revoked_at), `companion_enrollment` (invitation/recovery/reinvite digests, expiry, use), `companion_sessions` (credential-bound digests, created_at, seen_at), `companion_ceremonies` (browser/session binding, challenge, expiry, use), `companion_drafts` (base/candidate hashes, review, status), `companion_push` (encrypted subscriptions), `companion_delivery` (bounded attempts, status), `companion_runs` (scenario controls, revisions, snapshot), `rule_proposals` (status, draft_id, failure) | Companion authentication, policy review, delivery and isolated Twin replay; migrations 0014–0018 |
 | `assets`, `asset_bindings` (adapter, entity id), `asset_policies` | Graph: things |
 | `schedules`, `schedule_events`, `routines`, `preferences` | Graph: time and preferences |
 | `observations` | Latest state per entity with source and freshness; history in `observation_history` (daily partitioning deferred by the item 6 ADR-002 amendment) |
@@ -1481,6 +1482,8 @@ submission; record each run in the evidence log
 | [Item 26b](./docs/verification-log.md#closure--2026-09-24) | Time-of-Day: 203.753 ms; Hourly: 215.672 ms |
 | [After item 27](./docs/verification-log.md#item-27-closure--2026-09-24) | 236.703 ms |
 
+The [frozen-generation diagnostic](./docs/adr/ADR-017-tool-latency-and-isolation.md#frozen-startup-generation--2026-10-06) measured highest-case p95s of **168.008 ms** (Time-of-Day) and **143.883 ms** (Hourly); it is diagnostic evidence, not a normal acceptance-gate run.
+
 Amazon's published bound is 500 ms round trip; the 250 ms local gate is Hirz's own proxy.
 
 Things that never run inside a tool call: the MILP planner, Bedrock calls, the Gateway call (stage 7 runs in the worker at execution time, §5.6), adapter network calls to third parties (state is read from `observations`, refreshed by the worker's polls and Hirz Link's observation stream), and Cedar compilation. `tests/latency/test_tool_budget.py` fails the manual latency job if any tool's warm p95 over the scenario corpus exceeds 250 ms locally.
@@ -1590,7 +1593,7 @@ own the commands.
 
 ## 13. CI/CD (GitHub Actions)
 
-`.github/workflows/ci.yml` implements the Phase 0 scaffold with all eleven job
+`.github/workflows/ci.yml` implements twelve job
 IDs below. It runs on pushes, pull requests, and manual dispatch on Ubuntu 24.04
 x64, with read-only repository permissions, SHA-pinned actions, and the existing
 locked toolchain. Jobs are independent; superseded runs of the same event/ref
@@ -1607,6 +1610,8 @@ tests. On that same runner, service-free tests collect coverage first, integrati
 tests append with `--cov=hirz --cov-append`, then `uv run --locked coverage report
 --fail-under=80` enforces the combined gate. Cleanup removes only that run's resources
 and generated `.env`.
+The separate `companion` job runs the companion browser smoke so its intermittent
+shutdown timeout cannot block the Python coverage gate; issue #7 remains open.
 
 The scenario job now runs both item 16 offline observation assertion commands
 with native Dogwood and lists the deferred full-demo expectations. The Cedar
@@ -1619,11 +1624,9 @@ The latency job runs the local authenticated gate without coverage instrumentati
 with a payload-free summary and no private artifact upload. Local startup and
 worker interaction observations are reported separately; AWS cold-start evidence
 remains item 38. The release job remains an explicit successful placeholder;
-TypeScript tests and build also disclose absent browser tests
-and frontend bundles. The release placeholder runs on every event and publishes
-nothing. Green scaffold CI does not establish any of these future guarantees.
-Phase 0 item 4 is verified (2026-09-17): all eleven jobs passed in
-[main run 35310102678](https://github.com/BashaarJavaid/Hirz/actions/runs/35310102678).
+TypeScript tests, browser checks and frontend bundles are implemented. The release
+placeholder runs on every event and publishes nothing. All twelve job IDs are
+present after the [companion split](./docs/verification-log.md#d9a7dfc--separate-companion-ci-job).
 
 The complete target remains:
 
@@ -1635,7 +1638,8 @@ jobs:
   python-test:    pytest --cov=hirz --cov-fail-under=80  (services: postgres:16, homeassistant demo)
   scenarios:      hirz scenario run scenarios/*.yaml --assert
   ts-lint-types:  eslint, tsc --noEmit for apps/*
-  ts-test:        vitest; playwright (companion + simulator smoke, voice-only mode)
+  ts-test:        vitest
+  companion:     companion browser smoke (independent of python-test)
   conformance:    the open-source add-on checker against the local server
   latency:        tests/latency against the local stack, budget-gated
   cedar-conform:  dogwood CLI over the corpus; property-based evaluator-vs-compiled test; AgentCore LOG_ONLY comparison on main when AWS secrets exist
@@ -1647,8 +1651,8 @@ jobs:
 
 ## 14. Deployment
 
-- **Local (everyday).** `compose.dev.yml`: Postgres 16, Home Assistant with the demo integration pre-configured, Hirz (one container running both roles: MCP server, and the worker with the companion API and scheduler), the web app (`apps/web`: companion pages plus the simulator route) and the MCP App card bundle (`apps/mcp-app`) served by Vite in dev or by Hirz in prod mode, optional `observability` profile with Jaeger. No AWS account required; `HIRZ_LLM=off` by default, `HIRZ_LLM=bedrock` with local AWS credentials to use Bedrock.
-- **Demo (recording).** `scripts/demo.py init --origin <HTTPS-origin>` initializes separate private credentials; `run` builds the existing image and launches `compose.demo.yml` under a unique project with private PostgreSQL storage. The existing simulator seeds both households with unactivated policies, selects evening paused at 17:30 (parents at 17:00), and opens dark Echo Show mode with speech off. The non-root runtime publishes only loopback 8002/8003 and forces scripted operation. Real enrollment, policy activation and Echo consent remain manual. Readiness checks include trusted HTTPS; cleanup requires a successful runtime exit and independently verified exports from both households. Failed storage is retained. [Lifecycle and recovery](./docs/development.md#item-30-recording-stack); [decision](./docs/adr/ADR-020-simulator.md#recording-packaging-and-lifecycle--2026-10-03).
+- **Local (everyday).** `compose.dev.yml`: Postgres 16, Home Assistant with the demo integration pre-configured, a liveness-only Hirz container, and an optional `observability` profile with Jaeger. The MCP server, companion and simulator run through `scripts/companion_demo.py`, `scripts/simulator_demo.py` and `scripts/demo.py`, serving the built web and card bundles. The companion accepts `http://localhost` for single-machine runs and HTTPS for phones. No AWS account required; `HIRZ_LLM=off` by default, `HIRZ_LLM=bedrock` with local AWS credentials to use Bedrock.
+- **Demo (recording).** `scripts/demo.py init --origin http://localhost:8002` (or the Tailscale HTTPS origin for phones) initializes separate private credentials; `run` builds the existing image and launches `compose.demo.yml` under a unique project with private PostgreSQL storage. The existing simulator seeds both households with unactivated policies, selects evening paused at 17:30 (parents at 17:00), and opens dark Echo Show mode with speech off. The non-root runtime publishes only loopback 8002/8003 and forces scripted operation. Real enrollment, policy activation and Echo consent remain manual. Readiness checks include trusted HTTPS for phone origins; localhost skips forwarding checks; cleanup requires a successful runtime exit and independently verified exports from both households. Failed storage is retained. [Lifecycle and recovery](./docs/development.md#item-30-recording-stack); [decision](./docs/adr/ADR-020-simulator.md#recording-packaging-and-lifecycle--2026-10-03).
 - **AWS (judging window).** `infra/cdk`: Cognito user pool and app client (PKCE), AgentCore Runtime (Hirz image, `mcp` role, MCP protocol, CUSTOM_JWT), the worker service (Hirz image, `worker` role, App Runner smallest size), AgentCore Gateway + policy engine + `hirz-actions` Lambda target, the KMS signing key, the S3 Object Lock anchor bucket, AgentCore Memory, AgentCore Identity credential providers, EventBridge Scheduler + tick Lambda targeting the worker (one-time schedules per action plus a one-minute rule that drives the sweep and the pollers), RDS Postgres (smallest class), Bedrock model access, CloudWatch. `cdk deploy` then `hirz doctor --aws` verifies PRM, `401` challenge, a tool call through the Runtime, an "act" tool whose action the worker executes within 10 s, a policy decision through the Gateway, a signed command accepted by Hirz Link and an unsigned one refused, an audit anchor written and verified, the companion API over HTTPS, the hosted demo's "Start demo" path, and a scheduled tick. Hirz Link runs in the home (`docker compose -f compose.link.yml up -d` next to Home Assistant) and dials out to the worker. `cdk destroy` after judging.
 - **Not built in v1.** Multi-region, multi-replica Runtime coordination for a single household, telephony call-backs, native mobile apps, a login that spans two households (a caregiver view across homes), a physical-Echo demo (the community Skill bridge is used only for one read-only gallery clip in Amazon's developer-console simulator, ADR-007), a constitution domain for read and disclosure permissions (what may be spoken on a shared Echo is fixed in code today: no channel values, no verification history).
 
