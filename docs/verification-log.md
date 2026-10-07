@@ -12140,3 +12140,43 @@ was dispatched. Lint/types, TypeScript tests, native Cedar, build, release and
 independent conformance jobs passed at the observed stage; remaining jobs, including
 both latency gates, had not completed. A follow-up commit carries the fixes above;
 only final-commit CI results can establish those gates.
+
+### Concurrent replies, browser retries and real delivery limitation — 2026-10-07
+
+The expanded contact integration suite passed **10 tests in 52.33 seconds**,
+including two independent recipient transactions submitting the same answer:
+exactly one signed receipt survived, and both callers received the idempotent
+success. Late replies after timeout were rejected. An additional HTTP revocation
+probe then passed (1 test, 8.46 seconds): revoking the app invitation left the
+independent email active, revoking that email closed its pending retry with
+`channel_revoked`, old capabilities were rejected, and the original terminal case
+remained unchanged.
+
+The existing scripted browser runner passed the parents scenario on **Show (15.8
+seconds) and Dot (15.7 seconds)** with assertions for explicit exact-request start
+and retry prompts, a linked pending retry, and the original `not_genuine` result.
+The simulator's recorded vocabulary now includes explicit app/email retry sentences;
+25 simulator unit tests passed in 1.67 seconds. The no-answer observation CLI also
+passed all six checks after clock/schema corrections; it explicitly reports no
+persistence, audit or MCP execution. Its separate authenticated MCP replay is the
+execution evidence recorded above. TypeScript lint/type checks and mypy (192 files)
+passed after these changes.
+
+Real app pairing is active. Both independently verified household exports are
+retained privately under `secrets/item31-pairing-audit`; no passkeys or household
+sessions were fabricated. The author is not yet ready for the timed app reply test,
+so no live check-in was sent. Push is deferred at the author's request.
+
+The first authorized mailbox enrollment exhausted three delivery attempts. Direct
+connection-only diagnostics failed before TLS/authentication with `OSError: [Errno
+65] No route to host`; IPv4-only access to the same SMTP endpoint timed out. No
+probe sent an extra message. Tailscale reported Running, no exit node and no health
+warnings. This does not validate or invalidate the app password. The observed
+limitation is recorded in the [friction log](./friction-log.md#item-31--smtp-endpoint-unreachable-from-the-acceptance-host--2026-10-07).
+Household now distinguishes waiting, sent and failed mailbox-confirmation delivery.
+Real mailbox enrollment/reply remains unverified; the endpoint and verified STARTTLS
+requirement were not changed.
+
+Follow-up commit `22098d7` was pushed and [CI run 37645337505](https://github.com/BashaarJavaid/Hirz/actions/runs/37645337505)
+started. The earlier dispatch was superseded, not counted as a passing gate. Both
+latency gates and remaining browser/CI results remain pending at this entry.

@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- Show mailbox delivery failures and verify explicit retries on scripted Show/Dot, concurrent replies and independent channel revocation ([evidence](./docs/verification-log.md#concurrent-replies-browser-retries-and-real-delivery-limitation--2026-10-07)).
+
 - Tighten contact retry caps and verify signed receipt rollback; let the acceptance host decline unrelated clarification forms ([evidence](./docs/verification-log.md#follow-up-checks-and-phone-pairing--2026-10-07)).
 
 - Implement item 31 contact enrollment, real check-in jobs/receipts, private safe words and companion views; acceptance remains partial ([ADR-022](./docs/adr/ADR-022-trusted-checkins.md), [evidence](./docs/verification-log.md#item-31--2026-10-07)).

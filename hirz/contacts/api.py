@@ -72,7 +72,14 @@ def router(service: Companion) -> APIRouter:
                 "links": [
                     {
                         k: row[k]
-                        for k in ("id", "contact_id", "kind", "status", "expires_at")
+                        for k in (
+                            "id",
+                            "contact_id",
+                            "kind",
+                            "status",
+                            "expires_at",
+                            "delivery_status",
+                        )
                     }
                     | {"received": row["household_id"] != p.household_id}
                     for row in rows

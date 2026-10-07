@@ -145,6 +145,22 @@ def recorded(text: str, results: dict[str, Any]) -> list[tuple[str, dict[str, An
         return [
             ("verify_trusted_identity", {"operation": "status", "contact": "Malik"})
         ]
+    if matches("Retry that check by app.", "Retry that check by email."):
+        case = results.get("verify_trusted_identity", {}).get("data", {}).get("case")
+        if case:
+            return [
+                (
+                    "verify_trusted_identity",
+                    {
+                        "operation": "retry",
+                        "case_id": case["case_id"],
+                        "method": "email"
+                        if matches("Retry that check by email.")
+                        else "app",
+                    },
+                )
+            ]
+        return []
     if matches("Do it.", "Approve the plan"):
         plan = results.get("get_household_plan", {}).get("data", {}).get("plan")
         if plan:

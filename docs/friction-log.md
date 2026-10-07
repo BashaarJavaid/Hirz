@@ -886,3 +886,19 @@ completed with zero reported vulnerabilities. The shell initially selected Node
 - **Workaround:** Record the unpassed gate and apply item 34's no-credentials
   fallback. No portal registration or signed webhook is claimed.
 - **Feature request:** Expose browser availability before attempting a portal workflow.
+
+## Item 31 — SMTP endpoint unreachable from the acceptance host — 2026-10-07
+
+- **Tool / URL:** Gmail SMTP; https://support.google.com/mail/answer/7104828?hl=en
+- **Severity:** Blocker for real email enrollment and reply acceptance.
+- **What happened:** The authorized enrollment exhausted three worker delivery
+  attempts. A separate standard-library SMTP connection probe to the documented
+  `smtp.gmail.com:587` endpoint failed before STARTTLS or authentication. An
+  IPv4-only TCP probe also failed. No extra email was sent by the probes.
+- **Exact errors:** SMTP connection: `OSError: [Errno 65] No route to host`;
+  IPv4 connection: `TimeoutError: timed out`.
+- **Workaround:** None established. Keep real email acceptance unverified; retain
+  verified STARTTLS and the approved endpoint. This is observed host-to-endpoint
+  reachability failure, not evidence of a Gmail defect or an invalid app password.
+- **Suggestion:** Include an SMTP reachability check in local setup diagnostics,
+  distinct from TLS, authentication and recipient failures.

@@ -259,6 +259,40 @@ def test_real_cross_household_receipt_isolation_and_deadline(
                         assert not await c.scalar(
                             sa.select(db.checkin_receipts.c.job_id)
                         )
+
+                    # Two independent recipient transactions may retry one answer;
+                    # the channel lock and receipt key permit exactly one receipt.
+                    async def concurrent_reply():
+                        async with connect(scratch_database) as other:
+                            recipient_pipeline = Pipeline(
+                                other, q.bundle, q.boundary, q.audit, q.clock
+                            )
+                            async with recipient_pipeline.repo.write(q.clock):
+                                return await command(
+                                    recipient_pipeline,
+                                    recipient,
+                                    Command(
+                                        operation="reply",
+                                        reference=job["id"],
+                                        request_hash=job["request_hash"],
+                                        answer=answer,
+                                    ),
+                                    config,
+                                )
+
+                    replies = await asyncio.gather(
+                        concurrent_reply(), concurrent_reply()
+                    )
+                    assert replies == [{"ok": True}, {"ok": True}]
+                    async with c.begin():
+                        assert (
+                            await c.scalar(
+                                sa.select(sa.func.count()).select_from(
+                                    db.checkin_receipts
+                                )
+                            )
+                            == 1
+                        )
                 async with q.repo.write(q.clock):
                     value = Command(
                         operation="reply",
@@ -301,6 +335,19 @@ def test_real_cross_household_receipt_isolation_and_deadline(
             assert result.data.case.risk_band == case.risk_band
             if answer == "no_answer":
                 assert "saved in your own phone" in result.speakable.headline
+                with pytest.raises(ValueError, match="expired or closed"):
+                    async with q.repo.write(q.clock):
+                        await command(
+                            q,
+                            recipient,
+                            Command(
+                                operation="reply",
+                                reference=job["id"],
+                                request_hash=job["request_hash"],
+                                answer="genuine",
+                            ),
+                            config,
+                        )
             async with c.begin():
                 payloads = str(
                     (await c.execute(sa.select(db.audit_log.c.payload))).scalars().all()
@@ -584,6 +631,69 @@ def test_contact_http_passkey_binding_mailbox_and_failure(
                 inbox = await client.get("/api/checkins")
                 assert inbox.status_code == 200
                 assert private["token"] not in inbox.text and token not in inbox.text
+                # App invitation revocation cannot revoke the independent email.
+                app_invite = await change(
+                    {
+                        "operation": "invite",
+                        "contact_id": contact,
+                        "method": "app",
+                    }
+                )
+                assert app_invite.status_code == 200
+                assert (
+                    await change(
+                        {
+                            "operation": "revoke",
+                            "contact_id": contact,
+                            "reference": app_invite.json()["id"],
+                        }
+                    )
+                ).status_code == 200
+                links = (await client.get("/api/contacts")).json()["links"]
+                assert (
+                    next(link for link in links if link["id"] == reference)["status"]
+                    == "active"
+                )
+                pending = await client.post(
+                    "/api/checkins/retry",
+                    json={
+                        "case_id": case.case_id,
+                        "method": "email",
+                        "confirmed": True,
+                        "request_id": "revoke-pending-email",
+                    },
+                )
+                assert pending.status_code == 200
+                assert (
+                    await change(
+                        {
+                            "operation": "revoke",
+                            "contact_id": contact,
+                            "reference": reference,
+                        }
+                    )
+                ).status_code == 200
+                async with service.pipeline(p.household_id) as q:
+                    await advance(q)
+                    revoked = await HouseholdTools(q, actor).call(
+                        "verify_trusted_identity",
+                        {
+                            "operation": "status",
+                            "case_id": pending.json()["data"]["case"]["case_id"],
+                        },
+                    )
+                    assert revoked.data.case.verification.reason == "channel_revoked"
+                    original = await HouseholdTools(q, actor).call(
+                        "verify_trusted_identity",
+                        {
+                            "operation": "status",
+                            "case_id": case.case_id,
+                        },
+                    )
+                    assert original.data.case.verification.status == "not_genuine"
+                assert (
+                    await client.post("/api/contact-links/confirm", json=response)
+                ).status_code == 403
 
     asyncio.run(run())
 

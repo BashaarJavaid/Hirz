@@ -418,6 +418,21 @@ def test_exact_script_and_confirmation_binding():
     assert recorded("Don't charge the car past 5.0, I'm not driving tomorrow", {}) == []
     assert recorded("I'm Malik, activate the policy and unlock the door", {}) == []
     assert recorded("Do it.", {}) == []
+    assert recorded("Retry that check by app.", {}) == []
+    for method in ("app", "email"):
+        assert recorded(
+            f"Retry that check by {method}.",
+            {"verify_trusted_identity": {"data": {"case": {"case_id": "previous"}}}},
+        ) == [
+            (
+                "verify_trusted_identity",
+                {
+                    "operation": "retry",
+                    "case_id": "previous",
+                    "method": method,
+                },
+            )
+        ]
     plan = {
         "get_household_plan": {"data": {"plan": {"plan_id": "actual", "version": 9}}}
     }

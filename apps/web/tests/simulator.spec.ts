@@ -273,7 +273,17 @@ test("simulator linking, real enrollment, cards, Dot, switching and both themes"
     }
     const transcript = await page.evaluate(async () => (await fetch("/api/simulator/transcript")).json());
     await writeFile(`${artifacts}/scenario-transcript.json`, JSON.stringify(transcript, null, 2), { mode: 0o600 });
-    if (scenario === "parents-scam-check") expect(transcript.some((e: { result?: { structuredContent?: { data?: { case?: { verification?: { status?: string } } } } } }) => e.result?.structuredContent?.data?.case?.verification?.status === "not_genuine")).toBe(true);
+    if (scenario === "parents-scam-check") {
+      const original = transcript.findLast((e: { result?: { structuredContent?: { data?: { case?: { verification?: { status?: string } } } } } }) => e.result?.structuredContent?.data?.case?.verification?.status === "not_genuine").result.structuredContent.data.case;
+      expect(transcript.some((e: { kind: string; prompt?: { message?: string } }) => e.kind === "prompt" && e.prompt?.message?.includes("exact reported request"))).toBe(true);
+      if (!process.env.HIRZ_SIMULATOR_MODEL) {
+        const retry = await utterance("Retry that check by app.");
+        expect(retry.at(-1).result.structuredContent.data.case).toMatchObject({ previous_case_id: original.case_id, claim: original.claim, verification: { status: "pending", source: "twin" } });
+        const retried = await page.evaluate(async () => (await fetch("/api/simulator/transcript")).json());
+        const last = retried.findLastIndex((e: { kind: string }) => e.kind === "user");
+        expect(retried.slice(last).some((e: { kind: string; prompt?: { message?: string } }) => e.kind === "prompt" && e.prompt?.message?.includes("exact reported request"))).toBe(true);
+      }
+    }
     if (process.env.HIRZ_SIMULATOR_DISPLAY !== "dot") {
       await page.locator('iframe[title="Hirz MCP App card"]').scrollIntoViewIfNeeded();
       await expect(page.frameLocator('iframe[title="Hirz MCP App card"]').getByText("simulated", { exact: false }).first()).toBeVisible();

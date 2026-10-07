@@ -3,7 +3,7 @@ import { passkey, useResource } from "../api";
 import { Button } from "./ui/button";
 import { AsyncButton, Panel } from "./primitives";
 
-type Link = { id: string; contact_id: string; kind: string; status: string; received: boolean };
+type Link = { id: string; contact_id: string; kind: string; status: string; delivery_status: string; received: boolean };
 export function Contacts({ contacts, refresh }: { contacts: { id: string; name: string }[]; refresh: () => void }) {
   const r = useResource<{ links: Link[] }>("/contacts");
   const [name, setName] = useState(""), [relationship, setRelationship] = useState("");
@@ -37,6 +37,7 @@ export function Contacts({ contacts, refresh }: { contacts: { id: string; name: 
     </>}
     {(r.data?.links ?? []).filter(l => !l.received && l.contact_id === contact).map(l => <article key={l.id}>
       <p>{l.kind} · {l.status}</p>
+      {l.kind === "email" && l.status === "pending" && <p role="status">{l.delivery_status === "failed" ? "The confirmation email could not be delivered. Mailbox verification is incomplete." : l.delivery_status === "sent" ? "Confirmation email sent. Open its private link to verify the mailbox." : "Confirmation email is waiting for delivery."}</p>}
       {l.status === "confirmed" && <AsyncButton run={async () => change({ operation: "confirm", contact_id: contact, reference: l.id })}>I verified the intended contact out of band — activate</AsyncButton>}
       {l.status !== "revoked" && <AsyncButton run={async () => change({ operation: "revoke", contact_id: contact, reference: l.id })}>Revoke this {l.kind} channel</AsyncButton>}
     </article>)}
