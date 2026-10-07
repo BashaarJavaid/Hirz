@@ -12196,3 +12196,26 @@ During the retained phone-server restart, the existing fixed-port unit test agai
 found port 8003 occupied. The test now accepts an already occupied port as its
 intended occupied-port setup, still requiring the production guard to refuse it and
 still propagating every other bind error. No service is stopped by that test.
+
+The corrected local card-state selection passed **6 tests in 48.0 seconds** and
+the occupied-port guard passed in 0.94 seconds. A fresh-process receipt probe passed
+in 7.90 seconds: after the recipient's accepted reply committed, a newly spawned
+worker loaded only persisted case/receipt state and fixture configuration, consumed
+the receipt after expiry, and both household audit chains independently verified.
+No parent-process Pipeline object was reused by that worker.
+
+A diagnostic limitation is retained explicitly: an earlier failed database test
+printed a local development connection string in its traceback. It was not committed;
+subsequent failure reporting withheld private inputs and avoided full tracebacks.
+This is not presented as proof that all diagnostic logs were free of secret material.
+
+Final implementation commit `d99c079` is under [CI run 37646760754](https://github.com/BashaarJavaid/Hirz/actions/runs/37646760754).
+Its preceding dispatch was superseded by acceptance-test corrections; no superseded
+run is counted as passing both latency gates.
+
+The author independently reproduced the SMTP timeout and no-route errors in their
+own Mac Terminal, ruling out an agent-only connectivity failure, then explicitly
+deferred real email acceptance. Read-only status confirmed both pending email
+enrollments had stopped delivery (`failed`, with three and zero attempts respectively);
+no future email retry is queued. Real app reply remains on hold at the author's
+request. These deferrals do not waive item 31's completion requirements.

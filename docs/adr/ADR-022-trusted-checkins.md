@@ -74,3 +74,11 @@ Closure requires the no-answer scenario, authenticated HTTP/MCP security and
 isolation checks, real iPhone Home Screen push and real email replies, independent
 signed audit verification for both households, browser/conformance checks, both CI
 latency gates and combined coverage ≥80%. Any missing gate leaves item 31 Partial.
+
+## Acceptance deferrals — 2026-10-07
+
+The author deferred iPhone push on the available older phone and real email
+acceptance after SMTP reachability failed both in the agent and their own Terminal.
+These are acceptance deferrals, not waived gates or approval for another sender,
+port, service or TLS downgrade. Item 31 remains Partial until the original real
+push and reply requirements are demonstrated; see the verification log.

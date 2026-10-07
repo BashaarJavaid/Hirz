@@ -29,6 +29,36 @@ from tests.unit.test_pipeline import ident, policy_edit
 pytestmark = pytest.mark.integration
 
 
+def consume_receipt_in_fresh_process(database, household, policy_yaml, key_pem, at):
+    """Fresh worker memory; only private disposable fixture inputs cross the pipe."""
+    from cryptography.hazmat.primitives.serialization import load_pem_private_key
+
+    from hirz.constitution.boundary import Dogwood
+    from hirz.constitution.schema import loads
+    from hirz.contacts import service
+    from hirz.pipeline.audit import AuditWriter
+
+    async def run():
+        async with connect(database) as c:
+            boundary = Dogwood()
+            p = Pipeline(
+                c,
+                await PolicyBundle.validate(household, loads(policy_yaml), boundary),
+                boundary,
+                AuditWriter(load_pem_private_key(key_pem, password=None)),
+                lambda: at,
+            )
+            service.now = lambda: at
+            await checkins.advance(p)
+
+    try:
+        asyncio.run(run())
+    except Exception:
+        raise SystemExit(
+            "Disposable receipt worker failed; private inputs withheld"
+        ) from None
+
+
 @pytest.mark.parametrize("mode", ["auto", "ask"])
 @pytest.mark.parametrize("answer", ["genuine", "not_genuine", "will_call", "no_answer"])
 def test_real_cross_household_receipt_isolation_and_deadline(
@@ -326,7 +356,38 @@ def test_real_cross_household_receipt_isolation_and_deadline(
                         config,
                     )
             clock[0] += timedelta(minutes=3)
-            await checkins.advance(p)
+            if answer == "genuine" and mode == "auto":
+                import multiprocessing
+
+                from cryptography.hazmat.primitives import serialization
+
+                from hirz.constitution.schema import dump
+
+                child = multiprocessing.get_context("spawn").Process(
+                    target=consume_receipt_in_fresh_process,
+                    args=(
+                        scratch_database,
+                        p.household_id,
+                        dump(p.bundle.policy()),
+                        p.audit.key.private_bytes(
+                            serialization.Encoding.PEM,
+                            serialization.PrivateFormat.PKCS8,
+                            serialization.NoEncryption(),
+                        ),
+                        clock[0],
+                    ),
+                )
+                child.start()
+                try:
+                    await asyncio.to_thread(child.join, 20)
+                    assert child.exitcode == 0, "Fresh receipt worker must finish"
+                finally:
+                    if child.is_alive():
+                        child.terminate()
+                        await asyncio.to_thread(child.join, 5)
+                    child.close()
+            else:
+                await checkins.advance(p)
             result = await tools.call(
                 "verify_trusted_identity",
                 {"operation": "status", "case_id": case.case_id},

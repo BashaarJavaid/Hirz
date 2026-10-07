@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- Verify accepted receipts in a fresh worker process and record deferred real email/push acceptance; clarify shared-Echo visibility of an initiating member’s case results ([evidence](./docs/verification-log.md#card-state-acceptance-follow-up--2026-10-07)).
+
 - Show mailbox delivery failures and verify explicit retries on scripted Show/Dot, concurrent replies and independent channel revocation ([evidence](./docs/verification-log.md#concurrent-replies-browser-retries-and-real-delivery-limitation--2026-10-07)).
 
 - Tighten contact retry caps and verify signed receipt rollback; let the acceptance host decline unrelated clarification forms ([evidence](./docs/verification-log.md#follow-up-checks-and-phone-pairing--2026-10-07)).
