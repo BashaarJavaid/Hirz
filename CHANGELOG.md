@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-10-07: Scope the recording credential guard to the checkout path so retained runs from another checkout no longer block initialization ([evidence](./docs/verification-log.md#per-checkout-recording-guard--2026-10-07)).
+
 - 2026-10-06: Pass the normal latency gate for the frozen startup generation on the single approved promotion re-dispatch ([evidence](./docs/verification-log.md#promotion-dispatch--2026-10-06)).
 
 - 2026-10-06: Verify the localhost Compose quickstart and Twin page after approved retained-run disposal, document manual recovery and successful wrapper-driven shutdown ([evidence](./docs/verification-log.md#localhost-compose-quickstart-verified--2026-10-06)).

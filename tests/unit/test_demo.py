@@ -92,14 +92,32 @@ def test_init_refuses_damage_without_replacement(initialized, change):
 def test_missing_credentials_with_retained_docker_storage(tmp_path, monkeypatch):
     monkeypatch.setattr(demo, "DEMO", tmp_path)
     monkeypatch.setattr(demo, "forwarding", lambda origin: None)
-    monkeypatch.setattr(
-        demo,
-        "command",
-        lambda *args, **kw: "retained-volume" if "volume" in args else "",
-    )
+
+    def command(*args, **kw):
+        if "volume" in args:
+            assert f"label={demo.LABEL}" in args
+            assert f"label={demo.CHECKOUT_LABEL}" in args
+            return "retained-volume"
+        return ""
+
+    monkeypatch.setattr(demo, "command", command)
     with pytest.raises(LocalError, match="state exists"):
         demo.initialize(ORIGIN)
     assert not (tmp_path / ".env").exists()
+
+
+def test_other_checkout_retained_storage_does_not_block(tmp_path, monkeypatch):
+    monkeypatch.setattr(demo, "DEMO", tmp_path)
+    monkeypatch.setattr(demo, "forwarding", lambda origin: None)
+    monkeypatch.setattr(
+        demo,
+        "command",
+        lambda *args, **kw: (
+            "" if f"label={demo.CHECKOUT_LABEL}" in args else "other-checkout-volume"
+        ),
+    )
+    demo.initialize(ORIGIN)
+    assert stat.S_IMODE((tmp_path / ".env").stat().st_mode) == 0o600
 
 
 def test_ports_and_private_directories(tmp_path):

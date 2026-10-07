@@ -1735,9 +1735,12 @@ Initialization creates separate recording credentials in `secrets/demo/.env`
 file privately. Never replace keys/passwords alongside retained recording state;
 restore the original configuration if it is partial, malformed, absent, or has a
 conflicting origin. No development migration, seed or reset is performed.
-The credential guard scans every recording-labeled container and volume on the
-Docker host, so a host holds one recording checkout at a time and retained failed
-runs must be disposed with explicit approval before another checkout initializes.
+The credential guard scans only containers and volumes labeled with both
+`org.hirz.recording=v1` and this checkout's `org.hirz.checkout` path hash, so
+another checkout's retained runs do not block initialization; retained failed runs
+of this checkout must still be disposed with explicit approval first. Moving a
+checkout gives it a new identity, so its earlier retained runs are no longer
+covered by its guard.
 
 Each foreground invocation builds the existing image and creates a unique Compose
 project, PostgreSQL volume and `secrets/demo/runs/<run-id>` directory (0700).

@@ -11954,3 +11954,67 @@ nearest-rank p95, no discarded samples and the **250 ms** warm p95 gate. This
 normal run is the acceptance gate for the frozen-generation change (`366e7fc`);
 it is local Twin evidence on GitHub runners, not an AWS cold-start measurement or
 proof that issue #7 is fixed.
+
+### Per-checkout recording guard — 2026-10-07
+
+`scripts/demo.py` now derives `org.hirz.checkout=<hash>` from the first 16 hex
+characters of the SHA-256 of the resolved checkout path, and `initialize()` passes
+it as a second `--filter label=` beside `org.hirz.recording=v1` to both
+`docker volume ls` and `docker container ls --all`, so only this checkout's
+retained runs block initialization when `secrets/demo/.env` is missing; the error
+text is unchanged. `run()` passes the hash as `HIRZ_DEMO_CHECKOUT`, and
+`compose.demo.yml` applies it as a required label on the postgres service, the
+simulator service and the `postgres` volume, beside the unchanged host-wide label.
+
+Tests and checks (main checkout):
+
+```
+$ uv run --locked pytest tests/unit/test_demo.py --no-cov -q
+21 passed in 5.57s
+$ uv run --locked pytest -q
+1521 passed, 204 deselected, 2 warnings in 218.71s (0:03:38)
+$ uv run ruff check . && uv run mypy hirz/ scripts/ alembic/
+All checks passed!
+Success: no issues found in 184 source files
+```
+
+`test_missing_credentials_with_retained_docker_storage` now asserts both filters
+reach `docker volume ls`; the new
+`test_other_checkout_retained_storage_does_not_block` returns a volume only when
+the checkout filter is absent and asserts initialization writes `.env` with mode
+0600.
+
+Docker check, in a scratch clone of the working tree with `uv sync --locked`. The
+host started with no recording-labeled volumes or containers.
+
+1. `docker volume create --label org.hirz.recording=v1 hirz-guard-probe-other`
+   (another checkout's retained run), then in the clone
+   `uv run --locked python scripts/demo.py init --origin http://localhost:8002`:
+   `Demo credentials initialized in secrets/demo/.env (0600); development unchanged.`,
+   exit 0, `ls -l` showed `-rw-------`.
+2. The clone's hash, computed independently from its resolved path, was
+   `183a2c5f706efb3a`. After
+   `docker volume create --label org.hirz.recording=v1 --label org.hirz.checkout=183a2c5f706efb3a hirz-guard-probe-same`
+   and removing only the clone's throwaway `.env`, the same init printed
+   `FAIL: Demo state exists without credentials; restore the original secrets/demo/.env. Nothing was reset.`,
+   exit 1, and `secrets/demo` held only `.lock`.
+3. `docker compose -p probe -f compose.demo.yml config` with dummy values rendered
+   `org.hirz.checkout: 183a2c5f706efb3a` beside `org.hirz.recording: v1` in all
+   three label blocks; without `HIRZ_DEMO_CHECKOUT` it refused:
+   `error while interpolating volumes.postgres.labels.org.hirz.checkout: required variable HIRZ_DEMO_CHECKOUT is missing a value: Use scripts/demo.py run`.
+4. The main checkout's `secrets/demo/.env` was untouched (mode 0600, dated
+   2026-10-03 16:28). Both probe volumes were removed,
+   `docker volume ls --filter label=org.hirz.recording=v1` and
+   `docker ps -a --filter label=org.hirz.recording=v1` printed only headers, and
+   the clone was deleted.
+
+Not claimed: no `scripts/demo.py run` or full recording, no Tailscale origin, no
+change to the disposal procedure, and no check of runs retained before this
+change, which carry no checkout label and so no longer block any checkout's guard.
+
+Independent rerun by the orchestrating session on 2026-10-07, same procedure in
+a fresh scratch clone (hash `cc803a545f6558bc`): 21 demo tests passed, Ruff and
+mypy clean, 293 files already formatted; the other-checkout probe let init
+proceed (exit 0, `.env` mode 0600) and the same-checkout probe was refused with
+the unchanged error (exit 1, only `.lock` retained); both probe volumes and the
+clone were removed and both label listings printed only headers.
