@@ -11933,3 +11933,24 @@ This pattern is attributed to runner stalls, not a code regression; no fix is
 claimed. The run is recorded as **failed**. After this diagnosis the author
 approved, on 2026-10-06, exactly one re-dispatch of the normal gate with no code,
 threshold, sample-count or warmup change; if it fails, the promotion stops.
+
+### Promotion dispatch — 2026-10-06
+
+The single approved [re-dispatch 37560143637](https://github.com/BashaarJavaid/Hirz/actions/runs/37560143637)
+ran the normal gate (no `latency_diagnostic`) on
+`ecb2c8ab10a61705902c2b7bf2e101f80ce8b436`, which differs from `f1fc3a1` only by
+the preceding record. Every job succeeded: `build`, `python-lint`,
+`python-types`, `python-test`, `ts-lint-types`, `ts-test`, `companion`,
+`cedar-conform`, `conformance`, `scenarios`, `release`,
+`latency (demo-evening)` and `latency (demo-evening-hourly)`.
+
+| Scenario | Highest case p95 | Case | Case maxima above 300 ms |
+|---|---|---|---|
+| `demo-evening` | **183.128 ms** | `revision-dishwasher` | 3 (`objective-cheapest` 361.6, `revision-dishwasher` 355.0, `pause` 665.9) |
+| `demo-evening-hourly` | **178.526 ms** | `objective-greenest` | 0 |
+
+The protocol was unchanged: five warmups and 100 measured calls per case,
+nearest-rank p95, no discarded samples and the **250 ms** warm p95 gate. This
+normal run is the acceptance gate for the frozen-generation change (`366e7fc`);
+it is local Twin evidence on GitHub runners, not an AWS cold-start measurement or
+proof that issue #7 is fixed.
