@@ -1735,6 +1735,9 @@ Initialization creates separate recording credentials in `secrets/demo/.env`
 file privately. Never replace keys/passwords alongside retained recording state;
 restore the original configuration if it is partial, malformed, absent, or has a
 conflicting origin. No development migration, seed or reset is performed.
+The credential guard scans every recording-labeled container and volume on the
+Docker host, so a host holds one recording checkout at a time and retained failed
+runs must be disposed with explicit approval before another checkout initializes.
 
 Each foreground invocation builds the existing image and creates a unique Compose
 project, PostgreSQL volume and `secrets/demo/runs/<run-id>` directory (0700).
@@ -1754,8 +1757,9 @@ Readiness means this seeded paused state, **not** a preauthenticated household.
 The Twin page now has working replay in the recording stack: the simulator runs
 its replay/push loops and forwards the database endpoint to nested replay. The
 simulator browser check sees the check-in card after five one-minute Twin steps;
-the author's manual Compose-level Twin check on the Tailscale origin remains
-**pending** ([review evidence](./verification-log.md#b8eaf85--simulator-twin-replay-and-push-delivery)).
+the localhost recording Compose check is now verified
+([quickstart evidence](./verification-log.md#localhost-compose-quickstart-verified--2026-10-06)),
+without claiming a manual Tailscale-origin check.
 
 The launcher prints only the private invitation-file location. Open that file
 locally, enroll each owner in a separate companion session with a real passkey,
@@ -1763,6 +1767,11 @@ activate each seed policy, then explicitly approve the appropriate Echo OAuth
 consent on the recording computer. Follow the item 29 rehearsal above for rule
 activation and phone approval. Every fresh run needs fresh enrollment and linking.
 Do not publish invitations, recovery codes, private logs or whole artifact folders.
+
+The launcher must run in a terminal or a process with the default SIGINT disposition,
+because a background job from a non-interactive shell inherits ignored SIGINT,
+cannot be interrupted with it, and must then be stopped by mirroring the wrapper's
+stop, export-verification and cleanup steps.
 
 Keep the terminal attached. Ctrl-C stops the runtime first, allows up to 120
 seconds for settlement/exports, then independently verifies both households against

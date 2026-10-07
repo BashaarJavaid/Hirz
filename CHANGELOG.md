@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-10-06: Verify the localhost Compose quickstart and Twin page after approved retained-run disposal, document manual recovery and successful wrapper-driven shutdown ([evidence](./docs/verification-log.md#localhost-compose-quickstart-verified--2026-10-06)).
+
 - 2026-10-06: Cache validated companion policy bundles only within the native helper lifespan ([ADR-019](./docs/adr/ADR-019-companion.md#lifespan-scoped-policy-cache--2026-10-06)).
 
 - 2026-10-06: Run Twin replay and push delivery in the simulator launcher and propagate database host/port overrides ([evidence](./docs/verification-log.md#b8eaf85--simulator-twin-replay-and-push-delivery)).

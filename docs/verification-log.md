@@ -11734,3 +11734,178 @@ run, AWS latency measurement or proof that issue #7 is fixed.
 The author's manual Twin-page check inside the recording Compose stack on the
 Tailscale HTTPS origin is **pending**; no pass is claimed. No third-party friction
 was encountered in these fixes, so no friction-log entry was earned.
+
+
+### Retained run disposal — 2026-10-06
+
+The author explicitly approved disposal on **2026-10-06** of exactly these seven
+retained item 30 recording runs:
+
+- `hirz-demo-4cfe0e1f9c3a4f19a5758100e058184f`
+- `hirz-demo-963ab937385c44b1881dafb03d62198b`
+- `hirz-demo-a173c9d9b54e4bcaada89de8049c7aa9`
+- `hirz-demo-b29aa6cfbeaf49119019964a4fdb4362`
+- `hirz-demo-93f640ca4adc4febb4b8b92d3265b620`
+- `hirz-demo-b6b251632b1747f1b0047b556347e9b1`
+- `hirz-demo-60b2a8c680534079b5079f3dea8b99b7`
+
+For each literal run ID, the documented per-run procedure stopped and removed
+`<run>-simulator-1` and `<run>-postgres-1`, removed `<run>_postgres` with
+`docker volume rm`, and removed `<run>_default` with `docker network rm`.
+All commands succeeded. Only Docker containers, volumes and networks were removed;
+no prune or label-wide removal was used. The author's private evidence directories
+remain; `/Users/bashaarjavaid/Projects/Hirz/secrets` was not touched.
+
+`docker ps -a --filter label=org.hirz.recording=v1` and
+`docker volume ls --filter label=org.hirz.recording=v1` then printed only headers:
+
+```text
+CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS     NAMES
+DRIVER    VOLUME NAME
+```
+
+The initial fresh-clone credential initialization had refused these host-wide
+retained resources with `FAIL: Demo state exists without credentials; restore the
+original secrets/demo/.env. Nothing was reset.` The approved disposal cleared that
+guard without copying or replacing the author's recording identity.
+
+### Localhost Compose quickstart verified — 2026-10-06
+
+Fresh clone: `/Users/bashaarjavaid/Projects/hirz-private-evidence/phase5-fixes-11-clone`,
+branch `phase-5-fixes`, commit `02520f5058619849f612bba8110f79d7045ee024`
+(`git rev-parse --short HEAD`: `02520f5`). `uv sync --locked` and
+`pnpm install --frozen-lockfile` passed; the clone was clean before recording.
+No root `.env` was created. The recording image built both web bundles inside
+Docker. All subsequent clone `uv` commands used `env -u VIRTUAL_ENV` to remove
+the parent checkout's leaked virtual-environment setting. Playwright's installed
+Chromium used virtual authenticators with real server-side passkey verification;
+this is automated localhost acceptance, not a physical laptop/phone passkey test.
+The clone and its private evidence remain in place.
+
+**First run and manual recovery:**
+`hirz-demo-bd7c940f668b48a4b8f8919e787f8acb`.
+
+`env -u VIRTUAL_ENV uv run --locked python scripts/demo.py init --origin
+http://localhost:8002` printed:
+
+```text
+Demo credentials initialized in secrets/demo/.env (0600); development unchanged.
+```
+
+The `nohup` launcher built the image, reached `Ready, paused.`, and opened
+`http://localhost:8002/simulator`. The default acceptance cell was:
+
+```sh
+HIRZ_BROWSER_ORIGIN=http://localhost:8002 HIRZ_BROWSER_BACKEND=http://127.0.0.1:8002 HIRZ_SIMULATOR_ARTIFACTS=$PWD/secrets/demo/runs/<run-id>/artifacts pnpm --filter web exec playwright test tests/simulator.spec.ts
+```
+
+It reported **`1 passed (27.9s)`**. The non-interactive shell's background job
+inherited ignored SIGINT, so Python never installed its KeyboardInterrupt handler;
+SIGINT to either `uv` or its Python child could not initiate cleanup. This was an
+operator procedure issue, not a product defect. By the author's explicit recovery
+instruction, `pkill -TERM -f "scripts/demo.py run"` terminated the stuck wrapper;
+`pgrep -f "scripts/demo.py run"` then printed nothing (exit 1). The containers
+continued running. No successful wrapper shutdown is claimed for this run.
+
+Recovery mirrored `scripts/demo.py run()` with the clone's `secrets/demo/.env`,
+`HIRZ_DEMO_UID=$(id -u)`, `HIRZ_DEMO_GID=$(id -g)`, the literal run ID in
+`HIRZ_DEMO_RUN`, and its absolute private directory in `HIRZ_DEMO_RUN_DIR`:
+
+```sh
+docker compose --project-name "$HIRZ_DEMO_RUN" --env-file secrets/demo/.env -f compose.demo.yml stop --timeout 120 simulator
+docker inspect --format '{{json .State}}' "${HIRZ_DEMO_RUN}-simulator-1"
+```
+
+The runtime was **exited, ExitCode 0, OOMKilled false**. Its
+`artifacts/shutdown.json` was:
+
+```json
+{
+  "run_id": "hirz-demo-bd7c940f668b48a4b8f8919e787f8acb",
+  "exports_verified": true
+}
+```
+
+Independent verification used the recording key's public half, never the exported
+key as its own trust anchor. The supplied extraction expression initially passed
+a string to `read_env` and raised `AttributeError: 'str' object has no attribute
+'is_symlink'`; the verifier therefore reported `Expected a PEM P-256 public key`
+with zero rows checked. Correcting that invocation to `read_env(Path(...))`
+required no product change. The corrected command was run for each household:
+
+```sh
+env -u VIRTUAL_ENV uv run --locked hirz verify-audit --household "$household" --file "$HIRZ_DEMO_RUN_DIR/artifacts/$household/audit.json" --public-key <(env -u VIRTUAL_ENV uv run --locked python -c "from pathlib import Path; from hirz.local import read_env, signing_key; from cryptography.hazmat.primitives import serialization; print(signing_key(read_env(Path('secrets/demo/.env'))).public_key().public_bytes(serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo).decode())")
+```
+
+| Household | Verification status | Sequence / checked rows | CLI exit |
+|---|---|---|---|
+| Home `536fa8ee-854e-56ca-8c5d-5ba418e710a0` | `valid` | 1–1034 / 1034 | 0 |
+| Parents `bf745178-9146-5952-a310-f1d7e563977b` | `empty` | no sequence / 0 | 0 |
+
+Both results had null failure/reason and fingerprint
+`0f662aa0a25cc98199f9a9ac41469c816c00632fab2688fe77a6de7e7b1db373`.
+Only after both passed, `docker compose --project-name "$HIRZ_DEMO_RUN"
+--env-file secrets/demo/.env -f compose.demo.yml down --volumes` removed this
+run's resources. Both recording Docker listings were empty, with the same headers
+shown in the disposal entry. No wrapper `cleanup.json` was fabricated for this
+manually recovered run.
+
+**Second run, normal wrapper-driven proof:**
+`hirz-demo-4bf6855a4f5244828b08f00b2ef347d1`.
+
+The same initialization command printed:
+
+```text
+Demo configuration validated and preserved.
+```
+
+The approved driver restored the default SIGINT disposition before starting the
+launcher in its own session, appending to the retained `demo-run.log`:
+
+```python
+import signal
+import subprocess
+
+signal.signal(signal.SIGINT, signal.SIG_DFL)
+log = open("demo-run.log", "ab")
+p = subprocess.Popen(
+    ["uv", "run", "--locked", "python", "scripts/demo.py", "run"],
+    stdout=log,
+    stderr=subprocess.STDOUT,
+    start_new_session=True,
+)
+open("demo-run.pid", "w").write(str(p.pid))
+```
+
+It was invoked through `env -u VIRTUAL_ENV python3`, and the new run reached
+`Ready, paused.`. The same default Playwright cell, using the new artifact path,
+reported **`1 passed (28.7s)`**. `pkill -INT -f "python scripts/demo.py run"`
+then interrupted the launcher's Python process. Within the three-minute limit,
+`pgrep -f "scripts/demo.py run"` printed nothing (exit 1). The final two log lines
+were:
+
+```text
+Keep this launcher attached. Ctrl-C exports and verifies both households before cleanup.
+Verified shutdown; recording storage removed. Evidence preserved: /Users/bashaarjavaid/Projects/hirz-private-evidence/phase5-fixes-11-clone/secrets/demo/runs/hirz-demo-4bf6855a4f5244828b08f00b2ef347d1
+```
+
+The new run's `cleanup.json` exists and records its run ID,
+`exports_verified: true` and `storage_removed: true`. Independent home verification
+with the corrected command above returned **`valid`**, sequence **1–103**,
+**103 checked rows**, null failure/reason and CLI exit **0**, under the same
+recording-key fingerprint. Both recording Docker listings again contained only
+the empty headers. The detached driver's launcher exit status was not collected;
+normal completion is established by its final line, cleanup receipt and absence
+of the process/resources, not an invented process exit code.
+
+Both default browser cells enrolled and activated seed rules, linked an Echo,
+exercised the **Twin page inside the container** (the simulated check-in card after
+five one-minute steps), rendered both themes and checked Dot mode. The Compose
+Twin check is therefore **no longer pending**. This does not claim the author's
+manual Tailscale-origin check, physical passkey/Web Push acceptance, issue #7
+repair, real devices, AWS deployment or externally anchored audit completeness.
+The CLI correctly labels these exports `not anchored: local mode`; omitted
+history, later rows, tail truncation, complete erasure and re-signed rewrites are
+outside this verification. No third-party friction entry was earned: the ignored
+SIGINT was shell semantics, and the public-key argument correction was an
+operator invocation correction.
