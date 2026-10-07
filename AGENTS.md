@@ -50,7 +50,7 @@ When closing an item: append the evidence entry first, then the one-sentence roa
 
 ## Conventions
 
-- **Python 3.12, `uv`, FastAPI, official `mcp` SDK, async throughout** for `hirz/`. **TypeScript strict, React, pnpm workspaces** for `apps/`: Tailwind + shadcn/ui for `apps/web`; plain CSS custom properties carrying Amazon's design tokens, and no component library, for the MCP App cards. **CDK in TypeScript** for `infra/`. Ruff and mypy strict for Python; eslint and `tsc --noEmit` for TypeScript. Don't introduce another language or a second web framework.
+- **Python 3.12, `uv`, FastAPI, official `mcp` SDK, async throughout** for `hirz/`. **TypeScript strict, React, pnpm workspaces** for `apps/`: Tailwind with one shadcn/ui button and hand-written CSS for `apps/web`; plain CSS custom properties carrying Amazon's design tokens, and no component library, for the MCP App cards. **CDK in TypeScript** for `infra/`. Ruff and mypy strict for Python; eslint and `tsc --noEmit` for TypeScript. Don't introduce another language or a second web framework.
 - **Approved item 26 native helper (2026-09-23):** the private Rust helper and the two-line Clone patch to the pinned Dogwood library are a narrow language exception. MCP prepares policies at startup and replays each check with fresh native history; the unmodified CLI remains the equivalence reference. No cached authorization decisions or runtime fallback (ADR-017).
 - **No LLM in any decision.** The pipeline, risk engine, constitution evaluator, planner, executor, and protect weighting are code. Models narrate (Explainer), draft (constitution English → YAML patch), and extract structured signals (Protect) behind schema validation. A model's Protect signals are unioned with the keyword extractor's, so it can add a warning and never remove one, and they feed advice only. The rule preview's situation lines are computed by evaluating both constitution versions, never written by a model. If a change routes a decision through a model, it is wrong. See `ARCHITECTURE.md` §5.3, §5.4, §5.7, §5.8.
 - **No ML risk scoring.** The risk table and factors are the deliberate design (ADR-004), not a gap to fill.
@@ -134,14 +134,11 @@ Item 30 adds `uv run --locked python scripts/demo.py init --origin <HTTPS-origin
 
 ## Current phase
 
-**Phase 5 items 29, 29a and 30 are complete; next is Phase 6 item 31.**
-Scripted recording and verified shutdown pass
-([evidence](./docs/verification-log.md#item-30-closure--2026-10-03)).
-[Issue #7](https://github.com/BashaarJavaid/Hirz/issues/7) remains open.
-Item 28 needs compatible-iPhone Web Push; Nova remains deferred to 29b.
-Development stays on 0005; migrations remain manual. Preserve both inference
-ledgers. Real contacts, physical locks, Ring, Link and AWS guarantees remain
-unverified.
+Phase 5 is complete and promoted to main on 2026-10-06. Review fixes (policy
+cache, Twin/push loops, dependencies, web split, companion CI job, localhost
+origin, frozen startup generation) are merged to main on 2026-10-06 (PR #9); the localhost
+Compose Twin check is verified. Next is Phase 6 item 31. Item 28 stays Partial
+for Web Push; issue #7 remains open. Development stays on 0005; migrations remain manual.
 
 ---
 

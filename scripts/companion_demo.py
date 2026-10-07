@@ -17,6 +17,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from types import AsyncGeneratorType
 from typing import Any
+from urllib.parse import urlsplit
 
 import sqlalchemy as sa
 import uvicorn
@@ -180,7 +181,7 @@ async def run(args: argparse.Namespace) -> None:
         )
     if os.environ.get("HIRZ_LLM", "off") != "off":
         raise ValueError("Disposable companion verification requires HIRZ_LLM=off")
-    config = Config(args.origin, args.origin.removeprefix("https://"))
+    config = Config(args.origin, urlsplit(args.origin).hostname or "")
     args.artifacts_dir.mkdir(mode=0o700, parents=True, exist_ok=False)
     values = read_env(Path(".env"))
     for name, value in values.items():

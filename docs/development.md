@@ -1484,7 +1484,9 @@ HIRZ_LLM=off HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run --locked python -m script
 The harness supplies private MCP credentials to the test runner, never to page
 JavaScript. Keep its artifact directory private; it includes one-use invitations
 and temporary authentication material. The browser sees `https://hirz.example.test`
-while transport goes to the isolated loopback server. The same command runs in CI.
+while transport goes to the isolated loopback server. The same command runs in CI
+in the independent `companion` job, so its intermittent shutdown timeout cannot
+block `python-test` and its coverage gate; issue #7 remains open.
 Do not point these tests at a retained phone enrollment.
 
 Chromium uses its virtual authenticator with real server signature verification.
@@ -1521,6 +1523,12 @@ household setup or migration. The container copies these repository resources
 explicitly. No startup migration is introduced.
 
 ## Item 29 disposable simulator
+
+`HIRZ_DATABASE_HOST` and `HIRZ_DATABASE_PORT` override the host and port used by
+`db.database_url` (defaults `127.0.0.1` and `5432`; port must be 1–65535). The
+simulator launcher sets them from `--database-host` and `--database-port`, so
+nested Twin replay uses the same PostgreSQL endpoint, including the recording
+Compose service rather than container loopback.
 
 Build the existing cards and companion bundle (`pnpm --filter mcp-app build` and
 `pnpm --filter web build`), start the existing PostgreSQL service, and use Node 24,
@@ -1708,10 +1716,14 @@ action needs consent. Reapproving the whole plan does not answer these requests.
 
 ## Item 30 recording stack
 
-Use Docker Desktop, Python 3.12/uv and Tailscale on the recording computer. Configure
-trusted HTTPS forwarding to loopback 8002 before initialization, using the companion
-HTTPS procedure. The phone must trust and reach that same origin; Echo OAuth linking
-uses the recording computer's loopback issuer. Ports 8002 and 8003 must be free.
+Use Docker Desktop and Python 3.12/uv on the recording computer. For a
+single-machine run, `uv run --locked python scripts/demo.py init --origin
+http://localhost:8002` skips the Tailscale check and serves the companion and
+simulator locally; enroll and activate rules with the laptop's passkey. For a
+phone, configure Tailscale trusted HTTPS forwarding to loopback 8002 before
+initialization, using the companion HTTPS procedure. The phone must trust and
+reach that same origin; Echo OAuth linking uses the recording computer's loopback
+issuer. Ports 8002 and 8003 must be free.
 
 ```sh
 uv run --locked python scripts/demo.py init --origin https://YOUR-LOCAL-HOST
@@ -1723,14 +1735,18 @@ Initialization creates separate recording credentials in `secrets/demo/.env`
 file privately. Never replace keys/passwords alongside retained recording state;
 restore the original configuration if it is partial, malformed, absent, or has a
 conflicting origin. No development migration, seed or reset is performed.
+The credential guard scans every recording-labeled container and volume on the
+Docker host, so a host holds one recording checkout at a time and retained failed
+runs must be disposed with explicit approval before another checkout initializes.
 
 Each foreground invocation builds the existing image and creates a unique Compose
 project, PostgreSQL volume and `secrets/demo/runs/<run-id>` directory (0700).
 PostgreSQL is not published; the runtime runs as your non-root UID/GID. The image
 includes the UI bundles and native Dogwood. No HA, AWS or inference credentials
 are supplied. Build time is separate from the 180-second readiness allowance.
-The wrapper validates the private receipt, local endpoints and trusted HTTPS before
-opening `/simulator`; if the browser opener fails, open its printed URL manually.
+The wrapper validates the private receipt, local endpoints and, for phone origins,
+trusted HTTPS before opening `/simulator`; if the browser opener fails, open its
+printed URL manually.
 
 The initial screen uses Malik's Echo, Scripted, dark theme, Echo Show, speech off.
 Evening is selected and paused at 2026-10-13 17:30 America/Chicago before its first
@@ -1738,12 +1754,24 @@ event; parents stays paused at 17:00. Seed 20261013 and scenario files are uncha
 Devices/contact replies remain simulated and rate provenance remains published.
 Readiness means this seeded paused state, **not** a preauthenticated household.
 
+The Twin page now has working replay in the recording stack: the simulator runs
+its replay/push loops and forwards the database endpoint to nested replay. The
+simulator browser check sees the check-in card after five one-minute Twin steps;
+the localhost recording Compose check is now verified
+([quickstart evidence](./verification-log.md#localhost-compose-quickstart-verified--2026-10-06)),
+without claiming a manual Tailscale-origin check.
+
 The launcher prints only the private invitation-file location. Open that file
 locally, enroll each owner in a separate companion session with a real passkey,
 activate each seed policy, then explicitly approve the appropriate Echo OAuth
 consent on the recording computer. Follow the item 29 rehearsal above for rule
 activation and phone approval. Every fresh run needs fresh enrollment and linking.
 Do not publish invitations, recovery codes, private logs or whole artifact folders.
+
+The launcher must run in a terminal or a process with the default SIGINT disposition,
+because a background job from a non-interactive shell inherits ignored SIGINT,
+cannot be interrupted with it, and must then be stopped by mirroring the wrapper's
+stop, export-verification and cleanup steps.
 
 Keep the terminal attached. Ctrl-C stops the runtime first, allows up to 120
 seconds for settlement/exports, then independently verifies both households against

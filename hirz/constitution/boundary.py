@@ -61,6 +61,10 @@ class Dogwood:
         self._process: asyncio.subprocess.Process | None = None
         self._lock = asyncio.Lock()
 
+    @property
+    def live(self) -> bool:
+        return self._persistent
+
     async def _stop(self) -> None:
         process, self._process = self._process, None
         if process is not None:

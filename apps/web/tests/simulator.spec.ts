@@ -87,6 +87,13 @@ test("simulator linking, real enrollment, cards, Dot, switching and both themes"
   await page.goto(callback, { waitUntil: "domcontentloaded" });
   await page.goto(origin + "/simulator", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("button", { name: "Relink Echo" })).toBeVisible();
+  if (!scenario) {
+    await page.goto(`${origin}/twin`);
+    await page.getByRole("button", { name: "Start scenario", exact: true }).click();
+    for (let i = 0; i < 5; i++) await page.getByRole("button", { name: "Step one minute", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Your mom is checking it’s really you." })).toBeVisible({ timeout: 60000 });
+    await page.goto(`${origin}/simulator`);
+  }
   async function fullscreen() {
     const card = page.frameLocator('iframe[title="Hirz MCP App card"]');
     await card.getByRole("button", { name: "Open details", exact: true }).click();

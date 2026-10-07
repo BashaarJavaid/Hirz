@@ -64,19 +64,36 @@ class Config:
 
     def __post_init__(self) -> None:
         parsed = urlsplit(self.origin)
+        localhost = (
+            parsed.scheme == "http"
+            and parsed.hostname == self.rp_id == "localhost"
+            and parsed.netloc in {"localhost", f"localhost:{parsed.port}"}
+        )
         if (
-            parsed.scheme != "https"
+            (not localhost and parsed.scheme != "https")
             or parsed.hostname != self.rp_id
             or parsed.username
             or parsed.password
             or parsed.path
             or parsed.query
             or parsed.fragment
-            or parsed.netloc != self.rp_id
+            or (not localhost and parsed.netloc != self.rp_id)
         ):
             raise ValueError(
-                "Configure one exact HTTPS origin and matching RP hostname"
+                "Configure one exact HTTPS or HTTP localhost origin and matching RP hostname"
             )
+
+    @property
+    def secure(self) -> bool:
+        return self.origin.startswith("https:")
+
+    @property
+    def session_cookie(self) -> str:
+        return SESSION_COOKIE if self.secure else "hirz-session"
+
+    @property
+    def browser_cookie(self) -> str:
+        return BROWSER_COOKIE if self.secure else "hirz-browser"
 
 
 def guard(

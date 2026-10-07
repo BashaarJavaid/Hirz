@@ -133,6 +133,24 @@ def test_real_registration_and_assertion_verification():
 
 
 def test_origin_csrf_and_cross_origin_guards():
+    assert CONFIG.secure is True
+    assert CONFIG.session_cookie == "__Host-hirz-session"
+    assert CONFIG.browser_cookie == "__Host-hirz-browser"
+    for origin in ("http://localhost:8002", "http://localhost"):
+        config = Config(origin, "localhost")
+        assert config.secure is False
+        assert config.session_cookie == "hirz-session"
+        assert config.browser_cookie == "hirz-browser"
+    for origin in (
+        "http://127.0.0.1:8002",
+        "http://localhost.evil.test:8002",
+        "http://localhost:8002/",
+        "http://localhost:8002?x=1",
+    ):
+        with pytest.raises(ValueError):
+            Config(origin, "localhost")
+    with pytest.raises(ValueError):
+        Config("http://localhost:8002", "hirz.example.test")
     guard(CONFIG, CONFIG.origin, "session", csrf("session"))
     for origin, token in (
         ("https://evil.test", csrf("session")),

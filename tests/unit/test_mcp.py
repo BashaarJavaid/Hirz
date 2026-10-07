@@ -1,6 +1,7 @@
 """Local MCP protocol, schema, lifecycle and adversarial request boundaries."""
 
 import asyncio
+import gc
 import json
 from collections import deque
 
@@ -9,6 +10,7 @@ import pytest
 from jsonschema import Draft202012Validator
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
+from starlette.testclient import TestClient
 from starlette.types import Message, Receive, Scope, Send
 
 from hirz.api.app import create_app
@@ -24,6 +26,15 @@ CALL = {
     "method": "tools/call",
     "params": {"name": "what_can_you_do", "arguments": {}},
 }
+
+
+def test_lifespan_freezes_startup_objects() -> None:
+    before = gc.get_freeze_count()
+    try:
+        with TestClient(create_app()):
+            assert gc.get_freeze_count() > before
+    finally:
+        gc.unfreeze()
 
 
 def test_client_sdk_and_independent_lifecycles() -> None:

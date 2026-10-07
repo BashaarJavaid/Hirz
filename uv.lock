@@ -455,6 +455,7 @@ dependencies = [
     { name = "cryptography" },
     { name = "fastapi" },
     { name = "httpx" },
+    { name = "jsonschema" },
     { name = "mcp" },
     { name = "psycopg", extra = ["binary"] },
     { name = "pydantic" },
@@ -465,6 +466,7 @@ dependencies = [
     { name = "rfc8785" },
     { name = "scipy" },
     { name = "sqlalchemy", extra = ["asyncio"] },
+    { name = "strands-agents" },
     { name = "uvicorn" },
     { name = "webauthn" },
     { name = "websockets" },
@@ -477,7 +479,6 @@ dev = [
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "ruff" },
-    { name = "strands-agents" },
     { name = "types-pyyaml" },
 ]
 
@@ -489,6 +490,7 @@ requires-dist = [
     { name = "cryptography", specifier = "==50.0.1" },
     { name = "fastapi", specifier = "==0.141.1" },
     { name = "httpx", specifier = "==0.28.1" },
+    { name = "jsonschema", specifier = "==4.26.0" },
     { name = "mcp", specifier = "==1.30.0" },
     { name = "psycopg", extras = ["binary"], specifier = "==3.3.5" },
     { name = "pydantic", specifier = "==2.13.5" },
@@ -499,6 +501,7 @@ requires-dist = [
     { name = "rfc8785", specifier = "==0.1.4" },
     { name = "scipy", specifier = "==1.18.0" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = "==2.0.54" },
+    { name = "strands-agents", specifier = "==1.57.0" },
     { name = "uvicorn", specifier = "==0.53.0" },
     { name = "webauthn", specifier = "==3.0.1" },
     { name = "websockets", specifier = "==17.1" },
@@ -511,7 +514,6 @@ dev = [
     { name = "pytest", specifier = "==9.1.1" },
     { name = "pytest-cov", specifier = "==7.1.0" },
     { name = "ruff", specifier = "==0.16.8" },
-    { name = "strands-agents", specifier = "==1.57.0" },
     { name = "types-pyyaml", specifier = "==6.0.12.20260906" },
 ]
 

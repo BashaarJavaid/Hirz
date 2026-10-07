@@ -1,5 +1,6 @@
 """SQLAlchemy Core schema and local async connections; no audit writer."""
 
+import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -334,12 +335,18 @@ def database_url(values: dict[str, str]) -> sa.URL:
     password = values.get("POSTGRES_PASSWORD")
     if not password:
         raise LocalError("POSTGRES_PASSWORD is missing; restore .env.")
+    try:
+        port = int(os.environ.get("HIRZ_DATABASE_PORT", "5432"))
+    except ValueError as exc:
+        raise LocalError("HIRZ_DATABASE_PORT must be an integer in 1–65535.") from exc
+    if not 1 <= port <= 65535:
+        raise LocalError("HIRZ_DATABASE_PORT must be an integer in 1–65535.")
     return sa.URL.create(
         "postgresql+psycopg",
         username="hirz",
         password=password,
-        host="127.0.0.1",
-        port=5432,
+        host=os.environ.get("HIRZ_DATABASE_HOST", "127.0.0.1"),
+        port=port,
         database="hirz",
     )
 

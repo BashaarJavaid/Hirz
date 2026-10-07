@@ -2,6 +2,7 @@
 
 import asyncio
 from pathlib import Path
+from unittest.mock import AsyncMock, patch
 
 import httpx
 import pytest
@@ -21,6 +22,103 @@ from tests.unit.test_companion_auth import CONFIG, Authenticator
 from tests.unit.test_pipeline import ident
 
 pytestmark = pytest.mark.integration
+
+
+def test_localhost_browser_cookie(scratch_database):
+    async def run():
+        async with connect(scratch_database) as c:
+            p = await setup(c, native=True)
+            config = auth.Config("http://localhost:8002", "localhost")
+            service = Companion(c.engine, p.audit, config)
+            async with httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=create_app(companion=service)),
+                base_url=config.origin,
+            ) as client:
+                response = await client.get("/api/auth/session")
+                assert response.status_code == 200
+                cookie = response.headers["set-cookie"]
+                assert cookie.startswith("hirz-browser=")
+                assert "secure" not in cookie.lower().split("; ")
+                assert "HttpOnly" in cookie
+                assert "SameSite=strict" in cookie
+
+    asyncio.run(run())
+
+
+def test_policy_bundle_cached_until_stored_hash_changes(scratch_database):
+    async def run():
+        async with connect(scratch_database) as c:
+            p = await setup(c, native=True)
+            p.clock = now
+            owner = await enroll(
+                p,
+                await auth.initial_invitation(p, ident("members", "malik")),
+                Authenticator(),
+            )
+            async with p.repo.write(p.clock):
+                member = await auth.session(c, owner["session"], p.clock())
+                phone = member["principal"].model_copy(
+                    update={"passkey_verified": True}
+                )
+                draft = await policy.draft(p, phone, dump(p.bundle.policy()))
+                version = await policy.activate(
+                    p, phone, draft["id"], draft["candidate_hash"], member["digest"]
+                )
+            service = Companion(c.engine, p.audit, CONFIG)
+            # Launchers use the pipeline before the app starts its native helper.
+            async with service.pipeline(p.household_id):
+                pass
+            validate = AsyncMock(wraps=service.boundary.validate)
+            app = create_app(companion=service)
+            async with (
+                service.boundary.persistent(),
+                httpx.AsyncClient(
+                    transport=httpx.ASGITransport(app=app), base_url=CONFIG.origin
+                ) as client,
+            ):
+                client.cookies.set(auth.SESSION_COOKIE, owner["session"])
+                client.cookies.set(auth.BROWSER_COOKIE, "policy-cache-browser")
+                client.headers.update(
+                    {
+                        "origin": CONFIG.origin,
+                        "x-hirz-csrf": auth.csrf(owner["session"]),
+                    }
+                )
+                for expected_count in (1, 2):
+                    if expected_count == 2:
+                        current = await client.get("/api/constitution")
+                        assert current.status_code == 200, current.text
+                        response = await client.post(
+                            "/api/constitution/draft",
+                            json={"yaml": current.json()["yaml"], "sentence": ""},
+                        )
+                        assert response.status_code == 200, response.text
+                        draft = response.json()
+                        async with service.pipeline(p.household_id) as q:
+                            async with q.repo.write(q.clock):
+                                assert (
+                                    await policy.activate(
+                                        q,
+                                        phone,
+                                        draft["id"],
+                                        draft["candidate_hash"],
+                                        member["digest"],
+                                    )
+                                    == version + 1
+                                )
+                    # Count polling validation, excluding draft/activation checks.
+                    with patch.object(service.boundary, "validate", validate):
+                        for endpoint in ("tonight", "approvals", "constitution") * 2:
+                            response = await client.get(f"/api/{endpoint}")
+                            assert response.status_code == 200, response.text
+                            if endpoint == "constitution":
+                                assert (
+                                    response.json()["version"]
+                                    == version + expected_count - 1
+                                )
+                    assert validate.await_count == expected_count
+
+    asyncio.run(run())
 
 
 def test_authenticated_household_isolation_and_ceremony_binding(scratch_database):

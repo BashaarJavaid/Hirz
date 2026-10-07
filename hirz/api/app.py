@@ -1,5 +1,6 @@
 """Local MCP and liveness; dependency readiness remains later work."""
 
+import gc
 import os
 from collections.abc import AsyncIterator, Callable
 from contextlib import AsyncExitStack, asynccontextmanager
@@ -73,6 +74,9 @@ def create_app(
                     await stack.enter_async_context(cache.run())
                 await stack.enter_async_context(server.session_manager.run())
                 await stack.enter_async_context(anonymous.session_manager.run())
+                # Startup policies, catalogs, schemas and metadata are never freed; freezing skips later full collections.
+                # Collection stays enabled and thresholds are untouched.
+                gc.freeze()
                 yield
         finally:
             if engine is not None:

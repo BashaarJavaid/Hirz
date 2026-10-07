@@ -11611,3 +11611,346 @@ This run is recorded as **failed**; no retry was made. By the author's decision,
 the documentation-only Phase 5 promotion to `main` proceeds on the ordinary jobs;
 latency remains required before item closure and submission, not this promotion.
 The Hourly objective cases' headroom is now a tracked follow-up; no fix is claimed.
+
+
+## Phase 5 review fixes — 2026-10-06
+
+These are the already-run local checks and CI results supplied for the fixes on
+`phase-5-fixes`, in branch order; this records pass reruns no runtime or browser
+checks. Commands below identify the verification entrypoints; `...` abbreviates
+suite selection or private artifact/image paths, not a literal shell argument.
+Local browser checks use disposable households, simulated devices and real
+server-side passkey verification with Playwright virtual authenticators.
+
+### 5ee8873 — Lifespan-scoped companion policy cache
+
+Commit `5ee8873` caches the companion's validated policy bundle by stored hash
+only within the native helper lifespan, revalidating after the hash changes
+([ADR-019 amendment](./adr/ADR-019-companion.md#lifespan-scoped-policy-cache--2026-10-06)).
+`uv run --locked pytest ... -m integration --no-cov` over the companion integration
+suites reported **36 passed**; `HIRZ_LLM=off uv run --locked python -m
+scripts.smoke_companion --artifacts-dir ...` reported **PASS**. CI also verified
+the committed fix. The first attempt cached before the helper lifespan and broke
+enrollment; that attempt was corrected, which is why the cache is lifespan-scoped.
+No cross-lifespan cache, cached authorization decision or runtime fallback is
+claimed; the failed enrollment attempt is not counted as a pass.
+
+### b8eaf85 — Simulator Twin replay and push delivery
+
+Commit `b8eaf85` runs Twin replay and configured push delivery in the simulator
+launcher. `db.database_url` honors `HIRZ_DATABASE_HOST` and
+`HIRZ_DATABASE_PORT`; the launcher sets them from its database arguments so
+nested replay can reach PostgreSQL inside `compose.demo.yml`.
+
+- `uv run --locked pytest ... --no-cov`: focused unit checks **22 passed**;
+  `uv run --locked pytest ... -m integration --no-cov`: **11 passed**.
+- `HIRZ_DATABASE_HOST=<unreachable-host> uv run --locked hirz doctor`: Postgres
+  line **FAIL**; the localhost override reported Postgres **PASS**. These are
+  Postgres-line results, not a claim that every doctor check passed.
+- `HIRZ_DATABASE_HOST=localhost uv run --locked hirz scenario run
+  scenarios/demo-evening.yaml --headless --assert`: **exit 0** under the override.
+- `HIRZ_LLM=off uv run --locked python -m scripts.simulator_demo --origin
+  https://hirz.example.test --artifacts-dir ... --browser-test`: **PASS**, now
+  exercising the Twin page and its check-in card after **five one-minute steps**.
+
+CI verified the fix. Browser and headless checks do not establish the author's
+manual Twin-page check inside recording Compose on the Tailscale origin, which
+remains pending; running the delivery loop does not close item 28's Web Push gate.
+
+### bf72ec0 — Runtime dependencies
+
+Commit `bf72ec0` declares `strands-agents==1.57.0` and `jsonschema==4.26.0`
+as runtime dependencies. `uv build`, fresh-wheel installation/import checks
+(`python -c 'import strands, jsonschema'`), and the corresponding `docker build`
+and `docker run ... python -c 'import strands, jsonschema'` checks **PASS**;
+`docker image inspect` reported **173,788,842 bytes**. CI also verified packaging.
+This proves the imports are present in installed artifacts, not a live Bedrock
+call, model-quality result or new inference-budget authorization.
+
+### 3318a41 — Companion page split
+
+Commit `3318a41` splits the companion into one file per page under `pages/`,
+shared `components/primitives.tsx`, and `types.ts`. The companion source line-length
+check found **zero lines over 120 characters**. Both browser suites passed:
+`HIRZ_LLM=off uv run --locked python -m scripts.smoke_companion --artifacts-dir ...`
+and `HIRZ_LLM=off uv run --locked python -m scripts.simulator_demo --origin
+https://hirz.example.test --artifacts-dir ... --browser-test`. CI verified the
+refactor. This is a move/reformat with no behavior change, not new page behavior
+or additional design work; the browser evidence does not close physical-device gates.
+
+### d9a7dfc — Separate companion CI job
+
+Commit `d9a7dfc` moves `uv run --locked python -m scripts.smoke_companion
+--artifacts-dir "$RUNNER_TEMP/companion"` into the independent `companion` job.
+There are now **twelve job IDs**. [CI run 37527844834](https://github.com/BashaarJavaid/Hirz/actions/runs/37527844834)
+is green: `companion` **470 s**, `python-test` **1,861 s**. Separating the browser
+smoke prevents its shutdown from blocking the Python coverage gate.
+[Issue #7](https://github.com/BashaarJavaid/Hirz/issues/7) remains open; no shutdown
+fix is claimed, and the successful release placeholder is not deployment evidence.
+
+### 3495260 — Localhost companion origin
+
+Commit `3495260` accepts `http://localhost` with RP ID `localhost`. On that origin
+only, cookies omit the `__Host-` prefix and `Secure` flag; HttpOnly and SameSite
+strict remain. The localhost simulator/Playwright browser check
+(`HIRZ_BROWSER_ORIGIN=http://localhost:8002 HIRZ_LLM=off uv run --locked python -m
+scripts.simulator_demo --origin http://localhost:8002 --artifacts-dir ... --browser-test`) completed real
+server-verified enrollment in **30.2 s**. HTTPS smokes remain unchanged, and CI
+verified the fix. This is single-machine localhost support, not arbitrary HTTP
+origins, a physical laptop-passkey check or phone access over HTTP.
+
+### 366e7fc — Freeze the MCP startup generation
+
+Commit `366e7fc` calls `gc.freeze()` at the end of MCP lifespan startup, before
+serving requests, leaving collection enabled and thresholds unchanged.
+`uv run --locked pytest tests/unit/test_mcp.py --no-cov` reported **77 passed**;
+Ruff lint/format and mypy passed. [Push run 37535295733](https://github.com/BashaarJavaid/Hirz/actions/runs/37535295733)
+is green. The lifespan check verifies the frozen-object count increases and
+unfreezes during cleanup. The change is kept under the precommitted rule recorded
+in the following amendment; no disabled collection or relaxed latency gate is claimed.
+
+### 6ce499b — Frozen-generation diagnostic record
+
+Commit `6ce499b` records [ADR-017's frozen startup generation amendment](./adr/ADR-017-tool-latency-and-isolation.md#frozen-startup-generation--2026-10-06).
+The instrumented workflow dispatch runs `HIRZ_BUDGET_ARTIFACTS=... uv run --locked
+pytest tests/latency -m latency --no-cov -s`; retained baseline/new job logs were
+compared with the private `phase5-fixes-10-gc/compare.py` script.
+[Diagnostic dispatch 37535311007](https://github.com/BashaarJavaid/Hirz/actions/runs/37535311007)
+completed all **13 jobs** successfully (the latency matrix expands one job ID).
+
+| Diagnostic | Time-of-Day: before → after | Hourly: before → after |
+|---|---|---|
+| Maximum full-collection pause | 116.638 → 6.676 ms | 108.682 → 13.973 ms |
+| Highest case p95 | 242.723 → 168.008 ms | 238.255 → 143.883 ms |
+
+**KEEP**: both maximum generation-2 pauses are at most half their baselines, and
+none of the six objective-case p95 comparisons regress. The full comparison,
+rejected alternatives and private evidence location belong to the ADR amendment.
+This instrumented dispatch is diagnostic evidence, not a normal acceptance-gate
+run, AWS latency measurement or proof that issue #7 is fixed.
+
+### Pending Compose Twin check and friction
+
+The author's manual Twin-page check inside the recording Compose stack on the
+Tailscale HTTPS origin is **pending**; no pass is claimed. No third-party friction
+was encountered in these fixes, so no friction-log entry was earned.
+
+
+### Retained run disposal — 2026-10-06
+
+The author explicitly approved disposal on **2026-10-06** of exactly these seven
+retained item 30 recording runs:
+
+- `hirz-demo-4cfe0e1f9c3a4f19a5758100e058184f`
+- `hirz-demo-963ab937385c44b1881dafb03d62198b`
+- `hirz-demo-a173c9d9b54e4bcaada89de8049c7aa9`
+- `hirz-demo-b29aa6cfbeaf49119019964a4fdb4362`
+- `hirz-demo-93f640ca4adc4febb4b8b92d3265b620`
+- `hirz-demo-b6b251632b1747f1b0047b556347e9b1`
+- `hirz-demo-60b2a8c680534079b5079f3dea8b99b7`
+
+For each literal run ID, the documented per-run procedure stopped and removed
+`<run>-simulator-1` and `<run>-postgres-1`, removed `<run>_postgres` with
+`docker volume rm`, and removed `<run>_default` with `docker network rm`.
+All commands succeeded. Only Docker containers, volumes and networks were removed;
+no prune or label-wide removal was used. The author's private evidence directories
+remain; `/Users/bashaarjavaid/Projects/Hirz/secrets` was not touched.
+
+`docker ps -a --filter label=org.hirz.recording=v1` and
+`docker volume ls --filter label=org.hirz.recording=v1` then printed only headers:
+
+```text
+CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS     NAMES
+DRIVER    VOLUME NAME
+```
+
+The initial fresh-clone credential initialization had refused these host-wide
+retained resources with `FAIL: Demo state exists without credentials; restore the
+original secrets/demo/.env. Nothing was reset.` The approved disposal cleared that
+guard without copying or replacing the author's recording identity.
+
+### Localhost Compose quickstart verified — 2026-10-06
+
+Fresh clone: `/Users/bashaarjavaid/Projects/hirz-private-evidence/phase5-fixes-11-clone`,
+branch `phase-5-fixes`, commit `02520f5058619849f612bba8110f79d7045ee024`
+(`git rev-parse --short HEAD`: `02520f5`). `uv sync --locked` and
+`pnpm install --frozen-lockfile` passed; the clone was clean before recording.
+No root `.env` was created. The recording image built both web bundles inside
+Docker. All subsequent clone `uv` commands used `env -u VIRTUAL_ENV` to remove
+the parent checkout's leaked virtual-environment setting. Playwright's installed
+Chromium used virtual authenticators with real server-side passkey verification;
+this is automated localhost acceptance, not a physical laptop/phone passkey test.
+The clone and its private evidence remain in place.
+
+**First run and manual recovery:**
+`hirz-demo-bd7c940f668b48a4b8f8919e787f8acb`.
+
+`env -u VIRTUAL_ENV uv run --locked python scripts/demo.py init --origin
+http://localhost:8002` printed:
+
+```text
+Demo credentials initialized in secrets/demo/.env (0600); development unchanged.
+```
+
+The `nohup` launcher built the image, reached `Ready, paused.`, and opened
+`http://localhost:8002/simulator`. The default acceptance cell was:
+
+```sh
+HIRZ_BROWSER_ORIGIN=http://localhost:8002 HIRZ_BROWSER_BACKEND=http://127.0.0.1:8002 HIRZ_SIMULATOR_ARTIFACTS=$PWD/secrets/demo/runs/<run-id>/artifacts pnpm --filter web exec playwright test tests/simulator.spec.ts
+```
+
+It reported **`1 passed (27.9s)`**. The non-interactive shell's background job
+inherited ignored SIGINT, so Python never installed its KeyboardInterrupt handler;
+SIGINT to either `uv` or its Python child could not initiate cleanup. This was an
+operator procedure issue, not a product defect. By the author's explicit recovery
+instruction, `pkill -TERM -f "scripts/demo.py run"` terminated the stuck wrapper;
+`pgrep -f "scripts/demo.py run"` then printed nothing (exit 1). The containers
+continued running. No successful wrapper shutdown is claimed for this run.
+
+Recovery mirrored `scripts/demo.py run()` with the clone's `secrets/demo/.env`,
+`HIRZ_DEMO_UID=$(id -u)`, `HIRZ_DEMO_GID=$(id -g)`, the literal run ID in
+`HIRZ_DEMO_RUN`, and its absolute private directory in `HIRZ_DEMO_RUN_DIR`:
+
+```sh
+docker compose --project-name "$HIRZ_DEMO_RUN" --env-file secrets/demo/.env -f compose.demo.yml stop --timeout 120 simulator
+docker inspect --format '{{json .State}}' "${HIRZ_DEMO_RUN}-simulator-1"
+```
+
+The runtime was **exited, ExitCode 0, OOMKilled false**. Its
+`artifacts/shutdown.json` was:
+
+```json
+{
+  "run_id": "hirz-demo-bd7c940f668b48a4b8f8919e787f8acb",
+  "exports_verified": true
+}
+```
+
+Independent verification used the recording key's public half, never the exported
+key as its own trust anchor. The supplied extraction expression initially passed
+a string to `read_env` and raised `AttributeError: 'str' object has no attribute
+'is_symlink'`; the verifier therefore reported `Expected a PEM P-256 public key`
+with zero rows checked. Correcting that invocation to `read_env(Path(...))`
+required no product change. The corrected command was run for each household:
+
+```sh
+env -u VIRTUAL_ENV uv run --locked hirz verify-audit --household "$household" --file "$HIRZ_DEMO_RUN_DIR/artifacts/$household/audit.json" --public-key <(env -u VIRTUAL_ENV uv run --locked python -c "from pathlib import Path; from hirz.local import read_env, signing_key; from cryptography.hazmat.primitives import serialization; print(signing_key(read_env(Path('secrets/demo/.env'))).public_key().public_bytes(serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo).decode())")
+```
+
+| Household | Verification status | Sequence / checked rows | CLI exit |
+|---|---|---|---|
+| Home `536fa8ee-854e-56ca-8c5d-5ba418e710a0` | `valid` | 1–1034 / 1034 | 0 |
+| Parents `bf745178-9146-5952-a310-f1d7e563977b` | `empty` | no sequence / 0 | 0 |
+
+Both results had null failure/reason and fingerprint
+`0f662aa0a25cc98199f9a9ac41469c816c00632fab2688fe77a6de7e7b1db373`.
+Only after both passed, `docker compose --project-name "$HIRZ_DEMO_RUN"
+--env-file secrets/demo/.env -f compose.demo.yml down --volumes` removed this
+run's resources. Both recording Docker listings were empty, with the same headers
+shown in the disposal entry. No wrapper `cleanup.json` was fabricated for this
+manually recovered run.
+
+**Second run, normal wrapper-driven proof:**
+`hirz-demo-4bf6855a4f5244828b08f00b2ef347d1`.
+
+The same initialization command printed:
+
+```text
+Demo configuration validated and preserved.
+```
+
+The approved driver restored the default SIGINT disposition before starting the
+launcher in its own session, appending to the retained `demo-run.log`:
+
+```python
+import signal
+import subprocess
+
+signal.signal(signal.SIGINT, signal.SIG_DFL)
+log = open("demo-run.log", "ab")
+p = subprocess.Popen(
+    ["uv", "run", "--locked", "python", "scripts/demo.py", "run"],
+    stdout=log,
+    stderr=subprocess.STDOUT,
+    start_new_session=True,
+)
+open("demo-run.pid", "w").write(str(p.pid))
+```
+
+It was invoked through `env -u VIRTUAL_ENV python3`, and the new run reached
+`Ready, paused.`. The same default Playwright cell, using the new artifact path,
+reported **`1 passed (28.7s)`**. `pkill -INT -f "python scripts/demo.py run"`
+then interrupted the launcher's Python process. Within the three-minute limit,
+`pgrep -f "scripts/demo.py run"` printed nothing (exit 1). The final two log lines
+were:
+
+```text
+Keep this launcher attached. Ctrl-C exports and verifies both households before cleanup.
+Verified shutdown; recording storage removed. Evidence preserved: /Users/bashaarjavaid/Projects/hirz-private-evidence/phase5-fixes-11-clone/secrets/demo/runs/hirz-demo-4bf6855a4f5244828b08f00b2ef347d1
+```
+
+The new run's `cleanup.json` exists and records its run ID,
+`exports_verified: true` and `storage_removed: true`. Independent home verification
+with the corrected command above returned **`valid`**, sequence **1–103**,
+**103 checked rows**, null failure/reason and CLI exit **0**, under the same
+recording-key fingerprint. Both recording Docker listings again contained only
+the empty headers. The detached driver's launcher exit status was not collected;
+normal completion is established by its final line, cleanup receipt and absence
+of the process/resources, not an invented process exit code.
+
+Both default browser cells enrolled and activated seed rules, linked an Echo,
+exercised the **Twin page inside the container** (the simulated check-in card after
+five one-minute steps), rendered both themes and checked Dot mode. The Compose
+Twin check is therefore **no longer pending**. This does not claim the author's
+manual Tailscale-origin check, physical passkey/Web Push acceptance, issue #7
+repair, real devices, AWS deployment or externally anchored audit completeness.
+The CLI correctly labels these exports `not anchored: local mode`; omitted
+history, later rows, tail truncation, complete erasure and re-signed rewrites are
+outside this verification. No third-party friction entry was earned: the ignored
+SIGINT was shell semantics, and the public-key argument correction was an
+operator invocation correction.
+
+### Promotion dispatch failed on runner stalls — 2026-10-06
+
+[Dispatch 37554567217](https://github.com/BashaarJavaid/Hirz/actions/runs/37554567217)
+on `f1fc3a1d1a4bde17f6376d6e683086240bd6693f`: `build`, `python-lint`,
+`python-types`, `python-test`, `ts-lint-types`, `ts-test`, `companion`,
+`cedar-conform`, `conformance`, `scenarios`, `release` and
+`latency (demo-evening-hourly)` succeeded; `latency (demo-evening)` **failed**:
+
+| Case | Median | p95 | Maximum |
+|---|---|---|---|
+| `revision-car` | 115.454 ms | **272.817 ms** | 695.660 ms |
+
+Hourly's highest case p95 was **179.660 ms** (`objective-greenest`), with no case
+maximum above 300 ms. In the failing job nine cases had maxima above 300 ms
+(`plan-ready` 340.4, `plan-approval` 351.7, `objective-greenest` 450.5,
+`same-second-approval` 379.6, `revision-dishwasher` 320.7, `revision-guest` 400.6,
+`action-profile` 396.2, `pause` 405.0, `revision-car` 695.7 ms), while the
+[frozen-generation diagnostic run 37535311007](https://github.com/BashaarJavaid/Hirz/actions/runs/37535311007)
+on the same code had none, and medians were lower than that run almost everywhere.
+This pattern is attributed to runner stalls, not a code regression; no fix is
+claimed. The run is recorded as **failed**. After this diagnosis the author
+approved, on 2026-10-06, exactly one re-dispatch of the normal gate with no code,
+threshold, sample-count or warmup change; if it fails, the promotion stops.
+
+### Promotion dispatch — 2026-10-06
+
+The single approved [re-dispatch 37560143637](https://github.com/BashaarJavaid/Hirz/actions/runs/37560143637)
+ran the normal gate (no `latency_diagnostic`) on
+`ecb2c8ab10a61705902c2b7bf2e101f80ce8b436`, which differs from `f1fc3a1` only by
+the preceding record. Every job succeeded: `build`, `python-lint`,
+`python-types`, `python-test`, `ts-lint-types`, `ts-test`, `companion`,
+`cedar-conform`, `conformance`, `scenarios`, `release`,
+`latency (demo-evening)` and `latency (demo-evening-hourly)`.
+
+| Scenario | Highest case p95 | Case | Case maxima above 300 ms |
+|---|---|---|---|
+| `demo-evening` | **183.128 ms** | `revision-dishwasher` | 3 (`objective-cheapest` 361.6, `revision-dishwasher` 355.0, `pause` 665.9) |
+| `demo-evening-hourly` | **178.526 ms** | `objective-greenest` | 0 |
+
+The protocol was unchanged: five warmups and 100 measured calls per case,
+nearest-rank p95, no discarded samples and the **250 ms** warm p95 gate. This
+normal run is the acceptance gate for the frozen-generation change (`366e7fc`);
+it is local Twin evidence on GitHub runners, not an AWS cold-start measurement or
+proof that issue #7 is fixed.

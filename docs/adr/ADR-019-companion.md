@@ -58,3 +58,15 @@ Contracts consulted: [WebAuthn](https://www.w3.org/TR/webauthn-3/),
 [Python WebAuthn](https://duo-labs.github.io/py_webauthn/),
 [WebKit push](https://webkit.org/blog/13878/web-push-for-web-apps-on-ios-and-ipados/),
 [Tailscale Serve](https://tailscale.com/docs/features/tailscale-serve).
+
+### Lifespan-scoped policy cache — 2026-10-06
+
+Companion polling recompiled and validated the stored policy on every request.
+Cache validated bundles per household by stored hash only while the native helper
+is live, revalidating when that hash changes.
+Capture whether the helper is live before awaiting validation, and only cache
+bundles validated from that state so CLI validation cannot populate the cache.
+Reject caching across CLI validation and helper startup because the helper has
+not prepared those policy/schema pairs and must refuse their replay.
+Reject lazy preparation in replay because the native-helper contract forbids
+compilation during a warm call.

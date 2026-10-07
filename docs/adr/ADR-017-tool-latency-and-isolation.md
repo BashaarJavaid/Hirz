@@ -489,3 +489,39 @@ marks reports and summaries as diagnostic only. Instrumentation and synchronous
 logging affect timing; a diagnostic pass cannot close an acceptance gate. Normal
 runs install no hooks. Rejected retrying the failed gate without diagnosis,
 changing its threshold or publishing private payloads for profiling.
+
+### Frozen startup generation — 2026-10-06
+
+The retained [baseline diagnostic 36944414312](https://github.com/BashaarJavaid/Hirz/actions/runs/36944414312)
+found generation-2 collections in 27/28 Time-of-Day and 33/33 Hourly method calls
+over 200 ms, motivating this author-approved bounded experiment after the normal
+Hourly gate failed on 2026-10-06 at 258.391 and 254.834 ms.
+Code commit `366e7fc9520b99b8e53194b5f2d2ac0c27f3ea37` adds `gc.freeze()` after
+the last lifespan context enters and immediately before `yield`, removing prepared
+startup policies, catalogs, schemas and metadata from later full collections while
+leaving collection enabled and thresholds untouched.
+[Diagnostic 37535311007](https://github.com/BashaarJavaid/Hirz/actions/runs/37535311007)
+completed all 13 jobs successfully: Time-of-Day generation-2 count/max/median
+changed from 75/116.638/93.039 to 322/6.676/4.475, and Hourly from
+77/108.682/95.059 to 320/13.973/4.378 (durations in ms).
+Method calls over 200 ms changed from 28 to 0 for Time-of-Day and 33 to 1 for
+Hourly, with the counts containing generation-2 collections falling from 27 to 0
+and 33 to 0 respectively.
+The objective-most_comfortable, objective-greenest and objective-cheapest case
+p95s changed respectively from 183.619/242.723/233.574 to
+159.978/168.008/165.461 ms for Time-of-Day and from 222.375/238.255/236.981 to
+124.150/140.946/129.714 ms for Hourly; highest case p95 changed from 242.723 to
+168.008 ms (objective-greenest) and from 238.255 ms (objective-greenest) to
+143.883 ms (plan-approval).
+The decision is **KEEP** under the precommitted rule: in both scenarios maximum
+generation-2 duration must be at most half its baseline (6.676 <= 58.319 ms and
+13.973 <= 54.341 ms), and no objective case p95 may exceed its own baseline,
+which all six comparisons satisfy.
+Ruff lint/format and mypy passed, the service-free MCP suite reported 77 passed
+with the new lifespan freeze-count test unfreezing in `finally`, and all four job
+logs plus the throwaway parser are retained privately under
+`~/Projects/hirz-private-evidence/phase5-fixes-10-gc/`; this instrumented dispatch
+remains diagnostic evidence, not an acceptance-gate run.
+Rejected alternatives remain disabling the collector, raising its thresholds,
+changing the 250 ms gate, or accepting the existing headroom without addressing
+the measured full-collection pauses.
