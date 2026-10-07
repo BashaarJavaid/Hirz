@@ -136,7 +136,7 @@ Item 30 adds `uv run --locked python scripts/demo.py init --origin <HTTPS-origin
 
 Phase 5 is complete and promoted to main on 2026-10-06. Review fixes (policy
 cache, Twin/push loops, dependencies, web split, companion CI job, localhost
-origin, frozen startup generation) are on phase-5-fixes pending PR; the localhost
+origin, frozen startup generation) are merged to main on 2026-10-06 (PR #9); the localhost
 Compose Twin check is verified. Next is Phase 6 item 31. Item 28 stays Partial
 for Web Push; issue #7 remains open. Development stays on 0005; migrations remain manual.
 
