@@ -11909,3 +11909,27 @@ history, later rows, tail truncation, complete erasure and re-signed rewrites ar
 outside this verification. No third-party friction entry was earned: the ignored
 SIGINT was shell semantics, and the public-key argument correction was an
 operator invocation correction.
+
+### Promotion dispatch failed on runner stalls — 2026-10-06
+
+[Dispatch 37554567217](https://github.com/BashaarJavaid/Hirz/actions/runs/37554567217)
+on `f1fc3a1d1a4bde17f6376d6e683086240bd6693f`: `build`, `python-lint`,
+`python-types`, `python-test`, `ts-lint-types`, `ts-test`, `companion`,
+`cedar-conform`, `conformance`, `scenarios`, `release` and
+`latency (demo-evening-hourly)` succeeded; `latency (demo-evening)` **failed**:
+
+| Case | Median | p95 | Maximum |
+|---|---|---|---|
+| `revision-car` | 115.454 ms | **272.817 ms** | 695.660 ms |
+
+Hourly's highest case p95 was **179.660 ms** (`objective-greenest`), with no case
+maximum above 300 ms. In the failing job nine cases had maxima above 300 ms
+(`plan-ready` 340.4, `plan-approval` 351.7, `objective-greenest` 450.5,
+`same-second-approval` 379.6, `revision-dishwasher` 320.7, `revision-guest` 400.6,
+`action-profile` 396.2, `pause` 405.0, `revision-car` 695.7 ms), while the
+[frozen-generation diagnostic run 37535311007](https://github.com/BashaarJavaid/Hirz/actions/runs/37535311007)
+on the same code had none, and medians were lower than that run almost everywhere.
+This pattern is attributed to runner stalls, not a code regression; no fix is
+claimed. The run is recorded as **failed**. After this diagnosis the author
+approved, on 2026-10-06, exactly one re-dispatch of the normal gate with no code,
+threshold, sample-count or warmup change; if it fails, the promotion stops.
