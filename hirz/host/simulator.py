@@ -36,7 +36,7 @@ def commitment(name: str, args: dict[str, Any]) -> bool:
         or name == "get_household_plan"
         and args.get("objective") is not None
         or name == "verify_trusted_identity"
-        and args.get("operation") == "start"
+        and args.get("operation") in {"start", "retry"}
     )
 
 

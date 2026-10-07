@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { api, passkey, useResource } from "../api";
+import { passkey, useResource } from "../api";
 import { AsyncButton, Load, Panel, Secret } from "../components/primitives";
 import type { Value } from "../schema-form";
+import { Contacts } from "../components/Contacts";
 import { date } from "../types";
 
 export function Household() {
@@ -66,18 +67,6 @@ export function Household() {
     <Panel title="Schedules">
       {(r.data.graph.schedules ?? []).map(row => <p key={String(row.id)}>{String(row.name)}</p>)}
     </Panel>
-    <Panel title="Trusted contacts">
-      {(r.data.graph.trusted_contacts ?? []).map(row => <article key={String(row.id)}>
-        <h3>{String(row.display_name ?? row.name)}</h3>
-        <AsyncButton
-          run={async () => {
-            await api("/contacts/remove", { id: row.id });
-            r.retry();
-          }}
-        >
-          Remove contact and close pending checks
-        </AsyncButton>
-      </article>)}
-    </Panel>
+    <Contacts contacts={(r.data.graph.trusted_contacts ?? []).map(c => ({ id: String(c.id), name: String(c.display_name) }))} refresh={r.retry} />
   </>;
 }

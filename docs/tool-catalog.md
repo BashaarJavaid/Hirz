@@ -276,3 +276,24 @@ transactions/locks unwind before prompts; resumed calls reauthorize and re-resol
 references. Claimed names never raise authority. Host commitment review is separate;
 there is no new caller-supplied authority Boolean, voice security approval or voice
 constitution activation. See [ADR-020](./adr/ADR-020-simulator.md).
+
+## Item 31 contact contract — 2026-10-07
+
+The twelve-tool surface retains `verify_trusted_identity` start/status and adds
+`operation: retry`, requiring `case_id`, `request_id` and the flat `method: app |
+email`. A retry preserves the exact claim in a new case with `previous_case_id`;
+it never changes the original result. Starts and retries require explicit exact
+request confirmation, including for auto policy and simulated checks. Clients
+without form elicitation receive `CONFIRM_REQUIRED`; no authority flag is accepted
+in tool input. A host commitment prompt does not replace server confirmation.
+
+Start selects the first active real app/email channel in the constitution's method
+order. An unavailable callback is not attempted. Safe words are supporting checks
+in the initiating member's private companion view, not a tool or delivery method.
+Once a contact has real enrollment history, unavailable/revoked real channels never
+fall back to a fixture. Real SMTP and push run in the worker outside the tool and
+outside transactions. Pending approval has no reply deadline; queueing starts two
+minutes for app, fifteen for email. Status preserves all five outcomes and supplies
+reason-specific wording for expiry, delivery failure, removal, revocation or lost
+approval/permission. Cards label method and real/simulated provenance. Updates never
+trigger speech without another member request. [ADR-022](./adr/ADR-022-trusted-checkins.md).

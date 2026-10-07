@@ -8,7 +8,10 @@ import argparse
 import asyncio
 import json
 import os
+import re
 import signal
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from hashlib import sha256
 from pathlib import Path
@@ -17,7 +20,7 @@ from uuid import UUID, uuid4
 
 import sqlalchemy as sa
 import uvicorn
-from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.ext.asyncio import AsyncConnection, create_async_engine
 
 from hirz import db
 from hirz.api.app import create_app
@@ -41,10 +44,39 @@ from hirz.twin.scenario import LoadedScenario
 from hirz.twin.world import TwinWorld
 
 
+@asynccontextmanager
+async def resume_contacts(
+    values: dict[str, str], record: dict[str, object]
+) -> AsyncIterator[AsyncConnection]:
+    """Resume only an explicitly retained disposable contact run; never migrate or seed."""
+    name = str(record["database"])
+    if not re.fullmatch(r"hirz_ha_smoke_[0-9a-f]{32}", name):
+        raise ValueError("Only a retained disposable contact database can be resumed")
+    engine = create_async_engine(
+        db.database_url(values).set(database=name),
+        hide_parameters=True,
+        poolclass=sa.pool.NullPool,
+    )
+    try:
+        async with engine.connect() as c:
+            if (
+                await c.scalar(sa.text("SELECT version_num FROM alembic_version"))
+                != "0019_trusted_contacts"
+            ):
+                raise ValueError("Resume requires the already migrated contact schema")
+            await c.rollback()
+            yield c
+    finally:
+        await engine.dispose()
+
+
 async def background(companion: Companion, worlds: dict[UUID, TwinWorld]) -> None:
     while True:
         for household in worlds:
             async with companion.pipeline(household) as p:
+                from hirz.contacts.worker import advance as advance_contacts
+
+                await advance_contacts(p)
                 if config := push.Config.environment():
                     await push.advance(p, config)
                 await twin.advance(p)
@@ -61,13 +93,14 @@ async def run(args: argparse.Namespace) -> None:
     args.artifacts_dir.mkdir(mode=0o700, parents=True, exist_ok=False)
     values = read_env(Path(".env"))
     for name, value in values.items():
-        if name.startswith("HIRZ_PUSH_") or name.startswith("HIRZ_VAPID_"):
+        if name.startswith(("HIRZ_PUSH_", "HIRZ_VAPID_", "HIRZ_CONTACT_")):
             os.environ.setdefault(name, value)
     if args.recording_run and (
         args.budget_ledger or os.environ.get("HIRZ_LLM") != "off"
     ):
         raise ValueError("Recording requires HIRZ_LLM=off and no inference ledger")
     audit = AuditWriter(signing_key(values))
+    os.environ["HIRZ_COMPANION_ORIGIN"] = args.origin
     config = Config(args.origin, urlsplit(args.origin).hostname or "")
     issuer = f"http://127.0.0.1:{args.issuer_port}"
     resource = f"http://127.0.0.1:{args.port}/mcp"
@@ -85,17 +118,44 @@ async def run(args: argparse.Namespace) -> None:
     evening.world.config = evening.world.config.model_copy(
         update={"end": evening.world.config.end + timedelta(hours=1)}
     )
-    async with disposable(
-        values,
-        url=db.database_url(values),
-        retain=bool(args.recording_run),
-    ) as connection:
-        await bootstrap(loaded["demo-evening"], connection)
-        parents = loaded["parents-scam-check"]
-        await load_seeds(
-            connection,
-            [read_seed(parents.seed_path)],
-            lambda: parents.world.clock() - timedelta(seconds=2),
+    resume = (
+        json.loads(args.resume_contact_run.read_text())
+        if args.resume_contact_run
+        else None
+    )
+    if resume:
+        if resume["origin"] != args.origin or args.recording_run or args.browser_test:
+            raise ValueError(
+                "Contact resume requires the original HTTPS origin and manual contact acceptance"
+            )
+        for name, at in resume["clocks"].items():
+            loaded[name].world.clock.jump(datetime.fromisoformat(at))
+    storage = (
+        resume_contacts(values, resume)
+        if resume
+        else disposable(
+            values, url=db.database_url(values), retain=bool(args.recording_run)
+        )
+    )
+    async with storage as connection:
+        if not resume:
+            await bootstrap(loaded["demo-evening"], connection)
+            parents = loaded["parents-scam-check"]
+            await load_seeds(
+                connection,
+                [read_seed(parents.seed_path)],
+                lambda: parents.world.clock() - timedelta(seconds=2),
+            )
+        write_export(
+            args.artifacts_dir / "contact-run.json",
+            {
+                "database": connection.engine.url.database,
+                "origin": args.origin,
+                "clocks": {
+                    name: item.world.clock().isoformat()
+                    for name, item in loaded.items()
+                },
+            },
         )
         engine = create_async_engine(
             connection.engine.url, hide_parameters=True, poolclass=sa.pool.NullPool
@@ -115,48 +175,52 @@ async def run(args: argparse.Namespace) -> None:
             ledger=args.budget_ledger,
         )
         scenarios = Scenarios(companion, loaded, simulator)
-        invitations = []
-        for item in loaded.values():
-            # Remove prerecorded replies; only authenticated human selections finish cases.
-            item.world.config = item.world.config.model_copy(
-                update={"contact_scripts": ()}
-            )
-            async with companion.pipeline(item.world.household.id) as p:
-                async with p.repo.write(
-                    lambda: item.world.clock() - timedelta(seconds=1)
-                ):
-                    snapshot = await p.snapshot(p.clock())
-                    for contact in snapshot.data["trusted_contacts"]:
-                        await p.repo.put(
-                            "contact_channels",
-                            ContactChannel(
-                                id=uuid4(),
-                                household_id=p.household_id,
-                                contact_id=UUID(str(contact["id"])),
-                                kind="hirz_app",
-                                value_hash=sha256(
-                                    b"explicit item29 simulated verified-channel fixture"
-                                ).hexdigest(),
-                                verified_at=p.clock() - timedelta(seconds=1),
-                                source="twin",
-                            ),
-                        )
-                async with p.connection.begin():
-                    member = await p.connection.scalar(
-                        sa.select(db.members.c.id).where(
-                            p.scope(db.members), db.members.c.role == "owner"
-                        )
-                    )
-                assert member
-                invitations.append(
-                    {
-                        "household": str(p.household_id),
-                        "token": await initial_invitation(p, member, at=now()),
-                    }
+        if not resume:
+            invitations = []
+            for item in loaded.values():
+                # Remove prerecorded replies; only authenticated human selections finish cases.
+                item.world.config = item.world.config.model_copy(
+                    update={"contact_scripts": ()}
                 )
-        write_export(
-            args.artifacts_dir / "invitations.json", {"invitations": invitations}
-        )
+                async with companion.pipeline(item.world.household.id) as p:
+                    async with p.repo.write(
+                        lambda: item.world.clock() - timedelta(seconds=1)
+                    ):
+                        snapshot = await p.snapshot(p.clock())
+                        for contact in snapshot.data["trusted_contacts"]:
+                            await p.repo.put(
+                                "contact_channels",
+                                ContactChannel(
+                                    id=uuid4(),
+                                    household_id=p.household_id,
+                                    contact_id=UUID(str(contact["id"])),
+                                    kind="hirz_app",
+                                    value_hash=sha256(
+                                        b"explicit item29 simulated verified-channel fixture"
+                                    ).hexdigest(),
+                                    verified_at=p.clock() - timedelta(seconds=1),
+                                    source="twin",
+                                ),
+                            )
+                    async with p.connection.begin():
+                        member = await p.connection.scalar(
+                            sa.select(db.members.c.id).where(
+                                p.scope(db.members), db.members.c.role == "owner"
+                            )
+                        )
+                    assert member
+                    invitations.append(
+                        {
+                            "household": str(p.household_id),
+                            "profile": "Malik — Quinn Home"
+                            if item is loaded["demo-evening"]
+                            else "Mom — Quinn Parents",
+                            "token": await initial_invitation(p, member, at=now()),
+                        }
+                    )
+            write_export(
+                args.artifacts_dir / "invitations.json", {"invitations": invitations}
+            )
 
         def clock() -> datetime:
             identity = identity_context.get()
@@ -385,6 +449,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--origin", required=True)
     parser.add_argument("--browser-test", action="store_true")
+    parser.add_argument(
+        "--resume-contact-run",
+        type=Path,
+        help="Private descriptor for a retained contact-only test; preserves enrollments, performs no migrations or seeding",
+    )
     parser.add_argument("--port", type=int, default=8002)
     parser.add_argument("--issuer-port", type=int, default=8003)
     parser.add_argument("--bind", default="127.0.0.1", choices=("127.0.0.1", "0.0.0.0"))

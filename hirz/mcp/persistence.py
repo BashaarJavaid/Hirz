@@ -165,6 +165,27 @@ async def commit(
                         db.audit_log.c.event_type == "EXECUTE",
                     )
                 )
+                proposal = await p.connection.scalar(
+                    sa.select(db.actions.c.proposal).where(
+                        p.scope(db.actions),
+                        db.actions.c.grant_seq == contact_seq,
+                    )
+                )
+                if (
+                    not proposal
+                    or proposal["target"]["entity"] != case.subject.contact_id
+                    or proposal["params"].get("case_id") != case.case_id
+                    or proposal["params"].get("member_id") != member.member_id
+                ):
+                    raise ValueError(
+                        "Contact grant does not belong to this exact request"
+                    )
+                from hirz.companion.auth import digest
+
+                if proposal["params"].get("request_hash") != digest(
+                    case.claim.model_dump_json()
+                ) or not proposal["params"].get("channel"):
+                    raise ValueError("Contact request or channel changed")
                 if (
                     old.verification
                     or not case.verification
@@ -179,6 +200,8 @@ async def commit(
             elif operation == "finish":
                 if (
                     principal.surface != "scheduler"
+                    or old.verification is not None
+                    and old.verification.source != "twin"
                     or not old.verification
                     or old.verification.status != "pending"
                     or not case.verification

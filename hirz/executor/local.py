@@ -246,6 +246,11 @@ async def worker(args: argparse.Namespace) -> int:
 
                             async def preparation_and_refresh() -> None:
                                 await advance(refresh_pipeline, world)
+                                from hirz.contacts.worker import (
+                                    advance as advance_contacts,
+                                )
+
+                                await advance_contacts(refresh_pipeline)
                                 await draft_rules(refresh_pipeline)
                                 if push_config := PushConfig.environment():
                                     await deliver_push(refresh_pipeline, push_config)

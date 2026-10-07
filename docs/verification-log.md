@@ -12018,3 +12018,82 @@ mypy clean, 293 files already formatted; the other-checkout probe let init
 proceed (exit 0, `.env` mode 0600) and the same-checkout probe was refused with
 the unchanged error (exit 1, only `.lock` retained); both probe volumes and the
 clone were removed and both label listings printed only headers.
+
+
+## Item 34 — Ring access gate — 2026-10-07
+
+Before item 31 implementation, checked the local `.env` and process environment
+for configured `RING`/`HIRZ_RING` key names without printing values: none.
+The Browser skill bootstrap returned exactly `No browser is available`; its
+documented discovery returned `[]`. No signed-in portal was available to register
+an app or obtain credentials. No synthetic webhook was received or signature
+verified. This is an environment/access limitation, not a Ring API rejection.
+
+Read [Ring getting started](https://developer.amazon.com/docs/ring/get-started.html):
+registration/configuration supplies client credentials and an HMAC signature key;
+the published testing path uses a personal account and devices. That documentation
+alone does not prove whether this account can obtain device-free sandbox access.
+No device purchase, registration, or credentials are claimed.
+
+**Gate outcome: failed (no credentials).** Apply item 34's documented fallback:
+remove the Ring track from submission and the README banner, retain the twin
+doorbell, and mark the forged-Ring-event threat row not applicable. Full Ring
+integration was not implemented.
+
+## Item 31 — 2026-10-07
+
+Implementation is **Partial**. Approved scope and rejected alternatives are in
+[ADR-022](./adr/ADR-022-trusted-checkins.md). Item 34's gate above was recorded before
+implementation; no Ring credentials or signed webhook were obtained.
+
+Initial local checks (macOS, Python 3.12, Node 24, native pinned Dogwood):
+
+- `tests/integration/test_trusted_checkins.py`: 9 checks passed in 51.05 seconds
+  before the later authenticated-MCP scenario addition and receipt-audit tightening.
+  These exercised all three replies and expiry under auto/ask, delayed receipt
+  consumption, accepted-before-withdrawal ordering, pairing, changed-request refusal,
+  member/household isolation, safe-word limits, real WebAuthn software signatures,
+  mailbox explicit confirmation, linked email retry and permanent delivery failure.
+  Both households' exported chains verified independently. Tests used disposable
+  databases; transport mocks and software authenticators are not real acceptance.
+- Schema comparison found no difference between migration 0019 and SQLAlchemy
+  metadata. The previous household-tool integration checks passed (15 combined
+  tests in 37.61 seconds at the earlier implementation stage).
+- Full service-free run: 1519 passed; three loopback-binding tests failed under
+  the workspace sandbox (243.39 seconds, two existing dependency warnings).
+  Rerunning those with local network access passed the two WebSocket tests; the
+  fixed-port test then found the deliberately running phone test issuer on 8003.
+  That fixed-port check remains owed after the phone server stops. Initial coverage
+  was 70%; integration coverage and the required combined 80% gate remain pending.
+- Ruff check, mypy (192 source files), TypeScript lint/typecheck and the five
+  TypeScript unit tests passed during implementation. Both bundles built; Vite
+  reported the existing React Router directive and bundle-size warnings.
+- The no-answer observation scenario passed six checks before its clock alignment
+  adjustment. Observation-only output does not establish MCP execution; the new
+  authenticated replay must pass separately. Its first run caught a fixture clock
+  earlier than the graph bootstrap; the corrected run reached start, expiry and
+  retry but an overly broad result comparison still needed adjustment because
+  presentation timestamps legitimately change.
+
+Real acceptance in progress: the author explicitly chose Mom (Quinn Parents),
+Malik (Quinn Home), and one private mailbox recipient. Gmail app-password presence
+was checked without printing it. A separate contact Fernet key was explicitly
+initialized in the private `.env`. Tailscale was stopped and was resumed; the
+existing tailnet-only HTTPS route returned 200 for health, Check-ins and restricted
+link pages. The author reported Mom's real passkey enrollment and policy activation.
+No live email or successful iPhone push is claimed at this stage.
+
+Private phone artifacts are under `secrets/item31-phone-20261007-a` and `-b` (ignored,
+private permissions). Before restarting the owned test server for the corrected
+wall-clock push path, the home chain was empty and the parents chain independently
+verified valid. The original disposable database was retained and resumed without
+seeding, migrating or replacing passkeys; Mom's enrollment survived. The author
+reported the phone's native contact dropdown did not open; it was replaced with
+visible contact buttons, with a single contact preselected. Actual phone interaction
+is still being rechecked. This is application feedback, not a proven browser-vendor
+contract failure, so no third-party friction is attributed to it.
+
+Required outstanding evidence includes completed real pairing/push/reply and
+mailbox enrollment/reply, the final security/concurrency suite, authenticated scenario
+and scripted Show/Dot checks, independent MCP conformance, complete combined coverage,
+and both CI latency matrix gates. No remaining Phase 6 threat protections are claimed.

@@ -1816,3 +1816,47 @@ origin, `HIRZ_SIMULATOR_ARTIFACTS` pointing to its `artifacts` directory,
 `HIRZ_SIMULATOR_DISPLAY=show|dot` (see the test's display variable). Use a fresh
 run per cell. Virtual authenticators still undergo real server-side WebAuthn
 verification; they do not replace the manual real-phone rehearsal.
+
+## Trusted-contact acceptance (item 31)
+
+[ADR-022](./adr/ADR-022-trusted-checkins.md) records the approved scope. Item 34's
+access gate was recorded before implementation. Development migrations remain
+manual; do not upgrade the existing development database to run this acceptance.
+
+Put the approved Gmail **app password** privately in the regular mode-0600 `.env`
+as `HIRZ_CONTACT_SMTP_PASSWORD`. The sender/login is fixed by this temporary approval.
+Run `uv run --locked python scripts/init_contacts.py` to explicitly initialize the
+separate `HIRZ_CONTACT_ENCRYPTION_KEY`; malformed existing keys are refused, not
+replaced. Preserve that key to recover encrypted destinations and pending tokens.
+Use the existing HTTPS companion origin; SMTP requires certificate-verified STARTTLS.
+Name recipients explicitly before live sends. Their devices must reach the private
+tailnet origin; a delivered email alone does not establish that its link is reachable.
+
+Build both apps, then run the existing model-free simulator launcher with a new
+private artifacts directory and the configured HTTPS origin. It creates/migrates a
+**disposable** database through 0019 and writes owner enrollment invitations privately.
+Enroll both owners using real passkeys, activate each seed policy, pair across the
+two Household pages, and activate the pairing only after owner confirmation. Enable
+notifications in the recipient's iPhone Home Screen app. Email enrollment requires
+an explicit mailbox-link POST, then a fresh owner confirmation. Start new requests
+through authenticated MCP with explicit request confirmation. Verify actual phone
+push reception and the exact app/email answers, not just queue or SMTP acceptance.
+
+The launcher writes `contact-run.json` privately. A retained contact-only run can
+resume with `--resume-contact-run <descriptor> --artifacts-dir <new-private-dir>` at
+the original origin, preserving enrollments without migrating, seeding or issuing
+new invitations. Stop the previous server before resuming. This does not resume a
+played scenario or its in-memory OAuth grants. Resume permits only disposable
+`hirz_ha_smoke_*` databases already on 0019 and retains the database at shutdown;
+normal new runs retain the existing export-before-drop behavior. Preserve signed
+exports from each household before cleaning up any retained test database.
+
+Automated contact/security checks are in `tests/integration/test_trusted_checkins.py`
+and `tests/unit/test_contact_secrets.py`. The no-answer YAML supplies the observation
+scenario and is replayed through authenticated MCP by that integration suite, which
+asserts the saved-phone fallback and explicitly confirmed linked retries. The CLI
+observation report alone is not MCP acceptance. The latency harness now includes
+an immediate scripted exact-request form exchange in contact start/retry timings;
+setup/initialization stays outside timing, and final result decoding stays outside.
+Run both CI matrix gates; local timings are diagnostic only. No automated transport
+mock, software passkey or browser fixture substitutes for the required real tests.

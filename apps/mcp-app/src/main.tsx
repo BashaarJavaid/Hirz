@@ -114,14 +114,13 @@ function CardApp() {
     let request: Call | undefined;
     let delay = 2000;
     if (data?.status === "preparing" && Date.now() - preparation.current < 30000) { request = { name: "get_household_plan", arguments: {} }; delay = 1000; }
-    if (card?.kind === "verification" && card.status === "pending" && !stale && data?.case) request = { name: "verify_trusted_identity", arguments: { operation: "status", case_id: data.case.case_id } };
+    if (card?.kind === "verification" && card.status === "pending" && data?.case) request = { name: "verify_trusted_identity", arguments: { operation: "status", case_id: data.case.case_id } };
     if (card?.kind === "doorbell") request = { name: "get_household_context", arguments: { scope: "environment" } };
     if (!request) return;
     const exact = request;
     const timer = window.setInterval(() => {
       if (document.hidden || !mounted.current) return;
       if (data?.status === "preparing" && Date.now() - preparation.current >= 30000) return;
-      if (card?.kind === "verification" && Date.now() >= Date.parse(card.valid_until)) return;
       void call(exact);
     }, delay);
     return () => clearInterval(timer);
@@ -152,7 +151,7 @@ function CardApp() {
         </>}
       </>}
       {card?.kind === "approval" && <><h1>{card.label}</h1><ul className="rows"><li>{card.rule}</li><li>Risk: {card.risk_band}</li></ul>{card.phone_required && <p>Approval requires your phone. {result?.speakable.headline}</p>}</>}
-      {card?.kind === "verification" && <><h1>{result?.speakable.headline}</h1><ul className="rows">{card.signals.map(signal => <li key={signal}>{signal}</li>)}</ul><p key={card.status} className="verification-result" role="status">{card.status.replaceAll("_", " ")}</p></>}
+      {card?.kind === "verification" && <><h1>{result?.speakable.headline}</h1><ul className="rows">{card.signals.map(signal => <li key={signal}>{signal}</li>)}</ul>{card.method && <p>Check by {card.method}</p>}<p key={card.status} className="verification-result" role="status">{card.status.replaceAll("_", " ")}</p></>}
       {card?.kind === "doorbell" && <><h1>Someone is at the front door</h1><div className="door"><div>{card.snapshot === "twin" ? <img src={snapshot} alt="Simulated doorbell snapshot" /> : <p>Snapshot unavailable</p>}</div><div>{card.context.slice(0, 2).map(line => <p key={line}>{line}</p>)}<p className="lock" data-state={card.lock_state}><span aria-hidden="true" />{card.lock_state === "unknown" ? "Lock state unavailable" : `Observed: ${card.lock_state}`}</p></div></div></>}
       {card?.kind === "scorecard" && <><p className="eyebrow">Plan estimate · savings against timer</p><h1 className="figure">{money(savings)}</h1>{plan && <p className="caption">{time(plan.horizon.start)} – {time(plan.horizon.end)}</p>}<Annual card={card} /><p>Estimated peak reduction: {plan?.comparison_validity.valid && plan.summary.peak_kwh_avoided != null ? `${plan.summary.peak_kwh_avoided.toFixed(2)} kWh` : "Unavailable"}</p>{full && <><h2>Distinct device actions</h2><p>{card.counts.autonomous} without per-action approval · {card.counts.asked} asked · {card.counts.blocked} blocked · {card.counts.verified} verified</p><p>Categories can overlap. Previews and private contact cases are excluded.</p>{card.annualized && <p>{card.annualized.label} · {card.annualized.period} · {card.annualized.profile} · {card.annualized.household_variant} · wear ${card.annualized.wear_per_internal_kwh}/kWh. Evidence SHA-256: <span className="hash">{card.annualized.sha256}</span></p>}<h2>Decisions</h2>{data?.audit.map((entry, index) => <p key={index}>{time(entry.at)} · {entry.summary}</p>)}{data?.cursor && <button disabled={disabled} onClick={() => void call({ name: "get_action_audit", arguments: { ...input.current, cursor: data.cursor! } })}>Next page</button>}</>}</>}
       {notice && <p role="status">{notice}</p>}{error && <p role="alert">{error}</p>}

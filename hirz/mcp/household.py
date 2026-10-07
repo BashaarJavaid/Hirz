@@ -1237,8 +1237,25 @@ class HouseholdTools:
                 action,
                 Principal.model_validate(row["principal"]),
                 approval_id=args.approval_id,
-                enqueue=action.action_class != "environment.comfort_profile",
+                enqueue=action.action_class
+                not in {
+                    "environment.comfort_profile",
+                    "communication.contact_trusted_contact",
+                },
             )
+            if (
+                action.action_class == "communication.contact_trusted_contact"
+                and decision.decision == "execute"
+                and action.params.get("operation") != "enrollment"
+            ):
+                from hirz.contacts.checkins import queued
+
+                await queued(
+                    p,
+                    Principal.model_validate(row["principal"]),
+                    action,
+                    decision.audit_id,
+                )
             if (
                 action.action_class == "environment.comfort_profile"
                 and decision.decision == "execute"

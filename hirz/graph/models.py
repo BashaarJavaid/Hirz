@@ -146,6 +146,7 @@ class TrustedContact(Entity):
 
 
 class ContactChannel(Entity):
+    provenance: Literal["contact-confirmed"] | None = None
     contact_id: UUID
     kind: Literal["phone", "email", "hirz_app"]
     value_hash: Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]

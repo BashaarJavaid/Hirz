@@ -34,6 +34,7 @@ Number = Annotated[float, Field(strict=True, allow_inf_nan=False)]
 
 
 FIELD_DESCRIPTIONS = {
+    "method": "Choose app or email for an explicit retry of the same reported request.",
     "scope": "Which household information to read: people, energy, environment, constraints, member, or all.",
     "member": "One household member's exact displayed name or returned reference; required only for member scope.",
     "horizon": "Tonight, overnight and tomorrow morning end at the next household-local 8 AM; next_24h covers 24 hours.",
@@ -100,7 +101,7 @@ def input_schema(model: type["Input"]) -> dict[str, Any]:
         field["description"] = FIELD_DESCRIPTIONS[name]
     if model is VerifyInput:
         schema["properties"]["operation"]["description"] = (
-            "Start a new simulated contact check, or read status when the user asks again. Starting requires a request key."
+            "Start or explicitly retry a contact check, or read status when the user asks again. Starts and retries require confirmation and a request key."
         )
     return schema
 
@@ -282,7 +283,8 @@ class RiskInput(Input):
 
 
 class VerifyInput(Input):
-    operation: Literal["start", "status"]
+    method: Literal["app", "email"] | None = None
+    operation: Literal["start", "status", "retry"]
     case_id: Reference | None = None
     contact: Reference | None = None
     text: Sentence | None = None
@@ -295,8 +297,29 @@ class VerifyInput(Input):
                 raise ValueError(
                     "A new check needs a case or contact and request text, plus a request key."
                 )
-        elif self.text is not None or self.request_id is not None:
-            raise ValueError("A status read does not accept new text or a request key.")
+        elif self.operation == "retry":
+            if (
+                not self.case_id
+                or not self.method
+                or not self.request_id
+                or self.text is not None
+                or self.contact is not None
+            ):
+                raise ValueError(
+                    "A retry needs an existing case, method and request key, without new text."
+                )
+        elif (
+            self.text is not None
+            or self.request_id is not None
+            or self.method is not None
+        ):
+            raise ValueError(
+                "A status read does not accept new text, method or a request key."
+            )
+        if self.operation == "start" and self.method is not None:
+            raise ValueError(
+                "Starting uses the first available method allowed by the household rules."
+            )
         return self
 
 
@@ -563,7 +586,7 @@ TOOLS: dict[str, tuple[type[Input], str, str]] = {
     "verify_trusted_identity": (
         VerifyInput,
         "verify",
-        "Start a simulated contact check or read its current status. Starting with contact and text first assesses the request's risk, then opens the check; a separate assess_request_risk call is unnecessary. Starting with case_id checks an existing assessment. When the user asks again, call operation=status to read the latest reply even if an earlier result was pending. No real communication is available.",
+        "Start a confirmed contact check or read its current status. Start accepts contact and exact reported text, or an existing case_id. Retry requires a case_id and app/email method and preserves the reported request. Request explicit confirmation for starts and retries. Read status when the user asks again; provenance identifies real or simulated replies.",
     ),
     "propose_household_rule": (
         ProposalInput,

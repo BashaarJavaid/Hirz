@@ -4,7 +4,7 @@
 
 Hirz lets your family decide what Alexa may do on its own, what it must ask about, and what it may never do. It holds a shared model of the people, devices, schedules, energy, and trust relationships in a home, plans against household goals instead of one-off commands, and acts only inside boundaries the household wrote down. The name for that in the architecture docs is *bounded autonomy*.
 
-> Built for the **Build, Ship, Shape: Amazon Developer Hackathon 2026**: Alexa+ track, Ring track (kept only if the Ring sandbox access gate in `ROADMAP.md` item 34 passes), and both mini-challenges, AWS Builder and Open Source. Designed as a startup, not a weekend project: see [`ROADMAP.md`](./ROADMAP.md) for the hackathon cut line and what comes after it.
+> Built for the **Build, Ship, Shape: Amazon Developer Hackathon 2026**: Alexa+ track and both mini-challenges, AWS Builder and Open Source. Designed as a startup, not a weekend project: see [`ROADMAP.md`](./ROADMAP.md) for the hackathon cut line and what comes after it.
 
 ---
 

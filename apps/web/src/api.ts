@@ -78,7 +78,7 @@ export async function passkey(request: Record<string, unknown>) {
     userHandle: raw.userHandle ? encoded(raw.userHandle) : null,
   });
   return api<{ ok: boolean; recovery_code?: string; invitation?: string; version?: string }>("/auth/finish", {
-    id: options.id, credential: { id: credential.id, rawId: encoded(credential.rawId), type: credential.type, response, clientExtensionResults: credential.getClientExtensionResults() },
+    id: options.id, ...(request.contact ? { contact: request.contact } : {}), credential: { id: credential.id, rawId: encoded(credential.rawId), type: credential.type, response, clientExtensionResults: credential.getClientExtensionResults() },
   });
 }
 

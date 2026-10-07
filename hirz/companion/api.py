@@ -18,6 +18,7 @@ from hirz import db
 from hirz.companion import auth, policy, push, twin
 from hirz.constitution.boundary import Dogwood
 from hirz.constitution.schema import loads
+from hirz.contacts.service import Command as ContactCommand
 from hirz.graph.models import now
 from hirz.pipeline.audit import AuditWriter
 from hirz.pipeline.service import Pipeline, PolicyBundle
@@ -30,7 +31,14 @@ class Input(BaseModel):
 
 class Begin(Input):
     operation: Literal[
-        "login", "enroll", "add_credential", "revoke", "reinvite", "activate", "approve"
+        "login",
+        "enroll",
+        "add_credential",
+        "revoke",
+        "reinvite",
+        "activate",
+        "approve",
+        "contact",
     ]
     token: str | None = Field(default=None, min_length=32, max_length=128)
     credential_id: str | None = Field(default=None, max_length=2048)
@@ -41,10 +49,12 @@ class Begin(Input):
     approval_id: str | None = None
     action_hash: str | None = None
     approved: bool | None = None
+    contact: ContactCommand | None = None
 
     @model_validator(mode="after")
     def fields_for_operation(self) -> "Begin":
         allowed = {
+            "contact": {"contact"},
             "login": set(),
             "enroll": {"token"},
             "add_credential": set(),
@@ -61,6 +71,7 @@ class Begin(Input):
 
 
 class Finish(Input):
+    contact: ContactCommand | None = None
     id: str = Field(min_length=32, max_length=128)
     credential: dict[str, Any]
     label: str = Field(default="My passkey", min_length=1, max_length=100)
@@ -300,6 +311,16 @@ def router(service: Companion) -> APIRouter:
                 if value.operation in {"login", "enroll"}
                 else value.model_dump(mode="json", exclude={"token"}, exclude_none=True)
             )
+            if value.operation == "contact":
+                from hirz.contacts.secrets import Config as ContactConfig
+
+                config = ContactConfig.environment()
+                if config is None or value.contact is None:
+                    raise ValueError("Contact setup is unavailable")
+                binding = {
+                    "operation": "contact",
+                    "command_binding": config.binding(value.contact.model_dump_json()),
+                }
             if value.operation == "add_credential":
                 binding = {"operation": "add_credential"}
             async with service.engine.begin() as c:
@@ -372,7 +393,20 @@ def router(service: Companion) -> APIRouter:
                                 update={"passkey_verified": True}
                             )
                             binding = record["binding"]
-                            if binding["operation"] == "revoke":
+                            if binding["operation"] == "contact":
+                                from hirz.contacts.secrets import (
+                                    Config as ContactConfig,
+                                )
+                                from hirz.contacts.service import bound, command
+
+                                config = ContactConfig.environment()
+                                if config is None or value.contact is None:
+                                    raise ValueError("Contact setup is unavailable")
+                                bound(config, value.contact, binding["command_binding"])
+                                result = await command(
+                                    p, principal, value.contact, config
+                                )
+                            elif binding["operation"] == "revoke":
                                 await auth.revoke(
                                     p,
                                     principal,
@@ -912,12 +946,8 @@ def router(service: Companion) -> APIRouter:
                 )
             }
 
-    @api.post("/contacts/remove")
-    async def remove_contact(value: Reference, request: Request) -> dict[str, bool]:
-        from hirz.companion.contacts import remove
+    from hirz.contacts.api import router as contacts_router
 
-        async with service.authorized(request) as (p, member):
-            await remove(p, member["principal"], UUID(value.id))
-            return {"ok": True}
+    api.include_router(contacts_router(service), prefix="")
 
     return api

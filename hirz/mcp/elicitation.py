@@ -126,7 +126,8 @@ async def call(
                     # The call has returned through all connection/transaction contexts.
                     async with asyncio.timeout(300):
                         answer = await ctx.session.elicit_form(
-                            "The household rules require your confirmation of this exact request: "
+                            required.message
+                            or "The household rules require your confirmation of this exact request: "
                             + name.replace("_", " ")
                             + ". "
                             + "; ".join(

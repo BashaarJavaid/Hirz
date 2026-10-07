@@ -357,6 +357,10 @@ class Scenarios:
                 case = VerificationCase.model_validate(rows[0]["document"])
                 state = case.verification
                 assert state is not None
+                if state.source != "twin":
+                    raise ValueError(
+                        "Only explicitly simulated cases accept simulated replies"
+                    )
                 if p.clock() >= state.expires_at:
                     raise ValueError("This case expired")
                 case = case.model_copy(

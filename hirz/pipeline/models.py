@@ -399,15 +399,27 @@ class VerificationSignal(Model):
 
 
 class VerificationState(Model):
-    method: Literal["app_confirmation"] = "app_confirmation"
+    method: Literal["app_confirmation", "verified_email"] = "app_confirmation"
     status: Literal["pending", "genuine", "not_genuine", "will_call", "no_answer"]
     sent_to: str
     started_at: AwareDatetime
     expires_at: AwareDatetime
-    source: Literal["twin"] = "twin"
+    source: Literal["real", "twin"] = "twin"
+    reason: (
+        Literal[
+            "expired",
+            "delivery_failed",
+            "contact_removed",
+            "channel_revoked",
+            "approval_refused",
+            "permission_changed",
+        ]
+        | None
+    ) = None
 
 
 class VerificationCase(Model):
+    previous_case_id: str | None = None
     case_id: str
     claim: VerificationClaim
     subject: VerificationSubject

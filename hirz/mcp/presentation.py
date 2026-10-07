@@ -55,6 +55,7 @@ class ApprovalCard(Card):
 
 
 class VerificationCard(Card):
+    method: Literal["app", "email"] | None = None
     kind: Literal["verification"] = "verification"
     signals: tuple[str, ...]
     status: Literal[

@@ -194,18 +194,26 @@ class Constitution(Model):
         )
 
     def rule(self, action_class: str, role: Role) -> Rule:
-        if action_class in {"governance.contacts", "governance.twin"}:
+        if action_class == "governance.contacts":
+            return Rule(
+                mode="auto",
+                conditions=(
+                    '((requester.surface == "app" and requester.role == "owner" and (action.params.operation == "create" or action.params.operation == "invite" or action.params.operation == "confirm" or action.params.operation == "revoke" or action.params.operation == "remove" or action.params.operation == "word")) or (requester.surface == "app" and (requester.role == "owner" or requester.role == "adult") and (action.params.operation == "accept" or action.params.operation == "withdraw" or action.params.operation == "phone" or action.params.operation == "reply")) or (requester.surface == "app" and action.params.operation == "guess") or (requester.surface == "scheduler" and action.params.operation == "process"))',
+                ),
+            )
+        if action_class == "governance.twin":
             reserved_operations = (
-                ("remove",)
-                if action_class == "governance.contacts"
-                else ("start", "pause", "resume", "step", "inject", "publish")
+                "start",
+                "pause",
+                "resume",
+                "step",
+                "inject",
+                "publish",
             )
             return Rule(
                 mode="auto",
                 conditions=(
-                    '(requester.surface == "app" or (requester.surface == "scheduler" and action.params.operation == "publish"))'
-                    if action_class == "governance.twin"
-                    else 'requester.surface == "app"',
+                    '(requester.surface == "app" or (requester.surface == "scheduler" and action.params.operation == "publish"))',
                     'requester.role == "owner"',
                     "("
                     + " or ".join(

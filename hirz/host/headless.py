@@ -221,7 +221,7 @@ class HeadlessHost:
             or name == "get_household_plan"
             and arguments.get("objective") is not None
             or name == "verify_trusted_identity"
-            and arguments.get("operation") == "start"
+            and arguments.get("operation") in {"start", "retry"}
         )
         if self.selection_only:
             event.cancel_tool = "Selection test only; no tool execution occurred."

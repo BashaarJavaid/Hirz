@@ -350,8 +350,15 @@ async def decorate(
             and datetime.fromisoformat(str(c["verified_at"])) <= at
         ]
         state = case.verification
+        if not state and case.subject.contact_id:
+            from hirz.contacts.checkins import selected as selected_contact
+
+            real_channel = await selected_contact(p, case.subject.contact_id)
+        else:
+            real_channel = None
         if state:
             base["valid_until"] = state.expires_at
+            base["source"] = "live" if state.source == "real" else "simulated"
         verification = VerificationCard(
             **base,
             signals=tuple(
@@ -369,13 +376,19 @@ async def decorate(
             contact_name=str(contacts[0]["display_name"])
             if len(contacts) == 1
             else None,
+            method=("email" if state.method == "verified_email" else "app")
+            if state
+            else None,
             can_check=not state
             and len(contacts) == 1
-            and bool(eligible)
+            and (
+                bool(real_channel)
+                or bool(eligible)
+                and "app_confirmation"
+                in p.bundle.policy().verification.trusted_contact_methods_order
+            )
             and case.subject.party == "person"
-            and data.status == "ok"
-            and "app_confirmation"
-            in p.bundle.policy().verification.trusted_contact_methods_order,
+            and data.status == "ok",
         )
         return answer.model_copy(
             update={"data": data.model_copy(update={"presentation": verification})}

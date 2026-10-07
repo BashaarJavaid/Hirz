@@ -91,6 +91,18 @@ def create_app(
     if companion is not None:
         app.include_router(companion_router(companion))
 
+        from fastapi.exceptions import RequestValidationError
+
+        @app.exception_handler(RequestValidationError)
+        async def invalid_input(
+            request: Request, exc: RequestValidationError
+        ) -> JSONResponse:
+            return JSONResponse(
+                {"detail": "Invalid request fields."},
+                status_code=422,
+                headers={"Cache-Control": "no-store"},
+            )
+
         @app.exception_handler(ValueError)
         async def refused(request: Request, exc: ValueError) -> JSONResponse:
             return JSONResponse(
@@ -125,6 +137,8 @@ def create_app(
             "/approvals",
             "/constitution",
             "/household",
+            "/checkins",
+            "/contact-links",
             "/audit",
             "/twin",
         ):

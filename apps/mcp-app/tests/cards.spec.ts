@@ -217,15 +217,32 @@ for (const status of ["genuine", "not_genuine", "will_call", "no_answer"]) test(
   await expect(frame.getByText(/send money|pay now/i)).toHaveCount(0);
 });
 
-test("pending expiry does not invent a reply", async ({ page }) => {
+test("pending expiry polls until the worker supplies a terminal result", async ({ page }) => {
   const initial = pending();
-  const { frame, calls } = await mount(page, "verification", "light", () => initial, initial);
+  let result = initial;
+  const { frame, calls } = await mount(page, "verification", "light", () => result, initial);
   await page.clock.setFixedTime(new Date(Date.parse(fixtures.at) + 121000));
   await expect(frame.getByRole("status")).toHaveText("pending");
-  await expect(frame.getByRole("button", { name: "Refresh", exact: true })).toBeVisible();
+  const before = calls.length;
+  await advance(page, 5000);
+  expect(calls.length).toBeGreaterThan(before);
+  result = structuredClone(initial);
+  result.data.presentation.status = "no_answer";
+  result.data.case.verification.status = "no_answer";
+  await advance(page, 2100);
+  await expect(frame.getByRole("status")).toHaveText("no answer");
   const stopped = calls.length;
   await advance(page, 5000);
   expect(calls.length).toBe(stopped);
+});
+
+test("real email check shows method and honest provenance", async ({ page }) => {
+  const initial = pending();
+  initial.data.presentation.source = "live";
+  initial.data.presentation.method = "email";
+  const { frame } = await mount(page, "verification", "light", () => initial, initial);
+  await expect(frame.getByText("Check by email", { exact: true })).toBeVisible();
+  await expect(frame.getByText("Live", { exact: true })).toBeVisible();
 });
 
 test("malformed results have no action controls", async ({ page }) => {

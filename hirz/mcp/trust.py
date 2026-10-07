@@ -4,7 +4,7 @@ import re
 from datetime import datetime, timedelta
 from hashlib import sha256
 from typing import Literal
-from uuid import UUID, uuid4
+from uuid import UUID, uuid4, uuid5
 
 import sqlalchemy as sa
 
@@ -112,7 +112,12 @@ def band(found: tuple[VerificationSignal, ...]) -> RiskBand:
 
 
 async def assess(
-    p: Pipeline, principal: Principal, args: RiskInput, snapshot: ContextSnapshot
+    p: Pipeline,
+    principal: Principal,
+    args: RiskInput,
+    snapshot: ContextSnapshot,
+    *,
+    case_id: str | None = None,
 ) -> Result:
     contacts = [
         r
@@ -171,9 +176,9 @@ async def assess(
         comparison = "insufficient_information" if args.presented_number else None
     if comparison is not None:
         line = {
-            "matches": "The supplied number matches a verified saved number; this does not establish identity.",
-            "does_not_match": "The supplied number does not match a verified saved number.",
-            "insufficient_information": "There is insufficient verified information to compare the supplied number.",
+            "matches": "The supplied number matches a saved contact number; this does not establish identity.",
+            "does_not_match": "The supplied number is unverified: it does not match a saved contact number.",
+            "insufficient_information": "The supplied number is unverified; there is insufficient saved information to compare it.",
         }[comparison]
         speech = speech.model_copy(
             update={
@@ -181,7 +186,7 @@ async def assess(
             }
         )
     case = VerificationCase(
-        case_id=uuid4().hex,
+        case_id=case_id or uuid4().hex,
         claim=VerificationClaim(text=args.text, presented_number=args.presented_number),
         subject=VerificationSubject(
             contact_id=str(contact["id"]) if contact else None,
@@ -217,7 +222,7 @@ def case_response(case: VerificationCase) -> Result:
         "genuine": "The simulated reply confirms this specific request. Talk to the contact using their saved number.",
         "not_genuine": "The simulated reply says they did not make this request. Do not send anything.",
         "will_call": "The simulated reply says the contact will call. No real call has been arranged.",
-        "no_answer": "There was no simulated reply. Do not send anything; contact the person through a channel you trust.",
+        "no_answer": "There was no simulated reply. Do not send anything; call the contact saved in your own phone.",
     }[state.status]
     if (
         state.status == "no_answer"
@@ -225,7 +230,24 @@ def case_response(case: VerificationCase) -> Result:
         == "The contact was removed. No reply will be accepted for this check."
     ):
         headline = str(case.speakable["headline"])
-    return response(headline, source="twin", case=case)
+    if state.source == "real":
+        headline = {
+            "pending": "A contact check is pending. Ask me again for the reply.",
+            "genuine": "The contact confirmed this specific request. Call the contact saved in your own phone before acting.",
+            "not_genuine": "The contact says they did not make this request. Do not send anything.",
+            "will_call": "The contact says they intend to call. This does not arrange or confirm a call.",
+            "no_answer": "The contact has not answered. Do not send anything. Call the contact saved in your own phone.",
+        }[state.status]
+    if state.reason:
+        headline = {
+            "approval_refused": "Approval was not completed. Call the contact saved in your own phone.",
+            "permission_changed": "Permission for this check changed. Call the contact saved in your own phone.",
+            "expired": "The check expired without a reply. Call the contact saved in your own phone.",
+            "delivery_failed": "The check could not be delivered. Call the contact saved in your own phone.",
+            "contact_removed": "The contact was removed. This check is closed.",
+            "channel_revoked": "The contact channel was revoked. Call the contact saved in your own phone.",
+        }[state.reason]
+    return response(headline, source=state.source, case=case)
 
 
 async def verify(
@@ -287,7 +309,26 @@ async def verify(
                 status="unavailable",
             )
         )
-    if args.case_id:
+    if args.operation == "retry":
+        original = cases[0]
+        if original.verification is None or original.verification.status == "pending":
+            raise ValueError("Wait for the current check to finish before retrying")
+        case = original.model_copy(
+            update={
+                "case_id": uuid5(
+                    p.household_id, str(member.member_id) + ":" + str(args.request_id)
+                ).hex,
+                "previous_case_id": original.case_id,
+                "verification": None,
+            }
+        )
+        await command(
+            p,
+            "record_verification",
+            {"operation": "assess", "case": case.model_dump(mode="json")},
+            principal,
+        )
+    elif args.case_id:
         case = cases[0]
         if case.verification:
             return case_response(case)
@@ -305,12 +346,35 @@ async def verify(
                 request_id=args.request_id or "",
             ),
             snapshot,
+            case_id=uuid5(
+                p.household_id, str(member.member_id) + ":" + str(args.request_id)
+            ).hex,
         )
         assert result.data.case
         case = result.data.case
     if not case.subject.contact_id or case.subject.party != "person":
         return response(
             "A verified simulated app channel is required for this preview's contact check.",
+            status="unavailable",
+            case=case,
+        )
+    from hirz.contacts.checkins import selected as select_channel
+    from hirz.contacts.checkins import start
+
+    real_channel = await select_channel(p, case.subject.contact_id, args.method)
+    if real_channel:
+        return await start(p, principal, case, real_channel)
+    real_history = await p.connection.scalar(
+        sa.select(db.contact_links.c.id)
+        .where(
+            p.scope(db.contact_links),
+            db.contact_links.c.contact_id == UUID(case.subject.contact_id),
+        )
+        .limit(1)
+    )
+    if real_history or args.method == "email":
+        return response(
+            "That verified contact method is unavailable. Call the contact saved in your own phone.",
             status="unavailable",
             case=case,
         )
@@ -338,7 +402,15 @@ async def verify(
             action_id=uuid4().hex,
             **{"class": "communication.contact_trusted_contact"},
             target=Target(adapter="contacts", entity=case.subject.contact_id),
-            params={},
+            params={
+                "household_id": str(p.household_id),
+                "member_id": member.member_id,
+                "case_id": case.case_id,
+                "channel": str(channels[0]["id"]),
+                "request_hash": sha256(
+                    case.claim.model_dump_json().encode()
+                ).hexdigest(),
+            },
             requested_by=Requester(
                 member_id=None, role="unknown", surface=principal.surface
             ),
@@ -347,6 +419,27 @@ async def verify(
         )
     )
     action = action.model_copy(update={"content_hash": action_hash(action)})
+    if not principal.requester_confirmed:
+        from hirz.pipeline.confirmation import RequesterReview, review_context
+
+        review = review_context.get()
+        binding = (
+            review.binding(p.bundle.fingerprint, action, principal) if review else ""
+        )
+        if not review or binding not in review.accepted:
+            if review:
+                raise RequesterReview(
+                    binding,
+                    action,
+                    f"Confirm a simulated app check for this exact reported request: “{case.claim.text}”",
+                )
+            return response(
+                "Please explicitly confirm this contact check.",
+                status="clarification",
+                code="CONFIRM_REQUIRED",
+                case=case,
+            )
+        principal = principal.model_copy(update={"requester_confirmed": True})
     decision = await p.mutate_locked(action, principal)
     if decision.decision != "execute":
         return response(
@@ -399,6 +492,8 @@ async def advance(p: Pipeline, world: TwinWorld | None) -> None:
             case = VerificationCase.model_validate(row["document"])
             state = case.verification
             assert state
+            if state.source != "twin":
+                continue
             status = "no_answer" if p.clock() >= state.expires_at else "pending"
             if world and world.household.id == p.household_id:
                 scripts = [

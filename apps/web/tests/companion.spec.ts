@@ -163,7 +163,7 @@ test("real WebAuthn registration, initial activation, rule review and signed exp
   await page.getByRole("button", { name: "No, that wasn’t me", exact: true }).click();
   await expect(page.getByText("not genuine", { exact: true })).toBeVisible();
   await page.getByRole("link", { name: "Audit", exact: true }).click();
-  for (const name of ["Tonight", "Approvals", "Constitution", "Household", "Audit", "Twin"]) {
+  for (const name of ["Tonight", "Approvals", "Constitution", "Household", "Check-ins", "Audit", "Twin"]) {
     await page.getByRole("link", { name, exact: true }).click();
     await expect(page.getByRole("heading", { level: 1, name, exact: true })).toBeVisible();
     await expect(page.getByText("Loading…", { exact: true })).toHaveCount(0);

@@ -875,3 +875,14 @@ completed with zero reported vulnerabilities. The shell initially selected Node
 - **Feature request:** Reject or warn about requested port publications that an
   internal-only network cannot provide, instead of reporting a started service
   with empty effective bindings.
+
+
+## Item 34 — browser unavailable for access gate — 2026-10-07
+
+- **Tool / URL:** Browser plugin; https://developer.ring.com/
+- **Severity:** Blocker for portal registration in this session.
+- **What happened:** Browser bootstrap returned `No browser is available`;
+  documented browser discovery returned `[]`. No Ring credentials were configured.
+- **Workaround:** Record the unpassed gate and apply item 34's no-credentials
+  fallback. No portal registration or signed webhook is claimed.
+- **Feature request:** Expose browser availability before attempting a portal workflow.

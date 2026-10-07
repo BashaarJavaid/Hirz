@@ -73,7 +73,8 @@ SAMPLES = 100
 BUDGET_MS = 250
 PROTOCOL = (
     "Gate: raw authenticated JSON-RPC tools/call POST, request send through full "
-    "response body; decoding and validation excluded. SDK call_tool reference "
+    "response body; final decoding and validation excluded. Contact starts/retries include "
+    "the exact-request form exchange with immediate scripted confirmation. SDK call_tool reference "
     "timings: onboarding and context-all only, outside the gate."
 )
 SDK_CASES = {"onboarding", "context-all"}
@@ -123,6 +124,7 @@ class Client:
         self.tools: dict[str, str] = {}
         self.inputs: dict[str, dict[str, Any]] = {}
         self.measuring = False
+        self.review_session: str | None = None
 
     async def call(
         self,
@@ -153,33 +155,100 @@ class Client:
             ).model_dump(by_alias=True, mode="json", exclude_none=True),
         )
         self.request_id += 1
+        headers = {
+            "Authorization": "Bearer " + self.storage.tokens.access_token,
+            "Accept": "application/json, text/event-stream",
+            "Content-Type": "application/json",
+            "MCP-Protocol-Version": self.protocol_version,
+            "Mcp-Session-Id": self.session_id,
+        }
+        confirming = tool == "verify_trusted_identity" and args.get("operation") in {
+            "start",
+            "retry",
+        }
+        if confirming:
+            if self.review_session is None:
+                initialized = await self.http.post(
+                    self.url,
+                    auth=httpx.Auth(),
+                    headers={k: v for k, v in headers.items() if k != "Mcp-Session-Id"},
+                    json={
+                        "jsonrpc": "2.0",
+                        "id": "contact-review-init",
+                        "method": "initialize",
+                        "params": {
+                            "protocolVersion": self.protocol_version,
+                            "capabilities": {"elicitation": {"form": {}}},
+                            "clientInfo": {
+                                "name": "Hirz explicit contact acceptance",
+                                "version": "1",
+                            },
+                        },
+                    },
+                )
+                initialized.raise_for_status()
+                self.review_session = initialized.headers["mcp-session-id"]
+                await self.http.post(
+                    self.url,
+                    auth=httpx.Auth(),
+                    headers=headers | {"Mcp-Session-Id": self.review_session},
+                    json={"jsonrpc": "2.0", "method": "notifications/initialized"},
+                )
+            headers["Mcp-Session-Id"] = self.review_session
         request = self.http.build_request(
             "POST",
             self.url,
+            headers=headers,
             json=body.model_dump(by_alias=True, mode="json", exclude_none=True),
-            headers={
-                "Authorization": "Bearer " + self.storage.tokens.access_token,
-                "Accept": "application/json, text/event-stream",
-                "Content-Type": "application/json",
-                "MCP-Protocol-Version": self.protocol_version,
-                "Mcp-Session-Id": self.session_id,
-            },
         )
         start = time.perf_counter_ns()
-        reply = await self.http.send(request, auth=None)
-        elapsed = (time.perf_counter_ns() - start) / 1_000_000
-        if self.measuring and case:
-            self.samples[case].append(elapsed)
-            self.tools[case] = tool
-            self.inputs[case] = args
-        reply.raise_for_status()
-        envelope = types.JSONRPCResponse.model_validate_json(
-            next(
+        if not confirming:
+            reply = await self.http.send(request, auth=None)
+            elapsed = (time.perf_counter_ns() - start) / 1_000_000
+            reply.raise_for_status()
+            result_json = next(
                 line[6:]
                 for line in reply.text.splitlines()
                 if line.startswith("data: ") and '"result"' in line
             )
-        )
+        else:
+            reply = await self.http.send(request, auth=httpx.Auth(), stream=True)
+            reply.raise_for_status()
+            result_json = ""
+            try:
+                async for line in reply.aiter_lines():
+                    if not line.startswith("data: "):
+                        continue
+                    payload = json.loads(line[6:])
+                    if payload.get("method") == "elicitation/create":
+                        assert confirming and set(
+                            payload["params"]["requestedSchema"]["properties"]
+                        ) == {"confirmed"}
+                        assert "exact reported request" in payload["params"]["message"]
+                        accepted = await self.http.post(
+                            self.url,
+                            auth=httpx.Auth(),
+                            headers=headers,
+                            json={
+                                "jsonrpc": "2.0",
+                                "id": payload["id"],
+                                "result": {
+                                    "action": "accept",
+                                    "content": {"confirmed": True},
+                                },
+                            },
+                        )
+                        accepted.raise_for_status()
+                    elif payload.get("id") == body.id:
+                        result_json = line[6:]
+            finally:
+                await reply.aclose()
+            elapsed = (time.perf_counter_ns() - start) / 1_000_000
+        if self.measuring and case:
+            self.samples[case].append(elapsed)
+            self.tools[case] = tool
+            self.inputs[case] = args
+        envelope = types.JSONRPCResponse.model_validate_json(result_json)
         assert envelope.id == body.id, "Mismatched JSON-RPC response"
         raw = types.CallToolResult.model_validate(envelope.result)
         if not raw.isError:
@@ -519,7 +588,19 @@ class Environment:
                         str(initialized.protocolVersion),
                         sid,
                     )
-                    yield client
+                    try:
+                        yield client
+                    finally:
+                        if client.review_session and storage.tokens:
+                            await http.delete(
+                                self.config["resource"],
+                                auth=httpx.Auth(),
+                                headers={
+                                    "Authorization": "Bearer "
+                                    + storage.tokens.access_token,
+                                    "Mcp-Session-Id": client.review_session,
+                                },
+                            )
 
     def tick(self) -> None:
         at = datetime.fromisoformat(self.clock_file.read_text()) + timedelta(

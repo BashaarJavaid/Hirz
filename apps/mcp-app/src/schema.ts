@@ -9,7 +9,7 @@ const base = { as_of: date, valid_until: date, source: z.enum(["live", "simulate
 const presentation = z.discriminatedUnion("kind", [
   z.object({ ...base, kind: z.literal("plan"), rows: z.array(row).max(3), timeline: z.array(row), annualized, car_limit: number.min(0).max(80).nullable(), can_approve: z.boolean(), can_revise_car: z.boolean(), rate_label: text.nullable() }),
   z.object({ ...base, kind: z.literal("approval"), label: text, rule: text, risk_band: text, can_respond: z.boolean(), phone_required: z.boolean(), plan_id: text.nullable(), version: z.number().int().positive().nullable() }),
-  z.object({ ...base, kind: z.literal("verification"), signals: z.array(text).max(3), status: z.enum(["assessed", "pending", "genuine", "not_genuine", "will_call", "no_answer"]), contact_name: text.nullable(), can_check: z.boolean() }),
+  z.object({ ...base, kind: z.literal("verification"), method: z.enum(["app", "email"]).nullish(), signals: z.array(text).max(3), status: z.enum(["assessed", "pending", "genuine", "not_genuine", "will_call", "no_answer"]), contact_name: text.nullable(), can_check: z.boolean() }),
   z.object({ ...base, kind: z.literal("doorbell"), context: z.array(text), snapshot: z.literal("twin").nullable(), lock_state: z.enum(["locked", "unlocked", "unknown"]), can_request: z.boolean(), room: text.nullable() }),
   z.object({ ...base, kind: z.literal("scorecard"), counts: z.object({ autonomous: z.number().int().nonnegative(), asked: z.number().int().nonnegative(), blocked: z.number().int().nonnegative(), verified: z.number().int().nonnegative() }), annualized, window_start: date, window_end: date }),
 ]);

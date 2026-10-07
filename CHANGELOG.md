@@ -6,6 +6,10 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- Implement item 31 contact enrollment, real check-in jobs/receipts, private safe words and companion views; acceptance remains partial ([ADR-022](./docs/adr/ADR-022-trusted-checkins.md), [evidence](./docs/verification-log.md#item-31--2026-10-07)).
+
+- 2026-10-07: Apply the no-credentials Ring gate fallback before Phase 6: retain the twin doorbell and remove the Ring track ([evidence](./docs/verification-log.md#item-34--ring-access-gate--2026-10-07)).
+
 - 2026-10-07: Scope the recording credential guard to the checkout path so retained runs from another checkout no longer block initialization ([evidence](./docs/verification-log.md#per-checkout-recording-guard--2026-10-07)).
 
 - 2026-10-06: Pass the normal latency gate for the frozen startup generation on the single approved promotion re-dispatch ([evidence](./docs/verification-log.md#promotion-dispatch--2026-10-06)).
