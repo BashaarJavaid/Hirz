@@ -141,5 +141,6 @@ assert:
     subject: malik
     equals:
       status: no_answer
+  deferred: []
 # The authenticated MCP replay and saved-number wording assertion run in
 # tests/integration/test_trusted_checkins.py::test_no_answer_scenario_through_authenticated_mcp.

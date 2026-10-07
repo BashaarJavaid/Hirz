@@ -622,6 +622,7 @@ async def finish(
         # No reply deadline existed while approval was pending. Cancellation records
         # a zero-duration terminal interval; nothing was sent.
         channel = await link(p, job["link_id"])
+        at = contact_time(p)
         case = case.model_copy(
             update={
                 "verification": VerificationState(
@@ -630,8 +631,8 @@ async def finish(
                     if channel["kind"] == "app"
                     else "verified_email",
                     sent_to=str(channel["contact_id"]),
-                    started_at=contact_time(p),
-                    expires_at=contact_time(p),
+                    started_at=at,
+                    expires_at=at,
                     source="real",
                 )
             }

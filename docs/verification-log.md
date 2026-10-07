@@ -12097,3 +12097,46 @@ Required outstanding evidence includes completed real pairing/push/reply and
 mailbox enrollment/reply, the final security/concurrency suite, authenticated scenario
 and scripted Show/Dot checks, independent MCP conformance, complete combined coverage,
 and both CI latency matrix gates. No remaining Phase 6 threat protections are claimed.
+
+### Follow-up checks and phone pairing — 2026-10-07
+
+The full disposable integration suite finished with **211 passed, 1 failed** in
+822.84 seconds. The failure was the raw MCP test host treating a foreign-contact
+clarification form as the check-in confirmation form. The host now explicitly
+cancels unrelated clarification forms; the unchanged symmetric isolation assertions
+then passed (1 test, 26.89 seconds). Combined service-free/integration coverage is
+**89%** (15,619 statements, 1,718 missed); `coverage report --fail-under=80` passed.
+The fixed-port service-free check remains pending while the live issuer owns 8003.
+
+The contact suite passed nine checks with one new test-injection error (49.98
+seconds): the rollback probe tried to read a Decision as a dictionary. After fixing
+the probe, that check passed in 5.72 seconds. It injects failure at the signed
+receipt event and verifies that neither the receipt nor its preceding grant/audit
+rows survive. The HTTP check also verifies that recent retry attempts still count
+after their job creation leaves the rolling cap window. The cap conservatively
+uses the retry lease as well as creation time, without adding a new storage shape.
+A preapproval terminal case now uses one captured timestamp for its zero-length
+interval. The no-answer YAML supplies the required empty `deferred` list.
+The authenticated no-answer MCP replay passed separately (1 test, 7.96 seconds),
+including explicit start/retry confirmation, saved-number fallback and immutable
+original case. These are disposable/software tests, not real recipient acceptance.
+
+Independent twelve-tool MCP conformance completed **117 PASS, 0 FAIL, 0 WARN,
+0 SKIP, 8 MANUAL**, `complete: true`, with no missing evidence; its 611-row signed
+export independently verified. Private artifacts are
+`secrets/item31-independent-mcp.json` and its adjacent conformance report.
+
+The author confirmed Malik's real enrollment and pairing acceptance; read-only
+status confirmed both active credentials and the app link awaiting owner activation.
+The visible-button phone fix worked: the author created the invitation. The author
+asked to defer notifications because the available phone cannot enable them;
+**real iPhone push reception remains unverified and item 31 remains Partial**.
+Email enrollment/reply and real app reply are still in progress. No notification
+or email success is inferred from enrollment or pairing alone.
+
+After explicit author approval, implementation commit `ec387a6` was pushed to
+`phase6/trusted-checkins` and [CI run 37644311166](https://github.com/BashaarJavaid/Hirz/actions/runs/37644311166)
+was dispatched. Lint/types, TypeScript tests, native Cedar, build, release and
+independent conformance jobs passed at the observed stage; remaining jobs, including
+both latency gates, had not completed. A follow-up commit carries the fixes above;
+only final-commit CI results can establish those gates.

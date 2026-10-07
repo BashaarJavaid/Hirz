@@ -208,14 +208,20 @@ async def send_allowed(p: Pipeline, contact_id: object) -> bool:
             )
             .where(
                 p.scope(db.checkin_jobs),
-                db.checkin_jobs.c.created_at >= contact_time(p) - window,
+                sa.or_(
+                    db.checkin_jobs.c.created_at >= contact_time(p) - window,
+                    db.checkin_jobs.c.next_attempt >= contact_time(p) - window,
+                ),
             )
         )
         enrollments = sa.select(
             sa.func.coalesce(sa.func.sum(db.contact_links.c.delivery_attempts), 0)
         ).where(
             p.scope(db.contact_links),
-            db.contact_links.c.created_at >= contact_time(p) - window,
+            sa.or_(
+                db.contact_links.c.created_at >= contact_time(p) - window,
+                db.contact_links.c.next_attempt >= contact_time(p) - window,
+            ),
         )
         if contact is not None:
             checks = checks.where(db.contact_links.c.contact_id == contact)

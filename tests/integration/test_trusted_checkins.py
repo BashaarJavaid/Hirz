@@ -216,6 +216,49 @@ def test_real_cross_household_receipt_isolation_and_deadline(
                     ]
                 assert (await guess(p, actor, case.case_id, "CaféSecret"))["limited"]
             if answer != "no_answer":
+                if answer == "genuine" and mode == "auto":
+                    from unittest.mock import patch
+
+                    append = q.audit.append
+
+                    async def fail_receipt(*args, **kwargs):
+                        if (
+                            isinstance(args[4], dict)
+                            and args[4].get("operation") == "contact_receipt"
+                        ):
+                            raise RuntimeError("receipt audit unavailable")
+                        return await append(*args, **kwargs)
+
+                    async with c.begin():
+                        before = await c.scalar(
+                            sa.select(sa.func.count()).select_from(db.audit_log)
+                        )
+                    with (
+                        patch.object(type(q.audit), "append", side_effect=fail_receipt),
+                        pytest.raises(RuntimeError, match="receipt audit unavailable"),
+                    ):
+                        async with q.repo.write(q.clock):
+                            await command(
+                                q,
+                                recipient,
+                                Command(
+                                    operation="reply",
+                                    reference=job["id"],
+                                    request_hash=job["request_hash"],
+                                    answer=answer,
+                                ),
+                                config,
+                            )
+                    async with c.begin():
+                        assert (
+                            await c.scalar(
+                                sa.select(sa.func.count()).select_from(db.audit_log)
+                            )
+                            == before
+                        )
+                        assert not await c.scalar(
+                            sa.select(db.checkin_receipts.c.job_id)
+                        )
                 async with q.repo.write(q.clock):
                     value = Command(
                         operation="reply",
@@ -518,6 +561,26 @@ def test_contact_http_passkey_binding_mailbox_and_failure(
                         {"operation": "status", "case_id": retried["case_id"]},
                     )
                     assert result.data.case.verification.reason == "delivery_failed"
+                    # Retries still count after the job's creation leaves the window.
+                    from hirz.contacts.worker import send_allowed
+
+                    async with q.connection.begin():
+                        created_at = await q.connection.scalar(
+                            sa.select(db.checkin_jobs.c.created_at).where(
+                                db.checkin_jobs.c.case_id == retried["case_id"]
+                            )
+                        )
+                        with patch(
+                            "hirz.contacts.worker.contact_time",
+                            return_value=created_at
+                            + timedelta(minutes=15, microseconds=1),
+                        ):
+                            assert not await send_allowed(q, UUID(contact))
+                        with patch(
+                            "hirz.contacts.worker.contact_time",
+                            return_value=created_at + timedelta(minutes=17),
+                        ):
+                            assert await send_allowed(q, UUID(contact))
                 inbox = await client.get("/api/checkins")
                 assert inbox.status_code == 200
                 assert private["token"] not in inbox.text and token not in inbox.text

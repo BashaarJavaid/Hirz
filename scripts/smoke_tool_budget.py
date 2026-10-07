@@ -221,10 +221,13 @@ class Client:
                         continue
                     payload = json.loads(line[6:])
                     if payload.get("method") == "elicitation/create":
-                        assert confirming and set(
+                        review = set(
                             payload["params"]["requestedSchema"]["properties"]
                         ) == {"confirmed"}
-                        assert "exact reported request" in payload["params"]["message"]
+                        if review:
+                            assert (
+                                "exact reported request" in payload["params"]["message"]
+                            )
                         accepted = await self.http.post(
                             self.url,
                             auth=httpx.Auth(),
@@ -233,8 +236,12 @@ class Client:
                                 "jsonrpc": "2.0",
                                 "id": payload["id"],
                                 "result": {
-                                    "action": "accept",
-                                    "content": {"confirmed": True},
+                                    "action": "accept" if review else "cancel",
+                                    **(
+                                        {"content": {"confirmed": True}}
+                                        if review
+                                        else {}
+                                    ),
                                 },
                             },
                         )
