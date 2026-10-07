@@ -134,8 +134,8 @@ Item 30 adds `uv run --locked python scripts/demo.py init --origin <HTTPS-origin
 
 ## Current phase
 
-Phase 5 is complete. Phase 6 item 31 is implemented with local acceptance evidence;
-a real app reply, deferred email/push acceptance and final CI gates keep it Partial.
+Phase 5 is complete. Phase 6 item 31 has a verified real cross-household app
+reply and passing CI, including both latency gates; deferred real email/push acceptance keeps it Partial.
 SMTP is currently unreachable from the acceptance Mac. Item 34's access gate
 failed; the Ring track is removed and the twin doorbell remains. Item 28 still
 owes real Web Push (issue #7). Development stays on 0005; migrations remain manual.

@@ -12219,3 +12219,89 @@ deferred real email acceptance. Read-only status confirmed both pending email
 enrollments had stopped delivery (`failed`, with three and zero attempts respectively);
 no future email retry is queued. Real app reply remains on hold at the author's
 request. These deferrals do not waive item 31's completion requirements.
+
+### Real cross-household app reply — 2026-10-07
+
+After the author explicitly confirmed readiness and the exact sentence, authenticated
+MCP started Mom's check to Malik: **“Did you ask Mom to send $500?”** The tool returned
+`pending`, `app_confirmation`, `source: real`. The author opened Malik's Check-ins
+page and confirmed **“Answered with my passkey.”** Authenticated MCP status then
+returned `not_genuine`: “The contact says they did not make this request. Do not
+send anything.” No payment instruction or number-comparison claim was made.
+
+Persisted evidence independently confirms requester Mom in Quinn Parents, recipient
+Malik in Quinn Home, exact reported text, distinct households, passkey proof,
+`not_genuine`, one app delivery attempt and a closed job. The server accepted the
+receipt at **2026-10-07T16:11:55.966579Z**, **56.561052 seconds before expiry**. The
+requesting worker consumed the recipient's audited receipt; it did not impersonate
+Malik. Both household signed exports independently verified valid after the reply.
+Private exports and the derived proof summary are under
+`secrets/item31-real-app-reply-audit`; MCP start/status artifacts are retained in
+`secrets/item31-phone-20261007-c`. The retained server is run `-d`, preserving the
+same disposable database and real passkeys.
+
+This is real passkey/app inbox acceptance over the private Tailscale HTTPS origin,
+using the approved demo identities and the local simulated OAuth issuer for MCP.
+Household policy/audit clocks retain the disposable scenarios; contact deadlines
+and receipt acceptance use wall time. It is not a real push or email result.
+Those two author-deferred gates keep item 31 Partial. CI run 37646760754 remains
+active for Python tests and both required latency gates; the other ten jobs passed.
+
+### Completed CI tests; latency gates pending — 2026-10-07
+
+[Run 37646760754](https://github.com/BashaarJavaid/Hirz/actions/runs/37646760754)
+completed its Python job successfully: **1,522 service-free tests passed** in
+264.69 seconds, **212 integration tests passed** in 852.87 seconds, and combined
+coverage was **89%** (15,624 statements, 1,668 missed). The same job passed the
+simulator browser check (1 test, 26.9 seconds), authenticated card relay (1 test,
+2.7 seconds), and **47 card browser tests**, including the Linux screenshot
+baselines, in 2.1 minutes. All eleven non-latency jobs passed; the two required
+latency jobs were still running when this entry was appended.
+
+This dispatch tests `d99c07913c9a92e68ea85f8d612186398c52832a`. The subsequent
+`b8f9a14` adds the fresh-process receipt regression and documentation; its
+application, benchmark, dependency, migration and workflow files are identical
+to the dispatch commit (`git diff d99c079..b8f9a14 -- hirz scripts apps
+constitutions alembic infra pyproject.toml uv.lock pnpm-lock.yaml .github` is
+empty). Its separate push CI is also being checked. A running latency job is
+not recorded as a passed gate.
+
+### Final CI gates and retained partial status — 2026-10-07
+
+[Dispatch 37646760754](https://github.com/BashaarJavaid/Hirz/actions/runs/37646760754)
+finished **successful: all 13 jobs passed**, including both required normal latency
+gates. Each scenario measured **54 cases across all twelve tools**, with five
+warmups and 100 measured calls per case, nearest-rank p95 and no discarded samples.
+The 250 ms limit was unchanged; this was not a diagnostic dispatch.
+
+| Scenario | Slowest case p95 | Slowest aggregate tool p95 | Result |
+|---|---|---|---|
+| `demo-evening` | `plan-approval`: 113.868 ms | `verify_trusted_identity`: 102.073 ms | Pass |
+| `demo-evening-hourly` | `objective-greenest`: 187.387 ms | `get_household_plan`: 166.196 ms | Pass |
+
+These are authenticated local twin tool timings on CI, not AWS deployment or real
+transport latency. Full payload-free timing tables are retained in the linked CI
+job logs. The tested application commit and equivalence to the later regression
+commit are recorded above.
+
+[Follow-up push CI 37648945777](https://github.com/BashaarJavaid/Hirz/actions/runs/37648945777)
+also finished successfully on `b8f9a14`, including the fresh-process receipt
+regression: **1,522 service-free tests**, **212 integration tests**, **89% combined
+coverage**, **159 native Cedar conformance tests**, five TypeScript unit tests,
+the companion and simulator browser checks, authenticated card relay, and all
+**47 Linux card browser tests** passed. Latency is dispatch-only and was skipped
+in this push run; the two actual passing gates are in the dispatch above.
+
+The final evidence changes are documentation only. `ruff format --check .` passed
+after the evidence edits (**304 files already formatted**); `git diff --check`
+and the identical `AGENTS.md`/`CLAUDE.md` check passed. The retained phone server
+survived the agent-session restart and returned healthy. No additional live
+check-in or email was sent during this final verification.
+
+Item 31 remains **Partial solely for the author-deferred real email enrollment/reply
+and real iPhone Home Screen push reception**. The real cross-household app inbox
+reply, independently verified signed household exports, automated scenarios,
+security acceptance, browser/conformance checks and required CI gates are recorded
+above. SMTP connectivity failure remains an environment limitation; neither email
+delivery nor the app password's validity was demonstrated. No remaining Phase 6
+protection, public AWS deployment, or full Ring integration is claimed.

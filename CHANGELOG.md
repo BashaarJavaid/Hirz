@@ -6,6 +6,10 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- Record successful item 31 CI, including both latency gates, while retaining Partial status for deferred real email and iPhone push acceptance ([evidence](./docs/verification-log.md#final-ci-gates-and-retained-partial-status--2026-10-07)).
+
+- Verify Mom’s real app check-in and Malik’s passkey reply across households, with both signed chains independently verified; email/push remain deferred ([evidence](./docs/verification-log.md#real-cross-household-app-reply--2026-10-07)).
+
 - Verify accepted receipts in a fresh worker process and record deferred real email/push acceptance; clarify shared-Echo visibility of an initiating member’s case results ([evidence](./docs/verification-log.md#card-state-acceptance-follow-up--2026-10-07)).
 
 - Show mailbox delivery failures and verify explicit retries on scripted Show/Dot, concurrent replies and independent channel revocation ([evidence](./docs/verification-log.md#concurrent-replies-browser-retries-and-real-delivery-limitation--2026-10-07)).
