@@ -12180,3 +12180,19 @@ requirement were not changed.
 Follow-up commit `22098d7` was pushed and [CI run 37645337505](https://github.com/BashaarJavaid/Hirz/actions/runs/37645337505)
 started. The earlier dispatch was superseded, not counted as a passing gate. Both
 latency gates and remaining browser/CI results remain pending at this entry.
+
+### Card-state acceptance follow-up — 2026-10-07
+
+The authenticated reference-host relay passed (1 browser test, 2.9 seconds), with
+private fixtures and independently verified exports under `secrets/item31-cards-final`.
+The local macOS card selection initially had three failures: two Linux screenshot
+baselines differed in font rendering (the actual and expected images were inspected;
+no baseline was overwritten), and the new real-email assertion incorrectly searched
+for capitalized `Live` while the badge renders `live`. The assertion was corrected;
+Linux CI remains the screenshot gate. Pending-expiry polling and all four terminal
+polling checks passed in that first selection.
+
+During the retained phone-server restart, the existing fixed-port unit test again
+found port 8003 occupied. The test now accepts an already occupied port as its
+intended occupied-port setup, still requiring the production guard to refuse it and
+still propagating every other bind error. No service is stopped by that test.

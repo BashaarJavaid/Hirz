@@ -122,8 +122,16 @@ def test_other_checkout_retained_storage_does_not_block(tmp_path, monkeypatch):
 
 def test_ports_and_private_directories(tmp_path):
     with socket.socket() as listener:
-        listener.bind(("127.0.0.1", 8003))
-        listener.listen()
+        try:
+            listener.bind(("127.0.0.1", 8003))
+        except OSError as error:
+            import errno
+
+            # An existing local demo already supplies the occupied-port condition.
+            if error.errno != errno.EADDRINUSE:
+                raise
+        else:
+            listener.listen()
         with pytest.raises(LocalError, match="occupied"):
             demo.ports_available()
     demo.private_dir(tmp_path / "run")

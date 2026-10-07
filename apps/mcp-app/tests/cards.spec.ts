@@ -242,7 +242,7 @@ test("real email check shows method and honest provenance", async ({ page }) => 
   initial.data.presentation.method = "email";
   const { frame } = await mount(page, "verification", "light", () => initial, initial);
   await expect(frame.getByText("Check by email", { exact: true })).toBeVisible();
-  await expect(frame.getByText("Live", { exact: true })).toBeVisible();
+  await expect(frame.getByText("live", { exact: true })).toBeVisible();
 });
 
 test("malformed results have no action controls", async ({ page }) => {
