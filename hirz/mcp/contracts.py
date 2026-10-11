@@ -596,7 +596,7 @@ TOOLS: dict[str, tuple[type[Input], str, str]] = {
     "assess_request_risk": (
         RiskInput,
         "verify",
-        "Assess requests to send money, pay someone, transfer funds, share a code or grant access, including direct commands to send or pay money. Call this tool before giving risk advice; Hirz cannot transfer money. Does not initiate contact. Include a number only if the user supplied it.",
+        "Assess requests to send money, pay someone, transfer funds, share a code or grant access, including direct commands to send or pay money. Call immediately with the reported text before giving risk advice; Hirz cannot transfer money. Names and numbers are optional: do not ask for them before assessment. Use party=person unless an organization is explicitly reported. Omit unknown claimed_party and presented_number. Does not initiate contact.",
     ),
     "verify_trusted_identity": (
         VerifyInput,

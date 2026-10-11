@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import sys
+import traceback
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
@@ -181,6 +182,9 @@ async def smoke(
                                 "send five hundred dollars to this number"
                             )
                             selected = result["selected"]
+                            (directory / "routing.json").write_text(
+                                json.dumps(result, indent=2) + "\n"
+                            )
                             assert (
                                 len(selected) == 1
                                 and selected[0]["name"] == "assess_request_risk"
@@ -246,6 +250,10 @@ def main() -> None:
                 )
             )
     except Exception as exc:
+        if args.artifacts_dir and args.artifacts_dir.is_dir():
+            (args.artifacts_dir / "failure.txt").write_text(
+                "".join(traceback.format_exception(exc))
+            )
         parser.exit(
             1,
             f"Protect smoke failed ({type(exc).__name__}); private inputs withheld.\n",

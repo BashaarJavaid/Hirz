@@ -12422,3 +12422,38 @@ model false warnings remain limitations; threat-model claims are unchanged.
   when this entry was written; this does not claim final CI acceptance.
 - Live Haiku acceptance remains blocked on refreshing AWS profile `hirz-login`.
   No successful paid inference is claimed and the $2 ledger must be retained.
+
+### Live Haiku acceptance after credential refresh
+
+AWS STS succeeded for profile `hirz` after the user refreshed `hirz-login`. Pricing
+was rechecked against the same published Bedrock geographic rates before inference.
+The initial explicit warmup and diagnostic calls exposed an ordinary-tool response
+discriminator missing from AWS's documented enum; the validator fix and exact
+observed error are recorded in the [friction log](./friction-log.md#item-32--converse-tool-discriminator-differs-from-documented-enum--2026-10-11).
+Only `type: "tool_use"` is accepted as an optional transport field; server tools,
+unknown envelope fields and extra extraction-payload fields remain rejected.
+
+Two subsequent live acceptance runs passed extraction but failed routing because
+Haiku asked for a phone number/name. The tool description and both host instruction
+sets now explicitly require immediate assessment of reported text, omitting unknown
+optional fields. Private harness diagnostics retain failure traces and routing
+results instead of exposing reported text on failure stdout.
+
+Final command: `AWS_PROFILE=hirz HIRZ_PROTECT_BUDGET_LEDGER="$PWD/secrets/item32-protect-budget.json" .venv/bin/python -m scripts.smoke_protect --live --artifacts-dir secrets/item32-live-20261011-5`.
+Result: **PASS**, with all four extraction states `complete`: exact roadmap scam
+**CRITICAL**, Malik dinner **LOW**, Dad dinner **LOW**, secrecy paraphrase **MEDIUM**
+with an additional model-only warning. The exact money command selected only
+`assess_request_risk`, with `party=person` and the original text; neither a name nor
+a number was invented. Selection-only host mode executed no tool or action.
+Authenticated MCP duplicates retained original receipts, status showed current
+advice, and no contact job or financial action was created. Both signed chains
+verified independently (**3 + 28 rows**); the successful disposable database was
+dropped and development data remained unchanged. Failed-run databases were retained
+by the existing disposable infrastructure for diagnosis.
+
+The shared ledger now retains **18 reservations totaling $0.0870562**, including
+failed validations, diagnostics, all extraction attempts and routing. This is a
+conservative reservation total, not a claim about invoiced spend. No case received
+an automatic paid retry. Protect/MCP unit regression: **93 passed**; strict mypy
+and Ruff passed after the compatibility correction. Final CI is being re-dispatched
+on the routing correction; item 32 remains partial until those gates settle.

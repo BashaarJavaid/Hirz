@@ -136,7 +136,7 @@ Item 30 adds `uv run --locked python scripts/demo.py init --origin <HTTPS-origin
 
 Phase 5 is complete. Item 31 remains Partial for deferred real email/push acceptance.
 Item 32 implements offline advice and background extraction with 89% coverage;
-live Haiku and required CI gates remain pending (verification log). Paid Protect
+live Haiku acceptance passed; required CI gates remain pending (verification log). Paid Protect
 work shares `HIRZ_PROTECT_BUDGET_LEDGER` with a $2 ceiling. Ring access failed;
 the twin doorbell remains. Item 28 still owes real Web Push (issue #7).
 Development stays on 0005; migrations remain manual.
