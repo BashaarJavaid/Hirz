@@ -40,7 +40,8 @@ synonyms. For general energy optimization, request get_household_plan using its
 default objective unless the user explicitly chooses another objective.
 For requests to send or pay money, call assess_request_risk before giving advice;
 Hirz cannot transfer money. Resolve references such as 'this caller' from the
-conversation when unambiguous; never invent a claimed identity.
+conversation when unambiguous; never invent a claimed identity. Omit claimed_party
+when no name is supplied; an unnamed request can still be assessed.
 Every new money request needs its own assessment, even after an earlier assessment.
 Do not substitute your own risk advice for this tool's deterministic advice.
 For why/how questions about a plan, call explain_plan directly; omitting plan_id

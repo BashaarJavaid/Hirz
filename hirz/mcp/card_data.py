@@ -359,19 +359,13 @@ async def decorate(
         if state:
             base["valid_until"] = state.expires_at
             base["source"] = "live" if state.source == "real" else "simulated"
+        from hirz.protect.advice import labels, notice
+
         verification = VerificationCard(
             **base,
-            signals=tuple(
-                {
-                    "financial_or_access_request": "Money or access was requested",
-                    "unfamiliar_channel_reported": "An unfamiliar channel was reported",
-                    "secrecy": "You were asked to keep this secret",
-                    "third_party_recipient": "A third-party recipient was named",
-                    "urgency_language": "Pressure to act quickly",
-                    "claimed_authority": "A claim of authority",
-                }[s.signal]
-                for s in case.signals[:3]
-            ),
+            signals=labels(case),
+            notice=notice(case.extraction) if case.extraction else None,
+            extraction_status=case.extraction.status if case.extraction else None,
             status=state.status if state else "assessed",
             contact_name=str(contacts[0]["display_name"])
             if len(contacts) == 1

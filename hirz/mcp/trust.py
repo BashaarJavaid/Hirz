@@ -1,5 +1,6 @@
 """Approved bounded advisory signals and private simulated contact checks."""
 
+import os
 import re
 from datetime import datetime, timedelta
 from hashlib import sha256
@@ -17,70 +18,23 @@ from hirz.pipeline.models import (
     Action,
     Principal,
     Requester,
+    SupplementalEvidence,
     Target,
     VerificationCase,
     VerificationClaim,
-    VerificationSignal,
+    VerificationExtraction,
     VerificationState,
     VerificationSubject,
 )
+from hirz.pipeline.preview import PreviewEvidence
 from hirz.pipeline.service import Pipeline
 from hirz.planner.coordinator import Clarification
-from hirz.risk import RiskBand
+from hirz.protect.advice import notice
+from hirz.protect.scoring import band as band
+from hirz.protect.scoring import scam_pattern
+from hirz.protect.scoring import signals as signals
 from hirz.twin.people import ContactScript
 from hirz.twin.world import TwinWorld
-
-# Approved 2026-09-23. Advisory only; never supplies execution's trusted scam flag.
-PHRASES: dict[str, tuple[int, tuple[str, ...]]] = {
-    "financial_or_access_request": (
-        2,
-        (
-            "send money",
-            "pay money",
-            "transfer money",
-            "wire money",
-            "dollars",
-            "gift cards",
-            "bank details",
-            "password",
-            "verification code",
-            "unlock the door",
-            "open the door",
-        ),
-    ),
-    "unfamiliar_channel_reported": (
-        2,
-        ("strange number", "new number", "unknown number", "different number"),
-    ),
-    "secrecy": (2, ("keep this secret", "don't tell anyone")),
-    "third_party_recipient": (
-        2,
-        ("courier", "someone collecting money", "another person's account"),
-    ),
-    "urgency_language": (1, ("urgent", "immediately", "right now")),
-    "claimed_authority": (1, ("police", "government", "bank", "irs")),
-}
-
-
-def signals(text: str) -> tuple[VerificationSignal, ...]:
-    found = []
-    for name, (weight, phrases) in PHRASES.items():
-        matched = False
-        for clause in re.split(r"[.!?;,\n]", text.casefold().replace("’", "'")):
-            for phrase in phrases:
-                for match in re.finditer(r"\b" + re.escape(phrase) + r"\b", clause):
-                    prefix = re.findall(r"[a-z']+", clause[: match.start()])[-3:]
-                    if phrase == "don't tell anyone" or not {
-                        "no",
-                        "not",
-                        "never",
-                    }.intersection(prefix):
-                        matched = True
-        if matched:
-            found.append(
-                VerificationSignal.model_validate(dict(signal=name, weight=weight))
-            )
-    return tuple(found)
 
 
 def phone(text: str) -> str:
@@ -98,19 +52,6 @@ def phone(text: str) -> str:
     raise ValueError("International numbers require an explicit plus country code.")
 
 
-def band(found: tuple[VerificationSignal, ...]) -> RiskBand:
-    score = sum(s.weight for s in found)
-    return (
-        RiskBand.LOW
-        if score == 0
-        else RiskBand.MEDIUM
-        if score <= 2
-        else RiskBand.HIGH
-        if score <= 4
-        else RiskBand.CRITICAL
-    )
-
-
 async def assess(
     p: Pipeline,
     principal: Principal,
@@ -122,7 +63,8 @@ async def assess(
     contacts = [
         r
         for r in snapshot.data["trusted_contacts"]
-        if str(r["display_name"]).casefold() == args.claimed_party.casefold()
+        if args.claimed_party
+        and str(r["display_name"]).casefold() == args.claimed_party.casefold()
         or str(r["id"]) == args.claimed_party
     ]
     contact = contacts[0] if len(contacts) == 1 and args.party == "person" else None
@@ -161,17 +103,50 @@ async def assess(
                 )
     found = signals(args.text)
     risk = band(found)
+    extraction = VerificationExtraction(
+        status="pending" if os.environ.get("HIRZ_LLM", "off") == "bedrock" else "off",
+        keyword_signals=found,
+        queued_at=p.clock(),
+    )
+    action = Action.model_validate(
+        {
+            "action_id": uuid4().hex,
+            "class": "finance.verify_request",
+            "target": {"adapter": "household", "entity": str(p.household_id)},
+            "params": {},
+            "requested_by": (await p.requester(principal)).model_dump(),
+            "reason": "Hypothetical reported request assessment",
+            "content_hash": "",
+        }
+    )
+    action = action.model_copy(update={"content_hash": action_hash(action)})
+    evaluation = await p.assess_operation(
+        action,
+        principal,
+        None,
+        (),
+        p.clock(),
+        preview=PreviewEvidence(
+            scam_pattern=SupplementalEvidence(
+                household_id=p.household_id,
+                observed_at=p.clock(),
+                source="twin",
+                scam_pattern=scam_pattern(found),
+            )
+        ),
+    )
     speech = response(
         "This request has warning signs. Check with your trusted contact before acting."
         if found
         else "I found no listed warning signs. A trusted-contact check is still available.",
-        details=(),
+        details=(notice(extraction),),
         options=("Check with a trusted contact",),
     )
     if args.party == "organization":
         speech = response(
             "There is insufficient information to verify this organization in the preview.",
             options=("Check with a trusted contact",),
+            details=(notice(extraction),),
         )
         comparison = "insufficient_information" if args.presented_number else None
     if comparison is not None:
@@ -182,7 +157,9 @@ async def assess(
         }[comparison]
         speech = speech.model_copy(
             update={
-                "speakable": speech.speakable.model_copy(update={"details": (line,)})
+                "speakable": speech.speakable.model_copy(
+                    update={"details": (*speech.speakable.details, line)}
+                )
             }
         )
     case = VerificationCase(
@@ -194,6 +171,8 @@ async def assess(
             claimed_party=args.claimed_party,
             party=args.party,
         ),
+        assessment_decision=evaluation.decision,
+        extraction=extraction,
         signals=found,
         risk_band=risk,
         recommended=("verify_via_verified_channel", "do_not_transfer")
@@ -247,7 +226,12 @@ def case_response(case: VerificationCase) -> Result:
             "contact_removed": "The contact was removed. This check is closed.",
             "channel_revoked": "The contact channel was revoked. Call the contact saved in your own phone.",
         }[state.reason]
-    return response(headline, source=state.source, case=case)
+    return response(
+        headline,
+        details=(notice(case.extraction),) if case.extraction else (),
+        source=state.source,
+        case=case,
+    )
 
 
 async def verify(
@@ -313,6 +297,9 @@ async def verify(
         original = cases[0]
         if original.verification is None or original.verification.status == "pending":
             raise ValueError("Wait for the current check to finish before retrying")
+        from hirz.protect.advice import retry_advice
+
+        original = retry_advice(original, p.clock())
         case = original.model_copy(
             update={
                 "case_id": uuid5(

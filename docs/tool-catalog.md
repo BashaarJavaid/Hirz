@@ -16,7 +16,7 @@ acceptance remains tracked in [the evidence log](./verification-log.md#item-29).
 | explain_plan | read | Optional plan_id and focus (summary, conflicts, action/goal reference); stored facts and bounded narration. |
 | approve_action | act | approved, exact plan_id/version for plans, plus action_id/approval_id for a planned pending action; immediate pending actions omit plan references; request_id; stale consent refused; security remains passkey-gated. |
 | execute_household_action | act | action plus applicable profile, room, temperature_f, percent, minutes, beneficiary, claimed_requester; request_id; queued execution. |
-| assess_request_risk | verify | text, claimed_party, party, optional presented_number, request_id; deterministic advice, no contact initiation. |
+| assess_request_risk | verify | text, party, request_id; optional claimed_party and presented_number; immediate keyword advice, optional background enrichment, no contact initiation. |
 | verify_trusted_identity | verify | operation start/status; case_id/contact, text for a new request and request_id for start; private simulated app checks only. |
 | propose_household_rule | plan | text, request_id; records the sentence with CONSTITUTION_PROPOSED, without drafting, delivery or activation. |
 | evaluate_permission | read | Shared action fields, optional at and required request_id; current policy preview with DRY_RUN, no authority. |
@@ -297,3 +297,20 @@ minutes for app, fifteen for email. Status preserves all five outcomes and suppl
 reason-specific wording for expiry, delivery failure, removal, revocation or lost
 approval/permission. Cards label method and real/simulated provenance. Updates never
 trigger speech without another member request. [ADR-022](./adr/ADR-022-trusted-checkins.md).
+
+### Protect assessment updates (item 32)
+
+An omitted `claimed_party` remains unknown and resolves no contact. Never invent a
+name to route a money request: `assess_request_risk` accepts it unnamed. Named,
+matched contacts retain the existing confirmed contact-plus-original-text flow;
+unnamed/unmatched cases retain a generic contact-check offer at every band.
+
+New cases carry optional extraction metadata. With `HIRZ_LLM=off`, speech details
+say “Keyword-only check; some warning signs may be missed.” Pending/running work
+says “Additional warning checks are in progress.” Failure returns keyword advice;
+model-only warnings are possible warnings. The hypothetical assessment Decision
+is private, immutable and omitted from tool output. No assessment starts contact.
+`verify_trusted_identity(operation=status, case_id=...)` reads current advice;
+a duplicate request key returns the exact original receipt, even after enrichment.
+Legacy cases remain readable without submission or re-scoring. The twelve-tool
+surface and source labels are unchanged. [ADR-015](./adr/ADR-015-household-tools.md#protect-assessment-and-enrichment-amendment--2026-10-11).

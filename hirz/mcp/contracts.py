@@ -7,7 +7,15 @@ Structured content supports native rendering and optional MCP App presentation.
 
 from typing import Annotated, Any, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    SerializerFunctionWrapHandler,
+    StrictBool,
+    model_serializer,
+    model_validator,
+)
 from pydantic.json_schema import GenerateJsonSchema, JsonSchemaValue
 from pydantic_core import CoreSchema
 
@@ -66,7 +74,7 @@ FIELD_DESCRIPTIONS = {
     "minutes": "Explicit maximum charging or requested door-unlock duration in minutes; required for those actions.",
     "beneficiary": "Exact household member for whom the temperature change is requested; does not establish who spoke.",
     "claimed_requester": "Unverified claimed speaker name; can only lower the linked account's authority.",
-    "claimed_party": "Name of the person or organization the suspicious request claims to come from.",
+    "claimed_party": "Reported name, only if supplied; omit when unknown. Never invent a name.",
     "party": "Whether the claimed party is a person or organization; organization verification is unavailable.",
     "presented_number": "Phone number explicitly supplied by the user. Omit when unknown; a stored-number match never proves identity.",
     "case_id": "Returned private verification case reference. Use it to disambiguate multiple pending checks.",
@@ -276,7 +284,7 @@ class PermissionInput(ActionInput):
 
 class RiskInput(Input):
     text: Sentence
-    claimed_party: Reference
+    claimed_party: Reference | None = None
     party: Literal["person", "organization"]
     presented_number: Reference | None = None
     request_id: RequestKey
@@ -348,6 +356,13 @@ class AuditSummary(Input):
 
 
 class ToolData(Input):
+    @model_serializer(mode="wrap")
+    def public_case(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        value: dict[str, Any] = handler(self)
+        if value.get("case"):
+            value["case"].pop("assessment_decision", None)
+        return value
+
     status: Literal[
         "ok",
         "clarification",

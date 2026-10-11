@@ -2,6 +2,9 @@ import { z } from "zod";
 
 const text = z.string().min(1).max(2000);
 const date = z.iso.datetime({ offset: true });
+const extractionStatus = z.enum(["off", "pending", "running", "complete", "fallback"]);
+const signal = z.object({ signal: z.enum(["financial_or_access_request", "unfamiliar_channel_reported", "secrecy", "third_party_recipient", "urgency_language", "claimed_authority"]), weight: z.union([z.literal(1), z.literal(2)]) });
+const extraction = z.object({ status: extractionStatus, keyword_signals: z.array(signal), model_signals: z.array(signal), queued_at: date, started_at: date.nullish(), finished_at: date.nullish(), failure_code: z.enum(["disabled", "budget", "counting", "provider", "invalid_output", "interrupted", "retry_unfinished"]).nullish() });
 const number = z.number().finite();
 const row = z.object({ action_id: text, label: text, at: date.nullable() });
 const annualized = z.object({ usd: number, eligible_days: z.number().int().positive(), total_days: z.number().int().positive(), sha256: text, profile: text, household_variant: text, wear_per_internal_kwh: number, period: text, label: text }).nullable();
@@ -9,7 +12,7 @@ const base = { as_of: date, valid_until: date, source: z.enum(["live", "simulate
 const presentation = z.discriminatedUnion("kind", [
   z.object({ ...base, kind: z.literal("plan"), rows: z.array(row).max(3), timeline: z.array(row), annualized, car_limit: number.min(0).max(80).nullable(), can_approve: z.boolean(), can_revise_car: z.boolean(), rate_label: text.nullable() }),
   z.object({ ...base, kind: z.literal("approval"), label: text, rule: text, risk_band: text, can_respond: z.boolean(), phone_required: z.boolean(), plan_id: text.nullable(), version: z.number().int().positive().nullable() }),
-  z.object({ ...base, kind: z.literal("verification"), method: z.enum(["app", "email"]).nullish(), signals: z.array(text).max(3), status: z.enum(["assessed", "pending", "genuine", "not_genuine", "will_call", "no_answer"]), contact_name: text.nullable(), can_check: z.boolean() }),
+  z.object({ ...base, kind: z.literal("verification"), notice: text.nullish(), extraction_status: extractionStatus.nullish(), method: z.enum(["app", "email"]).nullish(), signals: z.array(text).max(3), status: z.enum(["assessed", "pending", "genuine", "not_genuine", "will_call", "no_answer"]), contact_name: text.nullable(), can_check: z.boolean() }),
   z.object({ ...base, kind: z.literal("doorbell"), context: z.array(text), snapshot: z.literal("twin").nullable(), lock_state: z.enum(["locked", "unlocked", "unknown"]), can_request: z.boolean(), room: text.nullable() }),
   z.object({ ...base, kind: z.literal("scorecard"), counts: z.object({ autonomous: z.number().int().nonnegative(), asked: z.number().int().nonnegative(), blocked: z.number().int().nonnegative(), verified: z.number().int().nonnegative() }), annualized, window_start: date, window_end: date }),
 ]);
@@ -20,7 +23,7 @@ export const resultSchema = z.object({
     presentation: presentation.nullish(),
     plan: z.object({ plan_id: text, version: z.number().int().positive(), status: text, horizon: z.object({ start: date, end: date }), summary: z.object({ estimated_savings_usd: number.nullable(), peak_kwh_avoided: number.nullable() }), comparison_validity: z.object({ valid: z.boolean() }), alternatives: z.array(z.object({ label: text, cost_delta_usd: number.nullable(), why_rejected: text, validity: z.object({ valid: z.boolean() }) })) }).nullish(),
     decision: z.object({ action_id: text, decision: z.enum(["execute", "ask", "deny", "verify"]), approval: z.object({ approval_id: text, expires_at: date }).nullish() }).nullish(),
-    case: z.object({ case_id: text, verification: z.object({ status: text, expires_at: date }).nullish() }).nullish(),
+    case: z.object({ case_id: text, extraction: extraction.nullish(), verification: z.object({ status: text, expires_at: date }).nullish() }).nullish(),
     audit: z.array(z.object({ at: date, summary: text })).default([]),
     cursor: text.nullish(),
   }),

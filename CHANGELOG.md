@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-10-11: Implement immediate Protect advice, private hypothetical decisions, budgeted background signal extraction and card/phone updates; item 32 acceptance remains partial ([ADR-015](./docs/adr/ADR-015-household-tools.md#protect-assessment-and-enrichment-amendment--2026-10-11), [evidence](./docs/verification-log.md#item-32--2026-10-11)).
+
 - Record successful item 31 CI, including both latency gates, while retaining Partial status for deferred real email and iPhone push acceptance ([evidence](./docs/verification-log.md#final-ci-gates-and-retained-partial-status--2026-10-07)).
 
 - Verify Mom’s real app check-in and Malik’s passkey reply across households, with both signed chains independently verified; email/push remain deferred ([evidence](./docs/verification-log.md#real-cross-household-app-reply--2026-10-07)).

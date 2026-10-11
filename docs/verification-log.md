@@ -12305,3 +12305,77 @@ security acceptance, browser/conformance checks and required CI gates are record
 above. SMTP connectivity failure remains an environment limitation; neither email
 delivery nor the app password's validity was demonstrated. No remaining Phase 6
 protection, public AWS deployment, or full Ring integration is claimed.
+
+## Item 32 — 2026-10-11
+
+### Initial local implementation and acceptance
+
+Item remains open pending live Haiku acceptance, full combined coverage and the
+required regression CI/normal latency gates. Item 31's deferred email/push gates,
+organization verification, courier correlation and items 34–35 are excluded.
+
+Implemented the approved ADR-015/ADR-004 amendment: immediate keyword advice,
+optional unknown subject, immutable private hypothetical Pipeline decision,
+strict budgeted background extraction, durable audited transitions, monotone
+publication and current-status rendering. No migration or development-database
+upgrade. Cases created before this change remain unchanged and are not submitted.
+
+Local checks on macOS with the existing Python 3.12 environment, Node 24 tools,
+native Dogwood and disposable PostgreSQL:
+
+- `.venv/bin/pytest --tb=short -q`: **1537 passed, 215 deselected**, 269.15 seconds;
+  service-free coverage alone is 70%, not the combined gate. The first collection
+  attempt found a duplicate test module basename; the integration module was
+  renamed `test_protect_database.py` and the complete suite then passed.
+- Protect unit/contracts checks: **54 passed** before adding the ordinary scenario
+  check; latest Protect-only run **16 passed**. Covers all bands, the override,
+  negation/deduplication, empty/wrong/malformed model output, extra fields,
+  delimited injection text, counting/budget/provider failures, legacy cases,
+  unnamed input and private Decision serialization.
+- Initial Protect database suite: **2 passed**. Uses a blocked provider and separate
+  connections to verify no household lock during inference, worker exclusion,
+  immutable decisions/claims, original receipt replay, abandoned-running fallback,
+  concurrent contact timeout, retry copies and cross-household refusal. A later
+  follow-up also covers cancellation while the SDK thread is still running.
+- `.venv/bin/python -m scripts.smoke_protect --artifacts-dir secrets/item32-offline-20261011`:
+  PASS. Exact roadmap scam is CRITICAL; Malik and Dad dinner sentences are LOW;
+  named Malik cases retain an eligible saved-contact check. Four cases remain
+  `extraction=off`, no contact jobs are initiated, no supplied-number comparison
+  appears, and retries reproduce original receipts. Separate worker process exits
+  successfully. Two independent signed exports validate (**3 and 12 rows**), in
+  the private artifact directory; disposable database dropped, development unchanged.
+- `.venv/bin/python -m scripts.smoke_household_tools --audit-output secrets/item32-conformance-audit.json --conformance-cli ../addon-check/dist/cli.js`
+  with `HIRZ_LLM=off`: **117 PASS, 0 FAIL/WARN/SKIP, 8 MANUAL**, complete independent
+  conformance evidence; **611 signed rows** verified offline. The manual checks
+  remain explicitly manual. MCP restart, exact receipts and separate worker pass.
+- Card fixtures: `HIRZ_LLM=off .venv/bin/python -m scripts.smoke_cards --artifacts-dir secrets/item32-cards-20261011`.
+  Reference-host Chromium tests with these fixtures: **8 passed** covering both
+  updated verification screenshots, four contact outcomes, enrichment settlement,
+  two-second polling and the 30-second cutoff with Refresh. Reviewed the light
+  screenshot: notice, two warning rows, simulated label and saved-contact button
+  fit the 768×480 card. The first run exposed ambiguous test status selectors and
+  MCP progress metadata in an exact object assertion; scoped selectors and a
+  partial request assertion fixed those tests without relaxing behavior checks.
+- `pnpm --filter web exec playwright test tests/protect.spec.ts`: **1 passed**.
+  Mocked session/inbox, real browser and Vite page: current advice, possible-warning
+  label, bounded polling and manual Refresh. This UI test does not prove authentication.
+- `pnpm -r lint`, `pnpm -r typecheck`, `pnpm -r test`: pass (**6 TypeScript tests**).
+  Both card and companion production builds pass. Existing Vite dependency directive
+  and chunk-size warnings remain; no unrelated bundle change was made.
+- Ruff check and strict mypy pass (**198 source files**); format check passes
+  (**312 files**) before the later evidence/docs updates. Final check is still owed.
+
+Published Haiku 4.5 geographic cross-region prices were rechecked against the
+[Anthropic Bedrock table, page 6](https://www-cdn.anthropic.com/files/4zrzovbb/website/3684c2faafb97418665782cea0001f439f74b1d2.pdf)
+on 2026-10-11: input/output $1.10/$5.50 per million tokens. The live warmup command
+used `AWS_PROFILE=hirz`, the retained path `secrets/item32-protect-budget.json`,
+`--live --warmup` and `secrets/item32-live-20261011`; credential retrieval failed
+before inference (`CredentialRetrievalError`). No successful paid call is claimed.
+The user was given `aws login --profile hirz-login` and the `hirz` STS check;
+live acceptance waits for refreshed credentials. Do not reset the shared ledger.
+
+The sandbox initially refused uv's existing cache and one loopback database
+connection. Existing environment executables and authorized local-network execution
+resolved these restrictions; the uv cache issue is already recorded in the friction
+log's item 8 follow-up. No new upstream defect is claimed. Keyword recall and
+model false warnings remain limitations; threat-model claims are unchanged.

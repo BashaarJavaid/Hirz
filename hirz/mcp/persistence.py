@@ -152,11 +152,38 @@ async def commit(
             if existing is None or str(existing["member_id"]) != member.member_id:
                 raise ValueError("Private case is unavailable")
             old = VerificationCase.model_validate(existing["document"])
-            if old.model_dump(exclude={"verification"}) != case.model_dump(
-                exclude={"verification"}
-            ):
+            mutable = (
+                {"extraction", "signals", "risk_band", "recommended", "speakable"}
+                if operation == "extraction"
+                else {"verification"}
+            )
+            if old.model_dump(exclude=mutable) != case.model_dump(exclude=mutable):
                 raise ValueError("Case claims are immutable")
-            if operation == "start":
+            if operation == "extraction":
+                from hirz.protect.advice import publish
+
+                before, after = old.extraction, case.extraction
+                if (
+                    principal.surface != "scheduler"
+                    or before is None
+                    or after is None
+                    or before.status not in {"pending", "running"}
+                    or after.status
+                    not in (
+                        {"running", "fallback"}
+                        if before.status == "pending"
+                        else {"complete", "fallback"}
+                    )
+                    or before.keyword_signals != after.keyword_signals
+                    or before.queued_at != after.queued_at
+                    or before.status == "running"
+                    and before.started_at != after.started_at
+                    or after.status != "complete"
+                    and after.model_signals
+                    or publish(old, after) != case
+                ):
+                    raise ValueError("Invalid extraction transition")
+            elif operation == "start":
                 contact_seq = params.get("contact_decision")
                 grant = await p.connection.scalar(
                     sa.select(db.audit_log.c.payload).where(
@@ -229,7 +256,9 @@ async def commit(
             p.connection,
             p.household_id,
             p.clock(),
-            EventType.VERIFY,
+            EventType.DRY_RUN
+            if operation in {"assess", "extraction"}
+            else EventType.VERIFY,
             {
                 "case_id": case.case_id,
                 "operation": operation,

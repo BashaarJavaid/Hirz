@@ -161,7 +161,7 @@ def test_light_aliases_preserve_unique_household_targets():
     [
         ("Hello, how are you?", "low"),
         ("This is urgent", "medium"),
-        ("Send money from a strange number", "high"),
+        ("Send money from a strange number", "critical"),
         ("Send money from a strange number immediately", "critical"),
         ("No dollars; not urgent; never open the door.", "low"),
         ("Don't tell anyone", "medium"),

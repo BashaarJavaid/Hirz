@@ -18,6 +18,7 @@ from pydantic import (
     field_validator,
     model_validator,
 )
+from pydantic.json_schema import SkipJsonSchema
 
 from hirz.explainer.models import NarrationMetadata
 from hirz.risk import CLASSES, RiskBand
@@ -382,7 +383,7 @@ class VerificationClaim(Model):
 class VerificationSubject(Model):
     contact_id: str | None = None
     trusted: bool
-    claimed_party: str = Field(min_length=1, max_length=200)
+    claimed_party: str | None = Field(default=None, min_length=1, max_length=200)
     party: Literal["person", "organization"]
 
 
@@ -418,7 +419,30 @@ class VerificationState(Model):
     ) = None
 
 
+class VerificationExtraction(Model):
+    status: Literal["off", "pending", "running", "complete", "fallback"]
+    keyword_signals: tuple[VerificationSignal, ...]
+    model_signals: tuple[VerificationSignal, ...] = ()
+    queued_at: AwareDatetime
+    started_at: AwareDatetime | None = None
+    finished_at: AwareDatetime | None = None
+    failure_code: (
+        Literal[
+            "disabled",
+            "budget",
+            "counting",
+            "provider",
+            "invalid_output",
+            "interrupted",
+            "retry_unfinished",
+        ]
+        | None
+    ) = None
+
+
 class VerificationCase(Model):
+    assessment_decision: SkipJsonSchema[Decision | None] = None
+    extraction: VerificationExtraction | None = None
     previous_case_id: str | None = None
     case_id: str
     claim: VerificationClaim

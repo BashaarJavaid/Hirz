@@ -2,10 +2,14 @@ import { useEffect, useState } from "react";
 import { api, passkey, useResource } from "../api";
 import { AsyncButton, Load, Panel } from "../components/primitives";
 
+const signalLabels: Record<string, string> = {
+  financial_or_access_request: "money or access request", unfamiliar_channel_reported: "reported unfamiliar channel",
+  secrecy: "request for secrecy", third_party_recipient: "third-party recipient", urgency_language: "pressure to act quickly", claimed_authority: "claim of authority",
+};
 const answers = [["not_genuine", "No, that wasn’t me"], ["genuine", "Yes, that was me"], ["will_call", "I’ll call them"]] as const;
 type Received = { id: string; requester: string; text: string; request_hash: string; source: string };
-type Case = { case_id: string; claim: { text: string }; verification?: { status: string; method: string; source: string } };
-type Result = { speakable: { headline: string }; data: { case: Case } };
+type Case = { signals: { signal: string }[]; extraction?: { status: string; keyword_signals: { signal: string }[] }; case_id: string; claim: { text: string }; verification?: { status: string; method: string; source: string } };
+type Result = { speakable: { headline: string; details?: string[]; options?: string[] }; data: { case: Case } };
 type Inbox = { received: Received[]; cases: Result[] };
 
 function SafeWord({ id }: { id: string }) {
@@ -21,12 +25,15 @@ function SafeWord({ id }: { id: string }) {
 
 export function Checkins() {
   const [poll, setPoll] = useState(true);
+  const [windowStart, setWindowStart] = useState(Date.now());
+  const [enrichmentPoll, setEnrichmentPoll] = useState(true);
+  useEffect(() => { setEnrichmentPoll(true); const timer = setTimeout(() => setEnrichmentPoll(false), 30000); return () => clearTimeout(timer); }, [windowStart]);
   const r = useResource<Inbox>("/checkins", poll);
-  useEffect(() => { if (r.data) setPoll(r.data.received.length > 0 || r.data.cases.some(v => v.data.case.verification?.status === "pending")); }, [r.data]);
+  useEffect(() => { if (r.data) setPoll(r.data.received.length > 0 || r.data.cases.some(v => v.data.case.verification?.status === "pending" || enrichmentPoll && ["pending", "running"].includes(v.data.case.extraction?.status ?? ""))); }, [r.data, enrichmentPoll]);
   if (!r.data || r.error) return <Load {...r} />;
   return <><h1>Check-ins</h1>
     <p>A yes confirms only the quoted request. It is never advice to pay. “I’ll call” records intent.</p>
-    <AsyncButton run={async () => r.retry()}>Refresh inbox</AsyncButton>
+    <AsyncButton run={async () => { setWindowStart(Date.now()); r.retry(); }}>Refresh inbox</AsyncButton>
     <Panel title="Requests for you">
       {r.data.received.length === 0 && <p>No pending requests.</p>}
       {r.data.received.map(item => <article key={item.id}>
@@ -40,6 +47,10 @@ export function Checkins() {
     <Panel title="Your private checks">
       {r.data.cases.map(result => { const item = result.data.case; return <article key={item.case_id}>
         <blockquote>{item.claim.text}</blockquote><p role="status">{result.speakable.headline}</p>
+        {result.speakable.details?.map(line => <p key={line}>{line}</p>)}
+        <ul>{item.signals?.slice(0, 3).map(s => <li key={s.signal}>{item.extraction && !item.extraction.keyword_signals.some(k => k.signal === s.signal) ? "Possible " : ""}{signalLabels[s.signal]}</li>)}</ul>
+        {!item.verification && <p>Reported request · Simulated assessment</p>}
+        {!item.verification && result.speakable.options?.map(option => <p key={option}>{option}</p>)}
         {item.verification && <p>{item.verification.source === "real" ? "Real" : "Simulated"} · {item.verification.method === "verified_email" ? "Email" : "App"}</p>}
         <SafeWord id={item.case_id} />
         {item.verification && item.verification.status !== "pending" && <details><summary>Retry this same request</summary>

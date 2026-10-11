@@ -210,7 +210,7 @@ for (const status of ["genuine", "not_genuine", "will_call", "no_answer"]) test(
   terminal.speakable.headline = status === "genuine" ? "Talk to the contact using their saved number." : "Contact the person through a channel you trust.";
   const { frame, calls } = await mount(page, "verification", "light", () => terminal, initial);
   await advance(page, 2100);
-  await expect(frame.getByRole("status")).toHaveText(status.replaceAll("_", " "));
+  await expect(frame.locator(".verification-result")).toHaveText(status.replaceAll("_", " "));
   const stopped = calls.length;
   await advance(page, 5000);
   expect(calls.length).toBe(stopped);
@@ -359,4 +359,36 @@ test("scorecard pagination preserves the selected query", async ({ page }) => {
   await frame.getByRole("button", { name: "Next page" }).click();
   await expect.poll(() => calls.length).toBe(2);
   expect(calls[1].arguments).toEqual({ ...(fixtures.inputs?.scorecard ?? {}), cursor: "opaque-next-page" });
+});
+
+test("Protect enrichment polls then stops with Refresh at thirty seconds", async ({ page }) => {
+  const initial = structuredClone(fixtures.results.verification);
+  initial.data.presentation.extraction_status = "pending";
+  initial.data.presentation.notice = "Additional warning checks are in progress.";
+  const { frame, calls } = await mount(page, "verification", "light", () => initial, initial);
+  await expect(frame.getByText(initial.data.presentation.notice)).toBeVisible();
+  await advance(page, 2100);
+  await expect.poll(() => calls.length).toBe(2);
+  expect(calls[1]).toMatchObject({ name: "verify_trusted_identity", arguments: { operation: "status", case_id: initial.data.case.case_id } });
+  await page.clock.setFixedTime(new Date(Date.parse(fixtures.at) + 31000));
+  await expect(frame.getByRole("button", { name: "Refresh", exact: true })).toBeVisible();
+  const stopped = calls.length;
+  await advance(page, 3000);
+  expect(calls.length).toBe(stopped);
+});
+
+test("Protect enrichment publishes possible warnings without later speech", async ({ page }) => {
+  const initial = structuredClone(fixtures.results.verification);
+  initial.data.presentation.extraction_status = "pending";
+  initial.data.presentation.notice = "Additional warning checks are in progress.";
+  const terminal = structuredClone(initial);
+  terminal.data.presentation.extraction_status = "complete";
+  terminal.data.presentation.notice = "Additional warning checks completed; possible warning signs are advisory.";
+  terminal.data.presentation.signals = ["Possible pressure to act quickly"];
+  const { frame, calls } = await mount(page, "verification", "light", () => terminal, initial);
+  await advance(page, 2100);
+  await expect(frame.getByText("Possible pressure to act quickly")).toBeVisible();
+  const stopped = calls.length;
+  await advance(page, 3000);
+  expect(calls.length).toBe(stopped);
 });

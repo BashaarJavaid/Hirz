@@ -242,7 +242,7 @@ Finish every part of a compound request sequentially. For a money request asking
 whether a known person is genuine, select
 verify_trusted_identity(operation=start, contact=the named person, text=the user's
 request). The service assesses risk before opening that check. For money requests
-without an identity-check request, select assess_request_risk. Risk advice alone
+without an identity-check request, select assess_request_risk. Omit claimed_party when no name was supplied; never invent one. Risk advice alone
 does not perform an identity check. A later question about
 the reply uses verify_trusted_identity(operation=status). All contacts are explicitly
 simulated. Include text provenance whenever required by a tool schema.

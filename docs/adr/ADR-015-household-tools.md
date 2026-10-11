@@ -276,3 +276,49 @@ unrelated canonical objects across every tool and retains client validation cost
 a generic `Result[T]` adds indirection for twelve fixed public envelopes. No
 canonical object, card Zod contract, checker/case, dependency, migration, tool,
 speech, scope, Pipeline path or latency corpus changes.
+
+## Protect assessment and enrichment amendment — 2026-10-11
+
+Item 32 keeps the six groups, weights, phrases and negation rules above. The
+approved advisory override makes financial/access plus reported unfamiliarity
+CRITICAL without requiring urgency. Trusted `scam_pattern` is a separate
+keyword-only conjunction that also requires explicit urgency; number comparison,
+missing numbers and model output cannot set it. Assessment evaluates a hypothetical
+`finance.verify_request` with explicitly simulated supplemental evidence and retains
+the immutable canonical Decision privately. Assessment/extraction records use
+DRY_RUN evidence; they do not initiate contact or claim verification/execution.
+
+`claimed_party` is optional. Unknown/unmatched subjects keep the generic offer;
+a named saved contact plus the original text uses the existing confirmed start
+flow. No new tool, contact picker or payment action is introduced.
+
+Private case JSON optionally carries `assessment_decision` and `extraction`
+(status, keyword/model signals, queued/started/finished timestamps and a bounded
+failure code). Old cases are read unchanged, with no automatic submission.
+Keyword advice returns immediately. `HIRZ_LLM=off` submits nothing. A separate
+worker task/connection claims one case per household using an extraction-only
+session advisory lock. All persisted lifecycle transitions require Pipeline
+bookkeeping; neither a transaction nor the household mutation lock spans inference.
+Pending cases survive restart; abandoned running attempts become keyword fallback.
+Publication reloads the case, preserves replies and immutable bindings, and can
+only add warning signals or severity. Receipts remain exact; status reads see new
+advice. Delivery retries copy settled advice; unfinished extraction is copied as
+labeled keyword fallback and never submitted again.
+
+Bedrock Converse uses the pinned Haiku 4.5 US profile in us-east-1, one forced
+non-executable strict `extract_signals` tool and only the exact reported text as
+JSON-escaped delimited untrusted data. Unknown signals, wrong tools, extra fields
+and malformed replies are rejected. Schema validation constrains shape, not truth.
+The [strict-tool contract](https://docs.aws.amazon.com/bedrock/latest/userguide/structured-output.html)
+and [CountTokens request](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_ConverseTokensRequest.html)
+include tool schemas. The existing locked ledger reserves counted input plus
+512 output tokens before inference, retains failed reservations and caps all
+item 32 extraction, explicit warmup and routing acceptance at $2.
+`HIRZ_PROTECT_BUDGET_LEDGER` is mandatory for paid work. Counting, credentials,
+budget or provider failure leaves labeled keyword advice; there is one attempt,
+no automatic warmup or paid retry. Read timeout is 15 seconds; explicit acceptance
+warmup permits 180 seconds under the same ledger.
+
+Rejected: model-derived Pipeline evidence, network work inside MCP calls,
+re-scoring old cases, paid retries, and using caller numbers to establish trust.
+They would weaken deterministic authority, latency, privacy or the spend ceiling.

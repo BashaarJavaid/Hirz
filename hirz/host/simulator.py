@@ -141,6 +141,13 @@ def recorded(text: str, results: dict[str, Any]) -> list[tuple[str, dict[str, An
                 {"operation": "start", "contact": "Malik", "text": text},
             ),
         ]
+    if matches("Malik wants to know when dinner is"):
+        return [
+            (
+                "assess_request_risk",
+                {"text": text, "claimed_party": "Malik", "party": "person"},
+            )
+        ]
     if matches("Is it him?"):
         return [
             ("verify_trusted_identity", {"operation": "status", "contact": "Malik"})

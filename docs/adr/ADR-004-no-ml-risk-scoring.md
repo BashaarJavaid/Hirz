@@ -90,3 +90,15 @@ without a stored preference from the thermostat, including Malik's demo pre-warm
   device state nor evidence of increased risk.
 - Seed preferences for everyone: it hides the contract problem and leaves newly
   added members subject to the same denial.
+
+## Protect evidence amendment — 2026-10-11
+
+Item 32's hypothetical `finance.verify_request` uses `PreviewEvidence` with
+`source=twin`, scoped to the assessed household and time. Only keyword matches for
+financial/access, reported unfamiliarity and explicit urgency set its trusted
+scam flag. An unfamiliar financial request alone is CRITICAL **advice** under the
+approved override; this does not change the risk table. Model signals union into
+advice only and cannot revise the retained Decision, authorize contact or execute
+anything. The rejected alternative—feeding enriched warnings into risk—would make
+a deterministic authority decision depend on untrusted model output. Lifecycle,
+privacy and budget details live in [ADR-015](./ADR-015-household-tools.md#protect-assessment-and-enrichment-amendment--2026-10-11).

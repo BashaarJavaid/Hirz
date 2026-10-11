@@ -1860,3 +1860,41 @@ an immediate scripted exact-request form exchange in contact start/retry timings
 setup/initialization stays outside timing, and final result decoding stays outside.
 Run both CI matrix gates; local timings are diagnostic only. No automated transport
 mock, software passkey or browser fixture substitutes for the required real tests.
+
+## Protect assessment acceptance (item 32)
+
+Build cards before starting MCP. Offline acceptance uses disposable PostgreSQL,
+authenticated MCP, a fresh Protect worker and independently verified signed exports:
+
+```sh
+HIRZ_LLM=off uv run --locked python -m scripts.smoke_protect --artifacts-dir secrets/NEW-PROTECT-OFFLINE
+```
+
+Live extraction requires `HIRZ_LLM=bedrock`, `AWS_PROFILE=hirz` and
+`HIRZ_PROTECT_BUDGET_LEDGER` pointing to the **same retained** item 32 ledger for
+all extraction, warmup and routing runs. Its aggregate ceiling is $2; never reset
+or replace it to bypass the ceiling. The worker uses the existing Haiku 4.5 US
+inference profile in us-east-1, one attempt, counted input and at most 512 output
+tokens. Missing credentials/ledger, counting failure, budget exhaustion, malformed
+output or a 15-second provider timeout leaves labeled keyword advice.
+
+```sh
+AWS_PROFILE=hirz HIRZ_PROTECT_BUDGET_LEDGER="$PWD/secrets/item32-protect-budget.json" uv run --locked python -m scripts.smoke_protect --live --artifacts-dir secrets/NEW-PROTECT-LIVE
+```
+
+An explicit `--warmup` on the live harness permits a 180-second read timeout for
+the fixed schema, charged against that same ledger; runtime never warms or retries
+automatically. Recheck published pricing before paid verification. On 2026-10-11,
+[Anthropic's Bedrock price table, page 6](https://www-cdn.anthropic.com/files/4zrzovbb/website/3684c2faafb97418665782cea0001f439f74b1d2.pdf)
+listed Haiku 4.5 geographic cross-region standard input/output at $1.10/$5.50 per
+million tokens, matching the reservations. `hirz` uses the `hirz-login` source
+profile; refresh it with `aws login --profile hirz-login` and verify with
+`aws sts get-caller-identity --profile hirz --no-cli-pager`.
+
+Protect uses the existing private case JSON; no migration or development database
+upgrade is required. Pending cases resume after restart. Abandoned running cases
+become fallback and incur no retry. Status reads refresh advice; duplicate tool
+receipts deliberately do not. Card fixtures come from `scripts.smoke_cards`;
+`apps/mcp-app/tests/cards.spec.ts` checks enrichment settlement and the 30-second
+limit. The isolated UI test `apps/web/tests/protect.spec.ts` expects the Vite dev
+server on loopback 5173 and mocks session/inbox data; it does not prove auth.

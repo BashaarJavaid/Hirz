@@ -55,6 +55,10 @@ class ApprovalCard(Card):
 
 
 class VerificationCard(Card):
+    notice: str | None = None
+    extraction_status: (
+        Literal["off", "pending", "running", "complete", "fallback"] | None
+    ) = None
     method: Literal["app", "email"] | None = None
     kind: Literal["verification"] = "verification"
     signals: tuple[str, ...]

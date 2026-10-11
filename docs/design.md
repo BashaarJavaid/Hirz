@@ -152,3 +152,18 @@ state; separate buttons review and confirm. The page grants no household session
 Pending cards keep non-overlapping polling until a server terminal result, including
 a delayed worker expiry. Companion pending views use the same polling discipline;
 manual refresh and push navigation discover new requests. No polling path speaks.
+
+### Protect advice updates (item 32)
+
+Cards and Check-ins show the extraction notice alongside the existing headline
+and source label. Off/fallback says “Keyword-only check; some warning signs may
+be missed.” Pending/running says “Additional warning checks are in progress.”
+Only model-added signals are prefixed “Possible”; the card keeps at most three
+signals. An unnamed or unmatched assessment offers checking with a saved contact
+without a picker or an inferred identity. Speech carries the notice in details;
+no later speech is triggered by publication.
+
+Enrichment polls the existing case status every two seconds until settlement or
+30 seconds, then leaves Refresh available. Check-ins follows the same window.
+Existing pending contact checks retain their original polling/deadline behavior.
+A genuine reply still confirms only the quoted request and never endorses payment.
