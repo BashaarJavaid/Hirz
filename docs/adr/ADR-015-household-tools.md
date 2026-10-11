@@ -309,6 +309,8 @@ Bedrock Converse uses the pinned Haiku 4.5 US profile in us-east-1, one forced
 non-executable strict `extract_signals` tool and only the exact reported text as
 JSON-escaped delimited untrusted data. Unknown signals, wrong tools, extra fields
 and malformed replies are rejected. Schema validation constrains shape, not truth.
+The transport envelope permits the observed optional `type: "tool_use"` field;
+server tool use is rejected ([provider discrepancy](../friction-log.md#item-32--converse-tool-discriminator-differs-from-documented-enum--2026-10-11)).
 The [strict-tool contract](https://docs.aws.amazon.com/bedrock/latest/userguide/structured-output.html)
 and [CountTokens request](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_ConverseTokensRequest.html)
 include tool schemas. The existing locked ledger reserves counted input plus

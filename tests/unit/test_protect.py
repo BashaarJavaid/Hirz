@@ -164,6 +164,15 @@ def test_provider_count_budget_and_minimal_payload(monkeypatch, tmp_path):
     [
         output(["pay_money"]),
         output("secrecy"),
+        {
+            "stopReason": "tool_use",
+            "output": {
+                "message": {
+                    "role": "assistant",
+                    "content": [{"toolUse": ["toolUseId", "name", "input"]}],
+                }
+            },
+        },
         {},
         {
             "stopReason": "end_turn",

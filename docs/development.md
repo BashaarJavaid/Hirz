@@ -1888,6 +1888,9 @@ automatically. Recheck published pricing before paid verification. The latest pr
 [item 32 evidence](./verification-log.md#item-32--2026-10-11). `hirz` uses the `hirz-login` source
 profile; refresh it with `aws login --profile hirz-login` and verify with
 `aws sts get-caller-identity --profile hirz --no-cli-pager`.
+The private artifact directory retains `routing.json` for selection evidence and
+`failure.txt` when acceptance raises; these can contain the reported fixture text
+and must not be published as public CI artifacts.
 
 Protect uses the existing private case JSON; no migration or development database
 upgrade is required. Pending cases resume after restart. Abandoned running cases

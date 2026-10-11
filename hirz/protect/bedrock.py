@@ -117,7 +117,8 @@ def extract(
             raise ValueError("Expected one tool use")
         tool = blocks[0]["toolUse"]
         if (
-            set(tool)
+            not isinstance(tool, dict)
+            or set(tool)
             not in (
                 {"toolUseId", "name", "input"},
                 {"toolUseId", "name", "input", "type"},

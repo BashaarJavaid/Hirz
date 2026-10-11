@@ -12457,3 +12457,14 @@ conservative reservation total, not a claim about invoiced spend. No case receiv
 an automatic paid retry. Protect/MCP unit regression: **93 passed**; strict mypy
 and Ruff passed after the compatibility correction. Final CI is being re-dispatched
 on the routing correction; item 32 remains partial until those gates settle.
+
+### Final implementation CI dispatch
+
+The final normal dispatch is [38178563999](https://github.com/BashaarJavaid/Hirz/actions/runs/38178563999)
+on `46e3ea0`, with `latency_diagnostic=false`. Earlier normal dispatches
+[38177357493](https://github.com/BashaarJavaid/Hirz/actions/runs/38177357493) and
+[38178399759](https://github.com/BashaarJavaid/Hirz/actions/runs/38178399759) were
+superseded by the live-provider compatibility and routing corrections; their
+canceled latency jobs are not acceptance evidence. The duplicate push run was
+canceled so the final full dispatch is the gate of record. Results will be
+appended after settlement.
