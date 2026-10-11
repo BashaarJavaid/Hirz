@@ -12468,3 +12468,29 @@ superseded by the live-provider compatibility and routing corrections; their
 canceled latency jobs are not acceptance evidence. The duplicate push run was
 canceled so the final full dispatch is the gate of record. Results will be
 appended after settlement.
+
+### Malformed-response guard and card-selector follow-up
+
+A final provider review added an explicit object check before reading tool-envelope
+fields. The adversarial list-shaped envelope now becomes bounded `invalid_output`
+fallback; **17 Protect unit tests** pass. Valid provider behavior is unchanged,
+so no additional paid calls were made. [Normal CI 38179669833](https://github.com/BashaarJavaid/Hirz/actions/runs/38179669833)
+targets production commit `3888629`; the preceding `46e3ea0` dispatch was superseded.
+
+On `3888629`, CI passed **1,539 service-free tests**, **215 integration tests**,
+and the **89% combined coverage gate** (15,825 statements, 1,693 missed), plus
+117 independent conformance checks with 614 verified audit rows, 159 native policy
+checks, companion browser acceptance, Show/Dot/account-switching checks and scenario
+restoration. The Python job nevertheless failed at the Linux card suite: **48
+passed, one failed, one skipped**. The existing pending-expiry test used an
+unqualified status selector, which matched both the new accessible notice and the
+contact result (`strict mode violation: getByRole('status') resolved to 2 elements`).
+This is a test-selector failure, not evidence that the full gate passed.
+
+The two assertions now target `.verification-result`, matching the existing
+contact-result checks. The full card suite in CI's pinned Linux image then passed
+**49 tests**, with its existing optional test skipped, in **2.4 minutes**. Only test
+selectors changed after `3888629`; production code, timing paths and fixtures are
+identical. Both normal latency jobs continue on `3888629`; regression CI is rerun
+on the selector correction. No failed timing samples or acceptance assertions were
+removed. Final closure still awaits those results.

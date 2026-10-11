@@ -222,7 +222,7 @@ test("pending expiry polls until the worker supplies a terminal result", async (
   let result = initial;
   const { frame, calls } = await mount(page, "verification", "light", () => result, initial);
   await page.clock.setFixedTime(new Date(Date.parse(fixtures.at) + 121000));
-  await expect(frame.getByRole("status")).toHaveText("pending");
+  await expect(frame.locator(".verification-result")).toHaveText("pending");
   const before = calls.length;
   await advance(page, 5000);
   expect(calls.length).toBeGreaterThan(before);
@@ -230,7 +230,7 @@ test("pending expiry polls until the worker supplies a terminal result", async (
   result.data.presentation.status = "no_answer";
   result.data.case.verification.status = "no_answer";
   await advance(page, 2100);
-  await expect(frame.getByRole("status")).toHaveText("no answer");
+  await expect(frame.locator(".verification-result")).toHaveText("no answer");
   const stopped = calls.length;
   await advance(page, 5000);
   expect(calls.length).toBe(stopped);
