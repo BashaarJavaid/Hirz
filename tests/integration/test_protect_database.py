@@ -288,3 +288,65 @@ def test_contact_reply_during_extraction_and_retry_copy(
                 env.close()
 
     asyncio.run(run())
+
+
+def test_authenticated_phone_reads_current_advice(scratch_database, monkeypatch):
+    import httpx
+    from test_companion_auth_database import enroll
+
+    from hirz.api.app import create_app
+    from hirz.companion import auth, policy
+    from hirz.companion.api import Companion
+    from hirz.constitution.schema import dump
+    from hirz.graph.models import now
+    from tests.unit.test_companion_auth import CONFIG, Authenticator
+    from tests.unit.test_pipeline import ident
+
+    monkeypatch.setenv("HIRZ_LLM", "bedrock")
+
+    async def run():
+        async with connect(scratch_database) as c:
+            p = await setup(c, native=True)
+            p.clock = now
+            owner = await enroll(
+                p,
+                await auth.initial_invitation(p, ident("members", "malik")),
+                Authenticator(),
+            )
+            async with p.repo.write(p.clock):
+                current = await auth.session(c, owner["session"], p.clock())
+                actor = current["principal"].model_copy(
+                    update={"passkey_verified": True, "requester_confirmed": True}
+                )
+                draft = await policy.draft(p, actor, dump(p.bundle.policy()))
+                await policy.activate(
+                    p, actor, draft["id"], draft["candidate_hash"], current["digest"]
+                )
+            first = await HouseholdTools(p, actor).call(
+                "assess_request_risk",
+                {"text": SCAM, "party": "person", "request_id": "phone"},
+            )
+            app = create_app(companion=Companion(c.engine, p.audit, CONFIG))
+            async with httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=app), base_url=CONFIG.origin
+            ) as client:
+                client.headers["origin"] = CONFIG.origin
+                assert (await client.get("/api/checkins")).status_code == 403
+                client.cookies.set(auth.SESSION_COOKIE, owner["session"])
+                client.cookies.set(auth.BROWSER_COOKIE, "protect-phone")
+                pending = await client.get("/api/checkins")
+                assert pending.status_code == 200
+                before = pending.json()["cases"][0]
+                assert before["data"]["case"]["extraction"]["status"] == "pending"
+                assert "assessment_decision" not in before["data"]["case"]
+                with patch(
+                    "hirz.protect.worker.extract", return_value=signals("urgent")
+                ):
+                    assert await advance(p)
+                complete = (await client.get("/api/checkins")).json()["cases"][0]
+                assert complete["data"]["case"]["case_id"] == first.data.case.case_id
+                assert complete["data"]["case"]["extraction"]["status"] == "complete"
+                assert complete["data"]["case"]["verification"] is None
+                assert "completed" in complete["speakable"]["details"][0]
+
+    asyncio.run(run())

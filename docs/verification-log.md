@@ -12379,3 +12379,26 @@ connection. Existing environment executables and authorized local-network execut
 resolved these restrictions; the uv cache issue is already recorded in the friction
 log's item 8 follow-up. No new upstream defect is claimed. Keyword recall and
 model false warnings remain limitations; threat-model claims are unchanged.
+
+### Additional checks before CI dispatch
+
+- Protect concurrency/recovery follow-up: **2 passed**, including cancellation
+  retaining the extraction-only lock until the SDK thread settles; no database
+  transaction spans that thread. A canceled attempt recovers to fallback with no
+  second inference. Real contact regression suite: **10 passed**, 71.58 seconds.
+- Authenticated companion API follow-up: **1 passed**, 9.07 seconds. Real virtual
+  passkey enrollment and policy activation precede the test session; anonymous
+  inbox access is refused, the initiating member reads pending then complete
+  advice, and `assessment_decision` is absent. The initial test expected 401;
+  it was corrected to the existing endpoint's 403 refusal without changing auth.
+- Protect unit follow-up: **16 passed**, including loading the new ordinary scenario,
+  its exact recorded assessment route, and validation of both generated Converse
+  and CountTokens requests against the installed botocore service model.
+- Phone UI rerun: **1 passed** with accessible notice updates. The browser test now
+  uses `HIRZ_BROWSER_BACKEND` in CI and the local Vite origin when run alone.
+- The two changed verification baselines were regenerated in the exact pinned
+  Linux Playwright image used by CI: **2 passed**. The first local screenshots
+  were macOS renderings; only Linux baselines are retained for the CI comparison.
+- The initial implementation is on branch `phase6/protect-assessment`, commit
+  `4cc5325`; its [push CI](https://github.com/BashaarJavaid/Hirz/actions/runs/38177033384)
+  is a preliminary run, not the required workflow-dispatch latency gate.

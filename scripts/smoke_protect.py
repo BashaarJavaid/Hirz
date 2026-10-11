@@ -195,6 +195,17 @@ async def smoke(
                         )
                         == 0
                     )
+                    proposals = (
+                        (await connection.execute(sa.select(db.actions.c.proposal)))
+                        .scalars()
+                        .all()
+                    )
+                    assert not any(
+                        str(a.get("class", "")).startswith(
+                            ("finance.", "communication.contact_trusted_contact")
+                        )
+                        for a in proposals
+                    )
                 summary = {
                     "protect": "PASS",
                     "live": live,

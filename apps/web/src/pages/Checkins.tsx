@@ -47,7 +47,7 @@ export function Checkins() {
     <Panel title="Your private checks">
       {r.data.cases.map(result => { const item = result.data.case; return <article key={item.case_id}>
         <blockquote>{item.claim.text}</blockquote><p role="status">{result.speakable.headline}</p>
-        {result.speakable.details?.map(line => <p key={line}>{line}</p>)}
+        {result.speakable.details?.map(line => <p role="status" key={line}>{line}</p>)}
         <ul>{item.signals?.slice(0, 3).map(s => <li key={s.signal}>{item.extraction && !item.extraction.keyword_signals.some(k => k.signal === s.signal) ? "Possible " : ""}{signalLabels[s.signal]}</li>)}</ul>
         {!item.verification && <p>Reported request · Simulated assessment</p>}
         {!item.verification && result.speakable.options?.map(option => <p key={option}>{option}</p>)}

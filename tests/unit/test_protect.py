@@ -139,6 +139,15 @@ def test_provider_count_budget_and_minimal_payload(monkeypatch, tmp_path):
     )
     assert request["toolConfig"]["tools"][0]["toolSpec"]["strict"] is True
     assert request["inferenceConfig"]["maxTokens"] == 512
+    import botocore.session
+    from botocore.validate import validate_parameters
+
+    service = botocore.session.get_session().get_service_model("bedrock-runtime")
+    validate_parameters(request, service.operation_model("Converse").input_shape)
+    validate_parameters(
+        client.count_tokens.call_args.kwargs,
+        service.operation_model("CountTokens").input_shape,
+    )
     assert len(json.loads(ledger.read_text())["calls"]) == 1
     client.converse.side_effect = TimeoutError
     with pytest.raises(ExtractionFailure, match="provider"):

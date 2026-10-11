@@ -1884,10 +1884,8 @@ AWS_PROFILE=hirz HIRZ_PROTECT_BUDGET_LEDGER="$PWD/secrets/item32-protect-budget.
 
 An explicit `--warmup` on the live harness permits a 180-second read timeout for
 the fixed schema, charged against that same ledger; runtime never warms or retries
-automatically. Recheck published pricing before paid verification. On 2026-10-11,
-[Anthropic's Bedrock price table, page 6](https://www-cdn.anthropic.com/files/4zrzovbb/website/3684c2faafb97418665782cea0001f439f74b1d2.pdf)
-listed Haiku 4.5 geographic cross-region standard input/output at $1.10/$5.50 per
-million tokens, matching the reservations. `hirz` uses the `hirz-login` source
+automatically. Recheck published pricing before paid verification. The latest price check and retained ledger history are in the
+[item 32 evidence](./verification-log.md#item-32--2026-10-11). `hirz` uses the `hirz-login` source
 profile; refresh it with `aws login --profile hirz-login` and verify with
 `aws sts get-caller-identity --profile hirz --no-cli-pager`.
 
