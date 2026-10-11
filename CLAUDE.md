@@ -132,13 +132,14 @@ Item 29 adds `HIRZ_LLM=off uv run --locked python -m scripts.simulator_demo --or
 
 Item 30 adds `uv run --locked python scripts/demo.py init --origin <HTTPS-origin>` and `uv run --locked python scripts/demo.py run` for isolated scripted recording. Trusted Tailscale forwarding to 8002 is required; enrollment, activation and Echo consent remain manual. Failed runs retain storage; only verified shutdown permits cleanup. Procedure: `docs/development.md#item-30-recording-stack`; verified recording and shutdown evidence: `docs/verification-log.md#item-30`.
 
+Item 32 adds `HIRZ_LLM=off uv run --locked python -m scripts.smoke_protect --artifacts-dir <new-private-dir>` for authenticated assessment, separate-worker and signed-audit acceptance. Live flags and the shared $2 budget ledger procedure are in `docs/development.md`; never reset the ledger to retry.
+
 ## Current phase
 
-Phase 5 is complete. Item 31 remains Partial for deferred real email/push acceptance.
-Item 32 implements offline advice and background extraction with 89% coverage;
-live Haiku acceptance passed; required CI gates remain pending (verification log). Paid Protect
-work shares `HIRZ_PROTECT_BUDGET_LEDGER` with a $2 ceiling. Ring access failed;
-the twin doorbell remains. Item 28 still owes real Web Push (issue #7).
+Phase 5 is complete. Item 32 is complete; item 33 organization verification is next.
+Item 31 remains Partial for deferred real email/push acceptance. Paid Protect work
+shares `HIRZ_PROTECT_BUDGET_LEDGER` with a $2 ceiling. Ring access failed; retain
+the twin doorbell. Item 28 still owes real Web Push; issue #7 remains open.
 Development stays on 0005; migrations remain manual.
 
 ---

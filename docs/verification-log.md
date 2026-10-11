@@ -12543,3 +12543,52 @@ omitted `HIRZ_DOGWOOD` and failed closed before execution; later runs explicitly
 it to the existing `.tools/dogwood`. No paid calls or development migrations occurred.
 Regression CI is rerun for this simulator-launcher correction; both normal latency
 passes remain applicable to unchanged MCP production code.
+
+### Item 32 closure — 2026-10-11
+
+**Complete.** [Regression CI 38184101994](https://github.com/BashaarJavaid/Hirz/actions/runs/38184101994)
+passed on `53f6348`, including the corrected simulator shutdown and card selectors:
+
+- **1,540 service-free tests** and **215 integration tests**; combined coverage
+  **89%** (15,825 statements, 1,693 missed), above the unchanged 80% gate.
+- **117 independent conformance passes**, zero failures/warnings/skips, eight
+  manual checklist entries, complete evidence, and **614 independently verified
+  signed audit rows**; development data unchanged.
+- **159 native policy conformance tests**, Python lint/format/strict types,
+  TypeScript lint/types/tests, package/container builds and scenario restoration.
+- Companion browser acceptance: **2 passed**. Authenticated simulator
+  enrollment/PKCE/bridge/Show/Dot/account switching: **1 passed**, followed by
+  successful disposable cleanup. Authenticated unchanged reference host: **1
+  passed**. Linux card baselines and behavior: **49 passed**; the live-host test
+  is intentionally run in its separate authenticated stage rather than this
+  fixture-only stage.
+
+Both required normal latency gates passed on the identical MCP implementation
+`3888629`, as recorded above: highest case p95 **126.310 / 180.971 ms**, with no
+discarded samples and no threshold change. The only subsequent executable change
+is the disposable simulator launcher's shutdown ordering; it is not imported by
+the timing harness and changes no MCP, Pipeline, executor or extraction path.
+The full later regression run covers that launcher correction. The failed earlier
+CI runs remain recorded and are not represented as successful complete runs.
+
+Live Haiku acceptance and the independent worker/signed-export checks passed as
+recorded above. The shared $2 ledger retains **18 reservations, $0.0870562 total**,
+including all diagnostic/failed attempts. No additional paid run was needed for
+the malformed-envelope or test/launcher corrections. The AWS strict-tool
+discriminator discrepancy is recorded in the friction log; no broader provider
+or simulator shutdown defect is claimed resolved.
+
+Item 31's deferred real delivery acceptance, organization verification, courier
+correlation and items 34–35 are outside this closure. No claim of physical
+Show/Dot interaction, real-world scam detection accuracy, AWS ingress latency,
+real contact delivery or preventing payments outside Hirz was added. Keyword recall can miss
+warning signs and model extraction can add false warnings; model signals remain
+advisory and cannot alter the private hypothetical Decision, contact permission
+or device authority. Threat-model claims remain unchanged. Final documentation
+format and instruction-file equality checks follow this entry.
+
+Final documentation checks passed after closure updates: Ruff check, Ruff format
+(**312 files**), `git diff --check`, and byte-for-byte equality of `AGENTS.md` and
+`CLAUDE.md`. Their Current phase is **57 words**. The retained budget ledger was
+rechecked unchanged at 18 reservations and $0.0870562. The closure commit changes
+only documentation; executable acceptance remains tied to the CI revisions above.

@@ -1524,6 +1524,10 @@ explicitly. No startup migration is introduced.
 
 ## Item 29 disposable simulator
 
+Shutdown drains periodic database work and stops playback between operations before
+stopping the HTTP servers and policy helpers. If that drain exceeds 15 seconds,
+acceptance fails and disposable storage is retained for diagnosis.
+
 `HIRZ_DATABASE_HOST` and `HIRZ_DATABASE_PORT` override the host and port used by
 `db.database_url` (defaults `127.0.0.1` and `5432`; port must be 1–65535). The
 simulator launcher sets them from `--database-host` and `--database-port`, so
