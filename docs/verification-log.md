@@ -12494,3 +12494,52 @@ selectors changed after `3888629`; production code, timing paths and fixtures ar
 identical. Both normal latency jobs continue on `3888629`; regression CI is rerun
 on the selector correction. No failed timing samples or acceptance assertions were
 removed. Final closure still awaits those results.
+
+### Both normal latency gates passed
+
+Production commit `3888629` passed the normal (`latency_diagnostic=false`)
+[evening gate](https://github.com/BashaarJavaid/Hirz/actions/runs/38179669833/job/114589452719)
+and [hourly gate](https://github.com/BashaarJavaid/Hirz/actions/runs/38179669833/job/114589452752).
+Each retained five warmups and 100 measured calls for each of 54 cases, with all
+12 pooled-tool rows also passing the unchanged 250 ms raw authenticated JSON-RPC
+p95 limit. Highest case p95: **126.310 ms evening**, **180.971 ms hourly** (both
+`objective-greenest`). `assess_request_risk` pooled p95: **62.155 / 78.647 ms**,
+400 measured calls per scenario. No samples were discarded; SDK references are
+separate from the raw gate. These are local twin measurements, not AWS ingress,
+cold-start or Alexa-host latency claims.
+
+The overall dispatch remains red because of the separately corrected card-test
+selector. [Regression rerun 38182038654](https://github.com/BashaarJavaid/Hirz/actions/runs/38182038654)
+is on `a2d3a4c`; `git diff 3888629..a2d3a4c --name-only` contains only
+`apps/mcp-app/tests/cards.spec.ts` and this evidence log. Production code and timing
+paths are identical across these commits. Item closure still awaits that regression
+run's final result.
+
+### Simulator cleanup follow-up
+
+Regression run [38182038654](https://github.com/BashaarJavaid/Hirz/actions/runs/38182038654)
+passed service-free/integration tests and combined coverage, and its simulator
+browser assertion passed. The job then failed during disposable database removal:
+`psycopg.errors.ObjectInUse: database "hirz_ha_smoke_f3072b74580b42b2a9020df0146a51df" is being accessed by other users`;
+`DETAIL: There is 1 other session using the database.` The exact leftover backend
+owner was not captured; this is not a claim that the separate issue #7 is resolved.
+
+The simulator launcher canceled its periodic tasks at arbitrary connection-use or
+close points. It now requests periodic-loop shutdown, waits for its current
+iteration to finish, and takes the scenario lock before canceling playback between
+operations. Servers and their policy helpers stop after those tasks. The bounded
+shutdown still fails and retains storage on timeout; no force-drop or session
+termination bypass was added. The MCP server, Protect worker and measured tool
+paths are unchanged.
+
+A deterministic test blocks connection cleanup, requests stop, and proves the task
+waits until cleanup finishes without starting another iteration. **43 focused
+Protect/simulator unit tests** and strict mypy pass. Two authenticated local browser
+runs passed with real enrollment, PKCE, cards, Dot, account switching and both themes,
+then removed their disposable databases successfully. The final ordering is covered
+by `secrets/item32-shutdown-20261011-3` (**1 passed**, 28.9 seconds); the preceding
+iteration is retained at `secrets/item32-shutdown-20261011-2`. The first local attempt
+omitted `HIRZ_DOGWOOD` and failed closed before execution; later runs explicitly set
+it to the existing `.tools/dogwood`. No paid calls or development migrations occurred.
+Regression CI is rerun for this simulator-launcher correction; both normal latency
+passes remain applicable to unchanged MCP production code.

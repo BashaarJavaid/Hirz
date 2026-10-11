@@ -623,3 +623,42 @@ def test_browser_csrf_stale_prompt_and_card_csp(tmp_path, monkeypatch):
             assert "private upstream diagnostic" not in failed.text
 
     asyncio.run(run())
+
+
+def test_simulator_background_finishes_connection_cleanup_before_stop(monkeypatch):
+    from contextlib import asynccontextmanager
+    from unittest.mock import AsyncMock
+    from uuid import uuid4
+
+    from scripts.simulator_demo import background
+
+    async def run():
+        closing, release, stopping = asyncio.Event(), asyncio.Event(), asyncio.Event()
+        closed = False
+
+        @asynccontextmanager
+        async def pipeline(household):
+            nonlocal closed
+            yield object()
+            closing.set()
+            await release.wait()
+            closed = True
+
+        contacts = AsyncMock()
+        monkeypatch.setattr("hirz.contacts.worker.advance", contacts)
+        monkeypatch.setattr("scripts.simulator_demo.twin.advance", AsyncMock())
+        monkeypatch.setattr(
+            "scripts.simulator_demo.push.Config.environment", lambda: None
+        )
+        task = asyncio.create_task(
+            background(SimpleNamespace(pipeline=pipeline), {uuid4(): None}, stopping)
+        )
+        await asyncio.wait_for(closing.wait(), 2)
+        stopping.set()
+        await asyncio.sleep(0)
+        assert not task.done() and not closed
+        release.set()
+        await asyncio.wait_for(task, 2)
+        assert closed and contacts.await_count == 1
+
+    asyncio.run(run())

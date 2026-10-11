@@ -70,8 +70,12 @@ async def resume_contacts(
         await engine.dispose()
 
 
-async def background(companion: Companion, worlds: dict[UUID, TwinWorld]) -> None:
-    while True:
+async def background(
+    companion: Companion,
+    worlds: dict[UUID, TwinWorld],
+    stopping: asyncio.Event,
+) -> None:
+    while not stopping.is_set():
         for household in worlds:
             async with companion.pipeline(household) as p:
                 from hirz.contacts.worker import advance as advance_contacts
@@ -80,7 +84,10 @@ async def background(companion: Companion, worlds: dict[UUID, TwinWorld]) -> Non
                 if config := push.Config.environment():
                     await push.advance(p, config)
                 await twin.advance(p)
-        await asyncio.sleep(1)
+        try:
+            await asyncio.wait_for(stopping.wait(), timeout=1)
+        except TimeoutError:
+            pass
 
 
 async def run(args: argparse.Namespace) -> None:
@@ -285,7 +292,8 @@ async def run(args: argparse.Namespace) -> None:
             await scenarios.run()
 
         tasks.append(asyncio.create_task(work()))
-        tasks.append(asyncio.create_task(background(companion, worlds)))
+        stopping = asyncio.Event()
+        tasks.append(asyncio.create_task(background(companion, worlds, stopping)))
         if args.browser_test:
 
             async def browser_check() -> None:
@@ -335,11 +343,25 @@ async def run(args: argparse.Namespace) -> None:
                 for task in pending:
                     task.cancel()
                 await asyncio.gather(*pending, return_exceptions=True)
-            for server in servers:
-                server.should_exit = True
+            stopping.set()
+            try:
+                async with asyncio.timeout(15):
+                    background_results = await asyncio.shield(
+                        asyncio.gather(tasks[3], return_exceptions=True)
+                    )
+                    shutdown_failed |= any(
+                        isinstance(r, BaseException) for r in background_results
+                    )
+                    # Cancel scenario playback only between database operations.
+                    async with scenarios.lock:
+                        tasks[2].cancel()
+            except TimeoutError:
+                shutdown_failed = True
             for task in tasks[2:]:
                 task.cancel()
             await asyncio.gather(*tasks[2:], return_exceptions=True)
+            for server in servers:
+                server.should_exit = True
             try:
                 async with asyncio.timeout(15):
                     results = await asyncio.gather(*tasks[:2], return_exceptions=True)
