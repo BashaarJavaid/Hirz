@@ -117,7 +117,13 @@ def extract(
             raise ValueError("Expected one tool use")
         tool = blocks[0]["toolUse"]
         if (
-            set(tool) != {"toolUseId", "name", "input"}
+            set(tool)
+            not in (
+                {"toolUseId", "name", "input"},
+                {"toolUseId", "name", "input", "type"},
+            )
+            # Bedrock returns this optional discriminator for ordinary tool use.
+            or tool.get("type", "tool_use") != "tool_use"
             or tool["name"] != "extract_signals"
             or set(tool["input"]) != {"signals"}
         ):

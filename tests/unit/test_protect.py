@@ -187,6 +187,10 @@ def test_wrong_tool_extra_fields_empty_and_budget(monkeypatch, tmp_path):
     client.count_tokens.return_value = {"inputTokens": 100}
     client.converse.return_value = output([])
     assert extract(SCAM, client=client) == ()
+    client.converse.return_value["output"]["message"]["content"][0]["toolUse"][
+        "type"
+    ] = "tool_use"
+    assert extract(SCAM, client=client) == ()
     current = case()
     assert (
         publish(
@@ -200,6 +204,8 @@ def test_wrong_tool_extra_fields_empty_and_budget(monkeypatch, tmp_path):
     for key, value in [
         ("name", "execute_household_action"),
         ("input", {"signals": [], "action": "pay"}),
+        ("type", "server_tool_use"),
+        ("extra", "ignored"),
     ]:
         bad = output([])
         bad["output"]["message"]["content"][0]["toolUse"][key] = value

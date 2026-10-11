@@ -12402,3 +12402,23 @@ model false warnings remain limitations; threat-model claims are unchanged.
 - The initial implementation is on branch `phase6/protect-assessment`, commit
   `4cc5325`; its [push CI](https://github.com/BashaarJavaid/Hirz/actions/runs/38177033384)
   is a preliminary run, not the required workflow-dispatch latency gate.
+
+### Final local checks and normal CI dispatch
+
+- Full integration run with appended coverage: **214 passed**, 948.69 seconds.
+  The final targeted Protect run then passed **19 tests**, including the phone
+  test added after full-suite collection. `coverage report --fail-under=80` passed
+  at **89%** (15,825 statements, 1,713 missed). Logs are private local artifacts
+  `/tmp/hirz-item32-integration.log` and `/tmp/hirz-item32-final-targeted.log`.
+- Final offline `scripts.smoke_protect` rerun passed with CRITICAL/LOW/LOW/LOW,
+  no contact jobs or finance/contact actions, exact duplicate receipts, and
+  independently valid signed exports of **3 + 12 rows**. Artifacts:
+  `secrets/item32-offline-final-20261011`; disposable database dropped.
+- [Normal CI dispatch](https://github.com/BashaarJavaid/Hirz/actions/runs/38177357493)
+  targets implementation commit `8106d33`, with `latency_diagnostic=false`.
+  Lint/types, TypeScript tests, production build, companion browser acceptance,
+  independent conformance, scenario regressions and native policy conformance
+  passed. Python regression and both normal latency jobs were still running
+  when this entry was written; this does not claim final CI acceptance.
+- Live Haiku acceptance remains blocked on refreshing AWS profile `hirz-login`.
+  No successful paid inference is claimed and the $2 ledger must be retained.

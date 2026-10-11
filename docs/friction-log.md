@@ -902,3 +902,22 @@ completed with zero reported vulnerabilities. The shell initially selected Node
   reachability failure, not evidence of a Gmail defect or an invalid app password.
 - **Suggestion:** Include an SMTP reachability check in local setup diagnostics,
   distinct from TLS, authentication and recipient failures.
+
+## Item 32 — Converse tool discriminator differs from documented enum — 2026-10-11
+
+- **Tool / URL:** Amazon Bedrock Converse `ToolUseBlock`;
+  https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_ToolUseBlock.html.
+- **Severity:** Minor.
+- **What happened:** Live Haiku 4.5 strict extraction returned an ordinary
+  `extract_signals` tool use with `type: "tool_use"`. The API page lists only
+  `server_tool_use` as a valid value for that optional field. The installed
+  botocore shape includes the field, but the original strict envelope validator
+  accepted only the three required fields.
+- **Exact error:** Local validation raised `ExtractionFailure invalid_output`,
+  caused by `ValueError: Unexpected tool shape`.
+- **Workaround:** Accept the observed optional `type: "tool_use"` discriminator;
+  continue rejecting server tool use, other envelope fields, wrong tool names
+  and extra signal-payload fields. Add recorded-response regression coverage.
+  Diagnostic attempts retain reservations in the same $2 acceptance ledger.
+- **Feature request:** Document the ordinary `tool_use` value in the response enum
+  and include it in strict-tool examples.
