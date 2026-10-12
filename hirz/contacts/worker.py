@@ -2,7 +2,7 @@
 
 import asyncio
 import smtplib
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import sqlalchemy as sa
 
@@ -17,6 +17,9 @@ from hirz.pipeline.service import Pipeline
 
 
 async def advance(p: Pipeline) -> None:
+    from hirz.protect.courier import advance as courier
+
+    await courier(p)
     config = Config.environment()
     if config is None:
         return
@@ -192,10 +195,31 @@ async def sync_channels(p: Pipeline) -> None:
                 )
 
 
-async def send_allowed(p: Pipeline, contact_id: object) -> bool:
+async def send_allowed(
+    p: Pipeline, contact_id: object, *, at: datetime | None = None
+) -> bool:
     """Conservative rolling caps count all transport attempts, including crash retries."""
     from datetime import timedelta
 
+    at = at or contact_time(p)
+    from hirz.pipeline.models import VerificationCase
+
+    documents = (
+        (
+            await p.connection.execute(
+                sa.select(db.verification_cases.c.document).where(
+                    p.scope(db.verification_cases),
+                    db.verification_cases.c.document["courier"]["contact"][
+                        "status"
+                    ].astext
+                    == "published",
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    deliveries = [VerificationCase.model_validate(d).courier for d in documents]
     for window, limit, contact in (
         (timedelta(minutes=15), 3, contact_id),
         (timedelta(days=1), 20, None),
@@ -209,8 +233,8 @@ async def send_allowed(p: Pipeline, contact_id: object) -> bool:
             .where(
                 p.scope(db.checkin_jobs),
                 sa.or_(
-                    db.checkin_jobs.c.created_at >= contact_time(p) - window,
-                    db.checkin_jobs.c.next_attempt >= contact_time(p) - window,
+                    db.checkin_jobs.c.created_at >= at - window,
+                    db.checkin_jobs.c.next_attempt >= at - window,
                 ),
             )
         )
@@ -219,8 +243,8 @@ async def send_allowed(p: Pipeline, contact_id: object) -> bool:
         ).where(
             p.scope(db.contact_links),
             sa.or_(
-                db.contact_links.c.created_at >= contact_time(p) - window,
-                db.contact_links.c.next_attempt >= contact_time(p) - window,
+                db.contact_links.c.created_at >= at - window,
+                db.contact_links.c.next_attempt >= at - window,
             ),
         )
         if contact is not None:
@@ -229,6 +253,14 @@ async def send_allowed(p: Pipeline, contact_id: object) -> bool:
         if (
             int(await p.connection.scalar(checks) or 0)
             + int(await p.connection.scalar(enrollments) or 0)
+            + sum(
+                1
+                for state in deliveries
+                if state
+                and state.contact.published_at
+                and at - window <= state.contact.published_at <= at
+                and (contact is None or state.contact_id == str(contact))
+            )
             >= limit
         ):
             return False

@@ -12720,3 +12720,50 @@ Final closure checks passed: Ruff check, Ruff format (**317 files**),
 phase is **56 words**. The final diff against the tested implementation contains
 only the six completion/evidence documents; executable code remains at the
 successful CI revision above.
+
+## Item 33a — 2026-10-11
+
+Implementation and verification in progress; no closure or threat-model upgrade
+is claimed by this entry. Decisions are in
+[ADR-024](./adr/ADR-024-courier-correlation.md).
+
+Initial local verification (macOS, existing Python 3.12 environment and Node 24,
+native pinned Dogwood, HIRZ_LLM=off):
+
+- `pytest tests/unit/test_courier.py --no-cov -q`: **32 passed**. Inclusive case
+  window, all reply statuses, fresh/available/non-future observations and presses,
+  and start-inclusive/end-exclusive arrival windows are exercised.
+- `pytest tests/integration/test_courier_database.py -m integration --no-cov`:
+  initial **13 passed**, including concurrent workers, restart/no duplicate audit,
+  all nine independent auto/ask/never combinations, real app link projection and
+  revocation, multiple cases, late enrichment and audit rollback. Later additional
+  denial, push failure and rate-limit tests are recorded below when finished.
+- Connected integration selection (`test_courier_database.py`,
+  `test_trusted_checkins.py`, `test_protect_database.py`,
+  `test_companion_push_database.py`): **29 passed in 174.12s**.
+- Service-backed parents command with `--headless --assert`: **15/15 checks passed**,
+  **41 signed rows independently verified**, no deferred assertions, no finance
+  execution or unlock. Private artifacts:
+  `secrets/scenario-runs/courier-33a-02`; report `/tmp/hirz-courier-33a-02.json`.
+  The disposable database was dropped; development was unchanged.
+- `scripts.smoke_cards --browser-test`: authenticated unchanged reference-host
+  acceptance **1 passed**, with signed fixture exports in `/tmp/hirz-33a-cards`.
+  Full local card suite: **37 behavior tests passed**, **14 Linux screenshot
+  comparisons failed** on macOS font rendering. The plan image diff was inspected;
+  no Linux baseline was replaced. CI remains the screenshot gate.
+- `tools/list`: **120,624 bytes total**, **17,927 bytes largest tool**; existing
+  122,000 total/20,000 per-tool limits remain unchanged. Internal courier state is
+  omitted from tool schemas/serialization; the consumer card projection is typed.
+- TypeScript lint/types/tests and both builds passed (5 MCP card unit tests and
+  1 web unit test). Python wheel/sdist built with `uv build`; the wheel contains
+  `hirz/protect/courier.py` and the verification-card asset.
+
+Corrections made during verification: the first database test found a missing
+PostgreSQL array cast in `jsonb_set`; it was fixed before the passing run. The first
+full service-free run had **1589 passed, 5 failed** because scenario tests still
+assumed parents had no execution and mocked none of the newly connected check-in
+worker; the affected **23 tests passed** after updating those assumptions. A full
+rerun and combined coverage are pending. An added synthetic denial test reused its
+assessment request key; its approval key was corrected. The initial no-isolation
+packaging command lacked the isolated build backend; ordinary `uv build` passed.
+No third-party defect or new acceptance limitation was inferred from these errors.

@@ -20,7 +20,7 @@ from tests.unit.test_adapters import TestAdapter
 
 ROOT = Path(__file__).resolve().parents[2]
 EVENING = ROOT / "scenarios/demo-evening-hourly.yaml"
-PARENTS = ROOT / "scenarios/parents-scam-check.yaml"
+PARENTS = ROOT / "tests/fixtures/parents-observations.yaml"
 
 
 @pytest.mark.parametrize("fallback", [False, True])

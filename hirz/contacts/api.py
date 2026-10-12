@@ -175,11 +175,21 @@ def router(service: Companion) -> APIRouter:
                 .mappings()
                 .all()
             )
+            from hirz.mcp.card_data import decorate
+            from hirz.protect.courier import warnings
+
+            snapshot = await p.snapshot(p.clock())
             return {
+                "warnings": await warnings(p, current["member_id"]),
                 "cases": [
-                    case_response(VerificationCase.model_validate(c)).model_dump(
-                        mode="json"
-                    )
+                    (
+                        await decorate(
+                            p,
+                            case_response(VerificationCase.model_validate(c)),
+                            snapshot,
+                            None,
+                        )
+                    ).model_dump(mode="json")
                     for c in own
                 ],
                 "received": [

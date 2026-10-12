@@ -180,3 +180,19 @@ badges. Organization cases hide safe words, retry and person check buttons; they
 offer a separately named trusted-person check and independent utility contact.
 Caller-ID limitations, warning advice and extraction notice fit three speech
 details. Matching never endorses payment or authenticates a caller.
+
+## Courier warnings (item 33a)
+
+Verification cards and private Check-ins retain the original check result beside
+an independently published courier warning. A read-only “Warnings for you” section
+shows dated recipient warnings, with “Simulated doorbell event.” for non-real
+presses. There is no dismiss or acknowledgment control. The contact sees only the
+approved text, saved member name, event time and source label.
+
+Visible verification cards poll every two seconds through `courier_watch_until`
+or until `courier_warning` arrives, including after terminal replies. Compare the
+server's `as_of` with the watch deadline so a paused simulator does not expire by
+wall time. Existing hidden-tab suspension, one outstanding request, error handling
+and teardown remain in force. Private Check-ins follows the same window; an empty
+recipient inbox retains push and Refresh discovery. Polling never initiates speech.
+Approved wording: [ADR-024](./adr/ADR-024-courier-correlation.md).

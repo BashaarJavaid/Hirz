@@ -360,9 +360,18 @@ async def decorate(
             base["valid_until"] = state.expires_at
             base["source"] = "live" if state.source == "real" else "simulated"
         from hirz.protect.advice import labels, notice
+        from hirz.protect.courier import member_warning
 
+        created_at = await p.connection.scalar(
+            sa.select(db.verification_cases.c.created_at).where(
+                p.scope(db.verification_cases),
+                db.verification_cases.c.id == case.case_id,
+            )
+        )
         verification = VerificationCard(
             **base,
+            courier_watch_until=created_at + timedelta(hours=1) if created_at else None,
+            courier_warning=member_warning(case),
             signals=labels(case),
             notice=notice(case.extraction) if case.extraction else None,
             extraction_status=case.extraction.status if case.extraction else None,

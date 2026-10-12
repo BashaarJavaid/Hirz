@@ -1922,3 +1922,19 @@ independent checker cases include organization matches, wrong numbers and unknow
 names. These use no paid model calls or real-phone acceptance and never migrate the
 development database. Run the existing full Python/TypeScript, packaging,
 conformance and both normal CI latency gates before closing item 33.
+
+## Courier correlation (item 33a)
+
+Run `HIRZ_LLM=off uv run --locked hirz scenario run
+scenarios/parents-scam-check.yaml --headless --assert --artifacts-dir <new-private-dir>`
+for service-backed assessment, check-in reply, twin press and courier publication,
+with independently verified signed audit exports. The database is disposable; no
+development migration is needed. See [ADR-024](./adr/ADR-024-courier-correlation.md).
+
+Build both apps before the existing `scripts.smoke_cards --browser-test` and
+`scripts.smoke_companion` checks. Card fixtures drive the full `cards.spec.ts`
+polling suite; companion acceptance additionally enrolls a second household,
+pairs a real app link, triggers a labeled twin press and checks private warning
+projection and revocation. No physical-device, paid inference or real-iPhone-push
+gate is added. Full Python/TypeScript, packaging, conformance and both normal CI
+latency gates remain required for closure.

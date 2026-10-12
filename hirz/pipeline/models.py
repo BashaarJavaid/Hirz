@@ -454,7 +454,31 @@ class OrganizationComparison(Model):
     registry: NumberComparison
 
 
+class CourierDelivery(Model):
+    action_id: str | None = None
+    status: Literal["pending", "approval", "published", "stopped"] = "pending"
+    source: Literal["real", "twin"]
+    expires_at: AwareDatetime
+    published_at: AwareDatetime | None = None
+    reason: str | None = None
+
+
+class CourierState(Model):
+    press_at: AwareDatetime
+    observation_id: str
+    asset_id: str
+    source: Literal["real", "real API, demo devices", "twin"]
+    detected_at: AwareDatetime
+    member_id: str
+    member_name: str
+    contact_id: str | None = None
+    channel_id: str | None = None
+    member: CourierDelivery
+    contact: CourierDelivery
+
+
 class VerificationCase(Model):
+    courier: SkipJsonSchema[CourierState | None] = None
     organization_comparison: OrganizationComparison | None = None
     assessment_decision: SkipJsonSchema[Decision | None] = None
     extraction: VerificationExtraction | None = None

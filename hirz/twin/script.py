@@ -41,10 +41,18 @@ ARGUMENTS: dict[str, type[Model]] = {
 class ScriptCall(Model):
     tool: str
     arguments: dict[str, Any]
+    confirmed: StrictBool = False
     save_as: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9_]*$")
 
     @model_validator(mode="after")
     def valid(self) -> Self:
+        from hirz.mcp.contracts import RiskInput, VerifyInput
+
+        if self.tool in {"assess_request_risk", "verify_trusted_identity"}:
+            (
+                RiskInput if self.tool == "assess_request_risk" else VerifyInput
+            ).model_validate(self.arguments)
+            return self
         if self.tool not in ARGUMENTS:
             raise ValueError("Unsupported internal scripted call")
         ARGUMENTS[self.tool].model_validate(self.arguments)
@@ -74,6 +82,7 @@ class Execution(Model):
     ev_target: float = Field(default=0.5, ge=0, le=0.8)
     ev_needed_by: str | None = None
     rooms: dict[str, Literal["bedroom", "other"]]
+    verified_app_fixtures: tuple[str, ...] = ()
     responses: tuple[Response, ...] = ()
 
 

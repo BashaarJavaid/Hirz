@@ -161,7 +161,7 @@ async def subscribe(
 
 
 def delivery_time(p: Pipeline, reference: str) -> datetime:
-    if reference.startswith("checkin:"):
+    if reference.startswith(("checkin:", "courier:")):
         from hirz.contacts.service import contact_time
 
         return contact_time(p)
@@ -192,6 +192,14 @@ async def queue(
 
 
 async def destination(p: Pipeline, member: UUID, reference: str) -> str | None:
+    if reference.startswith("courier:"):
+        from hirz.protect.courier import warnings
+
+        return (
+            "/checkins"
+            if any(w["id"] == reference for w in await warnings(p, member))
+            else None
+        )
     if reference.startswith("checkin:"):
         exists = await p.connection.scalar(
             sa.select(db.checkin_jobs.c.id)
@@ -300,6 +308,17 @@ async def advance(p: Pipeline, config: Config) -> None:
                 await account(p.connection, p.household_id, sub["member_id"])
             ).model_copy(update={"surface": "scheduler"})
             member = await p.requester(principal)
+            from hirz.protect.courier import warnings
+
+            for warning in await warnings(p, sub["member_id"]):
+                if warning["delivery_source"] == "real":
+                    await queue(
+                        p,
+                        principal,
+                        sub,
+                        warning["id"],
+                        datetime.fromisoformat(warning["expires_at"]),
+                    )
             checkins = (
                 (
                     await p.connection.execute(
@@ -402,7 +421,10 @@ async def advance(p: Pipeline, config: Config) -> None:
         async with p.repo.write(p.clock):
             at = sa.case(
                 (
-                    db.companion_delivery.c.reference.startswith("checkin:"),
+                    sa.or_(
+                        db.companion_delivery.c.reference.startswith("checkin:"),
+                        db.companion_delivery.c.reference.startswith("courier:"),
+                    ),
                     delivery_time(p, "checkin:"),
                 ),
                 else_=p.clock(),

@@ -1237,7 +1237,8 @@ class HouseholdTools:
                 action,
                 Principal.model_validate(row["principal"]),
                 approval_id=args.approval_id,
-                enqueue=action.action_class
+                enqueue=action.params.get("operation") != "courier"
+                and action.action_class
                 not in {
                     "environment.comfort_profile",
                     "communication.contact_trusted_contact",
@@ -1246,7 +1247,7 @@ class HouseholdTools:
             if (
                 action.action_class == "communication.contact_trusted_contact"
                 and decision.decision == "execute"
-                and action.params.get("operation") != "enrollment"
+                and action.params.get("operation") not in {"enrollment", "courier"}
             ):
                 from hirz.contacts.checkins import queued
 

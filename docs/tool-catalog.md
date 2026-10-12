@@ -331,3 +331,13 @@ maximum). Without a number, no comparison claim is made. Checking with a separat
 named person using the exact original request remains available at every band;
 organization cases themselves cannot start person checks. Status and receipt replay
 retain the original comparison evidence. [ADR-023](./adr/ADR-023-organization-verification.md).
+
+## Courier warnings (item 33a)
+
+No tool is added. Verification card metadata adds nullable `courier_watch_until`
+and `courier_warning`; subsequent member status reads return approved warning
+speech and the original check-in result. Internal courier state/action bindings
+are excluded from tool serialization and schemas. `GET /checkins` adds a
+recipient-scoped `warnings` list with text, event time, provenance and delivery
+source; a contact never receives the original claim or case document. See
+[ADR-024](./adr/ADR-024-courier-correlation.md) for authorization and lifetime.

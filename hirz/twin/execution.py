@@ -129,7 +129,16 @@ class Host:
                 args[key] = self.saved[reference[1:]]
         value: str | None = None
         result: Any
-        if call.tool == "get_household_plan":
+        if call.tool in {"assess_request_risk", "verify_trusted_identity"}:
+            from hirz.mcp.household import HouseholdTools
+
+            answer = await HouseholdTools(
+                self.p,
+                principal.model_copy(update={"requester_confirmed": call.confirmed}),
+            ).call(call.tool, args)
+            result = answer.model_dump(mode="json")
+            value = answer.data.case.case_id if answer.data.case else None
+        elif call.tool == "get_household_plan":
             result = (await self.current(principal)).model_dump(mode="json")
             value = result["plan_id"]
         elif call.tool == "get_household_context":
@@ -362,6 +371,25 @@ async def bootstrap(loaded: LoadedScenario, connection: Any) -> Pipeline:
                 ),
                 expected_version=old["valid_from"],
             )
+        from hashlib import sha256
+
+        from hirz.graph.models import ContactChannel
+
+        for contact in spec.verified_app_fixtures:
+            await p.repo.put(
+                "contact_channels",
+                ContactChannel(
+                    id=uuid4(),
+                    household_id=p.household_id,
+                    contact_id=loaded.ref("trusted_contacts", contact),
+                    kind="hirz_app",
+                    value_hash=sha256(
+                        b"explicit disposable verified-app fixture"
+                    ).hexdigest(),
+                    verified_at=world.clock() - timedelta(seconds=1),
+                    source="twin",
+                ),
+            )
         if spec.ev_needed_by:
             await p.repo.put(
                 "asset_policies",
@@ -562,6 +590,40 @@ async def overnight_checks(
     ]
 
 
+async def verification_check(p: Pipeline, check: Any) -> bool:
+    from hirz.pipeline.models import VerificationCase
+    from hirz.protect.courier import member_warning
+
+    async with p.connection.begin():
+        documents = (
+            (
+                await p.connection.execute(
+                    sa.select(db.verification_cases.c.document).where(
+                        p.scope(db.verification_cases)
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+    if len(documents) != 1:
+        return False
+    case = VerificationCase.model_validate(documents[0])
+    actual = {
+        "risk_band": case.risk_band.value,
+        "status": case.verification.status if case.verification else None,
+        "presented_number": case.claim.presented_number,
+        "member_warning": bool(member_warning(case)),
+        "contact_publication": case.courier.contact.status if case.courier else None,
+        "contact_source": case.courier.contact.source if case.courier else None,
+        "honest_wording": bool(member_warning(case))
+        and "Hirz cannot identify the visitor." in str(member_warning(case)),
+    }
+    return all(
+        key in actual and actual[key] == value for key, value in check.equals.items()
+    )
+
+
 async def retain_audit(p: Pipeline, folder: Path) -> tuple[dict[str, Any], list[Any]]:
     return await retain_export(
         p.connection, p.household_id, p.audit.key.public_key(), folder
@@ -727,6 +789,9 @@ async def run_execution(
                             progress(
                                 f"{at.isoformat()} {event.event}: {event_result['status']}"
                             )
+                    from hirz.mcp.trust import advance as advance_checks
+
+                    await advance_checks(p, world)
                     # Presence changes are ingested before planning and device evaluation.
                     await ingest(p, registry, host.principal(spec.execution.member))
                     if at < stop:
@@ -755,6 +820,13 @@ async def run_execution(
                     for i, when in enumerate(loaded.check_times):
                         if when == at:
                             reached.add(i)
+                            checked = (
+                                await verification_check(p, spec.assertions.checks[i])
+                                if spec.assertions.checks[i].kind == "verification"
+                                else loaded.check(
+                                    spec.assertions.checks[i], readings, sources=sources
+                                )
+                            )
                             report["checks"].append(
                                 dict(
                                     index=i,
@@ -763,11 +835,7 @@ async def run_execution(
                                     status="unchecked"
                                     if not assertions
                                     else "passed"
-                                    if loaded.check(
-                                        spec.assertions.checks[i],
-                                        readings,
-                                        sources=sources,
-                                    )
+                                    if checked
                                     else "failed",
                                 )
                             )

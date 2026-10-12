@@ -198,6 +198,17 @@ async def assess(
 
 
 def case_response(case: VerificationCase) -> Result:
+    from hirz.protect.courier import member_warning
+
+    warning = member_warning(case)
+    if warning:
+        original = case_response(case.model_copy(update={"courier": None}))
+        return response(
+            "An unexpected doorbell press followed your reported request. Don’t hand anything over.",
+            details=(warning, original.speakable.headline),
+            source="real" if case.courier and case.courier.source == "real" else "twin",
+            case=case,
+        )
     state = case.verification
     if state is None:
         return Result.model_validate(
@@ -316,6 +327,7 @@ async def verify(
                     p.household_id, str(member.member_id) + ":" + str(args.request_id)
                 ).hex,
                 "previous_case_id": original.case_id,
+                "courier": None,
                 "verification": None,
             }
         )

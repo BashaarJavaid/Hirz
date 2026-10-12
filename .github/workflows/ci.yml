@@ -215,7 +215,7 @@ jobs:
               for name in ("evening", "hourly", "parents"):
                   result = json.loads((Path(os.environ["RUNNER_TEMP"]) / f"{name}.json").read_text())
                   print(f"{name}: {result['status']}; checks={len(result['checks'])}; deferred assertions={len(result['deferred'])}", file=summary)
-              print("Evening: internal service execution; Hourly: planning regression; parents: observation checks. MCP, authentication, trust, security and Link remain deferred.", file=summary)
+              print("Evening: internal service execution; Hourly: planning regression; parents: service-backed Protect, check-in and courier assertions with twin publication. MCP authentication, security execution and Link are separate gates.", file=summary)
           PYTHON
 
       - name: Live HA lamp and bounded restoration

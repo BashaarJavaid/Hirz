@@ -194,6 +194,7 @@ test("numeric car limit records a revision then polls", async ({ page }) => {
 
 function pending() {
   const initial = structuredClone(fixtures.results.verification);
+  initial.data.presentation.courier_watch_until = null;
   const expires = new Date(Date.parse(fixtures.at) + 120000).toISOString();
   initial.data.presentation.status = "pending";
   initial.data.presentation.can_check = false;
@@ -363,6 +364,7 @@ test("scorecard pagination preserves the selected query", async ({ page }) => {
 
 test("Protect enrichment polls then stops with Refresh at thirty seconds", async ({ page }) => {
   const initial = structuredClone(fixtures.results.verification);
+  initial.data.presentation.courier_watch_until = null;
   initial.data.presentation.extraction_status = "pending";
   initial.data.presentation.notice = "Additional warning checks are in progress.";
   const { frame, calls } = await mount(page, "verification", "light", () => initial, initial);
@@ -379,6 +381,7 @@ test("Protect enrichment polls then stops with Refresh at thirty seconds", async
 
 test("Protect enrichment publishes possible warnings without later speech", async ({ page }) => {
   const initial = structuredClone(fixtures.results.verification);
+  initial.data.presentation.courier_watch_until = null;
   initial.data.presentation.extraction_status = "pending";
   initial.data.presentation.notice = "Additional warning checks are in progress.";
   const terminal = structuredClone(initial);
@@ -406,4 +409,24 @@ test("organization comparison retains simulated source and offers only a separat
   expect(initial.speakable.headline.split(/\s+/).length).toBeLessThanOrEqual(20);
   expect(initial.speakable.details.length).toBeLessThanOrEqual(3);
   expect(JSON.stringify(initial.speakable)).not.toContain("800-334-7661");
+});
+
+
+test("courier watch follows scenario time after a reply and stops at publication", async ({ page }) => {
+  const initial = pending();
+  initial.data.presentation.status = "genuine";
+  initial.data.case.verification.status = "genuine";
+  initial.data.presentation.courier_watch_until = new Date(Date.parse(fixtures.at) + 3600000).toISOString();
+  let result = initial;
+  const { frame, calls } = await mount(page, "verification", "light", () => result, initial);
+  await page.clock.setFixedTime(new Date(Date.parse(fixtures.at) + 7200000));
+  await page.waitForTimeout(2200);
+  expect(calls.length).toBeGreaterThan(1);
+  result = structuredClone(initial);
+  result.data.presentation.courier_warning = "Simulated doorbell event. An unexpected doorbell press followed your reported request. Don’t hand anything over. Hirz cannot identify the visitor.";
+  await expect(frame.getByRole("alert")).toContainText("Hirz cannot identify the visitor.");
+  const stopped = calls.length;
+  await page.waitForTimeout(2500);
+  expect(calls.length).toBe(stopped);
+  await expect(frame.locator(".verification-result")).toHaveText("genuine");
 });

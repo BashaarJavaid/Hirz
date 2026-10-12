@@ -409,7 +409,7 @@ hints remain private and cannot establish presence or identity. A call has
 `requested_at`, and `deadline`, with its event time as the reply time. Only one
 check-in model per contact is supported; a no-answer event occurs at its deadline.
 These are private, time-indexed model inputs, never communication or verification
-case mutations. The parents' future courier notification remains deferred.
+case mutations by themselves. The service-backed parents runner consumes them through the existing check-in service, then correlates the persisted twin press through the shared courier worker.
 
 Observation-stage voice events require `member`, `text` and a nonempty `script` of known tool names.
 Structured internal execution calls are defined in the item 22 contract below.
@@ -577,3 +577,15 @@ The directory is private (`0700`); report, audit and PEM files are exclusive-cre
 run verifies the full chain and exported file against the signing key's public
 fingerprint before deleting the disposable database. Failure retains its database
 and available evidence. No development migration is performed.
+
+## Service-backed parents scenario (item 33a)
+
+`parents-scam-check.yaml` declares an execution member and explicit
+`verified_app_fixtures`. Its structured calls use canonical assessment/check-in
+inputs; `confirmed: true` represents the scripted member's explicit check-in
+confirmation, never courier permission. All subsequent records require Pipeline
+grants. `kind: verification` checks the persisted case, reply, warning publication,
+source and honest wording. The audit assertions require both warning executions
+and forbid finance execution and unlocks. Signed private exports use the same
+runner as the evening scenario. The legacy observation-only runner regression
+fixture lives in `tests/fixtures/parents-observations.yaml`.

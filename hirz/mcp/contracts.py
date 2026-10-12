@@ -361,6 +361,7 @@ class ToolData(Input):
         value: dict[str, Any] = handler(self)
         if value.get("case"):
             value["case"].pop("assessment_decision", None)
+            value["case"].pop("courier", None)
         return value
 
     status: Literal[

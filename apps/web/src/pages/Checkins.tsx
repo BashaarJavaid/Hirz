@@ -9,8 +9,9 @@ const signalLabels: Record<string, string> = {
 const answers = [["not_genuine", "No, that wasn’t me"], ["genuine", "Yes, that was me"], ["will_call", "I’ll call them"]] as const;
 type Received = { id: string; requester: string; text: string; request_hash: string; source: string };
 type Case = { subject?: { party: string }; organization_comparison?: { display_name: string; reviewed_on: string }; signals: { signal: string }[]; extraction?: { status: string; keyword_signals: { signal: string }[] }; case_id: string; claim: { text: string }; verification?: { status: string; method: string; source: string } };
-type Result = { speakable: { headline: string; details?: string[]; options?: string[] }; data: { case: Case } };
-type Inbox = { received: Received[]; cases: Result[] };
+type Result = { speakable: { headline: string; details?: string[]; options?: string[] }; data: { case: Case; presentation?: { as_of: string; courier_watch_until?: string; courier_warning?: string } } };
+type Warning = { id: string; text: string; event_at: string; label: string | null };
+type Inbox = { warnings: Warning[]; received: Received[]; cases: Result[] };
 
 function SafeWord({ id }: { id: string }) {
   const [word, setWord] = useState(""), [message, setMessage] = useState("");
@@ -29,11 +30,18 @@ export function Checkins() {
   const [enrichmentPoll, setEnrichmentPoll] = useState(true);
   useEffect(() => { setEnrichmentPoll(true); const timer = setTimeout(() => setEnrichmentPoll(false), 30000); return () => clearTimeout(timer); }, [windowStart]);
   const r = useResource<Inbox>("/checkins", poll);
-  useEffect(() => { if (r.data) setPoll(r.data.received.length > 0 || r.data.cases.some(v => v.data.case.verification?.status === "pending" || enrichmentPoll && ["pending", "running"].includes(v.data.case.extraction?.status ?? ""))); }, [r.data, enrichmentPoll]);
+  useEffect(() => { if (r.data) setPoll(r.data.received.length > 0 || r.data.cases.some(v => v.data.case.verification?.status === "pending" || !!v.data.presentation?.courier_watch_until && !v.data.presentation.courier_warning && Date.parse(v.data.presentation.as_of) <= Date.parse(v.data.presentation.courier_watch_until) || enrichmentPoll && ["pending", "running"].includes(v.data.case.extraction?.status ?? ""))); }, [r.data, enrichmentPoll]);
   if (!r.data || r.error) return <Load {...r} />;
   return <><h1>Check-ins</h1>
     <p>A yes confirms only the quoted request. It is never advice to pay. “I’ll call” records intent.</p>
     <AsyncButton run={async () => { setWindowStart(Date.now()); r.retry(); }}>Refresh inbox</AsyncButton>
+    <Panel title="Warnings for you">
+      {(r.data.warnings ?? []).length === 0 && <p>No warnings.</p>}
+      {(r.data.warnings ?? []).map(warning => <article key={warning.id}>
+        {warning.label && <p>{warning.label}</p>}
+        <p>{warning.text}</p><time dateTime={warning.event_at}>{new Date(warning.event_at).toLocaleString()}</time>
+      </article>)}
+    </Panel>
     <Panel title="Requests for you">
       {r.data.received.length === 0 && <p>No pending requests.</p>}
       {r.data.received.map(item => <article key={item.id}>

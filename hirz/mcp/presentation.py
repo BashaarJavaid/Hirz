@@ -55,6 +55,8 @@ class ApprovalCard(Card):
 
 
 class VerificationCard(Card):
+    courier_watch_until: AwareDatetime | None = None
+    courier_warning: str | None = None
     notice: str | None = None
     extraction_status: (
         Literal["off", "pending", "running", "complete", "fallback"] | None

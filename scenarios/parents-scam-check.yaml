@@ -1,4 +1,4 @@
-# Item 16: explicit simulated inputs; deferred checks are not passes.
+# Service-backed Protect, check-in and courier execution with explicit twin fixtures.
 id: parents-scam-check
 seed: 20261013
 household: ../constitutions/quinn-parents.yaml
@@ -16,6 +16,10 @@ adapters:
   contacts: twin
   doorbell: twin
 rate_plan: twin
+execution:
+  member: mom
+  rooms: {}
+  verified_app_fixtures: [malik]
 initial:
   base_load_kw: 0.4
   weather:
@@ -102,8 +106,19 @@ timeline:
   text: Malik just called from a strange number. He says he's in trouble and needs
     five hundred dollars. Is it really him?
   script:
-  - assess_request_risk
-  - verify_trusted_identity
+  - tool: assess_request_risk
+    arguments:
+      text: Malik called from a strange number and needs five hundred dollars
+      claimed_party: Malik
+      party: person
+      request_id: parents-assessment
+    save_as: case
+  - tool: verify_trusted_identity
+    confirmed: true
+    arguments:
+      operation: start
+      case_id: $case
+      request_id: parents-check
 - at: '17:06'
   event: contact.checkin_reply
   contact: malik
@@ -115,7 +130,10 @@ timeline:
   member: mom
   text: Alexa, is it him?
   script:
-  - verify_trusted_identity
+  - tool: verify_trusted_identity
+    arguments:
+      operation: status
+      case_id: $case
 - at: '17:25'
   event: doorbell.press
   entity: doorbell.front_door
@@ -170,31 +188,21 @@ assert:
     kind: policy
     equals:
       version: 1
-  deferred:
-  - expectation: 'audit_sequence_includes: VERIFY'
-    reason: Protect, notifications, consumer speech and actual audited execution are
-      later work; no vacuous pass.
-  - expectation: 'audit_sequence_includes: VERIFIED'
-    reason: Protect, notifications, consumer speech and actual audited execution are
-      later work; no vacuous pass.
-  - expectation: 'audit_sequence_includes: EXECUTED:communication.contact_trusted_contact'
-    reason: Protect, notifications, consumer speech and actual audited execution are
-      later work; no vacuous pass.
-  - expectation: 'verification.band: critical'
-    reason: Protect, notifications, consumer speech and actual audited execution are
-      later work; no vacuous pass.
-  - expectation: 'verification.presented_number: not_provided'
-    reason: Protect, notifications, consumer speech and actual audited execution are
-      later work; no vacuous pass.
-  - expectation: 'verification.status: not_genuine'
-    reason: Protect, notifications, consumer speech and actual audited execution are
-      later work; no vacuous pass.
-  - expectation: 'speakable_never_mentions: number_match'
-    reason: Protect, notifications, consumer speech and actual audited execution are
-      later work; no vacuous pass.
-  - expectation: never EXECUTE:finance.*
-    reason: Protect, notifications, consumer speech and actual audited execution are
-      later work; no vacuous pass.
-  - expectation: never EXECUTE:security.door_unlock
-    reason: Protect, notifications, consumer speech and actual audited execution are
-      later work; no vacuous pass.
+  - at: '17:25'
+    kind: verification
+    equals:
+      risk_band: critical
+      status: not_genuine
+      presented_number: null
+      member_warning: true
+      contact_publication: published
+      contact_source: twin
+      honest_wording: true
+  deferred: []
+  audit_sequence_includes:
+  - VERIFY
+  - EXECUTED:communication.notify_member
+  - EXECUTED:communication.contact_trusted_contact
+  never:
+  - EXECUTE:finance.*
+  - EXECUTE:security.door_unlock

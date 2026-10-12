@@ -91,7 +91,9 @@ def test_committed_execution_scope():
     assert len(loaded.spec.execution.responses) == 2
     assert all(b.adapter == "twin" for b in loaded.spec.bindings.values())
     assert not LoadedScenario(Path("scenarios/demo-evening-hourly.yaml")).spec.execution
-    assert not LoadedScenario(Path("scenarios/parents-scam-check.yaml")).spec.execution
+    parents = LoadedScenario(Path("scenarios/parents-scam-check.yaml"))
+    assert parents.spec.execution.verified_app_fixtures == ("malik",)
+    assert not parents.spec.assertions.deferred
 
 
 @pytest.mark.parametrize(
@@ -202,6 +204,7 @@ def test_service_runner_order_pacing_artifacts_and_step(
         events.append("ingest")
 
     monkeypatch.setattr(execution, "ingest", ingest)
+    monkeypatch.setattr("hirz.mcp.trust.advance", AsyncMock())
 
     refresh_times = []
 

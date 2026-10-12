@@ -158,7 +158,7 @@ class Event(Model):
 
 class Check(Model):
     at: Text
-    kind: Literal["observation", "policy", "contact", "call"]
+    kind: Literal["observation", "policy", "contact", "call", "verification"]
     subject: str | None = None
     domain: AdapterDomain | None = None
     equals: dict[str, Any] = Field(min_length=1)
@@ -533,6 +533,25 @@ class LoadedScenario:
                 or type(check.equals["version"]) is not int
             ):
                 raise ValueError("Policy assertions require only a version.")
+        elif check.kind == "verification":
+            if (
+                not self.spec.execution
+                or check.subject is not None
+                or check.domain is not None
+                or not fields
+                <= {
+                    "risk_band",
+                    "status",
+                    "presented_number",
+                    "member_warning",
+                    "contact_publication",
+                    "contact_source",
+                    "honest_wording",
+                }
+            ):
+                raise ValueError(
+                    "Verification assertions require service execution and known fields."
+                )
         elif check.kind == "contact":
             ident = self.ref("trusted_contacts", check.subject)
             if (
