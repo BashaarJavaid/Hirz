@@ -67,6 +67,6 @@ export function Household() {
     <Panel title="Schedules">
       {(r.data.graph.schedules ?? []).map(row => <p key={String(row.id)}>{String(row.name)}</p>)}
     </Panel>
-    <Contacts contacts={(r.data.graph.trusted_contacts ?? []).map(c => ({ id: String(c.id), name: String(c.display_name) }))} refresh={r.retry} />
+    <Contacts contacts={(r.data.graph.trusted_contacts ?? []).filter(c => c.party !== "organization").map(c => ({ id: String(c.id), name: String(c.display_name) }))} refresh={r.retry} />
   </>;
 }

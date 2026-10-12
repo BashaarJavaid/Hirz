@@ -31,3 +31,5 @@ One file per consequential decision, each with the alternatives that were reject
 - [ADR-021-extracted-host-harness.md](./ADR-021-extracted-host-harness.md) — independent Python/React host packages, explicit runner and item 29a acceptance
 
 - [`ADR-022-trusted-checkins.md`](./ADR-022-trusted-checkins.md) — Private cross-household app and email check-ins, enrollment, revocation and safe words
+
+- [`ADR-023-organization-verification.md`](./ADR-023-organization-verification.md) — Curated organization records, owner passkey saves and advisory number comparisons

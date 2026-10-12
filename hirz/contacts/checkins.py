@@ -29,6 +29,9 @@ from hirz.pipeline.service import Pipeline
 async def selected(
     p: Pipeline, contact_id: str, method: str | None = None
 ) -> dict[str, Any] | None:
+    contact = await p.repo.get("trusted_contacts", {"id": UUID(contact_id)})
+    if contact is None or contact["attributes"].get("party", "person") != "person":
+        return None
     methods = p.bundle.policy().verification.trusted_contact_methods_order
     for name in methods:
         kind = {"app_confirmation": "app", "verified_email": "email"}.get(name)
@@ -64,6 +67,8 @@ async def start(
 ) -> Result:
     from hirz.mcp.trust import case_response
 
+    if case.subject.party != "person":
+        raise ValueError("Organization cases cannot initiate person checks")
     member = await p.requester(principal)
     assert case.subject.contact_id
     if not principal.requester_confirmed:

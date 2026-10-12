@@ -8,7 +8,7 @@ const signalLabels: Record<string, string> = {
 };
 const answers = [["not_genuine", "No, that wasn’t me"], ["genuine", "Yes, that was me"], ["will_call", "I’ll call them"]] as const;
 type Received = { id: string; requester: string; text: string; request_hash: string; source: string };
-type Case = { signals: { signal: string }[]; extraction?: { status: string; keyword_signals: { signal: string }[] }; case_id: string; claim: { text: string }; verification?: { status: string; method: string; source: string } };
+type Case = { subject?: { party: string }; organization_comparison?: { display_name: string; reviewed_on: string }; signals: { signal: string }[]; extraction?: { status: string; keyword_signals: { signal: string }[] }; case_id: string; claim: { text: string }; verification?: { status: string; method: string; source: string } };
 type Result = { speakable: { headline: string; details?: string[]; options?: string[] }; data: { case: Case } };
 type Inbox = { received: Received[]; cases: Result[] };
 
@@ -52,8 +52,9 @@ export function Checkins() {
         {!item.verification && <p>Reported request · Simulated assessment</p>}
         {!item.verification && result.speakable.options?.map(option => <p key={option}>{option}</p>)}
         {item.verification && <p>{item.verification.source === "real" ? "Real" : "Simulated"} · {item.verification.method === "verified_email" ? "Email" : "App"}</p>}
-        <SafeWord id={item.case_id} />
-        {item.verification && item.verification.status !== "pending" && <details><summary>Retry this same request</summary>
+        {item.organization_comparison && <p>Published {item.organization_comparison.display_name} contact · Reviewed {item.organization_comparison.reviewed_on}</p>}
+        {item.subject?.party !== "organization" && <SafeWord id={item.case_id} />}
+        {item.subject?.party !== "organization" && item.verification && item.verification.status !== "pending" && <details><summary>Retry this same request</summary>
           <p>Confirm another check through the selected method.</p>
           {(["app", "email"] as const).map(method => <AsyncButton key={method} run={async () => {
             await api("/checkins/retry", { case_id: item.case_id, method, confirmed: true, request_id: crypto.randomUUID() }); r.retry(); setPoll(true);

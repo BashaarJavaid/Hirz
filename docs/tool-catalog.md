@@ -314,3 +314,20 @@ is private, immutable and omitted from tool output. No assessment starts contact
 a duplicate request key returns the exact original receipt, even after enrichment.
 Legacy cases remain readable without submission or re-scoring. The twelve-tool
 surface and source labels are unchanged. [ADR-015](./adr/ADR-015-household-tools.md#protect-assessment-and-enrichment-amendment--2026-10-11).
+
+### Organization comparisons (item 33)
+
+Use `party="organization"`, `claimed_party="ComEd"` or the approved alias
+`Commonwealth Edison`, and the optional user-supplied `presented_number`. No new
+tool or input. Do not infer “the utility” or accept lookalike names. Optional
+`organization_comparison` on the canonical case records public source, review and
+registry/saved revisions, plus separate comparison outcomes. It contains no saved
+phone value. `subject.trusted` means a current household-saved record, never caller
+identity; public-registry matches alone leave it false. Risk is unchanged.
+
+A supplied number produces the approved source-specific match/mismatch/insufficient
+headline plus the caller-ID limitation, advice and extractor notice (three details
+maximum). Without a number, no comparison claim is made. Checking with a separately
+named person using the exact original request remains available at every band;
+organization cases themselves cannot start person checks. Status and receipt replay
+retain the original comparison evidence. [ADR-023](./adr/ADR-023-organization-verification.md).

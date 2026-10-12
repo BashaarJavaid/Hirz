@@ -69,6 +69,15 @@ def publish(
         speech["headline"] = (
             "This request has warning signs. Check with your trusted contact before acting."
         )
+    if case.subject.party == "organization" and not case.verification:
+        from hirz.protect.organizations import organization_speech
+
+        speech = organization_speech(
+            case.organization_comparison,
+            bool(found),
+            extraction,
+            case.number_comparison,
+        )
     return case.model_copy(
         update={
             "extraction": extraction,

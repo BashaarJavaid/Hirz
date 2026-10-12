@@ -136,7 +136,7 @@ Item 32 adds `HIRZ_LLM=off uv run --locked python -m scripts.smoke_protect --art
 
 ## Current phase
 
-Phase 5 is complete. Item 32 is complete; item 33 organization verification is next.
+Phase 5 is complete. Item 32 is complete; item 33 organization verification is implemented, with acceptance in progress.
 Item 31 remains Partial for deferred real email/push acceptance. Paid Protect work
 shares `HIRZ_PROTECT_BUDGET_LEDGER` with a $2 ceiling. Ring access failed; retain
 the twin doorbell. Item 28 still owes real Web Push; issue #7 remains open.

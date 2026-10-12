@@ -12592,3 +12592,29 @@ Final documentation checks passed after closure updates: Ruff check, Ruff format
 `CLAUDE.md`. Their Current phase is **57 words**. The retained budget ledger was
 rechecked unchanged at 18 reservations and $0.0870562. The closure commit changes
 only documentation; executable acceptance remains tied to the CI revisions above.
+
+## Item 33 — 2026-10-11
+
+### Implementation and initial acceptance
+
+Approved scope and rejected alternatives are in [ADR-023](./adr/ADR-023-organization-verification.md).
+Reviewed ComEd's official page on 2026-10-11; it publishes 800-334-7661. No provider
+calls were added to assessment, no Bedrock calls were made, and the development
+database was not migrated. Registry data is packaged, validated and cached;
+comparison evidence is advisory and cannot lower risk or authorize actions.
+
+Initial local checks:
+
+- `.venv/bin/pytest tests/unit/test_organizations.py tests/unit/test_protect.py tests/unit/test_household_tools.py --no-cov`: the first run had 75 passes and one schema-size failure. Canonical organization evidence increased tools/list beyond the 120,000-byte guard. The bounded guard is now 122,000 bytes; no tool or input was added and the latency corpus is unchanged. Later results follow below.
+- `HIRZ_DOGWOOD="$PWD/.tools/dogwood" .venv/bin/pytest tests/integration/test_organizations_database.py -m integration --no-cov`: 1 passed after adding the missing reserved owner-app operation to the constitution rule. This was an implementation omission, not third-party friction. Expanded security checks follow below.
+- `pnpm -r lint`, `pnpm -r typecheck`, `pnpm -r test`: pass; 5 card and 1 web unit tests. Both card and web builds passed. The first local Node was v23.11.0; subsequent verification uses the prescribed Node 24 path.
+- `.venv/bin/mypy hirz/ scripts/ alembic/`: no issues in 200 source files.
+- `HIRZ_LLM=off HIRZ_DOGWOOD="$PWD/.tools/dogwood" .venv/bin/python -m scripts.smoke_companion --artifacts-dir /private/tmp/hirz-item33-companion`: 2 browser tests passed, 1 simulator-specific test skipped as designed. The extended smoke saved ComEd through browser WebAuthn, checked matching and lookalike numbers through authenticated MCP, removed the contact and checked registry-only matching. Setup source/phone links, no organization safe-word control, and accessibility checks passed. Signed exports verified independently; private evidence remains under that directory.
+- `HIRZ_LLM=off HIRZ_DOGWOOD="$PWD/.tools/dogwood" .venv/bin/python -m scripts.smoke_cards --artifacts-dir /private/tmp/hirz-item33-cards --browser-test`: authenticated unchanged reference-host test passed, signed exports retained, disposable database dropped and development database unchanged.
+- With Node 24 and `HIRZ_CARD_FIXTURES=/private/tmp/hirz-item33-cards/fixtures.json`, `pnpm --filter mcp-app exec playwright test tests/cards.spec.ts -g organization`: 1 passed, including published reference, simulated badge, caller-ID limitation, absent person action, speech limits and no clipped card content.
+
+The sandbox blocked uv's shared cache and loopback PostgreSQL. Installed virtualenv
+commands and reviewed loopback escalations were used; no security setting or
+production guard was weakened. Neither is third-party friction. Full suites,
+combined coverage, packaging, conformance and normal CI latency remain pending
+at this entry; item 33 is not yet closed.

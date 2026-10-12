@@ -68,7 +68,29 @@ def router(service: Companion) -> APIRouter:
                 .mappings()
                 .all()
             )
+            from hirz.protect.organizations import registry, saved
+
+            organizations = []
+            for organization in registry():
+                contact, channel = await saved(p, organization)
+                revision = (
+                    channel["attributes"].get("registry_revision") if channel else None
+                )
+                organizations.append(
+                    organization.model_dump(mode="json")
+                    | {
+                        "contact_id": str(contact["id"]) if contact else None,
+                        "saved_revision": revision,
+                        "status": "saved"
+                        if revision == organization.revision
+                        else "review_required"
+                        if contact
+                        else "not_saved",
+                    }
+                )
             return {
+                "organizations": organizations,
+                "can_manage": member.role == "owner",
                 "links": [
                     {
                         k: row[k]
@@ -83,7 +105,7 @@ def router(service: Companion) -> APIRouter:
                     }
                     | {"received": row["household_id"] != p.household_id}
                     for row in rows
-                ]
+                ],
             }
 
     @api.get("/checkins")

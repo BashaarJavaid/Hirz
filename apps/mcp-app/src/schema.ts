@@ -23,7 +23,7 @@ export const resultSchema = z.object({
     presentation: presentation.nullish(),
     plan: z.object({ plan_id: text, version: z.number().int().positive(), status: text, horizon: z.object({ start: date, end: date }), summary: z.object({ estimated_savings_usd: number.nullable(), peak_kwh_avoided: number.nullable() }), comparison_validity: z.object({ valid: z.boolean() }), alternatives: z.array(z.object({ label: text, cost_delta_usd: number.nullable(), why_rejected: text, validity: z.object({ valid: z.boolean() }) })) }).nullish(),
     decision: z.object({ action_id: text, decision: z.enum(["execute", "ask", "deny", "verify"]), approval: z.object({ approval_id: text, expires_at: date }).nullish() }).nullish(),
-    case: z.object({ case_id: text, extraction: extraction.nullish(), verification: z.object({ status: text, expires_at: date }).nullish() }).nullish(),
+    case: z.object({ case_id: text, subject: z.object({ party: z.enum(["person", "organization"]) }).optional(), organization_comparison: z.object({ display_name: text, reviewed_on: text }).nullish(), extraction: extraction.nullish(), verification: z.object({ status: text, expires_at: date }).nullish() }).nullish(),
     audit: z.array(z.object({ at: date, summary: text })).default([]),
     cursor: text.nullish(),
   }),

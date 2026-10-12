@@ -392,3 +392,18 @@ test("Protect enrichment publishes possible warnings without later speech", asyn
   await advance(page, 3000);
   expect(calls.length).toBe(stopped);
 });
+
+
+test("organization comparison retains simulated source and offers only a separate person check", async ({ page }) => {
+  const initial = fixtures.organization;
+  const { frame } = await mount(page, "verification", "light", undefined, initial);
+  await expect(frame.getByRole("heading", { name: "The supplied number matches Hirz’s published ComEd record." })).toBeVisible();
+  await expect(frame.getByText("Published ComEd contact · Reviewed 2026-10-11")).toBeVisible();
+  await expect(frame.getByText("Caller ID can be forged. A match does not establish identity or mean you should pay.")).toBeVisible();
+  await expect(frame.locator(".badge")).toHaveText("simulated");
+  await expect(frame.getByRole("button", { name: /Check with/ })).toHaveCount(0);
+  expect(await frame.locator(".content").evaluate(el => el.scrollHeight <= el.clientHeight)).toBe(true);
+  expect(initial.speakable.headline.split(/\s+/).length).toBeLessThanOrEqual(20);
+  expect(initial.speakable.details.length).toBeLessThanOrEqual(3);
+  expect(JSON.stringify(initial.speakable)).not.toContain("800-334-7661");
+});

@@ -3,9 +3,10 @@ import { passkey, useResource } from "../api";
 import { Button } from "./ui/button";
 import { AsyncButton, Panel } from "./primitives";
 
+type Organization = { id: string; display_name: string; phone: string; source_url: string; reviewed_on: string; revision: string; contact_id: string | null; status: string };
 type Link = { id: string; contact_id: string; kind: string; status: string; delivery_status: string; received: boolean };
 export function Contacts({ contacts, refresh }: { contacts: { id: string; name: string }[]; refresh: () => void }) {
-  const r = useResource<{ links: Link[] }>("/contacts");
+  const r = useResource<{ links: Link[]; organizations?: Organization[]; can_manage?: boolean }>("/contacts");
   const [name, setName] = useState(""), [relationship, setRelationship] = useState("");
   const [contact, setContact] = useState(contacts.length === 1 ? contacts[0].id : ""), [email, setEmail] = useState(""), [word, setWord] = useState(""), [invitation, setInvitation] = useState("");
   const [accept, setAccept] = useState(""), [phone, setPhone] = useState("");
@@ -14,7 +15,18 @@ export function Contacts({ contacts, refresh }: { contacts: { id: string; name: 
     if (result.invitation) setInvitation(result.invitation);
     setEmail(""); setWord(""); refresh(); r.retry();
   }
-  return <Panel title="Trusted contacts">
+  return <><Panel title="Organization contacts">
+    {(r.data?.organizations ?? []).map(o => <article key={o.id}>
+      <h3>{o.display_name}</h3><p>Published {o.display_name} contact: <a href={`tel:${o.phone}`}>{o.phone}</a></p>
+      <p><a href={o.source_url} target="_blank" rel="noreferrer">Official source</a> · Reviewed {o.reviewed_on}</p>
+      <p>{o.status === "saved" ? "Saved" : o.status === "review_required" ? "Review and re-save required" : "Not saved"}</p>
+      <p>Caller ID can be forged. A match does not establish identity or mean you should pay.</p>
+      {r.data?.can_manage && <>
+        <AsyncButton run={async () => change({ operation: "save_organization", organization_id: o.id, registry_revision: o.revision })}>{o.contact_id ? "Re-save" : "Save"} {o.display_name} with passkey</AsyncButton>
+        {o.contact_id && <AsyncButton run={async () => change({ operation: "remove", contact_id: o.contact_id })}>Remove {o.display_name}</AsyncButton>}
+      </>}
+    </article>)}
+  </Panel><Panel title="Trusted contacts">
     <p>Only the owner can change trust. Share invitations and safe words through a channel you already know.</p>
     {invitation && <p role="status">Single-use pairing invitation, valid for 24 hours: <code>{invitation}</code></p>}
     <details><summary>Create a contact</summary>
@@ -54,5 +66,5 @@ export function Contacts({ contacts, refresh }: { contacts: { id: string; name: 
       <AsyncButton run={async () => change({ operation: "withdraw", reference: l.id })}>Withdraw this app link</AsyncButton>
     </article>)}
     {r.error && <p role="alert">{r.error}</p>}
-  </Panel>;
+  </Panel></>;
 }

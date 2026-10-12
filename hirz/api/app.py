@@ -42,6 +42,9 @@ def create_app(
     simulator: Simulator | None = None,
 ) -> FastAPI:
     """One SDK manager per app; only tests/smoke register diagnostic tools."""
+    from hirz.protect.organizations import registry
+
+    registry()
     security = local_security(port)
     server = create_server(
         security, authentication=cache is not None and engine is not None

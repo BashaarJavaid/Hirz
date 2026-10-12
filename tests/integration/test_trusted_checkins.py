@@ -508,6 +508,37 @@ def test_contact_http_passkey_binding_mailbox_and_failure(
                         },
                     )
 
+                organization = {
+                    "operation": "save_organization",
+                    "organization_id": "comed",
+                    "registry_revision": "2026-10-11",
+                }
+                for altered in (
+                    organization | {"organization_id": "other"},
+                    organization | {"registry_revision": "2026-10-12"},
+                ):
+                    assert (await change(organization, altered)).status_code == 400
+                assert (
+                    await change(organization | {"registry_revision": "2026-10-10"})
+                ).status_code == 400
+                assert (
+                    await change(organization | {"value": "+18005555555"})
+                ).status_code == 400
+                saved = await change(organization)
+                assert saved.status_code == 200, saved.text
+                public = (await client.get("/api/contacts")).json()["organizations"][0]
+                assert public["phone"] == "+18003347661"
+                assert public["status"] == "saved"
+                assert public["contact_id"] == saved.json()["id"]
+                assert (
+                    await change(
+                        {"operation": "remove", "contact_id": saved.json()["id"]}
+                    )
+                ).status_code == 200
+                assert (await client.get("/api/contacts")).json()["organizations"][0][
+                    "status"
+                ] == "not_saved"
+
                 value = {
                     "operation": "create",
                     "name": "Email contact",

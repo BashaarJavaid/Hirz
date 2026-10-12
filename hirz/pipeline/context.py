@@ -121,7 +121,9 @@ def extract(
             raise ContextError("Invalid household member target")
     elif name == "communication.contact_trusted_contact":
         if action.target.adapter != "contacts" or action.target.entity not in {
-            r["id"] for r in data["trusted_contacts"]
+            r["id"]
+            for r in data["trusted_contacts"]
+            if r.get("party", "person") == "person"
         }:
             raise ContextError("Invalid household contact target")
     else:

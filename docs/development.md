@@ -1903,3 +1903,22 @@ receipts deliberately do not. Card fixtures come from `scripts.smoke_cards`;
 `apps/mcp-app/tests/cards.spec.ts` checks enrichment settlement and the 30-second
 limit. The isolated UI test `apps/web/tests/protect.spec.ts` expects the Vite dev
 server on loopback 5173 and mocks session/inbox data; it does not prove auth.
+
+## Organization verification (item 33)
+
+[ADR-023](./adr/ADR-023-organization-verification.md) defines the registry and saved
+revision contract. Update the packaged YAML only after reviewing the cited official
+source, then advance its revision and review date. Restart loads/validates once;
+malformed or ambiguous entries fail startup. Existing saved contacts need explicit
+owner review and re-save; historical cases retain their original evidence.
+
+Build both apps and run `HIRZ_LLM=off uv run --locked python -m scripts.smoke_companion
+--artifacts-dir <new-private-dir>` as one command. It now exercises browser passkey
+save/removal, authenticated MCP matching and wrong numbers, registry-only behavior,
+and independently verified signed exports. The disposable smoke creates its own
+contact-binding key; no email is sent. `scripts.smoke_cards --browser-test` includes
+the published reference and caller-ID limitation. The household-tool smoke's
+independent checker cases include organization matches, wrong numbers and unknown
+names. These use no paid model calls or real-phone acceptance and never migrate the
+development database. Run the existing full Python/TypeScript, packaging,
+conformance and both normal CI latency gates before closing item 33.

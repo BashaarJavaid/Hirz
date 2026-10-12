@@ -167,3 +167,16 @@ Enrichment polls the existing case status every two seconds until settlement or
 30 seconds, then leaves Refresh available. Check-ins follows the same window.
 Existing pending contact checks retain their original polling/deadline behavior.
 A genuine reply still confirms only the quoted request and never endorses payment.
+
+### Organization contacts and comparisons (item 33)
+
+Household adds Organization contacts: published ComEd phone (clickable), official
+source link, review date, saved/review-required/not-saved status and owner-only
+save/re-save/remove controls using the existing passkey ceremony. Person contact
+selectors exclude organization records. No saved phone value reaches tools/speech.
+Check-ins and the verification card show the canonical comparison headline and
+“Published ComEd contact” reference. Hypothetical assessments retain simulated
+badges. Organization cases hide safe words, retry and person check buttons; they
+offer a separately named trusted-person check and independent utility contact.
+Caller-ID limitations, warning advice and extraction notice fit three speech
+details. Matching never endorses payment or authenticates a caller.

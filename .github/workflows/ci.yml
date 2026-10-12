@@ -460,6 +460,7 @@ jobs:
           ./wheel-smoke/bin/python -c 'from hirz.risk import CLASSES; from hirz.constitution.preview import SITUATIONS; assert len(CLASSES) == len(SITUATIONS) == 40; print("PASS packaged catalogs: 40 classes, 40 situation groups")'
           ./wheel-smoke/bin/python -c 'from hirz.mcp.cards import assets; assert len(assets()) == 5; print("PASS five packaged cards")'
           ./wheel-smoke/bin/python -c 'from importlib.resources import files; ui = files("hirz.companion").joinpath("ui"); assert all(ui.joinpath(name).is_file() for name in ("index.html", "manifest.webmanifest", "sw.js")); print("PASS packaged companion")'
+          ./wheel-smoke/bin/python -c 'from hirz.protect.organizations import registry; assert registry()[0].id == "comed"; print("PASS packaged organization registry")'
           ./wheel-smoke/bin/hirz --help
       - run: docker build --tag hirz-ci:check .
       - name: Container runs as the existing unprivileged user

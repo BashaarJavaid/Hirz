@@ -572,7 +572,7 @@ channel never transfers its old permissions. Requester confirmation is mandatory
 even under auto, independently of policy approval.
 
 The reserved internal `governance.contacts` rule permits owner app creation,
-invitation, activation, revocation, removal and word rotation; enrolled owner/adult
+invitation, activation, revocation, removal, organization saves and word rotation; enrolled owner/adult
 app acceptance, withdrawal, phone confirmation and replies; private app safe-word
 checks; and scheduler processing. Fresh operation-bound passkeys gate trust changes
 and app replies. The private mailbox capability authorizes only its explicit POST

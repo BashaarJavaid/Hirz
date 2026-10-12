@@ -29,6 +29,7 @@ def contact_time(p: Pipeline) -> datetime:
 class Command(BaseModel):
     model_config = ConfigDict(extra="forbid")
     operation: Literal[
+        "save_organization",
         "create",
         "invite",
         "confirm",
@@ -40,6 +41,8 @@ class Command(BaseModel):
         "phone",
         "reply",
     ]
+    organization_id: str | None = Field(default=None, max_length=100)
+    registry_revision: str | None = Field(default=None, max_length=100)
     contact_id: UUID | None = None
     reference: str | None = Field(default=None, max_length=128)
     name: str | None = Field(default=None, min_length=1, max_length=100)
@@ -97,6 +100,64 @@ async def command(
         or not await p.credential_current(principal)
     ):
         raise ValueError("A fresh bound passkey is required")
+    if value.operation == "save_organization":
+        from hirz.protect.organizations import registry, saved
+
+        if member.role != "owner":
+            raise ValueError("The household owner must save organization contacts")
+        if any(
+            v is not None
+            for k, v in value.model_dump().items()
+            if k not in {"operation", "organization_id", "registry_revision"}
+        ):
+            raise ValueError("Organization contacts use only the published destination")
+        organization = next(
+            (r for r in registry() if r.id == value.organization_id), None
+        )
+        if organization is None or organization.revision != value.registry_revision:
+            raise ValueError("Review the current organization registry revision")
+        contact, channel = await saved(p, organization)
+        contact_id = contact["id"] if contact else uuid4()
+        await grant(
+            p,
+            principal,
+            "save_organization",
+            organization.id + ":" + organization.revision,
+        )
+        await p.repo.put(
+            "trusted_contacts",
+            TrustedContact(
+                id=contact_id,
+                household_id=p.household_id,
+                party="organization",
+                organization_id=organization.id,
+                display_name=organization.display_name,
+                relationship="organization",
+            ),
+            expected_version=contact["valid_from"] if contact else None,
+        )
+        current = (
+            channel
+            and channel["attributes"].get("registry_revision") == organization.revision
+        )
+        await p.repo.put(
+            "contact_channels",
+            ContactChannel(
+                id=channel["id"] if channel else uuid4(),
+                household_id=p.household_id,
+                contact_id=contact_id,
+                kind="phone",
+                provenance="registry-confirmed",
+                registry_revision=organization.revision,
+                value_hash=digest(organization.phone),
+                verified_at=channel["attributes"]["verified_at"]
+                if current
+                else p.repo._at,
+                source="real",
+            ),
+            expected_version=channel["valid_from"] if channel else None,
+        )
+        return {"id": str(contact_id)}
     if value.operation == "reply":
         from hirz.contacts.checkins import reply
 
@@ -203,6 +264,8 @@ async def command(
 
         await remove(p, principal, value.contact_id)
         return {"ok": True}
+    if contact["attributes"].get("party", "person") != "person":
+        raise ValueError("Organization contacts cannot use person workflows")
     if value.operation == "word":
         hashed = await asyncio.to_thread(hash_word, value.value or "")
         decision = await grant(p, principal, "word", str(value.contact_id))
@@ -341,10 +404,15 @@ async def guess(
             db.verification_cases.c.member_id == UUID(str(member.member_id)),
         )
     )
-    if not case or not case["subject"]["contact_id"]:
+    if (
+        not case
+        or case["subject"]["party"] != "person"
+        or not case["subject"]["contact_id"]
+    ):
         raise ValueError("Private case unavailable")
     contact_id = UUID(case["subject"]["contact_id"])
-    if await p.repo.get("trusted_contacts", {"id": contact_id}) is None:
+    contact = await p.repo.get("trusted_contacts", {"id": contact_id})
+    if contact is None or contact["attributes"].get("party", "person") != "person":
         raise ValueError("Contact unavailable")
     stored = (
         (

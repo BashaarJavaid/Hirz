@@ -440,7 +440,22 @@ class VerificationExtraction(Model):
     ) = None
 
 
+type NumberComparison = Literal["matches", "does_not_match", "insufficient_information"]
+
+
+class OrganizationComparison(Model):
+    organization_id: str
+    display_name: str
+    source_url: str
+    reviewed_on: str
+    registry_revision: str
+    saved_revision: str | None = None
+    saved_contact: NumberComparison
+    registry: NumberComparison
+
+
 class VerificationCase(Model):
+    organization_comparison: OrganizationComparison | None = None
     assessment_decision: SkipJsonSchema[Decision | None] = None
     extraction: VerificationExtraction | None = None
     previous_case_id: str | None = None
@@ -450,8 +465,6 @@ class VerificationCase(Model):
     signals: tuple[VerificationSignal, ...]
     risk_band: RiskBand
     recommended: tuple[Literal["verify_via_verified_channel", "do_not_transfer"], ...]
-    number_comparison: (
-        Literal["matches", "does_not_match", "insufficient_information"] | None
-    ) = None
+    number_comparison: NumberComparison | None = None
     verification: VerificationState | None = None
     speakable: dict[str, JsonValue]

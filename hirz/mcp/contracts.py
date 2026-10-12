@@ -75,7 +75,7 @@ FIELD_DESCRIPTIONS = {
     "beneficiary": "Exact household member for whom the temperature change is requested; does not establish who spoke.",
     "claimed_requester": "Unverified claimed speaker name; can only lower the linked account's authority.",
     "claimed_party": "Reported name, only if supplied; omit when unknown. Never invent a name.",
-    "party": "Whether the claimed party is a person or organization; organization verification is unavailable.",
+    "party": "Person or organization. Organization number matches never authenticate callers.",
     "presented_number": "Phone number explicitly supplied by the user. Omit when unknown; a stored-number match never proves identity.",
     "case_id": "Returned private verification case reference. Use it to disambiguate multiple pending checks.",
     "contact": "Exact trusted contact name or returned reference. Starting without a case also requires the request text.",
@@ -601,7 +601,7 @@ TOOLS: dict[str, tuple[type[Input], str, str]] = {
     "verify_trusted_identity": (
         VerifyInput,
         "verify",
-        "Start a confirmed contact check or read its current status. Start accepts contact and exact reported text, or an existing case_id. Retry requires a case_id and app/email method and preserves the reported request. Request explicit confirmation for starts and retries. Read status when the user asks again; provenance identifies real or simulated replies.",
+        "Person checks only: start with contact and exact text or case_id; retry with case_id and app/email method. Confirm starts/retries explicitly. Read status when asked; provenance distinguishes real/simulated replies. For organization advice, separately name a person and the exact request.",
     ),
     "propose_household_rule": (
         ProposalInput,

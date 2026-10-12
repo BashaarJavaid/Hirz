@@ -1,7 +1,6 @@
 """Approved bounded advisory signals and private simulated contact checks."""
 
 import os
-import re
 from datetime import datetime, timedelta
 from hashlib import sha256
 from typing import Literal
@@ -30,26 +29,13 @@ from hirz.pipeline.preview import PreviewEvidence
 from hirz.pipeline.service import Pipeline
 from hirz.planner.coordinator import Clarification
 from hirz.protect.advice import notice
+from hirz.protect.organizations import compare, organization_speech, resolve
+from hirz.protect.phone import phone as phone
 from hirz.protect.scoring import band as band
 from hirz.protect.scoring import scam_pattern
 from hirz.protect.scoring import signals as signals
 from hirz.twin.people import ContactScript
 from hirz.twin.world import TwinWorld
-
-
-def phone(text: str) -> str:
-    if not re.fullmatch(r"\+?[0-9 ().-]+", text):
-        raise ValueError("Provide a phone number without extensions or letters.")
-    digits = re.sub(r"[ ().-]", "", text)
-    if digits.startswith("+"):
-        if not 8 <= len(digits) - 1 <= 15:
-            raise ValueError("International numbers need eight through fifteen digits.")
-        return digits
-    if len(digits) == 10:
-        return "+1" + digits
-    if len(digits) == 11 and digits.startswith("1"):
-        return "+" + digits
-    raise ValueError("International numbers require an explicit plus country code.")
 
 
 async def assess(
@@ -63,9 +49,12 @@ async def assess(
     contacts = [
         r
         for r in snapshot.data["trusted_contacts"]
-        if args.claimed_party
-        and str(r["display_name"]).casefold() == args.claimed_party.casefold()
-        or str(r["id"]) == args.claimed_party
+        if r.get("party", "person") == "person"
+        and (
+            args.claimed_party
+            and str(r["display_name"]).casefold() == args.claimed_party.casefold()
+            or str(r["id"]) == args.claimed_party
+        )
     ]
     contact = contacts[0] if len(contacts) == 1 and args.party == "person" else None
     comparison: (
@@ -142,14 +131,31 @@ async def assess(
         details=(notice(extraction),),
         options=("Check with a trusted contact",),
     )
+    organization_comparison = None
     if args.party == "organization":
+        organization = resolve(args.claimed_party)
+        if organization:
+            contact, organization_comparison = await compare(
+                p, organization, args.presented_number
+            )
+            if organization_comparison:
+                results = (
+                    organization_comparison.saved_contact,
+                    organization_comparison.registry,
+                )
+                comparison = (
+                    "matches"
+                    if "matches" in results
+                    else "does_not_match"
+                    if "does_not_match" in results
+                    else "insufficient_information"
+                )
         speech = response(
-            "There is insufficient information to verify this organization in the preview.",
-            options=("Check with a trusted contact",),
-            details=(notice(extraction),),
+            **organization_speech(
+                organization_comparison, bool(found), extraction, comparison
+            ),
         )
-        comparison = "insufficient_information" if args.presented_number else None
-    if comparison is not None:
+    if comparison is not None and args.party == "person":
         line = {
             "matches": "The supplied number matches a saved contact number; this does not establish identity.",
             "does_not_match": "The supplied number is unverified: it does not match a saved contact number.",
@@ -179,6 +185,7 @@ async def assess(
         if found
         else ("verify_via_verified_channel",),
         number_comparison=comparison,
+        organization_comparison=organization_comparison,
         speakable=speech.speakable.model_dump(mode="json"),
     )
     await command(
@@ -249,8 +256,11 @@ async def verify(
         matches = [
             r
             for r in snapshot.data["trusted_contacts"]
-            if str(r["id"]) == args.contact
-            or str(r["display_name"]).casefold() == args.contact.casefold()
+            if r.get("party", "person") == "person"
+            and (
+                str(r["id"]) == args.contact
+                or str(r["display_name"]).casefold() == args.contact.casefold()
+            )
         ]
         if len(matches) != 1:
             raise Clarification("Please name one trusted household contact exactly.")

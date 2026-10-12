@@ -683,7 +683,36 @@ async def smoke(
                                 assert retried == recorded
                     print("PASS durable retry after MCP process restart", flush=True)
                     if conformance_cli:
-                        assert set(conformance_cases) == set(TOOLS)
+                        for label, name, number in (
+                            ("organization-match", "ComEd", "800-334-7661"),
+                            (
+                                "organization-wrong",
+                                "Commonwealth Edison",
+                                "800-334-7662",
+                            ),
+                            ("organization-unknown", "Com Ed", "800-334-7661"),
+                        ):
+                            conformance_cases[label] = dict(
+                                tool="assess_request_risk",
+                                arguments=dict(
+                                    party="organization",
+                                    claimed_party=name,
+                                    presented_number=number,
+                                    text="A reported utility request",
+                                    request_id=label,
+                                ),
+                                speechPointers=[
+                                    "/structuredContent/speakable/headline",
+                                    "/structuredContent/speakable/details",
+                                    "/structuredContent/speakable/options",
+                                ],
+                                repeatable=False,
+                                expectError=False,
+                            )
+                    if conformance_cli:
+                        assert {
+                            case["tool"] for case in conformance_cases.values()
+                        } == set(TOOLS)
                         cases_path = Path(fixture_dir.name) / "conformance-cases.json"
                         with open(
                             cases_path,

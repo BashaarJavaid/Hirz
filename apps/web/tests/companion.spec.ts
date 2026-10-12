@@ -55,6 +55,33 @@ test("real WebAuthn registration, initial activation, rule review and signed exp
   await page.getByRole("button", { name: "Preview changes" }).click();
   await page.getByRole("button", { name: "Activate with passkey" }).click();
   await expect(page.getByRole("heading", { name: "Version 7 · active", exact: true })).toBeVisible();
+  await page.getByRole("link", { name: "Household", exact: true }).click();
+  const organizations = page.getByRole("heading", { name: "Organization contacts" }).locator("..");
+  await expect(organizations.getByRole("link", { name: "+18003347661", exact: true })).toHaveAttribute("href", "tel:+18003347661");
+  await expect(organizations.getByRole("link", { name: "Official source" })).toHaveAttribute("href", /poweringlives.comed.com/);
+  await page.getByRole("button", { name: "Save ComEd with passkey", exact: true }).click();
+  await expect(organizations.getByText("Saved", { exact: true })).toBeVisible();
+  await accessibility(page);
+  async function organization(number: string) {
+    const reply = await voice("assess_request_risk", { party: "organization", claimed_party: "ComEd", text: "ComEd requested immediate payment", presented_number: number, request_id: crypto.randomUUID() });
+    expect(reply.isError).not.toBeTruthy();
+    return reply.structuredContent;
+  }
+  const saved = await organization("800-334-7661");
+  expect(saved.data.case.organization_comparison.saved_contact).toBe("matches");
+  expect(saved.data.case.organization_comparison.registry).toBe("matches");
+  expect(saved.data.presentation.can_check).toBe(false);
+  expect((await organization("800-334-7662")).data.case.number_comparison).toBe("does_not_match");
+  await page.getByRole("link", { name: "Check-ins", exact: true }).click();
+  await expect(page.getByText("Published ComEd contact · Reviewed 2026-10-11").first()).toBeVisible();
+  await expect(page.getByText("Check a safe word privately")).toHaveCount(0);
+  await page.getByRole("link", { name: "Household", exact: true }).click();
+  await page.getByRole("button", { name: "Remove ComEd", exact: true }).click();
+  await expect(organizations.getByText("Not saved", { exact: true })).toBeVisible();
+  const removed = await organization("+18003347661");
+  expect(removed.data.case.subject.trusted).toBe(false);
+  expect(removed.data.case.organization_comparison.saved_contact).toBe("insufficient_information");
+  expect(removed.data.case.organization_comparison.registry).toBe("matches");
   const before = await voice("evaluate_permission", { action: "pause_automation", request_id: "before-activation" });
   expect(before.structuredContent.data.decision.constitution.version).toBe(7);
   await page.getByRole("link", { name: "Approvals", exact: true }).click();
