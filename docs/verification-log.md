@@ -12793,3 +12793,59 @@ daily shared cap and revocation before publication. Ruff check/format (**321
 files**) and mypy (**201 source files**) passed after the correction. Initial CI
 runs test implementation `1020365`; a new normal dispatch is required for this
 correction before item closure.
+
+The full local integration run passed **233 tests, 1596 deselected**, in **993.88s**
+with **89%** combined coverage. The final courier-only run then passed **19 tests
+in 57.24s** with `--cov=hirz --cov-append`; `coverage report --fail-under=80` passed
+at **90%** (**16,204 statements, 1,685 missed**). This includes the new short
+wall-clock approval deadline, removed member, 3/15-minute and 20/day caps, and
+revoked pending channel checks. Its earlier no-coverage run passed all **19 in
+66.17s**. The full integration run includes the real five-minute interrupted MCP
+prompt-expiry test. No development migration was applied.
+
+Final implementation revision is `7937cd3f1479e83d5b54c6b293779a1f64e289c7`.
+Normal dispatch [38197146388](https://github.com/BashaarJavaid/Hirz/actions/runs/38197146388)
+uses `latency_diagnostic=false`; results are pending. Superseded runs
+38196795584/38196805164 were cancelled by the branch's existing concurrency policy
+when the correction was pushed and dispatched; they are not closure evidence.
+
+Completed final-revision CI evidence (latency still pending at this point):
+service-free **1594 passed, 237 deselected, 269.81s**; integration **235 passed,
+1596 deselected, 975.24s**; combined coverage gate **90%** (**16,204 statements,
+1,686 missed**). The simulator browser passed **1 test**, the authenticated
+reference host **1 test**, and Linux Chromium card baselines/behavior **51 tests**.
+The separate companion browser job passed **2 tests** with its simulator-only
+case intentionally skipped. Add-on conformance passed **129, 0 fail/warn/skip,
+8 manual**, `complete=true`, with **623 signed rows independently verified**.
+Python lint/types, TypeScript lint/types/tests, native Cedar conformance,
+packaging/Docker, release metadata and the scenario job all passed. Relevant job
+logs are retained locally as `/tmp/hirz-33a-ci-{python,companion,conformance,scenarios}.log`.
+
+Item 33a closure — 2026-10-11 (America/New_York): normal CI run
+[38197146388](https://github.com/BashaarJavaid/Hirz/actions/runs/38197146388)
+completed **successfully for every job** on the final implementation revision
+above. Both ordinary, non-diagnostic latency gates passed: evening **1 passed in
+3127.96s**, highest case p95 **171.528 ms** (`objective-greenest`); Hourly **1 passed
+in 3407.35s**, highest case p95 **191.890 ms** (`objective-greenest`). Each report
+contains **54 cases and 12 tool aggregates**, all within **250 ms**; each case uses
+five warmups and 100 measured calls, with no discarded samples. Logs:
+`/tmp/hirz-33a-ci-latency-evening.log` and
+`/tmp/hirz-33a-ci-latency-hourly.log`. These are local twin CI measurements, not AWS
+cold-start or real-device claims.
+
+The service-backed parents scenario, authenticated cross-household warning flow,
+shared worker, independent permissions, durable deduplication, short wall-clock
+expiry, shared rate caps, audit rollback, push failure and privacy checks earn the
+courier row's **Partial** status. Unreported requests and presses older than 60
+seconds cannot trigger a warning; publication does not identify the visitor or
+prove phone reception. Item 35 remains open. Item 31's real email/iPhone-push
+acceptance, item 28's real Web Push and the failed Ring access gate remain unchanged.
+No manual walkthrough, physical-device or real-iPhone-push gate was added; no paid
+inference or development migration was performed. Final third-party friction review
+found no earned new entry. Closure changes documentation only; executable code and
+tests remain at the successful CI revision above.
+
+Final closure checks passed: Ruff check/format (**321 files**), `git diff --check`,
+byte-for-byte AGENTS.md/CLAUDE.md equality, evidence-link checks and a **60-word**
+Current phase. The diff from the tested implementation contains only the six
+completion/evidence documents; no executable code or tests changed after CI.
