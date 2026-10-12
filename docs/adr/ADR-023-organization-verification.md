@@ -17,9 +17,9 @@ no runtime network lookup, expiry, background updater or new dependency.
 
 Owners save only a server-derived registry contact through the existing fresh
 passkey ceremony. Its binding includes organization ID and registry revision;
-arbitrary destinations and stale revisions are refused. The reserved owner-app
-contact operation and existing Pipeline/audit transaction authorize every save,
-re-save and removal. Household serialization permits one active record per
+arbitrary destinations and stale revisions are refused. The existing owner-app
+create/confirm grants and Pipeline/audit transaction authorize every save,
+re-save and removal. Compiled policy rules remain unchanged. Household serialization permits one active record per
 organization. Unchanged re-saves preserve graph versions. Removal archives both
 contact and channel, preserving historical evidence.
 

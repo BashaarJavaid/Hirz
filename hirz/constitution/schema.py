@@ -198,7 +198,7 @@ class Constitution(Model):
             return Rule(
                 mode="auto",
                 conditions=(
-                    '((requester.surface == "app" and requester.role == "owner" and (action.params.operation == "save_organization" or action.params.operation == "create" or action.params.operation == "invite" or action.params.operation == "confirm" or action.params.operation == "revoke" or action.params.operation == "remove" or action.params.operation == "word")) or (requester.surface == "app" and (requester.role == "owner" or requester.role == "adult") and (action.params.operation == "accept" or action.params.operation == "withdraw" or action.params.operation == "phone" or action.params.operation == "reply")) or (requester.surface == "app" and action.params.operation == "guess") or (requester.surface == "scheduler" and action.params.operation == "process"))',
+                    '((requester.surface == "app" and requester.role == "owner" and (action.params.operation == "create" or action.params.operation == "invite" or action.params.operation == "confirm" or action.params.operation == "revoke" or action.params.operation == "remove" or action.params.operation == "word")) or (requester.surface == "app" and (requester.role == "owner" or requester.role == "adult") and (action.params.operation == "accept" or action.params.operation == "withdraw" or action.params.operation == "phone" or action.params.operation == "reply")) or (requester.surface == "app" and action.params.operation == "guess") or (requester.surface == "scheduler" and action.params.operation == "process"))',
                 ),
             )
         if action_class == "governance.twin":

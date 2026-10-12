@@ -12618,3 +12618,36 @@ commands and reviewed loopback escalations were used; no security setting or
 production guard was weakened. Neither is third-party friction. Full suites,
 combined coverage, packaging, conformance and normal CI latency remain pending
 at this entry; item 33 is not yet closed.
+
+### Compatibility review and broader local gates
+
+Code review identified that adding a new reserved constitution operation would
+change compiled Cedar for already activated households. Organization saves now use
+the existing owner-only create/confirm grants, with organization ID/revision in
+the audit reference; the fresh passkey still binds the distinct save_organization
+command. No compiled-rule change or reactivation/backfill is required. The initial
+CI dispatch was superseded for this correction; its results do not close item 33.
+
+Expanded contact/organization integration checks: **11 passed** in 75.10 seconds,
+including concurrent saves, unchanged versions, stale revisions, historical case
+replay, same-named person compatibility, non-owner/missing/revoked credentials,
+atomic audit failure and cross-household/private-case isolation. The shared HTTP
+ceremony rejects changed organization IDs/revisions and supplied destinations.
+
+The first full service-free run had **1557 passed, 3 failed**, all three failures
+being sandbox-refused loopback binds in existing tests. The permitted rerun of
+those tests plus organization/startup checks passed **24 tests**; coverage was
+appended. The full disposable integration run follows before coverage is claimed.
+
+Independent conformance initially rejected the new cases because authProbe was
+omitted (own fixture error, no third-party friction). After supplying all six
+required fields, `/private/tmp/hirz-item33-conformance-2.json` retained **620 signed
+rows**, independently verified; the checker reported **129 PASS, 0 FAIL, 0 WARN,
+0 SKIP, 8 MANUAL**, complete with no missing execution evidence. The successful
+disposable database was dropped. The first failed run deliberately retained
+`hirz_ha_smoke_d66acbca35d440e4b88152c0c1f008ba` under the existing failure policy.
+
+Node **24.21.0** workspace lint/types/tests pass (5 card, 1 web unit tests), and
+both apps build. `uv build` produced the wheel and source archive; both contain
+organizations.yaml, and a Python process in `/private/tmp` loaded/validated the
+registry directly from the wheel, with `hirz.__file__` confirmed inside it.

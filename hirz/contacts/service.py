@@ -121,7 +121,7 @@ async def command(
         await grant(
             p,
             principal,
-            "save_organization",
+            "confirm" if contact else "create",
             organization.id + ":" + organization.revision,
         )
         await p.repo.put(
