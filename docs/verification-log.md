@@ -12767,3 +12767,29 @@ rerun and combined coverage are pending. An added synthetic denial test reused i
 assessment request key; its approval key was corrected. The initial no-isolation
 packaging command lacked the isolated build backend; ordinary `uv build` passed.
 No third-party defect or new acceptance limitation was inferred from these errors.
+
+Later local runs: the full service-free suite passed **1594 tests, 234 deselected**
+in **341.94s**, with **70%** service-free coverage; the combined integration run is
+still pending. Authenticated companion browser acceptance passed **2 tests** with
+one simulator-only test intentionally skipped, retaining **498 home + 5 parents
+signed rows** in `/tmp/hirz-33a-companion-04`. This includes a second authenticated
+household, real app pairing, a labeled twin press, private recipient warning and
+revocation. The parents simulator browser passed **1 test**, completed its timeline
+and independently verified **85 signed rows** in `/tmp/hirz-33a-simulator-02`; the
+unplayed evening household has zero rows. The first simulator attempt encountered
+an occupied local issuer port; retry used ports 8012/8013, without terminating the
+existing process. Successful simulator shutdown dropped its disposable database.
+
+Independent add-on conformance passed **129, 0 fail/warn/skip, 8 manual**,
+`complete=true`, with **620 signed rows** independently verified in
+`/tmp/hirz-33a-conformance.json`. The eight manual disclosures remain the existing
+checker limitations, not new acceptance gates. No paid calls were used.
+
+Review identified that a short approval lifetime also needs a wall-clock deadline
+when scenario time pauses. The implementation now binds the initial remaining
+approval lifetime into the courier deadline. Its focused regression and the
+removed-member test passed **2/2**; the expanded courier suite also exercises the
+daily shared cap and revocation before publication. Ruff check/format (**321
+files**) and mypy (**201 source files**) passed after the correction. Initial CI
+runs test implementation `1020365`; a new normal dispatch is required for this
+correction before item closure.

@@ -276,8 +276,10 @@ async def press(p):
         p._observation_batch = None
 
 
-@pytest.mark.parametrize("change", ["policy", "reject", "expired"])
-def test_unsent_warning_stops_when_authority_changes(scratch_database, change):
+@pytest.mark.parametrize("change", ["policy", "reject", "expired", "member_removed"])
+def test_unsent_warning_stops_when_authority_changes(
+    scratch_database, monkeypatch, change
+):
     async def run():
         async with connect(scratch_database) as c:
             p = await setup(
@@ -313,6 +315,15 @@ def test_unsent_warning_stops_when_authority_changes(scratch_database, change):
                         "request_id": "reject-approval",
                     },
                 )
+            elif change == "member_removed":
+                original_account = auth.account
+
+                async def removed(connection, household, member):
+                    if member == ident("members", "malik"):
+                        raise ValueError("Member no longer linked")
+                    return await original_account(connection, household, member)
+
+                monkeypatch.setattr("hirz.protect.courier.account", removed)
             else:
                 clock[0] += timedelta(minutes=5)
             await advance(p)
@@ -323,6 +334,52 @@ def test_unsent_warning_stops_when_authority_changes(scratch_database, change):
                     )
                 )
                 assert document["courier"]["member"]["status"] == "stopped"
+                assert await warnings(p, ident("members", "malik")) == []
+
+    asyncio.run(run())
+
+
+def test_real_member_approval_deadline_uses_wall_time(scratch_database, monkeypatch):
+    async def run():
+        async with connect(scratch_database) as c:
+            p = await setup(
+                c,
+                policy_edit(
+                    "communication.notify_member", mode="ask", approval_ttl_minutes=1
+                ),
+                native=True,
+            )
+            wall = [p.clock()]
+            monkeypatch.setattr("hirz.contacts.service.now", lambda: wall[0])
+            await enroll(
+                p,
+                await auth.initial_invitation(p, ident("members", "malik")),
+                Authenticator(),
+            )
+            tools = HouseholdTools(p, PRINCIPAL)
+            result = await tools.call(
+                "assess_request_risk",
+                {"text": SCAM, "party": "organization", "request_id": "short-approval"},
+            )
+            await press(p)
+            await advance(p)
+            async with c.begin():
+                before = await c.scalar(
+                    sa.select(db.verification_cases.c.document).where(
+                        db.verification_cases.c.id == result.data.case.case_id
+                    )
+                )
+                assert before["courier"]["member"]["status"] == "approval"
+                assert before["courier"]["contact"]["reason"] == "no_eligible_contact"
+            wall[0] += timedelta(seconds=61)
+            await advance(p)
+            async with c.begin():
+                after = await c.scalar(
+                    sa.select(db.verification_cases.c.document).where(
+                        db.verification_cases.c.id == result.data.case.case_id
+                    )
+                )
+                assert after["courier"]["member"]["reason"] == "expired"
                 assert await warnings(p, ident("members", "malik")) == []
 
     asyncio.run(run())
@@ -645,6 +702,39 @@ def test_real_link_independent_permissions_and_private_projection(
                         )
                     )
                     assert document["courier"]["contact"]["reason"] == "expired"
+                # Advancing only wall time clears the short cap but not the daily cap.
+                for n in range(18):
+                    wall[0] += timedelta(minutes=16)
+                    daily = await tools.call(
+                        "assess_request_risk",
+                        {
+                            "text": SCAM,
+                            "claimed_party": "Other owner",
+                            "party": "person",
+                            "request_id": f"daily-{n}",
+                        },
+                    )
+                    await advance(p)
+                async with c.begin():
+                    assert len(await warnings(q, target)) == 20
+                    document = await c.scalar(
+                        sa.select(db.verification_cases.c.document).where(
+                            db.verification_cases.c.id == daily.data.case.case_id
+                        )
+                    )
+                    assert document["courier"]["contact"]["status"] == "pending"
+            pending = None
+            if member_mode == "auto" and contact_mode == "ask":
+                pending = await tools.call(
+                    "assess_request_risk",
+                    {
+                        "text": SCAM,
+                        "claimed_party": "Other owner",
+                        "party": "person",
+                        "request_id": "revoked-before-approval",
+                    },
+                )
+                await advance(p)
             # Revocation removes retained contact warnings and cannot reroute to fixtures.
             async with p.repo.write(p.clock):
                 await command(
@@ -657,7 +747,16 @@ def test_real_link_independent_permissions_and_private_projection(
                     ),
                     config,
                 )
+            await advance(p)
             async with c.begin():
                 assert await warnings(q, target) == []
+                if pending:
+                    document = await c.scalar(
+                        sa.select(db.verification_cases.c.document).where(
+                            db.verification_cases.c.id == pending.data.case.case_id
+                        )
+                    )
+                    assert document["courier"]["member"]["status"] == "published"
+                    assert document["courier"]["contact"]["reason"] == "channel_revoked"
 
     asyncio.run(run())

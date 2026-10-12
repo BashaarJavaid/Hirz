@@ -260,6 +260,16 @@ async def deliver(
             .mappings()
             .one_or_none()
         )
+        if approval and getattr(state, recipient).action_id is None:
+            # Preserve the approval's remaining lifetime when scenario time is paused.
+            outcome = outcome.model_copy(
+                update={
+                    "expires_at": min(
+                        outcome.expires_at,
+                        at + (approval["expires_at"] - p.clock()),
+                    )
+                }
+            )
         if approval and (
             approval["status"] in {"rejected", "expired"}
             or approval["expires_at"] <= p.clock()
