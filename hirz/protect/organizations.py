@@ -11,6 +11,7 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, model_validator
 
 from hirz import db
+from hirz.graph.seeds import UniqueLoader
 from hirz.pipeline.models import OrganizationComparison, VerificationExtraction
 from hirz.pipeline.service import Pipeline
 from hirz.protect.advice import notice
@@ -60,7 +61,10 @@ def parse(raw: Any) -> tuple[Organization, ...]:
 @cache
 def registry() -> tuple[Organization, ...]:
     return parse(
-        yaml.safe_load(files("hirz.protect").joinpath("organizations.yaml").read_text())
+        yaml.load(
+            files("hirz.protect").joinpath("organizations.yaml").read_text(),
+            Loader=UniqueLoader,
+        )
     )
 
 

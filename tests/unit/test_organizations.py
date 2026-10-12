@@ -110,3 +110,10 @@ def test_invalid_registry_fails_app_startup(monkeypatch):
     monkeypatch.setattr("hirz.protect.organizations.registry", invalid)
     with pytest.raises(ValueError):
         create_app()
+
+
+def test_registry_rejects_duplicate_yaml_fields(tmp_path, monkeypatch):
+    (tmp_path / "organizations.yaml").write_text("- id: comed\n  id: other\n")
+    monkeypatch.setattr("hirz.protect.organizations.files", lambda _: tmp_path)
+    with pytest.raises(ValueError, match="Duplicate YAML key"):
+        registry.__wrapped__()
