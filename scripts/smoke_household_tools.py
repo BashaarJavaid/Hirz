@@ -708,8 +708,8 @@ async def smoke(
                                 ],
                                 repeatable=False,
                                 expectError=False,
+                                authProbe=False,
                             )
-                    if conformance_cli:
                         assert {
                             case["tool"] for case in conformance_cases.values()
                         } == set(TOOLS)
