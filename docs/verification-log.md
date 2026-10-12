@@ -12670,3 +12670,53 @@ the exact original pending receipt. **22 unit tests** and the expanded organizat
 integration test (**1 passed**, 11.67 seconds) passed; coverage remains **89%**.
 No model provider was called. This correction supersedes the earlier CI revision;
 only the final run below may close the item. No third-party friction was earned.
+
+### Final acceptance and closure — 2026-10-11
+
+[CI 38189465696](https://github.com/BashaarJavaid/Hirz/actions/runs/38189465696)
+completed successfully on implementation commit
+`2c85b43b5719c39add0d96114e3a5e0877d46afe`, dispatched with
+`latency_diagnostic=false`. All 13 jobs passed (including the existing release
+placeholder, which publishes nothing). Superseded dispatches 38187542032,
+38187727123 and 38187768189 do not supply closure evidence.
+
+- Python Ruff lint/format and strict mypy passed. Service-free tests: **1,562 passed**, 218 deselected, 215.81 seconds. Disposable PostgreSQL integration: **216 passed**, 1,564 deselected, 803.11 seconds. Combined coverage: **89%**, 15,969 statements, 1,689 missed, above the required 80%. Only the existing Starlette/httpx and AnyIO deprecation warnings remained.
+- TypeScript workspace lint, types and tests passed (5 card tests and 1 web test). The companion browser job passed **2 tests**, with its simulator-only test intentionally skipped; it verified the owner WebAuthn save, authenticated MCP matching/wrong-number assessments, archived removal, registry-only comparison, accessibility and independently verified signed exports.
+- The Python job passed the simulator browser acceptance and authenticated reference-host acceptance (**1 test each**). Linux Chromium card baselines and behavior passed **50 tests**, with **1 intentional skip**. These include organization wording/source/simulated labels, absent person-only controls, speech limits and the card viewport checks. Local behavior-only acceptance also passed 35 tests as recorded above.
+- Native Cedar conformance passed **159 tests**. Both scripted scenario regressions and real HA demo lamp/restoration passed; these are demo devices, not physical-device acceptance.
+- Independent twelve-tool conformance passed **129 checks**, with **0 FAIL, 0 WARN, 0 SKIP, 8 MANUAL**, complete and no missing execution evidence. **623 signed rows** verified offline in CI; its disposable database was removed. The local retained export has 620 rows as recorded above; these are separate runs, not conflicting totals.
+- Card/web builds, Python wheel/source archive and container build passed. Fresh-wheel probes loaded all five cards, companion assets and the validated ComEd registry. Local archive inspection additionally confirmed organizations.yaml in both wheel and source archive.
+
+Both normal latency gates passed with the unchanged corpus: five warmups and
+**100 measured calls for each of 54 cases** per scenario (5,400 measurements),
+plus all **12 pooled tool rows**. The gate is nearest-rank raw authenticated
+JSON-RPC tools/call p95, request send through full response body, with no discarded
+samples; SDK references remain separate. These are local twin timings, not AWS
+cold-start or ingress claims. Private raw evidence is not uploaded.
+
+| CI job | Highest case p95 | Pooled assess_request_risk p95 | Limit |
+| --- | ---: | ---: | ---: |
+| [demo-evening](https://github.com/BashaarJavaid/Hirz/actions/runs/38189465696/job/114618966327) | 171.211 ms (objective-greenest) | 82.338 ms (400 calls) | 250 ms |
+| [demo-evening-hourly](https://github.com/BashaarJavaid/Hirz/actions/runs/38189465696/job/114618966409) | 124.648 ms (objective-greenest) | 56.224 ms (400 calls) | 250 ms |
+
+Local commands used Python 3.12.13, Node 24.21.0 and the pinned native Dogwood;
+CI used the repository's locked Ubuntu 24.04 toolchain. Payload-free CI logs and
+status were retained locally as `/tmp/item33-ci-*-final.log` and
+`/tmp/item33-ci-final-status.json`. Private companion/card exports remain under
+`/private/tmp/hirz-item33-companion` and `/private/tmp/hirz-item33-cards`; the
+independent local export is `/private/tmp/hirz-item33-conformance-2.json`.
+
+Item 33 acceptance is complete. No paid Bedrock calls, real-phone acceptance,
+development-database migration, new tool, dependency or risk-weight change was
+made. Courier correlation, Ring and item 31's deferred email/push acceptance remain
+outside this closure. The combined impersonation threat-model row remains Planned.
+The registry can age and a matching number cannot authenticate a caller. Final
+friction review found no earned third-party entry; the transient CI watch connection
+reset recovered through a normal status read and did not affect the jobs. Final
+documentation checks follow below; the closure commit changes documentation only.
+
+Final closure checks passed: Ruff check, Ruff format (**317 files**),
+`git diff --check`, and byte-for-byte equality of AGENTS.md/CLAUDE.md. Current
+phase is **56 words**. The final diff against the tested implementation contains
+only the six completion/evidence documents; executable code remains at the
+successful CI revision above.

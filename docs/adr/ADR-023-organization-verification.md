@@ -1,6 +1,6 @@
 # ADR-023 — Organization number comparison
 
-Date: 2026-10-11. Status: approved scope; acceptance in progress.
+Date: 2026-10-11. Status: implemented and verified ([evidence](../verification-log.md#item-33--2026-10-11)).
 
 Item 33 preserves the twelve-tool surface: `assess_request_risk` receives
 `party="organization"`, an optional `claimed_party` name and `presented_number`.

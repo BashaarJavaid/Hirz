@@ -6,7 +6,7 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
-- 2026-10-11: Add owner-saved ComEd contacts and deterministic advisory number comparisons, preserving person workflows and historical evidence; item 33 acceptance is in progress ([ADR-023](./docs/adr/ADR-023-organization-verification.md), [evidence](./docs/verification-log.md#item-33--2026-10-11)).
+- 2026-10-11: Complete item 33: owner-saved ComEd contacts and deterministic advisory number comparisons, preserving person workflows and historical evidence ([ADR-023](./docs/adr/ADR-023-organization-verification.md), [evidence](./docs/verification-log.md#item-33--2026-10-11)).
 
 - 2026-10-11: Implement immediate Protect advice, private hypothetical decisions, budgeted background signal extraction and card/phone updates; complete item 32 acceptance ([ADR-015](./docs/adr/ADR-015-household-tools.md#protect-assessment-and-enrichment-amendment--2026-10-11), [evidence](./docs/verification-log.md#item-32--2026-10-11)).
 
