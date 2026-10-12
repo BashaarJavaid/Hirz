@@ -25,6 +25,8 @@ from hirz.mcp.household import HouseholdTools
 from hirz.pipeline.models import Principal
 from hirz.pipeline.service import Pipeline, PolicyBundle
 from hirz.protect.organizations import registry
+from hirz.protect.scoring import signals
+from hirz.protect.worker import advance
 from tests.unit.test_companion_auth import Authenticator
 from tests.unit.test_pipeline import PRINCIPAL, ident
 
@@ -183,6 +185,38 @@ def test_saved_registry_revision_history_and_isolation(scratch_database, monkeyp
             assert matched.data.case.subject.trusted
             assert matched.data.case.organization_comparison.saved_contact == "matches"
             assert "saved ComEd contact and" in matched.speakable.headline
+            monkeypatch.setenv("HIRZ_LLM", "bedrock")
+            enrichment_args = {
+                "party": "organization",
+                "claimed_party": "ComEd",
+                "presented_number": "800-334-7661",
+                "text": "When is ComEd open?",
+                "request_id": "organization-enrichment",
+            }
+            pending = await tools.call("assess_request_risk", enrichment_args)
+            assert pending.data.case.risk_band.value == "low"
+            assert pending.data.case.extraction.status == "pending"
+            with patch(
+                "hirz.protect.worker.extract", return_value=signals("dollars urgent")
+            ):
+                assert await advance(p)
+            enriched = await tools.call(
+                "verify_trusted_identity",
+                {"operation": "status", "case_id": pending.data.case.case_id},
+            )
+            assert enriched.data.case.risk_band.value == "high"
+            assert enriched.data.case.extraction.status == "complete"
+            assert (
+                enriched.data.case.organization_comparison
+                == pending.data.case.organization_comparison
+            )
+            assert enriched.data.case.number_comparison == "matches"
+            assert enriched.data.case.verification is None
+            assert any("warning signs" in line for line in enriched.speakable.details)
+            assert (
+                await tools.call("assess_request_risk", enrichment_args)
+            ).model_dump() == pending.model_dump()
+            monkeypatch.setenv("HIRZ_LLM", "off")
             for operation in ["word", "invite", "confirm", "revoke"]:
                 with pytest.raises(ValueError, match="person workflows"):
                     async with p.repo.write(p.clock):

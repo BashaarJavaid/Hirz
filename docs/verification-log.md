@@ -12651,3 +12651,22 @@ Node **24.21.0** workspace lint/types/tests pass (5 card, 1 web unit tests), and
 both apps build. `uv build` produced the wheel and source archive; both contain
 organizations.yaml, and a Python process in `/private/tmp` loaded/validated the
 registry directly from the wheel, with `hirz.__file__` confirmed inside it.
+
+### Durable organization enrichment correction
+
+The full local disposable suite passed **216 tests** in 898.07 seconds; the final
+focused registry/HTTP checks passed **24 tests** and combined coverage remained
+**89%** (15,969 statements). The 35 non-screenshot reference-host behavior tests
+also passed. Linux screenshot acceptance remains in CI.
+
+Further review found a serialization defect missed by the first enrichment unit
+check: organization speech used tuples inside the canonical JSON-valued speakable
+object. Its JSON round trip converted them to lists, so Pipeline's exact
+publication comparison refused the update. The helper now produces JSON lists.
+The unit test requires a warning-free canonical round trip; the disposable test
+now queues organization enrichment, injects recorded model signals, runs the real
+worker publication, checks the added warning and unchanged comparison, and replays
+the exact original pending receipt. **22 unit tests** and the expanded organization
+integration test (**1 passed**, 11.67 seconds) passed; coverage remains **89%**.
+No model provider was called. This correction supersedes the earlier CI revision;
+only the final run below may close the item. No third-party friction was earned.

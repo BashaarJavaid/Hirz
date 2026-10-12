@@ -5,7 +5,7 @@ import copy
 import pytest
 
 from hirz.mcp.contracts import Result, response
-from hirz.pipeline.models import OrganizationComparison
+from hirz.pipeline.models import OrganizationComparison, VerificationCase
 from hirz.protect.advice import publish
 from hirz.protect.organizations import (
     LIMITATION,
@@ -85,6 +85,9 @@ def test_enrichment_preserves_evidence_and_warning_limits():
         original.extraction.model_copy(
             update={"status": "complete", "model_signals": signals("urgent dollars")}
         ),
+    )
+    assert enriched == VerificationCase.model_validate(
+        enriched.model_dump(mode="json", warnings="error")
     )
     assert enriched.organization_comparison == evidence
     assert enriched.number_comparison == "matches"

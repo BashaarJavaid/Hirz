@@ -176,8 +176,8 @@ def organization_speech(
     ) + "Contact the utility independently; a trusted-person check is also available."
     return {
         "headline": headline,
-        "details": (LIMITATION, advice, notice(extraction))
+        "details": [LIMITATION, advice, notice(extraction)]
         if comparison
-        else (advice, notice(extraction)),
-        "options": ("Check with a trusted contact",),
+        else [advice, notice(extraction)],
+        "options": ["Check with a trusted contact"],
     }
