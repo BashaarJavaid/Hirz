@@ -13152,3 +13152,49 @@ companion render the reason through the existing Python headline), so the `pnpm`
 checks were not rerun. Corrupt case or action JSON that fails model validation, an
 undecryptable ciphertext, and a missing contact configuration still stop the worker
 by design (fail closed); they are not treated as row inconsistencies.
+
+### App check-ins advance without the contact key
+
+Environment: macOS 15.7.3 (arm64), Python 3.12.13, uv 0.12.15, PostgreSQL 16.15 in
+the local Compose stack, base commit `6a57938` on `phase6/full-local-scenarios`.
+`uv run python scripts/check_dev.py` passed (last line `PASS HA: unauthenticated
+state read -> 401.`). No migration was run against the development database.
+
+Two new tests in `tests/integration/test_trusted_checkins.py` (disposable databases,
+native Dogwood) create an app-confirmed contact and a pending email enrollment link
+with the key set, then `monkeypatch.delenv("HIRZ_CONTACT_ENCRYPTION_KEY")` before
+calling `hirz.contacts.worker.advance` with SMTP patched:
+
+- `test_app_checkin_times_out_without_contact_key`: an app check-in started with the
+  key advances to `sent`, then, with the clock one second past its two-minute
+  deadline, closes with one attempt; exactly one scheduler `VERIFY` row records
+  `no_answer` / `expired` with the job's closing decision; the status tool reads
+  `no_answer` / `expired`; SMTP was never called; the signed chain verifies (`valid`).
+- `test_email_enrollment_waits_without_contact_key`: two ticks, the second past the
+  link's expiry, leave the enrollment row byte-for-byte unchanged (`pending` /
+  `pending`, no new decision) and SMTP is never called.
+
+Negative control: with the `hirz/` changes stashed, the app test failed with
+`AssertionError: assert ('pending', 0) == ('closed', 1)` (`1 failed, 1 passed, 11
+deselected in 4.16s`); the enrollment test passes on both versions, as intended.
+
+Startup line: from an empty mode-0600 `.env` directory with the key unset,
+`hirz worker --household 00000000-0000-0000-0000-000000000000 --once` printed
+`{"engine": "dogwood-local", "status": "contact_email_disabled", "detail": "Email
+check-ins and email enrollment are disabled because HIRZ_CONTACT_ENCRYPTION_KEY is
+unset; app check-ins still advance."}` and then the existing `failed` line (no
+database configured there).
+
+Commands and summary lines:
+
+- `uv run ruff check .` — `All checks passed!`
+- `uv run mypy hirz/ scripts/ alembic/` — `Success: no issues found in 203 source files`
+- `uv run pytest -q` — `1605 passed, 244 deselected, 2 warnings in 239.66s (0:03:59)`
+- `uv run pytest tests/integration/test_trusted_checkins.py -m integration --no-cov -q`
+  — `13 passed in 57.05s`
+- `uv run ruff format --check .` (run last, after this entry) — `324 files already formatted`
+
+Not claimed: starting or approving a real check-in (`checkins.queued`) and companion
+contact setup still require the key, unchanged; only the worker's advance and timeout
+were made key-independent. The full `hirz worker` loop against a live check-in was not
+run; no CI run, latency gate or combined coverage run was made; no TypeScript changed.

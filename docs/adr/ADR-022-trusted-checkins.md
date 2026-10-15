@@ -96,3 +96,13 @@ the same way (`delivery_status` `failed`). Database, audit-write, policy-load,
 configuration and decryption failures are not row inconsistencies and still stop the
 worker, so one corrupt row can no longer crash-loop every household job while the
 fail-closed guarantees stay unchanged.
+
+## App check-ins without the contact key — 2026-10-15
+
+App check-ins (`app_confirmation`) need no contact encryption: the contact worker now
+syncs channels and advances, times out and closes app jobs even when
+`HIRZ_CONTACT_ENCRYPTION_KEY` is unset, so a pending app check-in still reaches
+`no_answer` through a scheduler grant and a `VERIFY` audit row. Email check-in jobs
+and email enrollment links are left untouched (not sent, not closed) until the key is
+present, and `hirz worker` prints one `contact_email_disabled` JSON status line at
+startup when the key is absent.

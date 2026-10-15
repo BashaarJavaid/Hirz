@@ -145,6 +145,17 @@ async def worker(args: argparse.Namespace) -> int:
         for key, value in values.items():
             if key.startswith("HIRZ_") and key not in os.environ:
                 os.environ[key] = value
+        if not os.environ.get("HIRZ_CONTACT_ENCRYPTION_KEY"):
+            print(
+                json.dumps(
+                    {
+                        "engine": "dogwood-local",
+                        "status": "contact_email_disabled",
+                        "detail": "Email check-ins and email enrollment are disabled because HIRZ_CONTACT_ENCRYPTION_KEY is unset; app check-ins still advance.",
+                    }
+                ),
+                flush=True,
+            )
         scenario = os.environ.get("HIRZ_TWIN_SCENARIO")
         loaded = LoadedScenario(Path(scenario)) if scenario else None
         world = loaded.world if loaded else None

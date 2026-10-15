@@ -1115,3 +1115,218 @@ def test_inconsistent_rows_close_without_stopping_the_tick(
             assert evidence["status"] == "valid"
 
     asyncio.run(run())
+
+
+async def keyless_fixture(c, monkeypatch, config):
+    """Owner, app-confirmed contact and a pending mailbox link, created with the key."""
+    p = await setup(
+        c,
+        policy_edit("communication.contact_trusted_contact", mode="auto"),
+        native=True,
+    )
+    clock = [p.clock()]
+    monkeypatch.setattr("hirz.contacts.service.now", lambda: clock[0])
+    p.clock = lambda: clock[0]
+    seed = read_seed(Path("constitutions/quinn-parents.yaml"))
+    await load_seeds(c, [seed], lambda: clock[0] - timedelta(seconds=1))
+    q = Pipeline(
+        c,
+        await PolicyBundle.validate(
+            seed.household_id,
+            load(Path("constitutions/quinn-parents.yaml")),
+            p.boundary,
+        ),
+        p.boundary,
+        p.audit,
+        lambda: clock[0],
+    )
+
+    async def owner(pipeline, member_id):
+        session = await enroll(
+            pipeline,
+            await auth.initial_invitation(pipeline, member_id),
+            Authenticator(),
+        )
+        async with c.begin():
+            current = await auth.session(c, session["session"], clock[0])
+        return current["principal"].model_copy(
+            update={"passkey_verified": True, "requester_confirmed": True}
+        )
+
+    actor = await owner(p, ident("members", "malik"))
+    recipient = await owner(q, demo_id(seed.slug, "members", "mom"))
+    async with p.repo.write(p.clock):
+        contact = UUID(
+            (
+                await command(
+                    p,
+                    actor,
+                    Command(
+                        operation="create", name="Other owner", relationship="family"
+                    ),
+                    config,
+                )
+            )["id"]
+        )
+        invitation = await command(
+            p,
+            actor,
+            Command(operation="invite", contact_id=contact, method="app"),
+            config,
+        )
+    async with q.repo.write(q.clock):
+        await command(
+            q,
+            recipient,
+            Command(operation="accept", value=invitation["invitation"]),
+            config,
+        )
+    async with p.repo.write(p.clock):
+        await command(
+            p,
+            actor,
+            Command(
+                operation="confirm", contact_id=contact, reference=invitation["id"]
+            ),
+            config,
+        )
+        mailbox = await command(
+            p,
+            actor,
+            Command(
+                operation="invite",
+                contact_id=contact,
+                method="email",
+                value="other.owner@example.com",
+            ),
+            config,
+        )
+    return p, clock, contact, HouseholdTools(p, actor), mailbox
+
+
+def test_app_checkin_times_out_without_contact_key(scratch_database, monkeypatch):
+    """A worker without the contact key still closes an app check-in as no_answer."""
+    from unittest.mock import patch
+
+    from hirz.audit import verify_database
+    from hirz.contacts.worker import advance
+
+    config = Config(Fernet.generate_key().decode(), "https://home.example")
+    monkeypatch.setenv("HIRZ_CONTACT_ENCRYPTION_KEY", config.encryption_key)
+    monkeypatch.setenv("HIRZ_COMPANION_ORIGIN", config.origin)
+
+    async def run():
+        async with connect(scratch_database) as c:
+            p, clock, contact, tools, _ = await keyless_fixture(c, monkeypatch, config)
+            case = (
+                await tools.call(
+                    "verify_trusted_identity",
+                    {
+                        "operation": "start",
+                        "contact": str(contact),
+                        "text": "Did you ask for gift cards?",
+                        "request_id": "keyless",
+                    },
+                )
+            ).data.case
+            assert case.verification.method == "app_confirmation"
+            monkeypatch.delenv("HIRZ_CONTACT_ENCRYPTION_KEY")
+            with (
+                patch("hirz.contacts.checkins.send_email") as checkin_smtp,
+                patch("hirz.contacts.worker.send_email") as enrollment_smtp,
+            ):
+                await advance(p)
+                clock[0] = case.verification.expires_at + timedelta(seconds=1)
+                await advance(p)
+            checkin_smtp.assert_not_called()
+            enrollment_smtp.assert_not_called()
+            async with c.begin():
+                job = (
+                    (
+                        await c.execute(
+                            sa.select(db.checkin_jobs).where(
+                                db.checkin_jobs.c.case_id == case.case_id
+                            )
+                        )
+                    )
+                    .mappings()
+                    .one()
+                )
+                verify = (
+                    (
+                        await c.execute(
+                            sa.select(db.audit_log.c.payload).where(
+                                db.audit_log.c.household_id == p.household_id,
+                                db.audit_log.c.event_type == "VERIFY",
+                                db.audit_log.c.payload["case_id"].astext
+                                == case.case_id,
+                            )
+                        )
+                    )
+                    .scalars()
+                    .all()
+                )
+            assert (job["status"], job["attempts"]) == ("closed", 1)
+            closed = [v for v in verify if v.get("worker_surface") == "scheduler"]
+            assert [(v["status"], v["reason"], v["decision_seq"]) for v in closed] == [
+                ("no_answer", "expired", job["decision_seq"])
+            ]
+            state = (
+                await tools.call(
+                    "verify_trusted_identity",
+                    {"operation": "status", "case_id": case.case_id},
+                )
+            ).data.case.verification
+            assert (state.status, state.reason) == ("no_answer", "expired")
+            evidence, _ = await verify_database(
+                c, p.household_id, p.audit.key.public_key()
+            )
+            assert evidence["status"] == "valid"
+
+    asyncio.run(run())
+
+
+def test_email_enrollment_waits_without_contact_key(scratch_database, monkeypatch):
+    """Without the key a pending mailbox link is neither sent nor failed."""
+    from unittest.mock import patch
+
+    from hirz.contacts.worker import advance
+
+    config = Config(Fernet.generate_key().decode(), "https://home.example")
+    monkeypatch.setenv("HIRZ_CONTACT_ENCRYPTION_KEY", config.encryption_key)
+    monkeypatch.setenv("HIRZ_COMPANION_ORIGIN", config.origin)
+
+    async def run():
+        async with connect(scratch_database) as c:
+            p, clock, _, _, mailbox = await keyless_fixture(c, monkeypatch, config)
+
+            async def row():
+                async with c.begin():
+                    return dict(
+                        (
+                            await c.execute(
+                                sa.select(db.contact_links).where(
+                                    db.contact_links.c.id == mailbox["id"]
+                                )
+                            )
+                        )
+                        .mappings()
+                        .one()
+                    )
+
+            before = await row()
+            assert (before["status"], before["delivery_status"]) == (
+                "pending",
+                "pending",
+            )
+            monkeypatch.delenv("HIRZ_CONTACT_ENCRYPTION_KEY")
+            with patch("hirz.contacts.worker.send_email") as enrollment_smtp:
+                await advance(p)
+                # Even past its expiry nothing is closed while the key is absent.
+                clock[0] = before["expires_at"] + timedelta(seconds=1)
+                await advance(p)
+            enrollment_smtp.assert_not_called()
+            after = await row()
+            assert after == before
+
+    asyncio.run(run())

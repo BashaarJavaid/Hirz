@@ -20,11 +20,12 @@ async def advance(p: Pipeline) -> None:
     from hirz.protect.courier import advance as courier
 
     await courier(p)
+    # App check-ins need no key (ADR-022): they advance and time out regardless.
+    await sync_channels(p)
+    await checkins.advance(p)
     config = Config.environment()
     if config is None:
         return
-    await sync_channels(p)
-    await checkins.advance(p)
     async with p.connection.begin():
         pending = (
             (

@@ -428,7 +428,11 @@ async def receipt(
 
 
 async def advance(p: Pipeline) -> None:
-    """Consume receipts and claim transport attempts under household/channel locks."""
+    """Consume receipts and claim transport attempts under household/channel locks.
+
+    Without the contact key, email jobs are left untouched; app jobs still advance.
+    """
+    config = Config.environment()
     async with p.connection.begin():
         rows = (
             (
@@ -458,6 +462,8 @@ async def advance(p: Pipeline) -> None:
                 .one()
             )
             channel = await link(p, job["link_id"])
+            if channel["kind"] != "app" and config is None:
+                continue
             principal = (
                 await account(p.connection, p.household_id, job["member_id"])
             ).model_copy(update={"surface": "scheduler"})
@@ -574,7 +580,6 @@ async def advance(p: Pipeline) -> None:
                 )
             )
             if channel["kind"] == "email":
-                config = Config.environment()
                 if config is None:
                     raise ValueError("Contact configuration unavailable")
                 delivery = (
