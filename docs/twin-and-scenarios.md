@@ -455,8 +455,8 @@ counterfactual with the lagged persistence supply forecast. Its explicit
 `schedule_date_shift_days: -365` remaps seed schedule events. Both start the living
 room at 70°F, and planning weather extends to the next 17:30 from the same retained
 48-hour fixture. Successful planning/observation reports use
-`item17_planning_and_observations_passed`; the parents scenario retains its item 16
-observation status. This status does not assert that the year-long study passed.
+`item17_planning_and_observations_passed`; the legacy parents observation fixture
+retains its item 16 status, while the committed parents scenario uses §3's full contract. This status does not assert that the year-long study passed.
 
 The snapshot's expected savings and peak values are derived from retained
 `../scripts/backtest-data/demo-evening*.json` reports. They replace the provisional
@@ -485,8 +485,9 @@ remain later work; item 18 does not make that future scenario event executable.
 ### Item 22 executable contract
 
 `execution:` opts into an isolated PostgreSQL run using existing internal services.
-The main evening's committed YAML is the executable input. Hourly and parents keep
-their earlier scoped contracts. See the [approved decisions](./adr/ADR-006-twin-first-adapters.md#executable-scenarios--2026-09-22-author-approved).
+This scoped contract remains available without `full_sequence`. The committed
+evening and parents files now opt into §3's full contract; Hourly retains its
+planning contract. See the [approved decisions](./adr/ADR-006-twin-first-adapters.md#executable-scenarios--2026-09-22-author-approved).
 
 `execution` supplies a linked `member`, optional `plan_at`, `ev_target`,
 `ev_needed_by`, explicit seed-asset `rooms` (`bedroom` or `other`) and `responses`.

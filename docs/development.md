@@ -943,7 +943,9 @@ semantic limits. MCP, UI and live Bedrock remain later work; internal scenario e
 ## Item 22 executable evening
 
 Use the existing local PostgreSQL service, `.env` signing key, and pinned native
-Dogwood. The runner creates and migrates a uniquely named disposable database;
+Dogwood. The committed evening and parents files now require both frontend
+bundles and use [item 35's full contract](#full-local-scenario-assertions-item-35).
+The runner creates and migrates a uniquely named disposable database;
 it does not migrate or seed the development database.
 
 ```bash
@@ -960,11 +962,11 @@ Pipeline-authorized restoration. Missing HA or failed restoration fails that gat
 It does not satisfy the physical-plug gate.
 
 Use `--artifacts-dir NEW_DIR` to select a new private evidence directory. Keep
-`report.json`, `audit.json` and `public-key.pem` together. The report identifies the
-seeded execution policy and the separate simulated preview. Failed databases are
-retained by name for diagnosis; remove them only after reviewing their evidence.
-Step and unchecked reports do not claim completion. No remote CI dispatch or
-public MCP/authentication claim is included.
+`report.json`, `audit.json` and `public-key.pem` together. Scoped runs distinguish
+seeded execution from simulated preview; full runs identify authenticated setup
+and reloaded execution policy. Failed databases are retained by name for diagnosis;
+remove them only after reviewing their evidence. Step and unchecked reports do not
+claim completion. The scripted host does not establish public MCP acceptance.
 
 For machine-readable results, use `--output <new-file>` or the retained
 `report.json`: native solver diagnostics can also appear on stdout
@@ -1856,10 +1858,10 @@ normal new runs retain the existing export-before-drop behavior. Preserve signed
 exports from each household before cleaning up any retained test database.
 
 Automated contact/security checks are in `tests/integration/test_trusted_checkins.py`
-and `tests/unit/test_contact_secrets.py`. The no-answer YAML supplies the observation
-scenario and is replayed through authenticated MCP by that integration suite, which
-asserts the saved-phone fallback and explicitly confirmed linked retries. The CLI
-observation report alone is not MCP acceptance. The latency harness now includes
+and `tests/unit/test_contact_secrets.py`. The no-answer YAML is also replayed
+through authenticated MCP by that integration suite, which asserts the saved-phone
+fallback and explicitly confirmed linked retries. Its [full local CLI run](#full-local-scenario-assertions-item-35)
+is separate from this MCP acceptance. The latency harness now includes
 an immediate scripted exact-request form exchange in contact start/retry timings;
 setup/initialization stays outside timing, and final result decoding stays outside.
 Run both CI matrix gates; local timings are diagnostic only. No automated transport

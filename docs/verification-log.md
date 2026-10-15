@@ -12950,3 +12950,20 @@ Added that action (which builds both frontend bundles), and documented the same
 local prerequisite. This is an implementation integration omission, not claimed
 third-party friction. The first run is not an acceptance pass; a new complete
 normal CI dispatch is required after this workflow correction.
+
+### Final assertion and procedure review
+
+Strengthened ordinary-request assertions to require the exact original claim,
+empty signal list, `verify_via_verified_channel` recommendation and `Check with a
+trusted contact` option; a generic occurrence of “check” was insufficient evidence.
+Strengthened no-answer wording to require “call the contact saved in your own phone”.
+Both full CLI reruns passed (`secrets/item35/ordinary3`, 8 checks / 20 signed rows;
+`secrets/item35/no-answer3`, 12 checks / 41 signed rows), with verified exports and
+successful disposable cleanup. Updated older procedure references to distinguish
+legacy scoped runs from the five current full sequences. Runtime code is unchanged
+from `45ec686`; the corrected workflow is in `4503ccd`.
+
+The superseded `45ec686` push/dispatch runs were cancelled after their scenario
+startup failure, freeing the corrected revision's queued jobs. Full normal gates
+are now running in [38664423546](https://github.com/BashaarJavaid/Hirz/actions/runs/38664423546).
+The final fixture assertions will also run in ordinary push CI before closure.

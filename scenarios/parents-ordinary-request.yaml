@@ -124,6 +124,9 @@ assert:
     subject: $case
     equals:
       wording_excludes: [scam, "Don't send"]
-      wording_contains: [check]
+      speakable.options: [Check with a trusted contact]
+      data.case.claim.text: Malik wants to know when dinner is
+      data.case.signals: []
+      data.case.recommended: [verify_via_verified_channel]
   deferred: []
   never: ["EXECUTE:finance.*", "EXECUTE:security.door_unlock"]
