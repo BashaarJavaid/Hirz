@@ -343,7 +343,13 @@ async def run(output: Path, serve: bool, browser_test: bool = False) -> None:
                                         "test",
                                         "tests/live.spec.ts",
                                         cwd="apps/mcp-app",
-                                        env={**os.environ, "HIRZ_CARD_LIVE": "1"},
+                                        env={
+                                            **os.environ,
+                                            "HIRZ_CARD_LIVE": "1",
+                                            "HIRZ_CARD_FIXTURES": str(
+                                                (output / "fixtures.json").resolve()
+                                            ),
+                                        },
                                     )
                                     assert await child.wait() == 0, (
                                         "Authenticated browser relay test failed"

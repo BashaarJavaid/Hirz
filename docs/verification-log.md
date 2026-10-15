@@ -12967,3 +12967,54 @@ The superseded `45ec686` push/dispatch runs were cancelled after their scenario
 startup failure, freeing the corrected revision's queued jobs. Full normal gates
 are now running in [38664423546](https://github.com/BashaarJavaid/Hirz/actions/runs/38664423546).
 The final fixture assertions will also run in ordinary push CI before closure.
+
+### Complete local coverage and final-fixture browser failure
+
+The ordered local coverage run finished successfully: **1605 service-free tests**
+in 232.47 s, then **239 integration tests** in 934.54 s, then
+`.venv/bin/coverage report --fail-under=80` exited 0 at **90%** (16,437 statements,
+1,678 missed). Both pytest commands used `HIRZ_LLM=off` and the pinned native
+`HIRZ_DOGWOOD`; integration appended to the freshly reset service-free coverage.
+Logs are `/tmp/hirz-item35-unit-final.log`,
+`/tmp/hirz-item35-integration.log` and `/tmp/hirz-item35-coverage.log`.
+This includes authenticated activation/policy reload, 19 companion unlock cases,
+four new full sequences, Protect, executor, refresh and trusted check-ins.
+The existing `test_bound_doorbell_approval` and disposable decide cases cover
+unexpected v7 ASK versus v8 DENY; pipeline security-channel and offline-doorbell
+risk regressions also passed. No development migration was applied.
+
+The final-fixture push [38665151880](https://github.com/BashaarJavaid/Hirz/actions/runs/38665151880)
+at `1e1e65c` failed its companion browser job at the unchanged keyboard-outline
+assertion in `apps/web/tests/accessibility.ts:45`: `Expected: > 0`, `Received: 0`.
+It had one browser pass, one failure and one separate-simulator skip. This same
+browser suite passed locally and in corrected normal dispatch `38664423546`;
+the final commit only strengthened two YAML assertion sets and documentation.
+The failed log is retained at `/tmp/hirz-item35-companion-ci-failed.log`.
+No assertion has been weakened and no root cause is claimed. One unchanged-job
+rerun is intended after the current run finishes; an earlier attempt was refused
+with `job 116195570826 cannot be rerun` while other jobs were still running.
+
+### Live card fixture clock correction
+
+The normal dispatch passed 1605 service-free and 239 integration tests, its 90%
+combined coverage gate, and simulator browser acceptance, then failed the live
+MCP Apps reference-host test: `locator.click: Test timeout of 30000ms exceeded`
+at `apps/mcp-app/tests/live.spec.ts:15`, repeatedly finding the ten-minute-unlock
+button disabled. The retained log is `/tmp/hirz-item35-ci-python-failed.log`.
+The harness serves the committed October 13 scenario time, while this one browser
+test used wall time (October 15 UTC). The card correctly considered its data
+expired. Static card tests already use the fixture clock; the live test now uses
+the same `page.clock.setFixedTime` approach, with its private fixture path passed
+by the existing smoke launcher. Production expiry and committed scenario inputs
+are unchanged. This is our test-clock omission, not third-party friction.
+
+`HIRZ_LLM=off HIRZ_DOGWOOD="$PWD/.tools/dogwood" .venv/bin/python -m
+scripts.smoke_cards --artifacts-dir secrets/item35/card-live1 --browser-test`
+with Node 24 passed the existing live browser test in 4.4 s, retained five card
+fixtures and independently verified **401 home / 6 parents signed rows** before
+dropping its disposable database. Ruff, Python typing and MCP App lint/browser
+typing passed for the correction. The normal latency jobs continue unchanged;
+neither this launcher nor its Playwright test is part of their workload.
+The next ordinary CI run will also rerun the unchanged companion suite, replacing
+the pending isolated retry; GitHub's direct rerun API confirmed HTTP 403,
+`The workflow run containing this job is already running`.
