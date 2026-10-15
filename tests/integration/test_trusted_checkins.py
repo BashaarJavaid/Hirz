@@ -882,3 +882,236 @@ def test_no_answer_scenario_through_authenticated_mcp(scratch_database, tmp_path
                     listener.close()
 
     asyncio.run(run())
+
+
+def test_inconsistent_rows_close_without_stopping_the_tick(
+    scratch_database, monkeypatch
+):
+    """A corrupt receipt and a corrupt enrollment close; the healthy job advances."""
+    from unittest.mock import patch
+
+    from hirz.audit import verify_database
+    from hirz.contacts.worker import advance
+
+    config = Config(Fernet.generate_key().decode(), "https://home.example")
+    monkeypatch.setenv("HIRZ_CONTACT_ENCRYPTION_KEY", config.encryption_key)
+    monkeypatch.setenv("HIRZ_COMPANION_ORIGIN", config.origin)
+
+    async def run():
+        async with connect(scratch_database) as c:
+            p = await setup(
+                c,
+                policy_edit("communication.contact_trusted_contact", mode="auto"),
+                native=True,
+            )
+            clock = [p.clock()]
+            monkeypatch.setattr("hirz.contacts.service.now", lambda: clock[0])
+            p.clock = lambda: clock[0]
+            seed = read_seed(Path("constitutions/quinn-parents.yaml"))
+            await load_seeds(c, [seed], lambda: clock[0] - timedelta(seconds=1))
+            q = Pipeline(
+                c,
+                await PolicyBundle.validate(
+                    seed.household_id,
+                    load(Path("constitutions/quinn-parents.yaml")),
+                    p.boundary,
+                ),
+                p.boundary,
+                p.audit,
+                lambda: clock[0],
+            )
+
+            async def owner(pipeline, member_id):
+                session = await enroll(
+                    pipeline,
+                    await auth.initial_invitation(pipeline, member_id),
+                    Authenticator(),
+                )
+                async with c.begin():
+                    current = await auth.session(c, session["session"], clock[0])
+                return current["principal"].model_copy(
+                    update={"passkey_verified": True, "requester_confirmed": True}
+                )
+
+            actor = await owner(p, ident("members", "malik"))
+            recipient = await owner(q, demo_id(seed.slug, "members", "mom"))
+            async with p.repo.write(p.clock):
+                contact = UUID(
+                    (
+                        await command(
+                            p,
+                            actor,
+                            Command(
+                                operation="create",
+                                name="Other owner",
+                                relationship="family",
+                            ),
+                            config,
+                        )
+                    )["id"]
+                )
+                invitation = await command(
+                    p,
+                    actor,
+                    Command(operation="invite", contact_id=contact, method="app"),
+                    config,
+                )
+            async with q.repo.write(q.clock):
+                await command(
+                    q,
+                    recipient,
+                    Command(operation="accept", value=invitation["invitation"]),
+                    config,
+                )
+            async with p.repo.write(p.clock):
+                await command(
+                    p,
+                    actor,
+                    Command(
+                        operation="confirm",
+                        contact_id=contact,
+                        reference=invitation["id"],
+                    ),
+                    config,
+                )
+                mailbox = await command(
+                    p,
+                    actor,
+                    Command(
+                        operation="invite",
+                        contact_id=contact,
+                        method="email",
+                        value="other.owner@example.com",
+                    ),
+                    config,
+                )
+            tools = HouseholdTools(p, actor)
+            cases = [
+                (
+                    await tools.call(
+                        "verify_trusted_identity",
+                        {
+                            "operation": "start",
+                            "contact": str(contact),
+                            "text": text,
+                            "request_id": f"check-{index}",
+                        },
+                    )
+                ).data.case
+                for index, text in enumerate(
+                    ("Did you ask for gift cards?", "Did you ask for a wire?")
+                )
+            ]
+            assert all(case.verification.status == "pending" for case in cases)
+
+            async def job(case_id):
+                return dict(
+                    (
+                        await c.execute(
+                            sa.select(db.checkin_jobs).where(
+                                db.checkin_jobs.c.case_id == case_id
+                            )
+                        )
+                    )
+                    .mappings()
+                    .one()
+                )
+
+            # Approved test-only corruption: a receipt whose binding contradicts its
+            # job, and a pending mailbox link with nothing sealed to deliver.
+            async with c.begin():
+                corrupt = await job(cases[0].case_id)
+                await c.execute(
+                    db.checkin_receipts.insert().values(
+                        job_id=corrupt["id"],
+                        household_id=p.household_id,
+                        member_id=None,
+                        answer="genuine",
+                        request_hash="tampered",
+                        proof="passkey",
+                        accepted_at=clock[0],
+                        decision_seq=corrupt["decision_seq"],
+                    )
+                )
+                await c.execute(
+                    db.contact_links.update()
+                    .where(db.contact_links.c.id == mailbox["id"])
+                    .values(ciphertext=None)
+                )
+                link_seq = await c.scalar(
+                    sa.select(db.contact_links.c.decision_seq).where(
+                        db.contact_links.c.id == mailbox["id"]
+                    )
+                )
+            with (
+                patch("hirz.contacts.checkins.send_email") as checkin_smtp,
+                patch("hirz.contacts.worker.send_email") as enrollment_smtp,
+            ):
+                assert await advance(p) is None  # the tick returns normally
+            checkin_smtp.assert_not_called()
+            enrollment_smtp.assert_not_called()
+            async with c.begin():
+                closed, healthy = (
+                    await job(cases[0].case_id),
+                    await job(cases[1].case_id),
+                )
+                verify = (
+                    (
+                        await c.execute(
+                            sa.select(db.audit_log.c.payload).where(
+                                db.audit_log.c.household_id == p.household_id,
+                                db.audit_log.c.event_type == "VERIFY",
+                                db.audit_log.c.payload["reason"].astext
+                                == "inconsistent_record",
+                            )
+                        )
+                    )
+                    .scalars()
+                    .all()
+                )
+                grant_event = await c.scalar(
+                    sa.select(db.audit_log.c.event_type).where(
+                        db.audit_log.c.household_id == p.household_id,
+                        db.audit_log.c.seq == closed["decision_seq"],
+                    )
+                )
+                enrollment = (
+                    (
+                        await c.execute(
+                            sa.select(db.contact_links).where(
+                                db.contact_links.c.id == mailbox["id"]
+                            )
+                        )
+                    )
+                    .mappings()
+                    .one()
+                )
+            assert closed["status"] == "closed" and closed["ciphertext"] is None
+            assert grant_event == "EXECUTE"
+            assert [(v["case_id"], v["status"], v["decision_seq"]) for v in verify] == [
+                (cases[0].case_id, "no_answer", closed["decision_seq"])
+            ]
+            assert verify[0]["receipt"] is None
+            assert (healthy["status"], healthy["attempts"]) == ("sent", 1)
+            assert enrollment["delivery_status"] == "failed"
+            assert enrollment["decision_seq"] != link_seq
+            status = await tools.call(
+                "verify_trusted_identity",
+                {"operation": "status", "case_id": cases[0].case_id},
+            )
+            state = status.data.case.verification
+            assert (state.status, state.reason) == ("no_answer", "inconsistent_record")
+            assert "inconsistent" in status.speakable.headline
+            assert "confirmed" not in status.speakable.headline
+            # Closed rows are not retried on the next tick.
+            await advance(p)
+            async with c.begin():
+                assert (await job(cases[0].case_id))["decision_seq"] == closed[
+                    "decision_seq"
+                ]
+            evidence, _ = await verify_database(
+                c, p.household_id, p.audit.key.public_key()
+            )
+            assert evidence["status"] == "valid"
+
+    asyncio.run(run())

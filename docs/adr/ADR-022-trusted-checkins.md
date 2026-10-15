@@ -82,3 +82,17 @@ acceptance after SMTP reachability failed both in the agent and their own Termin
 These are acceptance deferrals, not waived gates or approval for another sender,
 port, service or TLS downgrade. Item 31 remains Partial until the original real
 push and reply requirements are demonstrated; see the verification log.
+
+## Inconsistent stored records — 2026-10-15
+
+A check-in job whose stored row contradicts itself (a non-real case, a receipt whose
+binding or audited proof does not match, or a finish on an already terminal case)
+raises `InconsistentRecord`; after that transaction rolls back, the worker closes
+only that job through a scheduler grant, marks an open case `no_answer` with reason
+`inconsistent_record` (never trusting the stored receipt, so it cannot read as
+answered), appends a `VERIFY` audit row, and continues the tick. A pending email
+enrollment link with no sealed destination or no recorded requester fails terminally
+the same way (`delivery_status` `failed`). Database, audit-write, policy-load,
+configuration and decryption failures are not row inconsistencies and still stop the
+worker, so one corrupt row can no longer crash-loop every household job while the
+fail-closed guarantees stay unchanged.

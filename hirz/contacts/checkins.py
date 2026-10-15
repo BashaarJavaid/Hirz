@@ -3,6 +3,8 @@
 import asyncio
 import secrets
 import smtplib
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import timedelta
 from typing import Any
 from uuid import UUID, uuid4
@@ -24,6 +26,10 @@ from hirz.pipeline.models import (
     VerificationState,
 )
 from hirz.pipeline.service import Pipeline
+
+
+class InconsistentRecord(ValueError):
+    """A stored check-in contradicts itself; the worker closes it, never retries it."""
 
 
 async def selected(
@@ -438,7 +444,7 @@ async def advance(p: Pipeline) -> None:
         )
     for reference in rows:
         delivery = None
-        async with p.repo.write(p.clock):
+        async with closes_inconsistent(p, reference), p.repo.write(p.clock):
             job = dict(
                 (
                     await p.connection.execute(
@@ -507,14 +513,16 @@ async def advance(p: Pipeline) -> None:
                 continue
             state = case.verification
             if state is None or state.source != "real":
-                raise ValueError("Real delivery requires an explicitly real case")
+                raise InconsistentRecord(
+                    "Real delivery requires an explicitly real case"
+                )
             status, reason = None, None
             if accepted:
                 if (
                     accepted["request_hash"] != job["request_hash"]
                     or accepted["accepted_at"] >= job["expires_at"]
                 ):
-                    raise ValueError("Invalid receipt binding")
+                    raise InconsistentRecord("Invalid receipt binding")
                 status = accepted["answer"]
             elif channel["status"] != "active":
                 status, reason = "no_answer", "channel_revoked"
@@ -614,6 +622,100 @@ async def advance(p: Pipeline) -> None:
             )
 
 
+@asynccontextmanager
+async def closes_inconsistent(p: Pipeline, reference: str) -> AsyncIterator[None]:
+    """After the failed transaction rolls back, close only that job in a fresh one.
+
+    Database, audit and policy errors are not InconsistentRecord and still stop the
+    worker. The stored receipt is never trusted, so the case cannot read as answered.
+    """
+    try:
+        yield
+    except InconsistentRecord:
+        async with p.repo.write(p.clock):
+            await close_inconsistent(p, reference)
+
+
+async def close_inconsistent(p: Pipeline, reference: str) -> None:
+    job = (
+        (
+            await p.connection.execute(
+                sa.select(db.checkin_jobs)
+                .where(p.scope(db.checkin_jobs), db.checkin_jobs.c.id == reference)
+                .with_for_update()
+            )
+        )
+        .mappings()
+        .one()
+    )
+    if job["status"] == "closed":
+        return
+    principal = (
+        await account(p.connection, p.household_id, job["member_id"])
+    ).model_copy(update={"surface": "scheduler"})
+    decision = await grant(p, principal, "process", reference)
+    case = VerificationCase.model_validate(
+        await p.connection.scalar(
+            sa.select(db.verification_cases.c.document).where(
+                p.scope(db.verification_cases),
+                db.verification_cases.c.id == job["case_id"],
+            )
+        )
+    )
+    state = case.verification
+    if state is None:
+        channel = await link(p, job["link_id"])
+        at = contact_time(p)
+        state = VerificationState(
+            status="pending",
+            method="app_confirmation" if channel["kind"] == "app" else "verified_email",
+            sent_to=str(channel["contact_id"]),
+            started_at=at,
+            expires_at=at,
+            source="real",
+        )
+    if state.status == "pending":
+        # Only an open check changes; an already terminal answer is left as recorded.
+        state = state.model_copy(
+            update={"status": "no_answer", "reason": "inconsistent_record"}
+        )
+        await p.connection.execute(
+            db.verification_cases.update()
+            .where(
+                p.scope(db.verification_cases),
+                db.verification_cases.c.id == case.case_id,
+            )
+            .values(
+                document=case.model_copy(update={"verification": state}).model_dump(
+                    mode="json"
+                ),
+                decision_seq=decision.audit_id,
+            )
+        )
+    await p.connection.execute(
+        db.checkin_jobs.update()
+        .where(db.checkin_jobs.c.id == reference)
+        .values(status="closed", ciphertext=None, decision_seq=decision.audit_id)
+    )
+    from hirz.pipeline.models import EventType
+
+    await p.audit.append(
+        p.connection,
+        p.household_id,
+        p.clock(),
+        EventType.VERIFY,
+        {
+            "case_id": case.case_id,
+            "status": state.status,
+            "reason": "inconsistent_record",
+            "source": state.source,
+            "worker_surface": "scheduler",
+            "decision_seq": decision.audit_id,
+            "receipt": None,
+        },
+    )
+
+
 async def finish(
     p: Pipeline,
     principal: Principal,
@@ -644,7 +746,7 @@ async def finish(
         )
     assert case.verification is not None
     if case.verification.status != "pending" or case.verification.source != "real":
-        raise ValueError("Only a pending real check can finish")
+        raise InconsistentRecord("Only a pending real check can finish")
     updated = case.model_copy(
         update={
             "verification": VerificationState.model_validate(
@@ -704,7 +806,7 @@ async def finish(
             "accepted_at": receipt_row["accepted_at"].isoformat(),
         }
         if not payload or any(payload.get(k) != v for k, v in expected.items()):
-            raise ValueError("Contact receipt does not match its audited proof")
+            raise InconsistentRecord("Contact receipt does not match its audited proof")
     await p.audit.append(
         p.connection,
         p.household_id,

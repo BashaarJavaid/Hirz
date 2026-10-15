@@ -243,6 +243,7 @@ def case_response(case: VerificationCase) -> Result:
             "delivery_failed": "The check could not be delivered. Call the contact saved in your own phone.",
             "contact_removed": "The contact was removed. This check is closed.",
             "channel_revoked": "The contact channel was revoked. Call the contact saved in your own phone.",
+            "inconsistent_record": "This check was closed because its stored record was inconsistent. Call the contact saved in your own phone.",
         }[state.reason]
     return response(
         headline,

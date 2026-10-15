@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-10-15: Close a self-contradictory check-in job or pending enrollment link through a Pipeline decision and audit row (reason `inconsistent_record`) and continue the worker tick; database, audit and policy failures still stop the worker ([ADR-022](./docs/adr/ADR-022-trusted-checkins.md#inconsistent-stored-records--2026-10-15), [evidence](./docs/verification-log.md#corrupt-check-in-jobs-close-themselves)).
+
 - 2026-10-14: Complete item 35 full local scenario assertions through companion HTTP and software passkeys, persisted policy and exact request references; enforce strict completion while retaining the approved Link deferral and existing planning inputs ([ADR-006](./docs/adr/ADR-006-twin-first-adapters.md#full-local-scenario-sequences--2026-10-14-author-approved), [evidence](./docs/verification-log.md#item-35--2026-10-14)).
 
 - 2026-10-14: Build companion assets before full scenario CI and align the existing live card browser with its scenario fixture clock, preserving production expiry behavior ([evidence](./docs/verification-log.md#live-card-fixture-clock-correction)).

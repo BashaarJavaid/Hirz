@@ -414,6 +414,7 @@ class VerificationState(Model):
             "channel_revoked",
             "approval_refused",
             "permission_changed",
+            "inconsistent_record",
         ]
         | None
     ) = None

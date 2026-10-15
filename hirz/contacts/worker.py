@@ -54,6 +54,10 @@ async def advance(p: Pipeline) -> None:
             if (
                 channel["expires_at"] <= contact_time(p)
                 or channel["delivery_attempts"] >= 3
+                # An inconsistent pending row (nothing sealed, no recorded requester)
+                # fails terminally instead of stopping every household job each tick.
+                or channel["ciphertext"] is None
+                or "requester" not in (channel["proof"] or {})
             ):
                 decision = await grant(p, principal, "process", reference)
                 await p.connection.execute(

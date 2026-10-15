@@ -13104,3 +13104,51 @@ commit `e74d00c` contains only these six documentation files. Ruff check and for
 check passed (**324 files already formatted**), `git diff --check` passed, and
 `cmp AGENTS.md CLAUDE.md` confirmed byte-identical instruction files. No further
 runtime change or broad test rerun was needed.
+
+## Phase 6 review fixes — 2026-10-15
+
+### Corrupt check-in jobs close themselves
+
+Environment: macOS 15.7.3 (arm64), Python 3.12.13, uv 0.12.15, PostgreSQL 16.15 in
+the local Compose stack, base commit `e69cbec` on `phase6/full-local-scenarios`.
+The Compose stack had Postgres and Home Assistant up but not the Hirz liveness
+container; `docker compose -f compose.dev.yml up -d` started it, after which
+`uv run python scripts/check_dev.py` printed four PASS lines (Postgres, `/health`,
+HA 123 entities, unauthenticated HA read 401) and exited 0. No migration was run
+against the development database.
+
+New test `test_inconsistent_rows_close_without_stopping_the_tick` in
+`tests/integration/test_trusted_checkins.py` (disposable database, native Dogwood)
+starts two real app check-ins and one email enrollment link for the same contact,
+then, as approved test-only corruption, inserts a receipt with a tampered
+`request_hash` for the first job and nulls the enrollment link's ciphertext. One call
+to `hirz.contacts.worker.advance` (the contact portion of the `hirz worker` tick)
+returned normally with SMTP patched and never called. Asserted: the corrupt job is
+`closed` with no ciphertext and its `decision_seq` is an `EXECUTE` decision; exactly
+one `VERIFY` audit row carries reason `inconsistent_record`, status `no_answer`,
+that decision and `receipt: null`; the case status reads `no_answer` /
+`inconsistent_record` and the headline does not say the contact confirmed; the second
+job advanced to `sent` with one attempt; the enrollment link is `failed` with a new
+decision; a second tick does not touch the closed job; the full signed chain verifies
+(`verify_database` status `valid`).
+
+Negative control: with the `hirz/` changes stashed, the same test failed with
+`ValueError: Invalid receipt binding` (`1 failed, 10 deselected in 3.33s`), the crash
+the worker previously turned into `{"status": "failed"}`.
+
+Commands and summary lines:
+
+- `uv run ruff check .` — `All checks passed!`
+- `uv run mypy hirz/ scripts/ alembic/` — `Success: no issues found in 203 source files`
+- `uv run pytest -q` — `1605 passed, 242 deselected, 2 warnings in 225.11s (0:03:45)`
+- `uv run pytest tests/integration/test_trusted_checkins.py -m integration --no-cov -q`
+  — `11 passed in 55.18s`
+- `uv run ruff format --check .` (run last, after this entry) — `324 files already formatted`
+
+Not claimed: the full `hirz worker` loop was not run against a corrupted database
+(the test drives the contact-worker step it calls); no CI run, latency gate or
+combined coverage run was made for this fix; no TypeScript changed (cards and the
+companion render the reason through the existing Python headline), so the `pnpm`
+checks were not rerun. Corrupt case or action JSON that fails model validation, an
+undecryptable ciphertext, and a missing contact configuration still stop the worker
+by design (fail closed); they are not treated as row inconsistencies.
