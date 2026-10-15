@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-10-15: Correct documentation drift from the Phase 6 review: Ring remnants after the failed item 34 gate, the demo courier line, the README `hirz/` layout and contact-key note, dated 2026-10-07 changelog lines, and the scam threat-model row now Partial ([evidence](./docs/verification-log.md#documentation-drift-corrected)).
+
 - 2026-10-15: The stranger scenario now checks that the unlock result's spoken text never says who the visitor is. A unit test checks that no verification reply, real or twin, is spoken as advice to pay, and pins the genuine-reply advice sentence. The real no-answer headline drops to two sentences (`Do not send anything; call…`), so it now renders under the Speakable limit instead of failing validation ([evidence](./docs/verification-log.md#stranger-wording-guard-and-genuine-reply-negative-test)).
 
 - 2026-10-15: The evening scenario now checks each of the five plan revisions, the guest room at 72°F, the idle dishwasher before 23:31, and the ordered 23:31 consent, nighttime votes and verified dishwasher start; the evening goes from 62 to 76 checks, with no runtime change ([evidence](./docs/verification-log.md#demo-evening-asserts-revisions-and-the-dishwasher-window)).
@@ -38,17 +40,17 @@ All notable changes are documented here. The format follows
 
 - 2026-10-11: Drain simulator periodic database work before stopping its servers so acceptance cleanup can close connections safely; retain failure storage ([evidence](./docs/verification-log.md#simulator-cleanup-follow-up)).
 
-- Record successful item 31 CI, including both latency gates, while retaining Partial status for deferred real email and iPhone push acceptance ([evidence](./docs/verification-log.md#final-ci-gates-and-retained-partial-status--2026-10-07)).
+- 2026-10-07: Record successful item 31 CI, including both latency gates, while retaining Partial status for deferred real email and iPhone push acceptance ([evidence](./docs/verification-log.md#final-ci-gates-and-retained-partial-status--2026-10-07)).
 
-- Verify Mom’s real app check-in and Malik’s passkey reply across households, with both signed chains independently verified; email/push remain deferred ([evidence](./docs/verification-log.md#real-cross-household-app-reply--2026-10-07)).
+- 2026-10-07: Verify Mom’s real app check-in and Malik’s passkey reply across households, with both signed chains independently verified; email/push remain deferred ([evidence](./docs/verification-log.md#real-cross-household-app-reply--2026-10-07)).
 
-- Verify accepted receipts in a fresh worker process and record deferred real email/push acceptance; clarify shared-Echo visibility of an initiating member’s case results ([evidence](./docs/verification-log.md#card-state-acceptance-follow-up--2026-10-07)).
+- 2026-10-07: Verify accepted receipts in a fresh worker process and record deferred real email/push acceptance; clarify shared-Echo visibility of an initiating member’s case results ([evidence](./docs/verification-log.md#card-state-acceptance-follow-up--2026-10-07)).
 
-- Show mailbox delivery failures and verify explicit retries on scripted Show/Dot, concurrent replies and independent channel revocation ([evidence](./docs/verification-log.md#concurrent-replies-browser-retries-and-real-delivery-limitation--2026-10-07)).
+- 2026-10-07: Show mailbox delivery failures and verify explicit retries on scripted Show/Dot, concurrent replies and independent channel revocation ([evidence](./docs/verification-log.md#concurrent-replies-browser-retries-and-real-delivery-limitation--2026-10-07)).
 
-- Tighten contact retry caps and verify signed receipt rollback; let the acceptance host decline unrelated clarification forms ([evidence](./docs/verification-log.md#follow-up-checks-and-phone-pairing--2026-10-07)).
+- 2026-10-07: Tighten contact retry caps and verify signed receipt rollback; let the acceptance host decline unrelated clarification forms ([evidence](./docs/verification-log.md#follow-up-checks-and-phone-pairing--2026-10-07)).
 
-- Implement item 31 contact enrollment, real check-in jobs/receipts, private safe words and companion views; acceptance remains partial ([ADR-022](./docs/adr/ADR-022-trusted-checkins.md), [evidence](./docs/verification-log.md#item-31--2026-10-07)).
+- 2026-10-07: Implement item 31 contact enrollment, real check-in jobs/receipts, private safe words and companion views; acceptance remains partial ([ADR-022](./docs/adr/ADR-022-trusted-checkins.md), [evidence](./docs/verification-log.md#item-31--2026-10-07)).
 
 - 2026-10-07: Apply the no-credentials Ring gate fallback before Phase 6: retain the twin doorbell and remove the Ring track ([evidence](./docs/verification-log.md#item-34--ring-access-gate--2026-10-07)).
 

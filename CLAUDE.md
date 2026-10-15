@@ -136,7 +136,10 @@ Item 32 adds `HIRZ_LLM=off uv run --locked python -m scripts.smoke_protect --art
 
 ## Current phase
 
-Phase 5 and items 32, 33, 33a and 35 are complete. Next: Phase 7, item 36 (ROADMAP.md).
+Phase 5 and items 32, 33, 33a and 35 are complete; the 2026-10-15 Phase 6 review
+fixes are on the branch ([evidence](docs/verification-log.md#phase-6-review-fixes--2026-10-15)).
+Next: Phase 7, item 36 (ROADMAP.md). A real check-in requires the contact key
+(`scripts/init_contacts.py`).
 Item 31 remains Partial for real email/push acceptance; item 28 still owes real Web
 Push (issue #7). Ring access failed; retain the twin doorbell. Link replay and
 independent relocking remain item 38a. Paid Protect shares
