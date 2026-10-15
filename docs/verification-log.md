@@ -13301,3 +13301,35 @@ Commands and summary lines:
 Not claimed: no TypeScript lint, typecheck or test run (no TypeScript file
 changed); no integration, CI or latency run. The text check covers only the two
 named TypeScript literals, not any other place a signal name may be typed.
+
+### Contact operation vocabulary cross-checked
+
+The reserved `governance.contacts` rule in `hirz/constitution/schema.py` names
+each contact operation in one condition string, and `Command.operation` in
+`hirz/contacts/service.py` repeats the vocabulary with nothing tying the two.
+New unit test `test_contact_rule_names_exactly_the_contact_operations` in
+`tests/unit/test_constitution.py` extracts every `action.params.operation == "<x>"`
+literal from the rule and asserts the set equals the `Command.operation` values
+minus `save_organization` (granted as `create` or `confirm`, never by its own
+name) plus `guess` (safe-word check) and `process` (scheduler), which are granted
+outside `Command`. The rule string, schema and Cedar output were not changed, so
+no before/after compile diff was needed; the optional refactor that builds the
+rule from grouped tuples was not done.
+
+Negative control: deleting ` or action.params.operation == "reply"` from the rule
+gave `1 failed, 78 deselected in 0.59s` (`Extra items in the right set`); the edit
+was reverted with `git checkout --` and `git status --short` showed only
+`M tests/unit/test_constitution.py`.
+
+Commands and summary lines:
+
+- `uv run pytest tests/unit/test_constitution.py -k contact_rule --no-cov -q` — `1 passed, 78 deselected in 0.70s`
+- `uv run ruff check .` — `All checks passed!`
+- `uv run mypy hirz/ scripts/ alembic/` — `Success: no issues found in 203 source files`
+- `uv run pytest -q` — `1610 passed, 245 deselected, 2 warnings in 234.00s (0:03:54)`
+- `HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run pytest tests/cedar_conformance --no-cov -q` — `81 passed in 152.29s (0:02:32)`
+- `uv run ruff format --check .` (run last, after this entry) — `324 files already formatted`
+
+Not claimed: the test checks names only, not which surface or role each clause
+allows; it does not find `grant(...)` calls with other operation strings; no
+integration, CI or latency run.

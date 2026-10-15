@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-10-15: Add a unit test that fails when the reserved `governance.contacts` rule and `Command.operation` name different contact operations (with `save_organization`, `guess` and `process` listed as explicit exceptions); the rule text is unchanged ([evidence](./docs/verification-log.md#contact-operation-vocabulary-cross-checked)).
+
 - 2026-10-15: Add a unit test that fails when the Protect signal names in scoring, both advice label maps, the companion check-ins page or the card schema disagree; no signal renamed ([evidence](./docs/verification-log.md#signal-names-cross-checked-across-python-and-typescript)).
 
 - 2026-10-15: Load the Protect worker's policy bundle only when a household has a pending or running extraction; an idle household now costs one small existence query per second instead of a policy load ([evidence](./docs/verification-log.md#protect-worker-loads-policy-only-when-work-is-pending)).

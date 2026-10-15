@@ -517,3 +517,17 @@ def test_cli_workflows_and_errors(tmp_path, capsys, monkeypatch):
     )
     assert main() == 0
     assert json.loads(capsys.readouterr().out)["situations"] == []
+
+
+def test_contact_rule_names_exactly_the_contact_operations():
+    import re
+    from typing import get_args
+
+    from hirz.contacts.service import Command
+
+    rule = home().rule("governance.contacts", "owner").conditions[0]
+    in_rule = set(re.findall(r'action\.params\.operation == "([a-z_]+)"', rule))
+    commands = set(get_args(Command.model_fields["operation"].annotation))
+    # save_organization is granted as "create" or "confirm", never by its own name.
+    # guess (safe-word check) and process (scheduler) are granted outside Command.
+    assert in_rule == commands - {"save_organization"} | {"guess", "process"}
