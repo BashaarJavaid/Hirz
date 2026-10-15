@@ -332,6 +332,71 @@ def test_twin_contact_removal_branches_on_reason_not_headline():
     assert unlabeled.speakable.headline.startswith("There was no simulated reply.")
 
 
+def test_no_verification_outcome_is_spoken_as_advice_to_pay():
+    import re
+    from typing import get_args
+
+    from hirz.mcp.trust import case_response
+    from hirz.pipeline.models import VerificationCase, VerificationState
+
+    fields = VerificationState.model_fields
+    statuses = [s for s in get_args(fields["status"].annotation) if s != "pending"]
+    reasons = get_args(get_args(fields["reason"].annotation)[0])
+    # ADR-022: a reply confirms only that request and is never advice to pay.
+    # Case-insensitive; \b on both ends so "payee", "payment" or "repay" in a
+    # quoted request do not match, and "send it" does not match "send items".
+    # "really (him|her)" also catches "it's really him" / "really her".
+    forbidden = re.compile(
+        r"\b(?:pay|send the money|send it|go ahead|safe to|it is really"
+        r"|it's really|it’s really|really (?:him|her))\b",
+        re.IGNORECASE,
+    )
+    genuine = {
+        "real": "Call the contact saved in your own phone before acting.",
+        "twin": "Talk to the contact using their saved number.",
+    }
+    rendered = 0
+    for source in ("real", "twin"):
+        for status in statuses:
+            for reason in (None, *reasons):
+                if (source, status, reason) == ("real", "no_answer", None):
+                    # Every real no_answer producer in hirz/contacts/checkins.py
+                    # sets a reason; this unreasoned headline has three sentences
+                    # and Speakable rejects it (reported 2026-10-15, not fixed).
+                    continue
+                case = VerificationCase.model_validate(
+                    dict(
+                        case_id="private-case",
+                        claim={"text": "Please pay the payee; payment is urgent"},
+                        subject=dict(
+                            contact_id="private-contact",
+                            trusted=True,
+                            claimed_party="Relative",
+                            party="person",
+                        ),
+                        signals=[],
+                        risk_band="low",
+                        recommended=["verify_via_verified_channel"],
+                        speakable={},
+                        verification=dict(
+                            status=status,
+                            sent_to="private-contact",
+                            started_at="2026-09-23T00:00:00Z",
+                            expires_at="2026-09-23T00:02:00Z",
+                            source=source,
+                            reason=reason,
+                        ),
+                    )
+                )
+                speech = case_response(case).speakable
+                for line in (speech.headline, *speech.details, *speech.options):
+                    assert not forbidden.search(line), (source, status, reason, line)
+                if status == "genuine" and reason is None:
+                    assert genuine[source] in speech.headline
+                rendered += 1
+    assert rendered == 2 * len(statuses) * (1 + len(reasons)) - 1 == 63
+
+
 def test_host_counts_foundation_model_before_reserving_complete_request(tmp_path):
     import json
     from types import SimpleNamespace

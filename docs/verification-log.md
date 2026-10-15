@@ -13456,3 +13456,60 @@ observation after 23:31 was not added: the start time (04:15 in this run) is cho
 by the planner and is not stated in §3, and no single time lies inside every valid
 105-minute cycle between 23:31 and 07:00. Plan-consent results cannot be saved
 (`approve_action` has no saveable object). No CI, latency or browser run.
+
+### Stranger wording guard and genuine-reply negative test
+
+Environment: macOS 15.7.3 (arm64), Python 3.12.13, uv 0.12.15, PostgreSQL 16.15 in
+the local Compose stack, native Dogwood at `.tools/dogwood`, base commit `909f468` on
+`phase6/full-local-scenarios`. `uv run python scripts/check_dev.py` printed PASS lines
+through `HA: unauthenticated state read -> 401`. Nothing in `hirz/` changed. No
+migration was run against the development database.
+
+Changes (sources: ROADMAP item 34 verify text, `ARCHITECTURE.md` §5.7, ADR-022):
+
+- `scenarios/stranger-in-window.yaml`: the existing 19:04 `result` check on `$unlock`
+  gains `wording_excludes: ["Mom is at", "It's Mom", "is Mom", "Unlock for Mom",
+  "Mom is here", "visitor is"]`. The `approval` check's exact `door.context` equality
+  (the schedule line) is unchanged. The new key sits inside an existing check, so the
+  count stays 18.
+- `tests/unit/test_household_tools.py::test_no_verification_outcome_is_spoken_as_advice_to_pay`:
+  every terminal status (`genuine`, `not_genuine`, `will_call`, `no_answer`) × every
+  `reason` (read from the `VerificationState` Literals, plus `None`) × `source`
+  `real`/`twin` is rendered through `case_response`. No headline, detail or option may
+  match the case-insensitive, word-bounded pattern `pay`, `send the money`, `send it`,
+  `go ahead`, `safe to`, `it is really`, `it's really`, `really him/her`. Each
+  unreasoned `genuine` headline must contain the code's advice sentence: real
+  "Call the contact saved in your own phone before acting.", twin "Talk to the contact
+  using their saved number." That is 63 renders.
+
+Commands and summary lines:
+
+| Command | Result |
+|---|---|
+| `HIRZ_DOGWOOD=$PWD/.tools/dogwood uv run hirz scenario run scenarios/stranger-in-window.yaml --headless --assert --output <scratch>/before.json` (HEAD, before) | exit 0, `status: full_sequence_passed`, **18 checks**, 18 passed; audit `valid` |
+| Same, after the change (`<scratch>/after.json`) | exit 0, `status: full_sequence_passed`, **18 checks**, 18 passed; audit `valid` |
+| Bite proof: `"requires approval"` (present in the `$unlock` headline "Unlocking requires approval in your Hirz phone app.") added to `wording_excludes` | exit 1, `status: failed`; failing `{"index": 7, "kind": "result", "at": "2026-10-14T00:04:00+00:00", "status": "failed"}` and `{"kind": "full_sequence", "status": "failed"}`; disposable database `hirz_ha_smoke_8ba84fc0cf1e4ddca27f6362260b418c` retained per contract. Reverted |
+| Second probe: `"Mom is expected"` (present only in the inbox `door.context`) added to the same `wording_excludes` | exit 0, `status: full_sequence_passed`, 18 passed: as expected, `wording_excludes` reads only the result's top-level `speakable`. Reverted |
+| Bite proof B: `call the contact` added to the test's forbidden pattern | `AssertionError: ('real', 'genuine', None, 'The contact confirmed this specific request. Call the contact saved in your own phone before acting.')`, `1 failed`. Reverted |
+| `uv run pytest tests/unit/test_household_tools.py -q --no-cov` | `41 passed` |
+| `uv run ruff check .` / `uv run mypy hirz/ scripts/ alembic/` | `All checks passed!` / `Success: no issues found in 203 source files` |
+| `uv run pytest -q` (service-free) | `1612 passed, 245 deselected, 2 warnings in 226.00s` |
+| `uv run ruff format --check .` (run last, after this entry) | `324 files already formatted` |
+
+Surfaces not covered by a negative wording check (the DSL was not widened):
+`wording_excludes` reads only the `speakable` at the top level of the checked object.
+The `approval` check's object (`{approval, door}` from the companion inbox) has no
+`speakable`, so a negative check there would pass without checking anything. That
+surface stays guarded by the exact `door.context` equality. The decision's own
+`data.decision.speakable` ("This request needs approval on your phone." in this run)
+and `presentation.label` are not reached by `wording_excludes` either.
+
+Found, not fixed: `case_response` cannot render `source: real`, `status: no_answer`,
+`reason: None`. Its headline "The contact has not answered. Do not send anything. Call
+the contact saved in your own phone." has three sentences, and `Speakable` rejects it
+("Headline exceeds speech limit"). Every real `no_answer` producer in
+`hirz/contacts/checkins.py` sets a reason, so the combination looks unreachable today.
+The test skips it with a comment and does not claim it.
+
+Not claimed: no CI, latency, browser or live-contact run. The other full sequences were
+not rerun.

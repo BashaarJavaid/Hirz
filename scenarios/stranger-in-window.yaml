@@ -306,6 +306,7 @@ assert:
     subject: $unlock
     equals:
       data.decision.decision: ask
+      wording_excludes: ["Mom is at", "It's Mom", "is Mom", "Unlock for Mom", "Mom is here", "visitor is"]
   - at: '19:20'
     kind: observation
     domain: devices
