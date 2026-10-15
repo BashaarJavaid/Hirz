@@ -13523,3 +13523,36 @@ Documentation only; no code or tests changed. Files: `ARCHITECTURE.md` (§5.7 do
 Checks: `diff CLAUDE.md AGENTS.md` printed nothing. `grep -rn -i "ring sandbox\|ring track"` over README, demo script, submission, ROADMAP and ARCHITECTURE matched only ROADMAP item 34 (line 72) and the cut-order paragraph (line 101), both left as historical text. Every added anchor (`item-34--ring-access-gate--2026-10-07`, `item-32-closure--2026-10-11`, `item-33--2026-10-11`, `final-ci-gates-and-retained-partial-status--2026-10-07`, `phase-6-review-fixes--2026-10-15`, development.md `trusted-contact-acceptance-item-31`) matches exactly one heading. `uv run pytest tests/unit -q --no-cov -k "readme or docs or catalog or roadmap"` gave `20 passed, 1511 deselected`.
 
 Not changed: the demo script's spoken pending and "wasn't him" lines are composed narration, not single headlines from `hirz/mcp/trust.py`, and no `no_answer` line is quoted there.
+
+### Final local verification before promotion
+
+Combined local gate run on 2026-10-15 at `c11d903`, after the twelve review-fix commits `6a57938` through `c11d903` on `phase6/full-local-scenarios`, with `HIRZ_DOGWOOD="$PWD/.tools/dogwood"`. No code or tests changed; every command ran once and passed, with no environment retries.
+
+| Step | Command | Summary line |
+|---|---|---|
+| 1 | `uv run ruff check . && uv run mypy hirz/ scripts/ alembic/` | `All checks passed!`; `Success: no issues found in 203 source files` |
+| 2 | `pnpm -r lint && pnpm -r typecheck && pnpm -r test` | exit 0; lint and typecheck `Done` for `apps/mcp-app` and `apps/web`; mcp-app `Test Files 2 passed (2)`, `Tests 5 passed (5)`; web `Test Files 1 passed (1)`, `Tests 1 passed (1)` |
+| 3 | `pnpm --filter mcp-app build` | `../../hirz/mcp/ui/index.html 415.51 kB │ gzip: 118.17 kB`, `✓ built in 83ms` |
+| 4 | `uv run python scripts/check_dev.py` | exit 0: Postgres `authenticated SELECT 1`; `/health -> 200`; HA `123 entities`; unauthenticated HA read `-> 401` (stack already up; no restart) |
+| 5a | `uv run pytest` | `1612 passed, 245 deselected, 2 warnings in 225.84s` (service-free coverage 69%) |
+| 5b | `uv run pytest -m integration --cov=hirz --cov-append` | `243 passed, 1614 deselected, 2 warnings in 908.79s (0:15:08)` |
+| 5c | `uv run --locked coverage report --fail-under=80` | `TOTAL 16499 1639 90%`, exit 0 |
+| 6 | `uv run pytest tests/cedar_conformance` | `81 passed in 158.48s` |
+| 8 | `HIRZ_LLM=off uv run --locked python scripts/smoke_mcp.py` | `protocol=2025-11-25`; `tools=what_can_you_do`; `PASS initialize -> tools/list -> tools/call; structured output validated` |
+
+Step 7, the six CI headless scenarios, each `uv run hirz scenario run scenarios/<name>.yaml --headless --assert --output <new scratch file>`, all exit 0, every check `passed`, each printing `disposable_database=dropped; development_database=unchanged`:
+
+| Scenario | `status` | Checks |
+|---|---|---|
+| `demo-evening.yaml` | `full_sequence_passed` | 76 |
+| `demo-evening-hourly.yaml` | `item17_planning_and_observations_passed` | 16 |
+| `parents-scam-check.yaml` | `full_sequence_passed` | 17 |
+| `parents-scam-no-answer.yaml` | `full_sequence_passed` | 12 |
+| `parents-ordinary-request.yaml` | `full_sequence_passed` | 8 |
+| `stranger-in-window.yaml` | `full_sequence_passed` | 18 |
+
+Measured five-full-sequence total: 76 + 17 + 12 + 8 + 18 = **131 checks**, the first post-fix measurement. The scenario reports stayed in the session scratch directory and are not retained evidence.
+
+Environment: macOS Darwin 24.6.0 (arm64), Python 3.12.13, uv 0.12.15, pnpm 12.4.2, Node v23.11.0 (the project specifies Node 24; this run used the Homebrew Node 23 on PATH). Compose services: `postgres:16.15@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94` (healthy), `ghcr.io/home-assistant/home-assistant:2026.9.2@sha256:a1bc133af84ee6505fe2c266d9805b7c75b780dfdc188edfee3b11e8f3cd8efe` (healthy), `hirz-hirz` (healthy).
+
+Not claimed: the latency suite (CI `workflow_dispatch` is the gate of record), live Bedrock or any `--live` flag, browser smokes, the recording stack, real email or push delivery, and CI on this commit. No budget ledger was read or written.
