@@ -77,7 +77,7 @@ WORLD_EVENTS = {
     "call.inbound": ({"presented_number", "claim"}, set()),
     "contact.checkin_reply": ({"contact", "reply", "requested_at", "deadline"}, set()),
     "voice": ({"member", "text", "script"}, set()),
-    "constitution.activate": ({"member", "patch"}, set()),
+    "constitution.activate": ({"member", "patch"}, {"proposal"}),
 }
 FUTURE_EVENTS = frozenset(
     {
@@ -127,6 +127,8 @@ class Event(Model):
     deadline: str | None = None
     text: str | None = None
     script: tuple[str | ScriptCall, ...] = ()
+    proposal: str | None = Field(default=None, pattern=r"^\$[a-z][a-z0-9_]*$")
+    request: str | None = Field(default=None, pattern=r"^\$[a-z][a-z0-9_]*$")
     patch: str | None = None
     deferred: Text | None = None
     payload: dict[str, Any] | None = None
@@ -148,6 +150,9 @@ class Event(Model):
                 )
             ):
                 raise ValueError("Voice requires an explicit known tool script.")
+        elif self.event in {"app.approve", "app.deny"} and self.request:
+            if supplied != {"member", "request"} or not self.member:
+                raise ValueError("App answers require a member and saved request")
         elif self.event in FUTURE_EVENTS:
             if not self.deferred or supplied - {"deferred", "member", "payload"}:
                 raise ValueError("Future events require an explicit deferral.")
@@ -158,7 +163,16 @@ class Event(Model):
 
 class Check(Model):
     at: Text
-    kind: Literal["observation", "policy", "contact", "call", "verification"]
+    kind: Literal[
+        "observation",
+        "policy",
+        "contact",
+        "call",
+        "verification",
+        "result",
+        "action",
+        "approval",
+    ]
     subject: str | None = None
     domain: AdapterDomain | None = None
     equals: dict[str, Any] = Field(min_length=1)
@@ -238,6 +252,62 @@ class LoadedScenario:
             raise ValueError("Only energy can use a real scenario adapter")
         if (spec.rate_plan != "twin") != (spec.adapters.get("energy") == "real"):
             raise ValueError("Real rate plan requires energy: real")
+        if spec.execution and spec.execution.full_sequence:
+            kinds = {"initial_target": "constraint"} if spec.execution.plan_at else {}
+            for event in spec.timeline:
+                if event.event in {"constitution.activate", "app.approve", "app.deny"}:
+                    reference = (
+                        event.proposal
+                        if event.event == "constitution.activate"
+                        else event.request
+                    )
+                    kind = (
+                        "proposal"
+                        if event.event == "constitution.activate"
+                        else "action"
+                    )
+                    if not reference or kinds.get(reference[1:]) != kind:
+                        raise ValueError(
+                            "Missing, unresolved or wrong-kind event reference"
+                        )
+                for call in event.script:
+                    if isinstance(call, str):
+                        raise ValueError("Full sequences require executable scripts")
+                    for key, value in call.arguments.items():
+                        if isinstance(value, str) and value.startswith("$"):
+                            expected_kind = {
+                                "case_id": "case",
+                                "replaces": "constraint",
+                                "plan": "plan",
+                            }.get(key)
+                            if (
+                                expected_kind is None
+                                or kinds.get(value[1:]) != expected_kind
+                            ):
+                                raise ValueError(
+                                    "Unresolved or wrong-kind tool reference"
+                                )
+                    if call.save_as:
+                        if call.save_as in kinds:
+                            raise ValueError("Saved result names must be unique")
+                        kinds[call.save_as] = {
+                            "propose_household_rule": "proposal",
+                            "execute_household_action": "action",
+                            "assess_request_risk": "case",
+                            "verify_trusted_identity": "case",
+                            "revise_household_plan": "constraint",
+                            "get_household_plan": "plan",
+                        }.get(call.tool, "result")
+            for check in spec.assertions.checks:
+                if check.kind in {"result", "action", "approval"}:
+                    reference = check.subject or ""
+                    if (
+                        not reference.startswith("$")
+                        or reference[1:] not in kinds
+                        or check.kind in {"action", "approval"}
+                        and kinds[reference[1:]] != "action"
+                    ):
+                        raise ValueError("Unresolved or wrong-kind assertion reference")
         self.seed_path = seed_path = path.parent / spec.household
         seed = read_seed(seed_path)
         self.hashes = {
@@ -446,7 +516,10 @@ class LoadedScenario:
                         and value[1:] not in names
                     ):
                         raise ValueError("Unknown scripted result reference")
-                if call.tool == "execute_household_action":
+                if (
+                    call.tool == "execute_household_action"
+                    and "asset" in call.arguments
+                ):
                     ident = self.ref("assets", call.arguments["asset"])
                     if self.world.assets[ident].kind != "light":
                         raise ValueError("Scripted device requests support lamps only")
@@ -533,6 +606,15 @@ class LoadedScenario:
                 or type(check.equals["version"]) is not int
             ):
                 raise ValueError("Policy assertions require only a version.")
+        elif check.kind in {"result", "action", "approval"}:
+            if (
+                not self.spec.execution
+                or not check.subject
+                or not re.fullmatch(r"\$[a-z][a-z0-9_]*", check.subject)
+            ):
+                raise ValueError("Service assertions require a saved result reference")
+            if check.domain is not None:
+                raise ValueError("Service assertions have no observation domain")
         elif check.kind == "verification":
             if (
                 not self.spec.execution

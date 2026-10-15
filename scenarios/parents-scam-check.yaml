@@ -17,6 +17,7 @@ adapters:
   doorbell: twin
 rate_plan: twin
 execution:
+  full_sequence: true
   member: mom
   rooms: {}
   verified_app_fixtures: [malik]
@@ -134,6 +135,7 @@ timeline:
     arguments:
       operation: status
       case_id: $case
+    save_as: answer
 - at: '17:25'
   event: doorbell.press
   entity: doorbell.front_door
@@ -198,6 +200,12 @@ assert:
       contact_publication: published
       contact_source: twin
       honest_wording: true
+  - at: '17:07'
+    kind: result
+    subject: $answer
+    equals:
+      wording_contains: ["did not make this request", "Do not send"]
+      wording_excludes: ["0199", "number matches"]
   deferred: []
   audit_sequence_includes:
   - VERIFY

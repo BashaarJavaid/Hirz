@@ -400,7 +400,7 @@ class Environment:
         raw["clock"]["end"] = raw["clock"]["end"].replace("T07:00:", "T08:00:")
         # Explicit benchmark counterpart: same approved rooms/binding/deadline,
         # Hourly's original dates, rates and weather. No source scenario is edited.
-        raw["execution"] = evening["execution"]
+        raw["execution"] = dict(evening["execution"], full_sequence=False)
         raw["bindings"] = evening["bindings"]
         for event in raw["timeline"]:
             if event.get("patch"):

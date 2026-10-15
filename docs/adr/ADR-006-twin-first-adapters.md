@@ -383,3 +383,27 @@ floating-point ULP as complete and accounts for that final energy increment.
 Two microseconds early remains running. This is confined to in-memory appliance
 physics; security deadlines, bounded endings and Pipeline decisions are unchanged.
 Reject extending this tolerance to device read-back or security authorization.
+
+
+## Full local scenario sequences — 2026-10-14 (author-approved)
+
+Item 35 extends the existing disposable host with opt-in `full_sequence` execution
+for evening, parents scam, no-answer, ordinary request and stranger-in-window.
+Seed and recorded v8 activation use real companion HTTP review and signed WebAuthn
+ceremonies through the shared software authenticator. Execution reloads stored
+active policy. Scripted voice remains explicit internal linked-account input;
+no public endpoint or authentication bypass is added. Household time is simulated;
+credential/session expiry remains on wall time.
+
+Scalar references bind activation to a saved proposal and each app answer to a
+saved action, approval and content hash. Completion requires all events and checks;
+scoped execution, observation replay, Hourly planning and HA restoration remain
+available. Reject in-memory activation as evidence, unexecuted bare tool names,
+implicit latest-request approval, vacuous success and fabricated audit events.
+
+The author's scope amendment accepts verified local twin unlock/relock and defers
+Link replay rejection and independently operated relocking to item 38a. Reject
+claiming cloud-failure resilience from a local worker. Retain the explicit deferral
+in reports. Numeric expectations retain the committed planning inputs and their
+existing evidence; reject changing inputs or inventing savings to fit old sketches.
+The exact runnable contract is in [scenario §3](../twin-and-scenarios.md#3-scenario-dsl).

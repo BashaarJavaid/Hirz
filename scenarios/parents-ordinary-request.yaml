@@ -16,6 +16,11 @@ adapters:
   contacts: twin
   doorbell: twin
 rate_plan: twin
+execution:
+  full_sequence: true
+  member: mom
+  rooms: {}
+  verified_app_fixtures: [malik]
 initial:
   base_load_kw: 0.4
   weather:
@@ -88,7 +93,9 @@ timeline:
   member: mom
   text: Malik wants to know when dinner is
   script:
-  - assess_request_risk
+  - tool: assess_request_risk
+    arguments: {text: "Malik wants to know when dinner is", claimed_party: Malik, party: person, request_id: ordinary-assessment}
+    save_as: case
 assert:
   checks:
   - at: '17:30'
@@ -109,4 +116,14 @@ assert:
     kind: call
     equals:
       count: 0
+  - at: '17:35'
+    kind: verification
+    equals: {risk_band: low, status: null, presented_number: null}
+  - at: '17:35'
+    kind: result
+    subject: $case
+    equals:
+      wording_excludes: [scam, "Don't send"]
+      wording_contains: [check]
   deferred: []
+  never: ["EXECUTE:finance.*", "EXECUTE:security.door_unlock"]

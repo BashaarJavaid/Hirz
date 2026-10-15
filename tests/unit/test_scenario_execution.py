@@ -723,3 +723,144 @@ def test_overnight_checks_do_not_promote_missing_execution_to_success():
         )
     assert statuses["comfort_at_replay_boundaries"] == "passed"
     assert statuses["dad_attribution"] == "passed"
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("proposal", None),
+        ("proposal", "$missing"),
+        ("proposal", "$initial_target"),
+        ("proposal", {"id": "rule"}),
+    ],
+)
+def test_full_sequence_references_fail_before_bootstrap(tmp_path, field, value):
+    import yaml
+
+    raw = yaml.safe_load(Path("scenarios/demo-evening.yaml").read_text())
+    event = next(e for e in raw["timeline"] if e["event"] == "constitution.activate")
+    if value is None:
+        event.pop(field)
+    else:
+        event[field] = value
+    path = tmp_path / "invalid.yaml"
+    path.write_text(yaml.safe_dump(raw))
+    with pytest.raises(ValueError, match="reference|validation"):
+        LoadedScenario(path)
+
+
+@pytest.mark.parametrize(
+    "mutation", ["event", "tool", "unchecked", "unreached", "deferral", "disabled"]
+)
+def test_full_completion_rejects_missing_evidence(mutation):
+    from hirz.twin.execution import full_sequence_complete
+    from hirz.twin.scenario import DeferredCheck
+
+    loaded = LoadedScenario(Path("scenarios/stranger-in-window.yaml"))
+    report = {
+        "checks": [
+            {"index": i, "status": "passed"}
+            for i in range(len(loaded.spec.assertions.checks))
+        ],
+        "events": [
+            {
+                "index": i,
+                "event": e.event,
+                "status": "executed",
+                "tools": [{"status": "executed"} for _ in e.script],
+            }
+            for i, e in enumerate(loaded.spec.timeline)
+        ],
+    }
+    assert full_sequence_complete(loaded, report, True)
+    if mutation == "event":
+        report["events"].pop()
+    elif mutation == "tool":
+        report["events"][1]["tools"][0]["status"] = "deferred"
+    elif mutation in {"unchecked", "unreached"}:
+        report["checks"][0]["status"] = mutation
+    elif mutation == "deferral":
+        loaded.spec = loaded.spec.model_copy(
+            update={
+                "assertions": loaded.spec.assertions.model_copy(
+                    update={
+                        "deferred": (
+                            DeferredCheck(
+                                expectation="Security", reason="Not implemented"
+                            ),
+                        )
+                    }
+                )
+            }
+        )
+    assert not full_sequence_complete(loaded, report, mutation != "disabled")
+
+
+def test_phone_answer_binds_saved_action_approval_and_hash():
+    from contextlib import asynccontextmanager
+
+    from hirz.pipeline.models import Action
+
+    loaded = LoadedScenario(Path("scenarios/stranger-in-window.yaml"))
+    event_index = next(
+        i for i, e in enumerate(loaded.spec.timeline) if e.event == "app.deny"
+    )
+    action = Action.model_validate(
+        {
+            "action_id": "unlock-one",
+            "class": "security.door_unlock",
+            "target": {"adapter": "twin", "entity": "lock.front_door"},
+            "params": {"open_minutes": 10, "locked": False},
+            "requested_by": {"member_id": None, "role": "unknown", "surface": "alexa"},
+            "reason": "test",
+            "content_hash": "a" * 64,
+        }
+    )
+
+    @asynccontextmanager
+    async def begin():
+        yield
+
+    from hirz.pipeline.hashing import action_hash
+
+    action = action.model_copy(update={"content_hash": action_hash(action)})
+    host = Host(
+        loaded,
+        SimpleNamespace(
+            connection=SimpleNamespace(
+                begin=begin,
+                scalar=AsyncMock(return_value=action.model_dump(mode="json")),
+            ),
+            scope=lambda table: True,
+        ),
+    )
+    host.saved["unlock"] = action.action_id
+    host.kinds["unlock"] = "action"
+    host.results["unlock"] = {
+        "data": {
+            "decision": {
+                "action_id": action.action_id,
+                "approval": {"approval_id": "exact-approval"},
+            }
+        }
+    }
+    host.phone_views["unlock"] = {
+        "approval": {"id": "exact-approval", "action": action.model_dump(mode="json")}
+    }
+    phone = SimpleNamespace(
+        enroll=AsyncMock(), ceremony=AsyncMock(return_value={"ok": True})
+    )
+    asyncio.run(host.phone_event(event_index, phone))
+    assert phone.ceremony.call_args.args == (
+        "malik",
+        {
+            "operation": "approve",
+            "approval_id": "exact-approval",
+            "action_hash": action.content_hash,
+            "approved": False,
+        },
+    )
+    host.results["unlock"]["data"]["decision"]["action_id"] = "another-action"
+    with pytest.raises(ValueError, match="changed"):
+        asyncio.run(host.phone_event(event_index, phone))
+    assert phone.ceremony.await_count == 1

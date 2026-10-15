@@ -12849,3 +12849,50 @@ Final closure checks passed: Ruff check/format (**321 files**), `git diff --chec
 byte-for-byte AGENTS.md/CLAUDE.md equality, evidence-link checks and a **60-word**
 Current phase. The diff from the tested implementation contains only the six
 completion/evidence documents; no executable code or tests changed after CI.
+
+
+## Item 35 — 2026-10-14
+
+### Local full-sequence implementation and initial acceptance
+
+Implemented the approved [ADR-006 amendment](./adr/ADR-006-twin-first-adapters.md#full-local-scenario-sequences--2026-10-14-author-approved).
+On macOS ARM64, Python 3.12.13 and the existing pinned native Dogwood, ran
+`HIRZ_LLM=off HIRZ_DOGWOOD="$PWD/.tools/dogwood" .venv/bin/hirz scenario run
+scenarios/<name>.yaml --headless --assert --artifacts-dir secrets/item35/<run>`.
+The existing virtualenv was used because sandboxed `uv` could not access its
+user cache; no dependency or lockfile changed. PostgreSQL runs in Docker Desktop.
+Only uniquely named disposable databases were migrated; development remains
+unmigrated. These initial artifacts predate the final execution-policy report-field
+correction; policy assertions already checked persisted active v8, not that field.
+
+| Scenario / private run | Status | Events | Checks | Independently verified audit rows |
+|---|---|---:|---:|---:|
+| parents-ordinary-request / ordinary2 | full_sequence_passed | 1 | 8 | 20 |
+| parents-scam-check / parents-scam-check2 | full_sequence_passed | 5 | 17 | 52 |
+| parents-scam-no-answer / parents-scam-no-answer2 | full_sequence_passed | 4 | 12 | 41 |
+| stranger-in-window / stranger-in-window2 | full_sequence_passed | 7 | 18 | 103 |
+| demo-evening / demo-evening2 | full_sequence_passed | 21 | 62 | 3708 |
+
+Each successful disposable database was dropped only after independent export
+verification. Earlier ordinary1 failed before database creation because PostgreSQL
+was stopped. Initial parents/stranger/evening failures exposed old narrative
+wording and an unconfirmed request's canonical `ASK_REQUESTER_CONFIRMATION` event;
+those failed databases and signed evidence remain. Explicit confirmed unlock
+requests now assert `ASK_CONSTITUTION`, still requiring a separate signed phone
+approval. No inputs or savings thresholds were changed.
+
+Hourly passed `item17_planning_and_observations_passed` (16 observation checks,
+plus its planning reports). `stranger-in-window --to 19:05 --assert` returned
+`stopped`, before the phone denial, with unexecuted assertions retained. The new
+four-scenario integration regression passed 4/4 in 27.05 seconds. Focused scenario
+unit tests passed 34/34 after strengthening exact-request binding and completion.
+Ruff and mypy passed (203 source files). Node 24 frontend lint/types and 6 Vitest
+checks passed. A direct browser invocation without its fixture server failed with
+`net::ERR_CONNECTION_REFUSED`; the existing companion smoke is the proper backend
+launcher and is being used for the browser gate.
+
+Full Python coverage, HA restoration, companion browser acceptance and remote
+ordinary/normal-latency CI are pending in this entry. No completion or threat-model
+promotion is claimed yet. The evidence establishes local software-passkey/twin
+behavior only: no physical phone, real contact delivery, paid inference, Ring,
+Link replay rejection, cloud-independent relock or AWS boundary claim.

@@ -46,7 +46,19 @@ class ScriptCall(Model):
 
     @model_validator(mode="after")
     def valid(self) -> Self:
-        from hirz.mcp.contracts import RiskInput, VerifyInput
+        from hirz.mcp.contracts import (
+            ActionInput,
+            ProposalInput,
+            RiskInput,
+            VerifyInput,
+        )
+
+        if self.tool == "propose_household_rule":
+            ProposalInput.model_validate(self.arguments)
+            return self
+        if self.tool == "execute_household_action" and "action" in self.arguments:
+            ActionInput.model_validate(self.arguments)
+            return self
 
         if self.tool in {"assess_request_risk", "verify_trusted_identity"}:
             (
@@ -77,6 +89,7 @@ class Response(Model):
 
 
 class Execution(Model):
+    full_sequence: StrictBool = False
     plan_at: str | None = None
     member: str
     ev_target: float = Field(default=0.5, ge=0, le=0.8)

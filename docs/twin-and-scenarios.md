@@ -257,119 +257,75 @@ notification transport and the scenario runner remain later roadmap work.
 
 ## 3. Scenario DSL
 
-The two YAML sketches below are targets for items 17, 22 and 35; §3.1 is the only executable syntax today.
+The committed YAML files are the executable specification. Each scenario describes
+one household; scripts call internal services with explicit linked-account
+provenance. No model selects tools or makes decisions in these runs.
 
-Item 16 implements the offline observation-stage contract in §3.1. The longer
-examples below describe the **target full demo**, including services still under
-development; they are illustrative sketches, not the executable YAML syntax.
-The committed [evening](../scenarios/demo-evening.yaml) and
-[parents](../scenarios/parents-scam-check.yaml) files are the runnable source of
-truth. They retain the full timeline, use explicit all-twin inputs, and list
-future expectations as deferred assertions. Real energy/HA bindings remain later
-integration work. The household seeds are read as graph data plus a constitution;
-no graph rows are written and no stored policy is activated.
+| Scenario | Required local evidence |
+|---|---|
+| [Evening](../scenarios/demo-evening.yaml) | Authenticated seed v7; recorded voice proposal and passkey activation of persisted v8; plans, revisions and explicit consent; v8 unexpected-unlock denial; lamp verification; vehicle motion; expected-window ASK, exact phone approval, ten-minute twin unlock and local relock; Dad's linked-account constraint; overnight physics and consent invariants |
+| [Parents scam](../scenarios/parents-scam-check.yaml) | Persisted CRITICAL case without an inferred caller number; explicitly simulated verified-channel check-in and not-genuine reply; result spoken on Mom's subsequent request; separately authorized courier warnings; no finance grant or unlock |
+| [No answer](../scenarios/parents-scam-no-answer.yaml) | Persisted pending case before its deadline, worker expiry, and subsequent advice not to send anything and to call the contact saved in the member's phone |
+| [Ordinary request](../scenarios/parents-ordinary-request.yaml) | “Malik wants to know when dinner is”; persisted LOW assessment, no scam warning, contact checking still offered |
+| [Stranger in window](../scenarios/stranger-in-window.yaml) | Evening's committed initial inputs and 17:31/17:32 rule change, without energy planning; ten-minute request at 19:04, exact request denied by passkey at 19:05, no unlock through completion |
 
-Two scenarios carry the demo. They are separate files on purpose: a scenario describes one household, and the DSL is not extended to span two.
+The approval inbox supplies “Mom is expected now. Hirz does not identify the
+visitor.” The existing companion screen prefixes “Someone is at the front door.”
+A schedule is context, never identification. The headless runner checks the
+actual authenticated inbox; existing browser regressions cover its rendering.
 
-**`scenarios/parents-scam-check.yaml`** (the cold open, Mom and Dad's home):
+Canonical audit selectors use `CONSTITUTION_PROPOSED`, `CONSTITUTION_ACTIVATED`,
+`PLAN_CREATED`, `PLAN_REVISED`, `PLAN_APPROVED`, `DENY_CONSTITUTION`,
+`ASK_CONSTITUTION`, `APPROVED`, `REJECTED` and `VERIFIED`. A bounded lock ending
+retains the `security.door_unlock` class with inverse `locked: true`; there is no
+`security.door_lock` class. Check-in transitions are persisted VerificationCases,
+not fabricated device `VERIFIED` events. The old illustrative audit sketches and
+provisional $1–$8 / 5 kWh thresholds have been removed. The evening YAML retains
+its previously verified initial forecast ranges and overnight invariants; inputs
+are not tuned to make the narrative more favorable. Revisions are separate
+remaining-horizon forecasts and cannot be added together.
 
-```yaml
-id: parents-scam-check
-seed: 20261013
-household: constitutions/quinn-parents.yaml          # Mom (owner), Dad (adult); Malik is a trusted contact with a verified Hirz-app channel
-clock: {start: "2026-10-13T17:00:00-05:00", speed: 60}
-adapters: {devices: twin, energy: twin, calendar: twin, doorbell: twin, contacts: twin}
-timeline:
-  - at: "17:04"   ; event: call.inbound           ; presented_number: "+1 312 555 0199" ; claim: "Malik in trouble, needs five hundred dollars"
-  - at: "17:05"   ; event: voice                  ; member: mom ; text: "Malik just called from a strange number. He says he's in trouble and needs five hundred dollars. Is it really him?"
-  - at: "17:06"   ; event: contact.checkin_reply  ; contact: malik ; reply: not_genuine   # the check-in asked about the specific request: another number, $500
-  - at: "17:07"   ; event: voice                  ; member: mom ; text: "Alexa, is it him?"           # Alexa cannot speak unprompted; the card and Mom's phone already show the answer
-  - at: "17:25"   ; event: doorbell.press         ; expected_visitor: null      # courier-pickup pattern: unexpected visitor while a CRITICAL case is recent
-assert:
-  audit_sequence_includes:
-    - VERIFY                                       # assess_request_risk lands CRITICAL; a VerificationCase opens
-    - VERIFIED                                     # Malik's own app: not_genuine
-    - EXECUTED:communication.contact_trusted_contact   # courier correlation: warn Mom, notify the contact Hirz verified
-  verification: {band: critical, presented_number: not_provided, status: not_genuine}
-  speakable_never_mentions: [number_match]          # Mom never read the number out, so Hirz says nothing about it
-  never:
-    - EXECUTE:finance.*
-    - EXECUTE:security.door_unlock
-```
+**Approved scope:** local twin unlock/relock. Link replay rejection and relocking
+operated independently of the cloud remain item 38a. The evening retains that
+explicit deferral and emits no `LINK_REJECTED` evidence. Hourly retains the existing
+observation/planning contract, with no full-sequence claim. The separate HA lamp
+smoke continues to verify and restore its actual demo binding at normal speed.
 
-Three short corpus scenarios sit beside it and are asserted the same way. **`scenarios/parents-scam-no-answer.yaml`**: the same call, Malik never replies, the case ends `no_answer`, and Alexa says not to send anything and to call the saved number. **`scenarios/parents-ordinary-request.yaml`**: "Dad wants to know when dinner is" lands LOW with no warning, and checking with Dad is still offered. **`scenarios/stranger-in-window.yaml`** (Malik's home): a stranger rings at 19:04 inside Mom's expected window; the approval reads "Someone is at the front door. Mom is expected now.", Malik denies it on his phone, and the assertions are `ASK_CONSTITUTION:security.door_unlock`, `REJECTED`, and never `EXECUTED:security.door_unlock`.
+### Full local sequence contract (item 35)
 
-**`scenarios/demo-evening.yaml`** (Malik's home):
+`execution.full_sequence: true` requires structured executable scripts. Added
+calls use the existing flat `ProposalInput` and `ActionInput`; existing lamp and
+planning script shapes are unchanged. Every `save_as` name is unique within the
+run. Activation requires `proposal: $rule` alongside `member` and `patch`;
+`app.approve` and `app.deny` require `request: $unlock` and `member`. Missing,
+forward, unresolved and wrong-kind references fail before bootstrap. There is no
+“latest request” inference.
 
-```yaml
-id: demo-evening
-seed: 20261013
-household: constitutions/quinn-home.yaml            # household graph + constitution seed; starts at v7 WITHOUT never_for: [unexpected_visitor]
-clock: {start: "2026-10-13T17:30:00-05:00", speed: 60}
-adapters: {devices: twin, ev: twin, energy: real, wearable: twin, calendar: twin, doorbell: twin, contacts: twin}
-rate_plan: comed_time_of_day                          # published ComEd rate table; a second corpus scenario runs the same evening on comed_hourly
-bindings: {light.living_room: ha, lock.front_door: ha}  # one physical smart plug, and Home Assistant's demo lock (`real API, demo devices`, shown as simulated) so the unlock rides the signed-command path in AWS mode; both fall back to twin if absent (scenario mode only)
-initial:
-  ev: {soc: 0.34, plugged_in: true}
-  battery: {soc: 0.55}
-  zones: {living_room: {temp_f: 68}, guest_room: {temp_f: 67}}
-  presence: {home: [malik], sleeping: []}
-timeline:
-  - at: "17:30"   ; event: presence.arrive        ; member: malik ; note: "earlier than usual"
-  - at: "17:31"   ; event: voice                  ; member: malik ; text: "From now on, never unlock the door for someone we're not expecting."
-  - at: "17:32"   ; event: constitution.activate  ; member: malik ; patch: fixtures/patch-never-unexpected-visitor.yaml   # passkey activation in the app; the recorded patch is what HIRZ_LLM=off uses in place of the drafted one, labeled as recorded
-  - at: "17:33"   ; event: voice                  ; member: malik ; text: "What's going on tonight?"
-  - at: "17:35"   ; event: voice                  ; member: malik ; text: "Don't charge the car past 50. I'm not driving tomorrow."   # the constraint is confirmed at once; the plan is `refreshing` and cannot be approved yet
-  - at: "17:36"   ; event: voice                  ; member: malik ; text: "Do it."                           # approves the revised plan, after it landed
-  - at: "18:40"   ; event: doorbell.press         ; expected_visitor: null
-  - at: "18:40"   ; event: voice                  ; member: malik ; text: "Let them in."                     # DENY_CONSTITUTION under the rule activated at 17:32
-  - at: "18:58"   ; event: doorbell.motion        ; classification: vehicle
-  - at: "19:04"   ; event: doorbell.press         ; expected_visitor: mom
-  - at: "19:04"   ; event: voice                  ; member: malik ; text: "That's my mom, let her in."
-  - at: "19:05"   ; event: app.approve            ; member: malik ; class: security.door_unlock   # security is never approved by voice; the screen says "Mom is expected now", not "unlock for Mom"
-  - at: "19:06"   ; event: link.replay            ; of: security.door_unlock                        # the accepted unlock command is sent again: refused, LINK_REJECTED (AWS mode; local mode runs Link's verifier with the development key)
-  - at: "22:40"   ; event: voice                  ; member: dad   ; text: "Don't run the dishwasher until I'm done in the kitchen at eleven."   # arrives on Dad's own linked account; provenance is the account, never the voice
-  - at: "23:05"   ; event: presence.sleep         ; member: mom ; zone: guest_room
-  - at: "23:30"   ; event: voice                  ; member: malik ; text: "Optimize energy tonight."      # appliance_start after 22:00 is ASK under quinn-home
-  - at: "23:31"   ; event: voice                  ; member: malik ; text: "Yes."                          # voice approval is allowed for non-security classes
-  - at: "+1d 06:45" ; event: wearable.recovery    ; member: malik ; score: 41
-  - at: "+1d 07:00" ; event: voice                ; member: malik ; text: "Good morning."
-assert:
-  audit_sequence_includes:
-    - CONSTITUTION_PROPOSED
-    - CONSTITUTION_ACTIVATED             # v8, before any plan approval exists
-    - PLAN_CREATED
-    - PLAN_REVISED                       # after "don't charge past 50"
-    - APPROVED                           # "Do it", only after the revised plan landed
-    - EXECUTE:energy.battery_dispatch    # discharge through the Mid-Day Peak
-    - EXECUTE:energy.hvac_adjust
-    - DENY_CONSTITUTION:security.door_unlock    # 18:40, citing constitution v8
-    - EXECUTED:environment.lights        # living-room lamp on at 18:55 for Mom's arrival; the physical plug when bound
-    - ASK_CONSTITUTION:security.door_unlock
-    - APPROVED
-    - EXECUTED:security.door_unlock
-    - EXECUTED:security.door_lock        # the relock, run by Hirz Link from its own clock
-    - LINK_REJECTED                      # the replayed unlock
-    - PLAN_REVISED                       # after Dad's kitchen constraint
-    - ASK_CONSTITUTION:energy.appliance_start   # the household's own rule: ask outside 07:00–22:00
-    - APPROVED                           # by voice; appliance_start is not a security class
-    - EXECUTED:energy.ev_charge          # in the Overnight period, after 21:00
-    - EXECUTED:energy.appliance_start    # after Dad's constraint and Malik's approval
-  plan_summary:
-    estimated_savings_usd: {min: 1.00, max: 8.00}   # against the timer baseline; provisional; ROADMAP item 17 derives the range from the backtest and replaces it
-    peak_kwh_avoided: {min: 5.0}
-    comfort_violations_minutes: {max: 0}
-  ev_soc_at: {"+1d 06:30": {min: 0.50}}
-  never:
-    - EXECUTE:finance.*
-    - EXECUTE:security.access_code_share
-```
+The disposable host uses the shared Python software authenticator and actual
+companion HTTP endpoints over httpx ASGI transport. It enrolls through invitations,
+keeps server-issued cookies, sends Origin/CSRF, reviews drafts and signs activation
+and approval ceremonies. Authentication expires on wall time; household execution
+uses scenario time. Seed activation preserves its version. Recorded patches go
+through proposal/draft/review/activation services; execution reloads persisted
+policy and requires active policy thereafter. Approval ceremonies bind the saved
+action, its approval ID and content hash. These are local software-passkey tests,
+not physical-phone acceptance or an authentication bypass.
 
-Event kinds: `voice`, `app.approve|deny` (a member acting in the companion app; the only way a `security.*` approval can happen), `presence.arrive|leave|sleep|wake`, `calendar.add|remove`, `tariff.spike|update`, `weather.update`, `ev.drive|plug|unplug`, `call.inbound`, `contact.checkin_reply`, `doorbell.press|motion`, `device.fail`, `device.manual_change` (someone used the thermostat or the lock by hand: `OUT_OF_BAND_CHANGE`, and a manual hold for comfort devices), `link.replay|tamper|readdress` (the tamper playground's moves), `link.offline`, `wearable.recovery`, `constitution.activate` (optionally with a recorded `patch`), `clock.jump`.
+`assert.checks` adds `result`, `action` and `approval`, each with `subject: $name`.
+`equals` selects dotted fields of the captured canonical tool result, persisted
+action row, or captured authenticated inbox (`approval` and `door`). Result wording
+checks use `wording_contains` / `wording_excludes` string lists. Policy checks read
+the stored active policy. Existing observations, persisted verification checks,
+audit selectors and numeric tolerances remain supported.
 
-`voice` events are delivered to the simulator's emulated host (or, in headless test mode, to a scripted host that calls the tools the emulator would call, so tests don't need Bedrock).
-
----
+`full_sequence_passed` requires every timeline event and tool, every reached
+assertion and signed-export verification. Unchecked runs, omitted work and
+unapproved deferrals fail; deliberate `step` runs remain `stopped`. Reports retain
+setup authentication, canonical results, inbox context, signed audit artifacts and
+the approved Link limitation. Successful export verification precedes disposable
+database cleanup; failures retain the database and available private evidence.
+No development migration, new endpoint, dependency or real contact delivery is
+part of this contract.
 
 ### 3.1 Item 16 runnable contract
 

@@ -17,6 +17,7 @@ adapters:
   doorbell: twin
 rate_plan: comed_time_of_day
 execution:
+  full_sequence: true
   plan_at: '17:33'
   member: malik
   ev_target: 0.8
@@ -252,10 +253,13 @@ timeline:
   member: malik
   text: From now on, never unlock the door for someone we're not expecting.
   script:
-  - propose_household_rule
+  - tool: propose_household_rule
+    arguments: {text: "From now on, never unlock the door for someone we're not expecting.", request_id: evening-rule}
+    save_as: rule
 - at: '17:32'
   event: constitution.activate
   member: malik
+  proposal: $rule
   patch: fixtures/patch-never-unexpected-visitor.yaml
 - at: '17:33'
   event: voice
@@ -295,7 +299,10 @@ timeline:
   member: malik
   text: Let them in.
   script:
-  - execute_household_action
+  - tool: execute_household_action
+    confirmed: true
+    arguments: {action: request_door_unlock, minutes: 10, request_id: unexpected-unlock}
+    save_as: unexpected
 - at: '18:55'
   event: voice
   member: malik
@@ -317,13 +324,14 @@ timeline:
   member: malik
   text: That's my mom, let her in.
   script:
-  - execute_household_action
+  - tool: execute_household_action
+    confirmed: true
+    arguments: {action: request_door_unlock, minutes: 10, request_id: expected-unlock}
+    save_as: unlock
 - at: '19:05'
   event: app.approve
   member: malik
-  payload:
-    class: security.door_unlock
-  deferred: Authenticated app approval and execution are later work.
+  request: $unlock
 - at: '19:06'
   event: link.replay
   payload:
@@ -333,7 +341,7 @@ timeline:
   event: presence.arrive
   member: mom
   zone: hvac.living_room
-  note: Explicit simulation input, independent of deferred unlock.
+  note: Explicit simulation input, independent of the unlock.
 - at: '22:40'
   event: voice
   member: dad
@@ -467,11 +475,53 @@ assert:
       price_band: morning
     domain: energy
     subject: household
+  - at: '18:40'
+    kind: result
+    subject: $unexpected
+    equals:
+      data.decision.decision: deny
+      data.decision.event_type: DENY_CONSTITUTION
+  - at: '19:04'
+    kind: result
+    subject: $unlock
+    equals:
+      data.decision.decision: ask
+  - at: '19:06'
+    kind: action
+    subject: $unlock
+    equals:
+      execution_status: verified
+      proposal.revert.after_s: 600
+  - at: '19:06'
+    kind: observation
+    domain: devices
+    subject: lock.front_door
+    equals: {locked: false}
+  - at: '19:16'
+    kind: observation
+    domain: devices
+    subject: lock.front_door
+    equals: {locked: true}
+  - at: '19:04'
+    kind: approval
+    subject: $unlock
+    equals:
+      door.context: ["Mom is expected now. Hirz does not identify the visitor."]
+      approval.action.params.open_minutes: 10.0
+      approval.action.class: security.door_unlock
   audit_sequence_includes:
+  - CONSTITUTION_ACTIVATED
+  - CONSTITUTION_PROPOSED
+  - CONSTITUTION_ACTIVATED
   - PLAN_CREATED
   - PLAN_REVISED
   - PLAN_APPROVED
+  - DENY_CONSTITUTION:security.door_unlock
   - VERIFIED:environment.lights
+  - ASK_CONSTITUTION:security.door_unlock
+  - APPROVED:security.door_unlock
+  - VERIFIED:security.door_unlock
+  - VERIFIED:security.door_unlock
   # Initial 17:33 forecast, retained item 22 run12 signed PLAN_CREATED.
   # Revisions are separate remaining-horizon forecasts; never add their savings.
   plan_summary:
@@ -485,7 +535,5 @@ assert:
   - EXECUTE:finance.*
   - EXECUTE:security.access_code_share
   deferred:
-  - expectation: Constitution proposal and authenticated activation audit
-    reason: The v8 patch is a simulated preview; execution retains validated seed v7.
-  - expectation: Security-device execution and Hirz Link
-    reason: Security, trust and Link service flows remain deferred.
+  - expectation: Link replay rejection and independently operated relocking
+    reason: Approved item 38a deferral; local twin relock does not prove cloud-failure resilience.

@@ -1938,3 +1938,38 @@ pairs a real app link, triggers a labeled twin press and checks private warning
 projection and revocation. No physical-device, paid inference or real-iPhone-push
 gate is added. Full Python/TypeScript, packaging, conformance and both normal CI
 latency gates remain required for closure.
+
+
+## Full local scenario assertions (item 35)
+
+Use the existing local PostgreSQL credentials, built MCP cards and pinned native
+Dogwood. Development migrations remain manual: these commands migrate only their
+uniquely named disposable databases. No Bedrock call or real contact delivery is
+needed. Each artifact directory must be new.
+
+```bash
+export HIRZ_DOGWOOD="$PWD/.tools/dogwood"
+export HIRZ_LLM=off
+for scenario in demo-evening parents-scam-check parents-scam-no-answer parents-ordinary-request stranger-in-window; do
+  uv run --locked hirz scenario run "scenarios/$scenario.yaml" --headless --assert --artifacts-dir "secrets/item35-$scenario"
+done
+uv run --locked hirz scenario run scenarios/demo-evening-hourly.yaml --headless --assert
+uv run --locked hirz scenario step scenarios/stranger-in-window.yaml --to 19:05 --assert
+uv run --locked python scripts/smoke_scenario.py --live-demo --artifacts-dir secrets/item35-ha
+```
+
+The five full runs require `full_sequence_passed`; Hourly retains
+`item17_planning_and_observations_passed` and its planning checks. Step stops before its target
+and returns `stopped`. Full runs without `--assert` fail. The report's setup and
+activation entries record software-passkey HTTP ceremonies; its final execution
+policy version is read from the reloaded stored policy. Private artifacts include
+the report, audit export and verification key. Verify success before cleanup;
+failure retains its database and available evidence. Never delete a failed run's
+evidence to turn it into a pass.
+
+[Scenario §3](./twin-and-scenarios.md#3-scenario-dsl) owns the assertions and Link
+deferral. Run the Python service-free suite, integration suite with appended
+coverage, combined 80% gate, ordinary CI and both normal latency jobs before item
+closure. Existing companion browser regressions cover approval-page rendering;
+headless ASGI ceremonies do not establish a physical phone or cloud-independent
+relock. No extra browser matrix is required.

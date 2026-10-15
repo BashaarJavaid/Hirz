@@ -16,6 +16,11 @@ adapters:
   contacts: twin
   doorbell: twin
 rate_plan: twin
+execution:
+  full_sequence: true
+  member: mom
+  rooms: {}
+  verified_app_fixtures: [malik]
 initial:
   base_load_kw: 0.4
   weather:
@@ -93,8 +98,13 @@ timeline:
   text: Malik just called from a strange number. He says he's in trouble and needs
     five hundred dollars. Is it really him?
   script:
-  - assess_request_risk
-  - verify_trusted_identity
+  - tool: assess_request_risk
+    arguments: {text: "Malik called from a strange number and needs five hundred dollars", claimed_party: Malik, party: person, request_id: no-answer-assessment}
+    save_as: case
+  - tool: verify_trusted_identity
+    confirmed: true
+    arguments: {operation: start, case_id: $case, request_id: no-answer-check}
+    save_as: pending
 - at: '17:37'
   event: contact.checkin_reply
   contact: malik
@@ -106,7 +116,9 @@ timeline:
   member: mom
   text: Alexa, is it him?
   script:
-  - verify_trusted_identity
+  - tool: verify_trusted_identity
+    arguments: {operation: status, case_id: $case}
+    save_as: answer
 assert:
   checks:
   - at: '17:30'
@@ -141,6 +153,18 @@ assert:
     subject: malik
     equals:
       status: no_answer
+  - at: '17:36'
+    kind: verification
+    equals: {risk_band: critical, status: pending, presented_number: null}
+  - at: '17:37'
+    kind: verification
+    equals: {risk_band: critical, status: no_answer, presented_number: null}
+  - at: '17:38'
+    kind: result
+    subject: $answer
+    equals:
+      wording_contains: ["Do not send anything", "saved"]
   deferred: []
+  never: ["EXECUTE:finance.*", "EXECUTE:security.door_unlock"]
 # The authenticated MCP replay and saved-number wording assertion run in
 # tests/integration/test_trusted_checkins.py::test_no_answer_scenario_through_authenticated_mcp.
