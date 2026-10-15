@@ -116,6 +116,8 @@ async def assess(
         (),
         p.clock(),
         preview=PreviewEvidence(
+            # An in-process keyword fact is not an observation and is never "real";
+            # see ADR-004 "Protect evidence amendment — 2026-10-11".
             scam_pattern=SupplementalEvidence(
                 household_id=p.household_id,
                 observed_at=p.clock(),
@@ -173,6 +175,7 @@ async def assess(
         claim=VerificationClaim(text=args.text, presented_number=args.presented_number),
         subject=VerificationSubject(
             contact_id=str(contact["id"]) if contact else None,
+            # trusted = a current saved record exists at this registry revision; never caller identity (ADR-023)
             trusted=contact is not None,
             claimed_party=args.claimed_party,
             party=args.party,
@@ -360,7 +363,13 @@ async def verify(
         )
         assert result.data.case
         case = result.data.case
-    if not case.subject.contact_id or case.subject.party != "person":
+    if case.subject.party == "organization":
+        return response(
+            "An organization case cannot start a person check. Call the organization's published number, and separately ask a trusted person.",
+            status="unavailable",
+            case=case,
+        )
+    if not case.subject.contact_id:
         return response(
             "A verified simulated app channel is required for this preview's contact check.",
             status="unavailable",

@@ -209,6 +209,7 @@ async def send_allowed(
     at = at or contact_time(p)
     from hirz.pipeline.models import VerificationCase
 
+    # ponytail: full scan of courier case JSON per check; add a published_at column/index before multi-year households
     documents = (
         (
             await p.connection.execute(

@@ -809,6 +809,10 @@ async def verification_check(p: Pipeline, check: Any) -> bool:
     )
 
 
+# Full-sequence scenarios must name this deferral byte for byte.
+LINK_DEFERRAL = "Link replay rejection and independently operated relocking"
+
+
 def full_sequence_complete(
     loaded: LoadedScenario, report: dict[str, Any], assertions: bool
 ) -> bool:
@@ -819,11 +823,7 @@ def full_sequence_complete(
         == set(range(len(loaded.spec.assertions.checks)))
         and bool(report["checks"])
         and all(c["status"] == "passed" for c in report["checks"])
-        and all(
-            c.expectation
-            == "Link replay rejection and independently operated relocking"
-            for c in loaded.spec.assertions.deferred
-        )
+        and all(c.expectation == LINK_DEFERRAL for c in loaded.spec.assertions.deferred)
         and all(
             event.get("index") == index
             and event["event"] == required.event
@@ -1265,6 +1265,12 @@ async def run_execution(
                             status="passed" if complete else "failed",
                         )
                     )
+                    if any(
+                        c.expectation != LINK_DEFERRAL for c in spec.assertions.deferred
+                    ):
+                        report["checks"][-1]["reason"] = (
+                            f"deferred expectation must be exactly {LINK_DEFERRAL!r}"
+                        )
                 report["status"] = (
                     "failed"
                     if any(c["status"] == "failed" for c in report["checks"])

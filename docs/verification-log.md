@@ -13372,3 +13372,35 @@ Commands and summary lines:
 
 Not claimed: no CI, latency, browser or card run; the companion page and MCP App
 card were not rendered; no real-channel check-in was exercised.
+
+### Review nits: deferral constant, wall-clock comment, scan ceiling, evidence label, organization wording
+
+- `hirz/twin/execution.py`: the full-sequence deferral sentence is now the
+  module constant `LINK_DEFERRAL`, used by `full_sequence_complete`; when a
+  scenario's deferral differs, the `full_sequence` check carries `reason:
+  "deferred expectation must be exactly '<sentence>'"`. Sentence and scenario
+  files unchanged.
+- `hirz/contacts/service.py`: `contact_time(p)` kept (35 `contact_time(` matches
+  across `hirz/`, `scripts/` and `tests/`); a ponytail comment cites ADR-022.
+- `hirz/contacts/worker.py` `send_allowed`: comment naming the full courier-case
+  scan and the `published_at` column/index upgrade. No code change.
+- `hirz/mcp/trust.py`: comments at the `scam_pattern` `SupplementalEvidence`
+  (ADR-004 "Protect evidence amendment — 2026-10-11") and at
+  `subject.trusted` (ADR-023). An organization case asked to start a person check
+  now says "An organization case cannot start a person check. Call the
+  organization's published number, and separately ask a trusted person." (18
+  words); a person case without a contact keeps the old wording. No test asserted
+  the old wording, and `docs/tool-catalog.md` does not quote it.
+
+Commands and summary lines:
+
+- `uv run ruff check .` — `All checks passed!`
+- `uv run mypy hirz/ scripts/ alembic/` — `Success: no issues found in 203 source files`
+- `uv run pytest tests/unit/test_scenario_execution.py tests/unit/test_organizations.py tests/unit/test_household_tools.py -q --no-cov` — `96 passed in 4.13s`
+- `uv run pytest -q` — `1611 passed, 245 deselected, 2 warnings in 224.90s (0:03:44)`
+- `uv run python scripts/check_dev.py` — PASS lines through `HA: unauthenticated state read -> 401`
+- `HIRZ_DOGWOOD=$PWD/.tools/dogwood uv run hirz scenario run scenarios/demo-evening.yaml --headless --assert --output <scratch>/nits-demo-evening.json` — report `status: full_sequence_passed`, `{"kind": "full_sequence", "status": "passed"}`, audit `valid` (3634 rows); `disposable_database=dropped; development_database=unchanged`
+- `uv run ruff format --check .` (run last, after this entry) — first run flagged `hirz/twin/execution.py` (line wrap); after `uv run ruff format hirz/twin/execution.py`, `ruff check` passed and the scenario unit file re-ran `34 passed in 2.94s`; then `324 files already formatted`
+
+Not claimed: the mismatch `reason` and the new organization wording were not
+exercised by a test or a run; no CI, latency or browser run.

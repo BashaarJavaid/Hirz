@@ -21,6 +21,7 @@ from hirz.pipeline.models import Decision, Principal
 from hirz.pipeline.service import Pipeline
 
 
+# ponytail: wall clock on purpose (ADR-022); the Pipeline clock may be paced scenario time
 def contact_time(p: Pipeline) -> datetime:
     """Real communication deadlines use wall time, even inside a paced twin demo."""
     return now()
