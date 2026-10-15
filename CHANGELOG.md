@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-10-15: Load the Protect worker's policy bundle only when a household has a pending or running extraction; an idle household now costs one small existence query per second instead of a policy load ([evidence](./docs/verification-log.md#protect-worker-loads-policy-only-when-work-is-pending)).
+
 - 2026-10-15: Check the Protect budget ledger before CountTokens so a missing, foreign or exhausted ledger makes no provider call; the counted reservation and $2 ceiling are unchanged ([ADR-015](./docs/adr/ADR-015-household-tools.md), [evidence](./docs/verification-log.md#ledger-gate-precedes-every-provider-call)).
 
 - 2026-10-15: Let the contact worker advance and time out app check-ins without `HIRZ_CONTACT_ENCRYPTION_KEY`; email check-ins and enrollment stay untouched until the key is set, and `hirz worker` says so at startup ([ADR-022](./docs/adr/ADR-022-trusted-checkins.md#app-check-ins-without-the-contact-key--2026-10-15), [evidence](./docs/verification-log.md#app-check-ins-advance-without-the-contact-key)).

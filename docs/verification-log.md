@@ -13233,3 +13233,40 @@ Commands and summary lines:
 Not claimed: no live Bedrock call was made, no `--live` flag was used and the
 retained item 32 ledger was not read or touched; the worker path through
 `hirz.pipeline.service` was not run end to end; no integration, CI or latency run.
+
+### Protect worker loads policy only when work is pending
+
+`hirz/protect/worker.py` `background(...)` reloaded the household policy bundle
+from PostgreSQL on every one-second iteration, even with no extraction pending.
+The loop now first runs one `SELECT EXISTS` over the household's verification
+cases whose extraction status is `pending` or `running` (the same predicate, now
+the shared `waiting(p)`, that `advance` uses to select the next case) and only
+then loads the bundle and calls `advance`. The separate connection/task, the
+per-household session advisory lock, the no-transaction-around-the-provider rule,
+the `running` → `interrupted` fallback and the one-second cadence are unchanged.
+
+New integration test `test_background_loads_policy_only_when_extraction_pending`
+in `tests/integration/test_protect_database.py` drives the real `background(...)`
+against a disposable database with `hirz.executor.local.policy` replaced by a
+counting loader and `extract` patched (no provider call): about three idle
+iterations load nothing; one pending case is completed with exactly one load; two
+further idle iterations add none.
+
+Negative control: with the `hirz/` change stashed, `uv run pytest
+tests/integration/test_protect_database.py -m integration --no-cov -q -k
+background` gave `1 failed, 3 deselected in 5.29s` (`AssertionError: assert
+[UUID('536fa8...ba418e710a0')] == []` on the idle assertion).
+
+Commands and summary lines:
+
+- `uv run python scripts/check_dev.py` — no `FAIL` lines
+- `uv run pytest tests/integration/test_protect_database.py -m integration --no-cov -q` — `4 passed in 17.87s`
+- `uv run ruff check .` — `All checks passed!`
+- `uv run mypy hirz/ scripts/ alembic/` — `Success: no issues found in 203 source files`
+- `uv run pytest -q` — `1608 passed, 245 deselected, 2 warnings in 238.66s (0:03:58)`
+- `uv run ruff format --check .` (run last, after this entry) — `324 files already formatted`
+
+Not claimed: no live Bedrock call, no `--live` flag, the item 32 ledger was not
+touched; no CI, latency or App Runner run; query cost was not measured, only the
+absence of idle policy loads. ADR-015 was not changed because its Protect
+amendment does not state a per-iteration policy reload.

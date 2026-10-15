@@ -41,6 +41,15 @@ async def transition(p: Pipeline, row: Any, case: VerificationCase) -> None:
     )
 
 
+def waiting(p: Pipeline) -> sa.ColumnElement[bool]:
+    return sa.and_(
+        p.scope(db.verification_cases),
+        db.verification_cases.c.document["extraction"]["status"].astext.in_(
+            ["pending", "running"]
+        ),
+    )
+
+
 async def advance(p: Pipeline) -> bool:
     # Session lock owns only extraction, never the household mutation lock.
     key = "protect:" + str(p.household_id)
@@ -57,12 +66,7 @@ async def advance(p: Pipeline) -> bool:
                 (
                     await p.connection.execute(
                         sa.select(db.verification_cases)
-                        .where(
-                            p.scope(db.verification_cases),
-                            db.verification_cases.c.document["extraction"][
-                                "status"
-                            ].astext.in_(["pending", "running"]),
-                        )
+                        .where(waiting(p))
                         .order_by(
                             db.verification_cases.c.created_at,
                             db.verification_cases.c.id,
@@ -156,8 +160,14 @@ async def background(
 
         async def run() -> None:
             while True:
-                p.bundle = await policy(p)
-                await advance(p)
+                # An idle household costs one small query, never a policy load.
+                async with p.connection.begin():
+                    work = await p.connection.scalar(
+                        sa.select(sa.exists().where(waiting(p)))
+                    )
+                if work:
+                    p.bundle = await policy(p)
+                    await advance(p)
                 await asyncio.sleep(1)
 
         task = asyncio.create_task(run())

@@ -350,3 +350,56 @@ def test_authenticated_phone_reads_current_advice(scratch_database, monkeypatch)
                 assert "completed" in complete["speakable"]["details"][0]
 
     asyncio.run(run())
+
+
+def test_background_loads_policy_only_when_extraction_pending(
+    scratch_database, monkeypatch
+):
+    from pathlib import Path
+
+    import hirz.executor.local
+    from hirz.local import read_env
+    from hirz.protect.worker import background
+
+    monkeypatch.setenv("HIRZ_LLM", "bedrock")
+    loads = []
+
+    async def run():
+        async with connect(scratch_database) as c:
+            p = await setup(c, native=True)
+
+            async def counted(q):
+                loads.append(q.household_id)
+                return p.bundle
+
+            monkeypatch.setattr(hirz.executor.local, "policy", counted)
+            values = read_env(Path(".env"))
+            with patch("hirz.protect.worker.extract", return_value=signals("urgent")):
+                async with background(values, scratch_database.database, p) as task:
+                    # About three idle iterations at the one-second cadence.
+                    await asyncio.sleep(2.5)
+                    assert not task.done()
+                    assert loads == []
+                    case = await HouseholdTools(p, PRINCIPAL).call(
+                        "assess_request_risk",
+                        {"text": SCAM, "party": "person", "request_id": "idle"},
+                    )
+                    assert case.data.case.extraction.status == "pending"
+                    identity = case.data.case.case_id
+                    async with asyncio.timeout(5):
+                        while True:
+                            async with c.begin():
+                                document = await c.scalar(
+                                    sa.select(db.verification_cases.c.document).where(
+                                        db.verification_cases.c.id == identity
+                                    )
+                                )
+                            if document["extraction"]["status"] == "complete":
+                                break
+                            await asyncio.sleep(0.1)
+                    # Idle again after the only pending case completes.
+                    await asyncio.sleep(2.2)
+                    assert not task.done()
+                    assert loads == [p.household_id]
+
+    asyncio.run(run())
