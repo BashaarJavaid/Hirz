@@ -6,7 +6,7 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
-- 2026-10-15: The stranger scenario now checks that the unlock result's spoken text never says who the visitor is. A unit test checks that no verification reply, real or twin, is spoken as advice to pay, and pins the genuine-reply advice sentence. No runtime change ([evidence](./docs/verification-log.md#stranger-wording-guard-and-genuine-reply-negative-test)).
+- 2026-10-15: The stranger scenario now checks that the unlock result's spoken text never says who the visitor is. A unit test checks that no verification reply, real or twin, is spoken as advice to pay, and pins the genuine-reply advice sentence. The real no-answer headline drops to two sentences (`Do not send anything; call…`), so it now renders under the Speakable limit instead of failing validation ([evidence](./docs/verification-log.md#stranger-wording-guard-and-genuine-reply-negative-test)).
 
 - 2026-10-15: The evening scenario now checks each of the five plan revisions, the guest room at 72°F, the idle dishwasher before 23:31, and the ordered 23:31 consent, nighttime votes and verified dishwasher start; the evening goes from 62 to 76 checks, with no runtime change ([evidence](./docs/verification-log.md#demo-evening-asserts-revisions-and-the-dishwasher-window)).
 

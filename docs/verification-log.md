@@ -13513,3 +13513,5 @@ The test skips it with a comment and does not claim it.
 
 Not claimed: no CI, latency, browser or live-contact run. The other full sequences were
 not rerun.
+
+Follow-up the same day: the real `no_answer` headline in `hirz/mcp/trust.py` now has the same two-sentence shape as the twin one ("The contact has not answered. Do not send anything; call the contact saved in your own phone."). The skip is removed, so the test renders all 64 combinations; after the change, `uv run pytest tests/unit/test_household_tools.py -q --no-cov` gave `41 passed`, ruff printed `All checks passed!`, mypy printed `Success: no issues found in 203 source files`, and `uv run pytest -q` gave `1612 passed, 245 deselected`. The old string was quoted nowhere else (no test, scenario, doc or `apps/` baseline).

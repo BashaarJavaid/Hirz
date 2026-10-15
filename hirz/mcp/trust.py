@@ -230,7 +230,7 @@ def case_response(case: VerificationCase) -> Result:
             "genuine": "The contact confirmed this specific request. Call the contact saved in your own phone before acting.",
             "not_genuine": "The contact says they did not make this request. Do not send anything.",
             "will_call": "The contact says they intend to call. This does not arrange or confirm a call.",
-            "no_answer": "The contact has not answered. Do not send anything. Call the contact saved in your own phone.",
+            "no_answer": "The contact has not answered. Do not send anything; call the contact saved in your own phone.",
         }[state.status]
     if state.reason:
         headline = {

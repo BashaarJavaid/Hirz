@@ -359,11 +359,6 @@ def test_no_verification_outcome_is_spoken_as_advice_to_pay():
     for source in ("real", "twin"):
         for status in statuses:
             for reason in (None, *reasons):
-                if (source, status, reason) == ("real", "no_answer", None):
-                    # Every real no_answer producer in hirz/contacts/checkins.py
-                    # sets a reason; this unreasoned headline has three sentences
-                    # and Speakable rejects it (reported 2026-10-15, not fixed).
-                    continue
                 case = VerificationCase.model_validate(
                     dict(
                         case_id="private-case",
@@ -394,7 +389,7 @@ def test_no_verification_outcome_is_spoken_as_advice_to_pay():
                 if status == "genuine" and reason is None:
                     assert genuine[source] in speech.headline
                 rendered += 1
-    assert rendered == 2 * len(statuses) * (1 + len(reasons)) - 1 == 63
+    assert rendered == 2 * len(statuses) * (1 + len(reasons)) == 64
 
 
 def test_host_counts_foundation_model_before_reserving_complete_request(tmp_path):
