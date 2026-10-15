@@ -270,3 +270,28 @@ def test_ordinary_scenario_has_recorded_assessment_and_valid_twin():
             },
         )
     ]
+
+
+def test_signal_names_agree_across_python_and_typescript():
+    import re
+    import typing
+    from pathlib import Path
+
+    from hirz.pipeline.models import VerificationSignal
+    from hirz.protect.advice import LABELS, POSSIBLE
+    from hirz.protect.scoring import PHRASES
+
+    names = set(PHRASES)
+    assert (
+        set(typing.get_args(VerificationSignal.model_fields["signal"].annotation))
+        == names
+    )
+    assert set(LABELS) == names and set(POSSIBLE) == names
+    # ponytail: text cross-check, generate a shared JSON if a fifth copy appears
+    root = Path(__file__).resolve().parents[2]
+    web = (root / "apps/web/src/pages/Checkins.tsx").read_text()
+    block = re.search(r"const signalLabels[^=]*= \{(.*?)\};", web, re.S)
+    assert block and set(re.findall(r"(\w+):", block[1])) == names
+    card = (root / "apps/mcp-app/src/schema.ts").read_text()
+    enum = re.search(r"signal: z\.enum\(\[(.*?)\]\)", card)
+    assert enum and set(re.findall(r'"(\w+)"', enum[1])) == names

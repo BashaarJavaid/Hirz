@@ -19,6 +19,14 @@ LABELS = {
     "urgency_language": "Pressure to act quickly",
     "claimed_authority": "A claim of authority",
 }
+POSSIBLE = {
+    "financial_or_access_request": "money or access request",
+    "unfamiliar_channel_reported": "reported unfamiliar channel",
+    "secrecy": "request for secrecy",
+    "third_party_recipient": "third-party recipient",
+    "urgency_language": "pressure to act quickly",
+    "claimed_authority": "claim of authority",
+}
 
 
 def notice(extraction: VerificationExtraction | None) -> str:
@@ -39,15 +47,7 @@ def labels(case: VerificationCase) -> tuple[str, ...]:
     )
     return tuple(
         (
-            "Possible "
-            + {
-                "financial_or_access_request": "money or access request",
-                "unfamiliar_channel_reported": "reported unfamiliar channel",
-                "secrecy": "request for secrecy",
-                "third_party_recipient": "third-party recipient",
-                "urgency_language": "pressure to act quickly",
-                "claimed_authority": "claim of authority",
-            }[s.signal]
+            "Possible " + POSSIBLE[s.signal]
             if s.signal not in keywords
             else LABELS[s.signal]
         )

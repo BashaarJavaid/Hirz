@@ -13270,3 +13270,34 @@ Not claimed: no live Bedrock call, no `--live` flag, the item 32 ledger was not
 touched; no CI, latency or App Runner run; query cost was not measured, only the
 absence of idle policy loads. ADR-015 was not changed because its Protect
 amendment does not state a per-iteration policy reload.
+
+### Signal names cross-checked across Python and TypeScript
+
+The six Protect signal names were copied in four places with nothing tying them
+together. New unit test `test_signal_names_agree_across_python_and_typescript` in
+`tests/unit/test_protect.py` takes `hirz/protect/scoring.py` `PHRASES` keys as the
+set and asserts it equals the `VerificationSignal.signal` literal, the keys of
+both label maps in `hirz/protect/advice.py`, the `signalLabels` keys in
+`apps/web/src/pages/Checkins.tsx` and the `signal` `z.enum` in
+`apps/mcp-app/src/schema.ts` (the last two by a commented regex over the file
+text). To make the second advice map importable, its inline dict in `labels()`
+was hoisted unchanged to the module constant `POSSIBLE`; the two maps carry
+different wording, so they were not collapsed. No signal was renamed; no build
+step, shared package, code generation or dependency was added.
+
+Negative controls: adding `"bogus_signal"` to the `schema.ts` enum gave `1 failed,
+20 deselected in 0.91s`; adding `bogus_signal: "x"` to `signalLabels` in
+`Checkins.tsx` gave `1 failed, 20 deselected in 0.85s`. Both edits were reverted
+with `git checkout --`.
+
+Commands and summary lines:
+
+- `uv run pytest tests/unit/test_protect.py -q --no-cov` — `21 passed in 1.52s`
+- `uv run ruff check .` — `All checks passed!`
+- `uv run mypy hirz/ scripts/ alembic/` — `Success: no issues found in 203 source files`
+- `uv run pytest -q` — `1609 passed, 245 deselected, 2 warnings in 237.08s (0:03:57)`
+- `uv run ruff format --check .` (run last, after this entry) — `324 files already formatted`
+
+Not claimed: no TypeScript lint, typecheck or test run (no TypeScript file
+changed); no integration, CI or latency run. The text check covers only the two
+named TypeScript literals, not any other place a signal name may be typed.
