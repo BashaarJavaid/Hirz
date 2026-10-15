@@ -509,6 +509,65 @@ assert:
       door.context: ["Mom is expected now. Hirz does not identify the visitor."]
       approval.action.params.open_minutes: 10.0
       approval.action.class: security.door_unlock
+  # 17:35 and 22:40 revisions: each is recorded through the Pipeline without clarification.
+  - at: '17:35'
+    kind: result
+    subject: $revised_target
+    equals:
+      decision.decision: execute
+      decision.event_type: EXECUTE
+      decision.constitution.rule: governance.record_constraint
+      clarification: null
+  - at: '17:35'
+    kind: result
+    subject: $ceiling
+    equals:
+      decision.decision: execute
+      decision.event_type: EXECUTE
+      decision.constitution.rule: governance.record_constraint
+      clarification: null
+  - at: '17:35'
+    kind: result
+    subject: $guest_comfort
+    equals:
+      decision.decision: execute
+      decision.event_type: EXECUTE
+      decision.constitution.rule: governance.record_constraint
+      clarification: null
+  - at: '17:35'
+    kind: result
+    subject: $overnight_dishwasher
+    equals:
+      decision.decision: execute
+      decision.event_type: EXECUTE
+      decision.constitution.rule: governance.record_constraint
+      clarification: null
+  - at: '22:40'
+    kind: result
+    subject: $kitchen
+    equals:
+      decision.decision: execute
+      decision.event_type: EXECUTE
+      decision.constitution.rule: governance.record_constraint
+      clarification: null
+      decision.boundary.roles: {adult: true}
+  # Guest room at 72 Fahrenheit until 07:00 (17:35 request), checked at Mom's 23:05 sleep and 06:45.
+  - at: '23:05'
+    kind: observation
+    domain: devices
+    subject: hvac.guest_room
+    equals: {target_f: 72}
+  - at: +1d 06:45
+    kind: observation
+    domain: devices
+    subject: hvac.guest_room
+    equals: {target_f: 72}
+  # Dishwasher not before 23:31: idle at the last check time before that boundary.
+  - at: '23:30'
+    kind: observation
+    domain: devices
+    subject: dishwasher
+    equals: {'on': false, power_kw: 0}
   audit_sequence_includes:
   - CONSTITUTION_ACTIVATED
   - CONSTITUTION_PROPOSED
@@ -522,6 +581,13 @@ assert:
   - APPROVED:security.door_unlock
   - VERIFIED:security.door_unlock
   - VERIFIED:security.door_unlock
+  # Fresh 23:31 consent, then each nighttime device vote; the dishwasher starts only after it.
+  - PLAN_APPROVED
+  - ASK_CONSTITUTION:energy.hvac_adjust
+  - APPROVED:energy.hvac_adjust
+  - ASK_CONSTITUTION:energy.appliance_start
+  - APPROVED:energy.appliance_start
+  - VERIFIED:energy.appliance_start
   # Initial 17:33 forecast, retained item 22 run12 signed PLAN_CREATED.
   # Revisions are separate remaining-horizon forecasts; never add their savings.
   plan_summary:

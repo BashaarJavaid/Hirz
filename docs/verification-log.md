@@ -13404,3 +13404,55 @@ Commands and summary lines:
 
 Not claimed: the mismatch `reason` and the new organization wording were not
 exercised by a test or a run; no CI, latency or browser run.
+
+### Demo evening asserts revisions and the dishwasher window
+
+Environment: macOS 15.7.3 (arm64), Python 3.12.13, uv 0.12.15, PostgreSQL 16.15 in
+the local Compose stack, native Dogwood at `.tools/dogwood`, base commit `cd7dfda` on
+`phase6/full-local-scenarios`. `uv run python scripts/check_dev.py` printed PASS lines
+through `HA: unauthenticated state read -> 401`. Only `scenarios/demo-evening.yaml`
+changed; nothing in `hirz/` changed. No migration was run against the development
+database.
+
+Added with existing DSL kinds only (sources: `docs/twin-and-scenarios.md` §3 and
+ADR-005 "Planned device approval resumption — 2026-09-22", including the approved
+explicit 23:31 dishwasher request; `constitutions/quinn-home.yaml` for Dad's `adult`
+role):
+
+- Five `result` checks (`$revised_target`, `$ceiling`, `$guest_comfort`,
+  `$overnight_dishwasher` at 17:35; `$kitchen` at 22:40): `decision.decision: execute`,
+  `decision.event_type: EXECUTE`, `decision.constitution.rule:
+  governance.record_constraint`, `clarification: null`; `$kitchen` also
+  `decision.boundary.roles: {adult: true}` (Dad's linked account, not the owner).
+- Two `observation` checks: `hvac.guest_room` `target_f: 72` at 23:05 (Mom asleep in
+  that room) and +1d 06:45 (before the 07:00 end of the request).
+- One `observation` check: `dishwasher` `'on': false, power_kw: 0` at 23:30, the last
+  event time before the 23:31 boundary.
+- Six ordered `audit_sequence_includes` selectors after the 19:16 relock:
+  `PLAN_APPROVED`, `ASK_CONSTITUTION`/`APPROVED:energy.hvac_adjust`,
+  `ASK_CONSTITUTION`/`APPROVED`/`VERIFIED:energy.appliance_start`. Matched seqs 2129,
+  2344, 2389, 3178, 3196, 3218: the dishwasher's vote and verified start follow the
+  fresh 23:31 consent.
+
+Commands and summary lines:
+
+| Command | Result |
+|---|---|
+| `HIRZ_DOGWOOD=$PWD/.tools/dogwood uv run hirz scenario run scenarios/demo-evening.yaml --headless --assert --output <scratch>/before.json` (HEAD, before) | `status: full_sequence_passed`, **62 checks**, 62 passed; audit `valid` (3704 rows); 2:21 wall |
+| Same, after the change (`<scratch>/after.json`) | `status: full_sequence_passed`, **76 checks**, 76 passed; audit `valid` (3628 rows); `disposable_database=dropped; development_database=unchanged`; 2:21 wall |
+| Bite proof: 23:30 dishwasher `'on': false` changed to `true` | exit 1, `status: failed`; failing `{"index": 29, "kind": "observation", "at": "2026-10-14T04:30:00+00:00", "status": "failed"}` and `{"kind": "full_sequence", "status": "failed"}`; disposable database `hirz_ha_smoke_24b4c8f2bda14638a875943a5079792c` retained per contract. Reverted with `git checkout --`; `git status --short` then empty before restoring the intended change |
+| `uv run pytest tests/unit/test_scenario.py tests/unit/test_scenario_execution.py -q --no-cov` | `79 passed in 13.70s` |
+| `uv run ruff check .` / `uv run mypy hirz/ scripts/ alembic/` | `All checks passed!` / `Success: no issues found in 203 source files` |
+| `uv run ruff format --check .` (run last, after this entry) | `324 files already formatted` |
+
+The evening's own count went from 62 to 76 checks. The other four full sequences were
+not rerun in this session, and the item 35 roadmap line (measured 2026-10-14) is unchanged.
+
+Not claimed: a revision `result` carries only the decision, `constraint_id` and
+`clarification`, so the 50% target/ceiling, 72°F, 23:31 and 23:00 values are not
+assertable from it (the EV value stays covered by `ev_soc_at` and the built-in
+`ev_ceiling_throughout`; 23:00 by the built-in `dad_attribution`). An `'on': true`
+observation after 23:31 was not added: the start time (04:15 in this run) is chosen
+by the planner and is not stated in §3, and no single time lies inside every valid
+105-minute cycle between 23:31 and 07:00. Plan-consent results cannot be saved
+(`approve_action` has no saveable object). No CI, latency or browser run.

@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-10-15: The evening scenario now checks each of the five plan revisions, the guest room at 72°F, the idle dishwasher before 23:31, and the ordered 23:31 consent, nighttime votes and verified dishwasher start; the evening goes from 62 to 76 checks, with no runtime change ([evidence](./docs/verification-log.md#demo-evening-asserts-revisions-and-the-dishwasher-window)).
+
 - 2026-10-15: Review nits: a shared `LINK_DEFERRAL` constant with a mismatch reason on the full-sequence check, intent comments on `contact_time`, the `send_allowed` scan, the `scam_pattern` evidence label and organization `trusted`, and organization cases now explain why they cannot start a person check ([evidence](./docs/verification-log.md#review-nits-deferral-constant-wall-clock-comment-scan-ceiling-evidence-label-organization-wording)).
 
 - 2026-10-15: Record `reason: contact_removed` when a contact is removed during a twin check-in and branch on that reason instead of the stored headline text; spoken wording and the `twin` label are unchanged ([evidence](./docs/verification-log.md#twin-contact-removal-uses-the-canonical-reason)).
