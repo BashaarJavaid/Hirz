@@ -136,11 +136,12 @@ Item 32 adds `HIRZ_LLM=off uv run --locked python -m scripts.smoke_protect --art
 
 ## Current phase
 
-Phase 5 and items 32, 33 and 33a are complete. Item 35's five full local scenarios pass; broader verification and CI remain pending (ROADMAP.md).
-Item 31 remains Partial for deferred real email/push acceptance. Paid Protect work
-shares `HIRZ_PROTECT_BUDGET_LEDGER` with a $2 ceiling. Ring access failed; retain
-the twin doorbell. Item 28 still owes real Web Push; issue #7 remains open.
-Development stays on 0005; migrations remain manual.
+Phase 5 and items 32, 33, 33a and 35 are complete. Next: Phase 7, item 36 (ROADMAP.md).
+Item 31 remains Partial for real email/push acceptance; item 28 still owes real Web
+Push (issue #7). Ring access failed; retain the twin doorbell. Link replay and
+independent relocking remain item 38a. Paid Protect shares
+`HIRZ_PROTECT_BUDGET_LEDGER` with a $2 ceiling. Development stays on 0005;
+migrations remain manual.
 
 ---
 

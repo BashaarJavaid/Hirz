@@ -13018,3 +13018,89 @@ neither this launcher nor its Playwright test is part of their workload.
 The next ordinary CI run will also rerun the unchanged companion suite, replacing
 the pending isolated retry; GitHub's direct rerun API confirmed HTTP 403,
 `The workflow run containing this job is already running`.
+
+### Final CI gates and accepted local scope — 2026-10-14
+
+**Item 35 is complete within the approved local twin scope.** All five full
+headless sequences pass **117 checks** in total, with authenticated seed-policy
+activation, persisted v8 activation where scripted, exact signed approval/denial
+binding, local ten-minute unlock/relock and the approved Link deferral visible.
+Hourly retains its planning contract and unchanged inputs. Intentional step runs
+remain `stopped`; unchecked full runs and unsupported deferrals cannot pass.
+Successful disposable runs clean up only after independent signed-export
+verification; failed local runs remain retained. Development migrations remain
+manual and no development schema upgrade was performed.
+
+[Ordinary CI 38667532326](https://github.com/BashaarJavaid/Hirz/actions/runs/38667532326)
+passed on `e74d00c617cc8e1f40fa0b4732a6aa7c71dfcc62`:
+
+- Python: **1605 service-free tests** in 267.71 s, **239 integration tests** in
+  986.81 s, then the combined coverage gate passed at **90%** (16,437 statements,
+  1,688 missed). The local ordered coverage run above independently passed 1844
+  tests and 90% coverage.
+- All five full CLI sequences, Hourly planning and the live HA lamp/restoration
+  regression passed. Lint, strict types, packaging, TypeScript tests, native Cedar
+  conformance and independent add-on conformance passed.
+- Companion acceptance passed **2 browser tests** and verified its signed exports;
+  its separately launched simulator test was skipped there and passed in the
+  Python job (**1 passed**, 33.4 s). The corrected authenticated reference-host
+  browser test passed (**1 passed**, 2.7 s). Existing Linux Chromium card baselines
+  and behavior passed **51 tests**, with the separately launched live test skipped.
+  No additional browser matrix was added.
+
+The companion focus-outline check passed unchanged in this run after its earlier
+single failure. No root cause or application fix is claimed for that intermittent
+result. Its pass is retained in `/tmp/hirz-item35-ci-companion-passed.log`; final
+Python/browser output is `/tmp/hirz-item35-ci-python-passed.log`. The superseded
+`1e1e65c` push was cancelled by the corrected push and is not an acceptance pass.
+
+Both **normal** (`latency_diagnostic=false`, `HIRZ_BUDGET_DIAGNOSTIC=0`) latency
+jobs passed on `4503ccda7a8fc25bdc3bd626ad0c7aa8e34b5730`:
+
+| Gate | Cases / tools passing | Highest case p95 | Case | Test duration |
+|---|---:|---:|---|---:|
+| [Evening](https://github.com/BashaarJavaid/Hirz/actions/runs/38664423546/job/116193253453) | 54 / 12 | 171.710 ms | plan-approval | 3066.30 s |
+| [Hourly](https://github.com/BashaarJavaid/Hirz/actions/runs/38664423546/job/116193253637) | 54 / 12 | 190.800 ms | objective-greenest | 3362.43 s |
+
+Each case used five warmups and 100 measured calls, nearest-rank p95, with no
+discarded samples; every case and tool aggregate stayed below 250 ms. The gate is
+raw authenticated JSON-RPC request-send through full response body, excluding
+final decoding/validation. Contact-start/retry cases include their exact-request
+confirmation exchange; SDK reference timings remain outside the gate. Complete
+public timing tables are in those job logs, also retained locally as
+`/tmp/hirz-item35-latency-evening.log` and
+`/tmp/hirz-item35-latency-hourly.log`. These are local twin measurements, not AWS
+cold-start evidence.
+
+The containing dispatch's overall conclusion is **failure** because it ran the
+older live-card browser clock; only its two successful latency jobs are accepted
+here. `git diff --name-only 4503ccd e74d00c` confirms subsequent changes are the
+two stronger parent assertion sets, documentation, and the card browser/launcher
+clock correction. Runtime code, latency harness/tests and evening/Hourly benchmark
+inputs are unchanged. The final ordinary run verifies the browser correction.
+
+Security evidence includes the full stranger denial and evening relock; existing
+`test_bound_doorbell_approval` and disposable decide cases cover v7 ASK versus v8
+DENY. `test_alexa_security_approval_remains_pending_and_claim_cannot_raise_authority`
+verifies `phone_required`, zero votes and a pending request for both Alexa approval
+and denial attempts. Offline-doorbell and factor-applicability tests verify
+`state_stale` and its band increase. Only the unexpected-visitor threat row is
+earned, explicitly limited to local twin/software-passkey evidence.
+
+No paid inference, real contact delivery, physical-phone acceptance, Ring or AWS
+implementation was added. Link replay rejection and independently operated
+relocking remain item 38a; this local relock does not establish cloud-failure
+resilience. Existing email/push deferrals remain. The Docker credential-helper
+entry above is the earned third-party friction; the two CI integration omissions
+and intermittent focus check are not presented as third-party defects.
+
+### Closure records and final formatting
+
+After appending the final evidence, marked roadmap item 35 complete without
+rewriting its specification, updated the changelog, and mirrored the **64-word**
+Current phase in `AGENTS.md` and `CLAUDE.md`. Only the unexpected-visitor threat
+row changed; its Yes claim is explicitly local twin. The final diff after tested
+commit `e74d00c` contains only these six documentation files. Ruff check and format
+check passed (**324 files already formatted**), `git diff --check` passed, and
+`cmp AGENTS.md CLAUDE.md` confirmed byte-identical instruction files. No further
+runtime change or broad test rerun was needed.

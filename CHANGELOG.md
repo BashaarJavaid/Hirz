@@ -6,7 +6,9 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
-- 2026-10-14: Implement item 35 full local scenario assertions through companion HTTP and software passkeys, persisted policy and exact request references; retain the approved Link deferral and existing planning inputs ([ADR-006](./docs/adr/ADR-006-twin-first-adapters.md#full-local-scenario-sequences--2026-10-14-author-approved), [verification in progress](./docs/verification-log.md#item-35--2026-10-14)).
+- 2026-10-14: Complete item 35 full local scenario assertions through companion HTTP and software passkeys, persisted policy and exact request references; enforce strict completion while retaining the approved Link deferral and existing planning inputs ([ADR-006](./docs/adr/ADR-006-twin-first-adapters.md#full-local-scenario-sequences--2026-10-14-author-approved), [evidence](./docs/verification-log.md#item-35--2026-10-14)).
+
+- 2026-10-14: Build companion assets before full scenario CI and align the existing live card browser with its scenario fixture clock, preserving production expiry behavior ([evidence](./docs/verification-log.md#live-card-fixture-clock-correction)).
 
 - 2026-10-11: Complete item 33a: correlate fresh unexpected doorbell presses with reported CRITICAL cases, independently authorize member/contact warnings, and publish private app warnings through the shared worker; preserve check-in results and explicit simulated provenance ([ADR-024](./docs/adr/ADR-024-courier-correlation.md), [evidence](./docs/verification-log.md#item-33a--2026-10-11)).
 
