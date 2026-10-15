@@ -921,3 +921,20 @@ completed with zero reported vulnerabilities. The shell initially selected Node
   Diagnostic attempts retain reservations in the same $2 acceptance ledger.
 - **Feature request:** Document the ordinary `tool_use` value in the response enum
   and include it in strict-tool examples.
+
+## Item 35 — Docker Desktop credential helper stalls a public pull — 2026-10-14
+
+- **Tool / URL:** Docker Desktop credential store; https://docs.docker.com/reference/cli/docker/login/#credential-stores.
+- **Severity:** Minor.
+- **What happened:** `docker compose -f compose.dev.yml up -d` stayed at the
+  public pinned Home Assistant image pull. Process inspection showed its
+  `docker-credential-desktop` child still running after 7 minutes 29 seconds.
+  No terminal error or credential prompt was returned to this session.
+- **Exact output:** `Image ghcr.io/home-assistant/home-assistant:2026.9.2@sha256:a1bc133af84ee6505fe2c266d9805b7c75b780dfdc188edfee3b11e8f3cd8efe Pulling`.
+- **Workaround:** Start PostgreSQL separately, interrupt the stalled pull client,
+  then pull the same public digest with a temporary empty Docker config and the
+  existing local daemon socket. Layer downloads progressed without changing the
+  user's credential store or application volumes. This does not establish a
+  registry failure or a credential-store defect.
+- **Feature request:** Bound credential-helper waits and identify the helper in
+  progress output so a stalled credential lookup is distinguishable from a download.

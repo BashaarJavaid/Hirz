@@ -12896,3 +12896,57 @@ ordinary/normal-latency CI are pending in this entry. No completion or threat-mo
 promotion is claimed yet. The evidence establishes local software-passkey/twin
 behavior only: no physical phone, real contact delivery, paid inference, Ring,
 Link replay rejection, cloud-independent relock or AWS boundary claim.
+
+### Local regressions and corrected coverage baseline
+
+The final service-free run passed **1605 tests** (241 deselected) in 232.47 s.
+The initial full run had loaded the old frozen-model test before its correction;
+34 focused tests passed after the correction, then the whole service-free suite
+was rerun before beginning integration coverage. Service-free coverage alone is
+69%; it is not the combined coverage gate. The 239 selected integration tests
+are running with `--cov=hirz --cov-append`.
+
+Existing browser acceptance used Node 24 and
+`HIRZ_LLM=off HIRZ_DOGWOOD="$PWD/.tools/dogwood" .venv/bin/python
+scripts/smoke_companion.py --artifacts-dir secrets/item35/companion1`.
+It passed **2 browser tests** with the separately launched simulator test skipped,
+then printed `PASS authenticated MCP proposal, browser passkeys, running worker
+and independently verified exports`. The retained 390px light-theme approval
+screenshot was inspected: “Someone is at the front door.”, explicit simulated
+provenance, schedule context, duration and separate passkey/deny controls render
+without identifying the visitor. The headless stranger assertion separately
+verifies the expected-Mom context returned by the authenticated inbox.
+
+The unchanged HA smoke passed via `.venv/bin/python scripts/smoke_scenario.py
+--live-demo --artifacts-dir secrets/item35/ha1`: `execution_checks_passed`,
+`restored: true`, **3 checks and 28 independently verified audit rows**, including
+both ordered lamp verifications. The source remains `real API, demo devices`.
+The temporary database was dropped after verification; existing HA and Postgres
+volumes were preserved. The stalled public image pull workaround is recorded in
+[the friction log](./friction-log.md#item-35--docker-desktop-credential-helper-stalls-a-public-pull--2026-10-14).
+
+The standalone stranger fixture's complete `initial` mapping and bindings were
+compared equal to the evening's committed mappings. The intentional stop report
+retains setup version 7 and final execution version 8 after authenticated
+activation. No planning inputs, initial forecast ranges or overnight invariants
+were changed.
+
+Commit `45ec686` was pushed on `phase6/full-local-scenarios`. Requested ordinary CI
+and both normal latency jobs run in
+[workflow dispatch 38663905878](https://github.com/BashaarJavaid/Hirz/actions/runs/38663905878),
+with `latency_diagnostic=false`; completion remains pending until its results.
+
+
+### CI asset prerequisite correction
+
+The first dispatched scenario job failed at startup on clean Linux before any
+HTTP ceremony. Its stdout report had been redirected, so the log retained only
+exit 1 and the failed disposable database name. Inspection found the new
+`Phone -> create_app(companion=...)` dependency requires built companion assets;
+`create_app` explicitly refuses missing `hirz/companion/ui/index.html` with
+`Build the companion first: pnpm --filter web build`. The scenario job was the
+one new companion caller without the existing `build-cards` composite action.
+Added that action (which builds both frontend bundles), and documented the same
+local prerequisite. This is an implementation integration omission, not claimed
+third-party friction. The first run is not an acceptance pass; a new complete
+normal CI dispatch is required after this workflow correction.

@@ -1942,7 +1942,8 @@ latency gates remain required for closure.
 
 ## Full local scenario assertions (item 35)
 
-Use the existing local PostgreSQL credentials, built MCP cards and pinned native
+Use the existing local PostgreSQL credentials, built MCP cards and companion
+assets (`pnpm --filter mcp-app build && pnpm --filter web build`), and pinned native
 Dogwood. Development migrations remain manual: these commands migrate only their
 uniquely named disposable databases. No Bedrock call or real contact delivery is
 needed. Each artifact directory must be new.
