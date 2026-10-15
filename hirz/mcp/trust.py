@@ -221,12 +221,6 @@ def case_response(case: VerificationCase) -> Result:
         "will_call": "The simulated reply says the contact will call. No real call has been arranged.",
         "no_answer": "There was no simulated reply. Do not send anything; call the contact saved in your own phone.",
     }[state.status]
-    if (
-        state.status == "no_answer"
-        and case.speakable.get("headline")
-        == "The contact was removed. No reply will be accepted for this check."
-    ):
-        headline = str(case.speakable["headline"])
     if state.source == "real":
         headline = {
             "pending": "A contact check is pending. Ask me again for the reply.",
@@ -245,6 +239,10 @@ def case_response(case: VerificationCase) -> Result:
             "channel_revoked": "The contact channel was revoked. Call the contact saved in your own phone.",
             "inconsistent_record": "This check was closed because its stored record was inconsistent. Call the contact saved in your own phone.",
         }[state.reason]
+        if state.reason == "contact_removed" and state.source == "twin":
+            headline = (
+                "The contact was removed. No reply will be accepted for this check."
+            )
     return response(
         headline,
         details=(notice(case.extraction),) if case.extraction else (),

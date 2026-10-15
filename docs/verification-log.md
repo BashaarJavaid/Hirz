@@ -13333,3 +13333,42 @@ Commands and summary lines:
 Not claimed: the test checks names only, not which surface or role each clause
 allows; it does not find `grant(...)` calls with other operation strings; no
 integration, CI or latency run.
+
+### Twin contact removal uses the canonical reason
+
+Removing a contact while a twin check-in is pending (`remove` in
+`hirz/companion/contacts.py`) now records `verification.reason = "contact_removed"`
+on the canonical `VerificationState`, as the real path already does, and
+`case_response` in `hirz/mcp/trust.py` branches on that reason instead of comparing
+the stored `speakable.headline` text. The wording is unchanged: twin says "The
+contact was removed. No reply will be accepted for this check.", real says "The
+contact was removed. This check is closed.", and twin cases stay labeled
+`source: twin`. No headline fallback was kept: twin cases live only in disposable
+twin databases, and an older twin case without a reason now reads as the generic
+simulated `no_answer` ("There was no simulated reply. Do not send anything; ..."),
+which is still a refusal to act.
+
+New unit test `test_twin_contact_removal_branches_on_reason_not_headline` in
+`tests/unit/test_household_tools.py`: a twin case with an edited headline and
+`reason="contact_removed"` reports the twin removal wording, and a case with the
+old headline but no reason reads as the generic simulated `no_answer`. The
+`removed` outcome of the existing database test in
+`tests/integration/test_household_tools_database.py` now also asserts the stored
+reason.
+
+Bite proof: with the `hirz/` change stashed, the new test gave `1 failed, 39
+deselected in 0.92s` (`assert 'The contact ...ck is closed.' == 'The contact
+...r this check.'`); `git stash pop` restored it.
+
+Commands and summary lines:
+
+- `uv run pytest tests/unit/test_household_tools.py tests/unit/test_companion_auth.py --no-cov -q` — `42 passed in 1.76s`
+- `uv run ruff check .` — `All checks passed!`
+- `uv run mypy hirz/ scripts/ alembic/` — `Success: no issues found in 203 source files`
+- `uv run pytest -q` — `1611 passed, 245 deselected, 2 warnings in 223.44s (0:03:43)`
+- `uv run python scripts/check_dev.py` — four `PASS` lines (Postgres, `/health`, HA 123 entities, HA unauthenticated 401)
+- `uv run pytest tests/integration/test_household_tools_database.py -m integration --no-cov -q` — `11 passed in 20.24s` (disposable databases; development database not migrated)
+- `uv run ruff format --check .` (run last, after this entry) — first run flagged `hirz/mcp/trust.py` (line length); after `uv run ruff format hirz/mcp/trust.py` the unit file re-ran `40 passed in 2.16s`, `ruff check` `All checks passed!`, and the check gave `324 files already formatted`
+
+Not claimed: no CI, latency, browser or card run; the companion page and MCP App
+card were not rendered; no real-channel check-in was exercised.

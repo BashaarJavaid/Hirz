@@ -610,6 +610,7 @@ def test_trust_is_private_advisory_until_explicit_start(scratch_database, outcom
                 "no_answer" if outcome == "removed" else outcome
             )
             if outcome == "removed":
+                assert status.data.case.verification.reason == "contact_removed"
                 assert status.speakable.headline == (
                     "The contact was removed. No reply will be accepted for this check."
                 )

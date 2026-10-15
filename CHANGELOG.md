@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-10-15: Record `reason: contact_removed` when a contact is removed during a twin check-in and branch on that reason instead of the stored headline text; spoken wording and the `twin` label are unchanged ([evidence](./docs/verification-log.md#twin-contact-removal-uses-the-canonical-reason)).
+
 - 2026-10-15: Add a unit test that fails when the reserved `governance.contacts` rule and `Command.operation` name different contact operations (with `save_organization`, `guess` and `process` listed as explicit exceptions); the rule text is unchanged ([evidence](./docs/verification-log.md#contact-operation-vocabulary-cross-checked)).
 
 - 2026-10-15: Add a unit test that fails when the Protect signal names in scoring, both advice label maps, the companion check-ins page or the card schema disagree; no signal renamed ([evidence](./docs/verification-log.md#signal-names-cross-checked-across-python-and-typescript)).

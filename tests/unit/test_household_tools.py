@@ -294,6 +294,44 @@ def test_every_verification_outcome_is_labeled_and_bounded():
         assert "simulated" in speech and "private-" not in speech
 
 
+def test_twin_contact_removal_branches_on_reason_not_headline():
+    from hirz.mcp.trust import case_response
+    from hirz.pipeline.models import VerificationCase
+
+    removed = "The contact was removed. No reply will be accepted for this check."
+
+    def case(headline: str, reason: str | None) -> VerificationCase:
+        return VerificationCase.model_validate(
+            dict(
+                case_id="private-case",
+                claim={"text": "A request"},
+                subject=dict(
+                    contact_id="private-contact",
+                    trusted=True,
+                    claimed_party="Relative",
+                    party="person",
+                ),
+                signals=[],
+                risk_band="low",
+                recommended=["verify_via_verified_channel"],
+                speakable={"headline": headline},
+                verification=dict(
+                    status="no_answer",
+                    sent_to="private-contact",
+                    started_at="2026-09-23T00:00:00Z",
+                    expires_at="2026-09-23T00:02:00Z",
+                    reason=reason,
+                ),
+            )
+        )
+
+    edited = case_response(case("Edited wording", "contact_removed"))
+    assert edited.speakable.headline == removed
+    assert edited.data.source == "twin"
+    unlabeled = case_response(case(removed, None))
+    assert unlabeled.speakable.headline.startswith("There was no simulated reply.")
+
+
 def test_host_counts_foundation_model_before_reserving_complete_request(tmp_path):
     import json
     from types import SimpleNamespace

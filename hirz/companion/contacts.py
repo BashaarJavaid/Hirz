@@ -136,7 +136,7 @@ async def remove(p: Pipeline, principal: Principal, contact_id: UUID) -> None:
         updated = case.model_copy(
             update={
                 "verification": case.verification.model_copy(
-                    update={"status": "no_answer"}
+                    update={"status": "no_answer", "reason": "contact_removed"}
                 ),
                 "speakable": {
                     "headline": "The contact was removed. No reply will be accepted for this check."
