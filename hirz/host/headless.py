@@ -92,6 +92,22 @@ class Budget:
         self.model = model
         self.calls: list[dict[str, int]] = []
 
+    def check(self, outputs: int) -> None:
+        """Refuse before any provider contact when even zero input cannot fit."""
+        descriptor = os.open(self.path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+        with os.fdopen(descriptor, "r") as handle:
+            fcntl.flock(handle, fcntl.LOCK_SH)
+            raw = handle.read()
+        if not raw:
+            return
+        record = json.loads(raw)
+        if record.get("purpose") != self.purpose:
+            raise ValueError("Budget ledger belongs to a different task")
+        used = Decimal(record["reserved_usd"])
+        cost = Decimal(outputs) * self.output_rate / 1_000_000
+        if not used.is_finite() or used < 0 or used + cost > self.limit:
+            raise ValueError("BEDROCK_BUDGET_EXHAUSTED")
+
     def reserve(
         self, inputs: int, outputs: int, *, input_basis: str | None = None
     ) -> None:

@@ -13198,3 +13198,38 @@ Not claimed: starting or approving a real check-in (`checkins.queued`) and compa
 contact setup still require the key, unchanged; only the worker's advance and timeout
 were made key-independent. The full `hirz worker` loop against a live check-in was not
 run; no CI run, latency gate or combined coverage run was made; no TypeScript changed.
+
+### Ledger gate precedes every provider call
+
+`hirz/protect/bedrock.py` called Bedrock CountTokens before reserving in
+`HIRZ_PROTECT_BUDGET_LEDGER`, so an exhausted or foreign ledger still produced one
+(unbilled) provider contact per case. A new `Budget.check(outputs)` in
+`hirz/host/headless.py` reads the ledger under a shared lock and raises when it
+belongs to another purpose or when even zero input plus 512 output tokens would
+exceed the limit; `extract` calls it before creating the client or counting. The
+atomic `reserve(count, 512)` after counting is unchanged and still enforces the $2
+ceiling, so a concurrent reservation between check and reserve can at worst cause
+one unbilled CountTokens followed by the existing `budget` failure. An unset
+variable already failed before any client was created.
+
+New test `test_ledger_gate_precedes_every_provider_call` in
+`tests/unit/test_protect.py` (cases `absent`, `ceiling` at `reserved_usd: "2"`,
+`other_purpose`) asserts `ExtractionFailure("budget")`, `client.mock_calls == []`
+and an unchanged ledger file.
+
+Negative control: with the `hirz/` changes stashed, `uv run pytest
+tests/unit/test_protect.py -q --no-cov -k ledger_gate` gave `2 failed, 1 passed, 17
+deselected in 1.01s` (`ceiling` and `other_purpose` recorded `call.count_tokens(...)`;
+`absent` passes on both versions, as intended).
+
+Commands and summary lines:
+
+- `uv run ruff check .` — `All checks passed!`
+- `uv run mypy hirz/ scripts/ alembic/` — `Success: no issues found in 203 source files`
+- `uv run pytest tests/unit/test_protect.py -q --no-cov` — `20 passed in 1.28s`
+- `uv run pytest -q` — `1608 passed, 244 deselected, 2 warnings in 221.85s (0:03:41)`
+- `uv run ruff format --check .` (run last, after this entry) — `324 files already formatted`
+
+Not claimed: no live Bedrock call was made, no `--live` flag was used and the
+retained item 32 ledger was not read or touched; the worker path through
+`hirz.pipeline.service` was not run end to end; no integration, CI or latency run.

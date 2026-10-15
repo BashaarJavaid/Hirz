@@ -314,7 +314,9 @@ server tool use is rejected ([provider discrepancy](../friction-log.md#item-32--
 The [strict-tool contract](https://docs.aws.amazon.com/bedrock/latest/userguide/structured-output.html)
 and [CountTokens request](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_ConverseTokensRequest.html)
 include tool schemas. The existing locked ledger reserves counted input plus
-512 output tokens before inference, retains failed reservations and caps all
+512 output tokens before inference (and, before CountTokens or any other provider
+call, refuses a ledger owned by another task or unable to admit 512 output tokens),
+retains failed reservations and caps all
 item 32 extraction, explicit warmup and routing acceptance at $2.
 `HIRZ_PROTECT_BUDGET_LEDGER` is mandatory for paid work. Counting, credentials,
 budget or provider failure leaves labeled keyword advice; there is one attempt,

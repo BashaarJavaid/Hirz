@@ -25,6 +25,14 @@ def extract(
     ledger = os.environ.get("HIRZ_PROTECT_BUDGET_LEDGER")
     if not ledger:
         raise ExtractionFailure("budget")
+    budget = Budget(
+        Path(ledger), limit=Decimal("2"), purpose="item32-protect", model=MODEL_ID
+    )
+    try:
+        # The ledger gates every provider call, including unbilled CountTokens.
+        budget.check(512)
+    except Exception as exc:
+        raise ExtractionFailure("budget") from exc
     try:
         client = client or boto3.client(
             "bedrock-runtime",
@@ -92,9 +100,7 @@ def extract(
     except Exception as exc:
         raise ExtractionFailure("counting") from exc
     try:
-        Budget(
-            Path(ledger), limit=Decimal("2"), purpose="item32-protect", model=MODEL_ID
-        ).reserve(count, 512)
+        budget.reserve(count, 512)
     except Exception as exc:
         raise ExtractionFailure("budget") from exc
     try:

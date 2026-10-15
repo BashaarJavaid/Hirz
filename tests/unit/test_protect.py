@@ -231,6 +231,27 @@ def test_wrong_tool_extra_fields_empty_and_budget(monkeypatch, tmp_path):
         extract(SCAM, client=client)
 
 
+@pytest.mark.parametrize("state", ["absent", "ceiling", "other_purpose"])
+def test_ledger_gate_precedes_every_provider_call(monkeypatch, tmp_path, state):
+    ledger = tmp_path / "ledger"
+    monkeypatch.setenv("HIRZ_PROTECT_BUDGET_LEDGER", str(ledger))
+    if state == "absent":
+        monkeypatch.delenv("HIRZ_PROTECT_BUDGET_LEDGER")
+    else:
+        record = {"purpose": "item32-protect", "reserved_usd": "2", "calls": []}
+        if state == "other_purpose":
+            record = {"purpose": "item29-host", "reserved_usd": "0", "calls": []}
+        ledger.write_text(json.dumps(record))
+    client = Mock()
+    client.count_tokens.return_value = {"inputTokens": 100}
+    client.converse.return_value = output([])
+    with pytest.raises(ExtractionFailure, match="budget"):
+        extract(SCAM, client=client)
+    assert client.mock_calls == []
+    if state != "absent":
+        assert json.loads(ledger.read_text()) == record
+
+
 def test_ordinary_scenario_has_recorded_assessment_and_valid_twin():
     from pathlib import Path
 

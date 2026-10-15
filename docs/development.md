@@ -1882,7 +1882,8 @@ all extraction, warmup and routing runs. Its aggregate ceiling is $2; never rese
 or replace it to bypass the ceiling. The worker uses the existing Haiku 4.5 US
 inference profile in us-east-1, one attempt, counted input and at most 512 output
 tokens. Missing credentials/ledger, counting failure, budget exhaustion, malformed
-output or a 15-second provider timeout leaves labeled keyword advice.
+output or a 15-second provider timeout leaves labeled keyword advice. The ledger check
+runs before CountTokens, so a missing, foreign or exhausted ledger contacts no provider.
 
 ```sh
 AWS_PROFILE=hirz HIRZ_PROTECT_BUDGET_LEDGER="$PWD/secrets/item32-protect-budget.json" uv run --locked python -m scripts.smoke_protect --live --artifacts-dir secrets/NEW-PROTECT-LIVE
