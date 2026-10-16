@@ -39,9 +39,25 @@ export async function accessibility(page: Page, keyboard = true) {
   if (!keyboard) return;
   const controls = page.locator('main :is(a[href], button, input, textarea, select, summary):visible:not(:disabled)');
   await page.locator("main").focus();
-  for (const control of await controls.all()) {
+  // Polling pages and late secondary resources (Household's contacts) change the control list
+  // mid-sweep, so each Tab resolves the controls, the expected next one and the focused element
+  // in one page call instead of trusting an index snapshot taken before the sweep.
+  // ponytail: a DOM change landing between the key press and that call can still misalign one step.
+  let previous = await page.evaluateHandle(() => document.activeElement!);
+  for (;;) {
     await page.keyboard.press("Tab");
-    await expect(control).toBeFocused();
-    expect(await control.evaluate(el => parseFloat(getComputedStyle(el).outlineWidth))).toBeGreaterThan(0);
+    const step = await controls.evaluateAll((els, previous) => {
+      const expected = els.find(el => previous.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING);
+      const active = document.activeElement;
+      const name = (el: Element | null | undefined) => el ? `${el.tagName} ${el.textContent?.trim().slice(0, 40)}` : "none";
+      return expected && {
+        expected: name(expected), focused: active === expected, active: name(active),
+        outline: parseFloat(getComputedStyle(expected).outlineWidth),
+      };
+    }, previous);
+    if (!step) break;
+    expect(step.focused, `Tab reached ${step.active}, expected ${step.expected}`).toBe(true);
+    expect(step.outline, step.expected).toBeGreaterThan(0);
+    previous = await page.evaluateHandle(() => document.activeElement!);
   }
 }

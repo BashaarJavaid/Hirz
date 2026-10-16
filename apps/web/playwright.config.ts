@@ -5,5 +5,5 @@ export default defineConfig({
   workers: 1,
   timeout: 60000,
   expect: { timeout: 15000 },
-  use: { browserName: "chromium", timezoneId: "America/Chicago", locale: "en-US", serviceWorkers: "block" },
+  use: { browserName: "chromium", timezoneId: "America/Chicago", locale: "en-US", serviceWorkers: "block", trace: "retain-on-failure" },
 });

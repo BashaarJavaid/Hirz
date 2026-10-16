@@ -164,6 +164,16 @@ jobs:
         run: pnpm --filter mcp-app exec playwright install --with-deps chromium
       - name: Companion voice proposal, passkeys, twin endings and accessibility
         run: uv run --locked python -m scripts.smoke_companion --artifacts-dir "$RUNNER_TEMP/companion"
+      # Only Playwright's page snapshot and error. Traces and $RUNNER_TEMP/companion stay on the
+      # runner: they hold the disposable MCP bearer token, invitations and recovery codes.
+      - name: Upload browser failure context
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: companion-error-context-${{ github.run_attempt }}
+          path: apps/web/test-results/**/error-context.md
+          if-no-files-found: ignore
+          retention-days: 14
       - name: Service status on failure (no configuration or raw logs)
         if: failure()
         run: >-

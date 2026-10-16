@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-10-16: The companion keyboard sweep resolves the expected and focused control together on each Tab instead of indexing a list taken before the sweep, which Household's late `/contacts` load could shift; Playwright keeps a trace on failure, and the `companion` CI job uploads only the error context ([evidence](./docs/verification-log.md#companion-focus-sweep--2026-10-16)).
+
 - 2026-10-15: Promote Phase 6 and its review fixes to `main` through PR #10 after ordinary CI and one passing normal latency dispatch ([evidence](./docs/verification-log.md#promotion-ci--2026-10-15)).
 
 - 2026-10-15: Correct documentation drift from the Phase 6 review: Ring remnants after the failed item 34 gate, the demo courier line, the README `hirz/` layout and contact-key note, dated 2026-10-07 changelog lines, and the scam threat-model row now Partial ([evidence](./docs/verification-log.md#documentation-drift-corrected)).
