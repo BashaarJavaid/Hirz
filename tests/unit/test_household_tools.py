@@ -161,7 +161,7 @@ def test_light_aliases_preserve_unique_household_targets():
     [
         ("Hello, how are you?", "low"),
         ("This is urgent", "medium"),
-        ("Send money from a strange number", "high"),
+        ("Send money from a strange number", "critical"),
         ("Send money from a strange number immediately", "critical"),
         ("No dollars; not urgent; never open the door.", "low"),
         ("Don't tell anyone", "medium"),
@@ -292,6 +292,104 @@ def test_every_verification_outcome_is_labeled_and_bounded():
         assert result.data.source == "twin"
         speech = result.speakable.model_dump_json()
         assert "simulated" in speech and "private-" not in speech
+
+
+def test_twin_contact_removal_branches_on_reason_not_headline():
+    from hirz.mcp.trust import case_response
+    from hirz.pipeline.models import VerificationCase
+
+    removed = "The contact was removed. No reply will be accepted for this check."
+
+    def case(headline: str, reason: str | None) -> VerificationCase:
+        return VerificationCase.model_validate(
+            dict(
+                case_id="private-case",
+                claim={"text": "A request"},
+                subject=dict(
+                    contact_id="private-contact",
+                    trusted=True,
+                    claimed_party="Relative",
+                    party="person",
+                ),
+                signals=[],
+                risk_band="low",
+                recommended=["verify_via_verified_channel"],
+                speakable={"headline": headline},
+                verification=dict(
+                    status="no_answer",
+                    sent_to="private-contact",
+                    started_at="2026-09-23T00:00:00Z",
+                    expires_at="2026-09-23T00:02:00Z",
+                    reason=reason,
+                ),
+            )
+        )
+
+    edited = case_response(case("Edited wording", "contact_removed"))
+    assert edited.speakable.headline == removed
+    assert edited.data.source == "twin"
+    unlabeled = case_response(case(removed, None))
+    assert unlabeled.speakable.headline.startswith("There was no simulated reply.")
+
+
+def test_no_verification_outcome_is_spoken_as_advice_to_pay():
+    import re
+    from typing import get_args
+
+    from hirz.mcp.trust import case_response
+    from hirz.pipeline.models import VerificationCase, VerificationState
+
+    fields = VerificationState.model_fields
+    statuses = [s for s in get_args(fields["status"].annotation) if s != "pending"]
+    reasons = get_args(get_args(fields["reason"].annotation)[0])
+    # ADR-022: a reply confirms only that request and is never advice to pay.
+    # Case-insensitive; \b on both ends so "payee", "payment" or "repay" in a
+    # quoted request do not match, and "send it" does not match "send items".
+    # "really (him|her)" also catches "it's really him" / "really her".
+    forbidden = re.compile(
+        r"\b(?:pay|send the money|send it|go ahead|safe to|it is really"
+        r"|it's really|it’s really|really (?:him|her))\b",
+        re.IGNORECASE,
+    )
+    genuine = {
+        "real": "Call the contact saved in your own phone before acting.",
+        "twin": "Talk to the contact using their saved number.",
+    }
+    rendered = 0
+    for source in ("real", "twin"):
+        for status in statuses:
+            for reason in (None, *reasons):
+                case = VerificationCase.model_validate(
+                    dict(
+                        case_id="private-case",
+                        claim={"text": "Please pay the payee; payment is urgent"},
+                        subject=dict(
+                            contact_id="private-contact",
+                            trusted=True,
+                            claimed_party="Relative",
+                            party="person",
+                        ),
+                        signals=[],
+                        risk_band="low",
+                        recommended=["verify_via_verified_channel"],
+                        speakable={},
+                        verification=dict(
+                            status=status,
+                            sent_to="private-contact",
+                            started_at="2026-09-23T00:00:00Z",
+                            expires_at="2026-09-23T00:02:00Z",
+                            source=source,
+                            reason=reason,
+                        ),
+                    )
+                )
+                speech = case_response(case).speakable
+                for line in (speech.headline, *speech.details, *speech.options):
+                    assert not forbidden.search(line), (source, status, reason, line)
+                if status == "genuine" and reason is None:
+                    assert genuine[source] in speech.headline
+                rendered += 1
+    assert rendered == 2 * len(statuses) * (1 + len(reasons)) == 64
 
 
 def test_host_counts_foundation_model_before_reserving_complete_request(tmp_path):
@@ -438,7 +536,7 @@ def test_tools_list_size_and_narrow_output_boundary(capsys, caplog, monkeypatch)
             for name, size in sizes.items():
                 print(f"{name} bytes={size}")
         assert set(sizes) == set(TOOLS) == set(OUTPUTS)
-        assert total < 120_000
+        assert total < 122_000  # Includes item 33 canonical organization evidence.
         assert all(size < 20_000 for size in sizes.values())
         assert next(row for row in rows if row["name"] == "what_can_you_do")[
             "outputSchema"

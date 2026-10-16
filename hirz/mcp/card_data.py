@@ -350,32 +350,48 @@ async def decorate(
             and datetime.fromisoformat(str(c["verified_at"])) <= at
         ]
         state = case.verification
+        if not state and case.subject.contact_id:
+            from hirz.contacts.checkins import selected as selected_contact
+
+            real_channel = await selected_contact(p, case.subject.contact_id)
+        else:
+            real_channel = None
         if state:
             base["valid_until"] = state.expires_at
+            base["source"] = "live" if state.source == "real" else "simulated"
+        from hirz.protect.advice import labels, notice
+        from hirz.protect.courier import member_warning
+
+        created_at = await p.connection.scalar(
+            sa.select(db.verification_cases.c.created_at).where(
+                p.scope(db.verification_cases),
+                db.verification_cases.c.id == case.case_id,
+            )
+        )
         verification = VerificationCard(
             **base,
-            signals=tuple(
-                {
-                    "financial_or_access_request": "Money or access was requested",
-                    "unfamiliar_channel_reported": "An unfamiliar channel was reported",
-                    "secrecy": "You were asked to keep this secret",
-                    "third_party_recipient": "A third-party recipient was named",
-                    "urgency_language": "Pressure to act quickly",
-                    "claimed_authority": "A claim of authority",
-                }[s.signal]
-                for s in case.signals[:3]
-            ),
+            courier_watch_until=created_at + timedelta(hours=1) if created_at else None,
+            courier_warning=member_warning(case),
+            signals=labels(case),
+            notice=notice(case.extraction) if case.extraction else None,
+            extraction_status=case.extraction.status if case.extraction else None,
             status=state.status if state else "assessed",
             contact_name=str(contacts[0]["display_name"])
             if len(contacts) == 1
             else None,
+            method=("email" if state.method == "verified_email" else "app")
+            if state
+            else None,
             can_check=not state
             and len(contacts) == 1
-            and bool(eligible)
+            and (
+                bool(real_channel)
+                or bool(eligible)
+                and "app_confirmation"
+                in p.bundle.policy().verification.trusted_contact_methods_order
+            )
             and case.subject.party == "person"
-            and data.status == "ok"
-            and "app_confirmation"
-            in p.bundle.policy().verification.trusted_contact_methods_order,
+            and data.status == "ok",
         )
         return answer.model_copy(
             update={"data": data.model_copy(update={"presentation": verification})}

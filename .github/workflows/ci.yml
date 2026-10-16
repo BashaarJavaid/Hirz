@@ -188,6 +188,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: ./.github/actions/build-cards
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
           version: "0.12.15"
@@ -201,21 +202,25 @@ jobs:
           echo "HIRZ_DOGWOOD=$PWD/.tools/dogwood" >> "$GITHUB_ENV"
       - name: Initialize isolated PostgreSQL and HA demo
         run: uv run --locked python scripts/init_dev.py
-      - name: Scoped evening execution and observation regressions
+      - name: Full local sequences and Hourly planning regression
         run: |
           uv run --locked hirz scenario run scenarios/demo-evening.yaml --headless --assert --output "$RUNNER_TEMP/evening.json" > /dev/null
           uv run --locked hirz scenario run scenarios/demo-evening-hourly.yaml --headless --assert --output "$RUNNER_TEMP/hourly.json" > /dev/null
           uv run --locked hirz scenario run scenarios/parents-scam-check.yaml --headless --assert --output "$RUNNER_TEMP/parents.json" > /dev/null
+          uv run --locked hirz scenario run scenarios/parents-scam-no-answer.yaml --headless --assert --output "$RUNNER_TEMP/no-answer.json" > /dev/null
+          uv run --locked hirz scenario run scenarios/parents-ordinary-request.yaml --headless --assert --output "$RUNNER_TEMP/ordinary.json" > /dev/null
+          uv run --locked hirz scenario run scenarios/stranger-in-window.yaml --headless --assert --output "$RUNNER_TEMP/stranger.json" > /dev/null
       - name: Report scoped results and explicit deferrals
         run: |
           python - <<'PYTHON'
           import json, os
           from pathlib import Path
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
-              for name in ("evening", "hourly", "parents"):
+              for name in ("evening", "hourly", "parents", "no-answer", "ordinary", "stranger"):
                   result = json.loads((Path(os.environ["RUNNER_TEMP"]) / f"{name}.json").read_text())
+                  assert result["status"] == ("item17_planning_and_observations_passed" if name == "hourly" else "full_sequence_passed"), result["status"]
                   print(f"{name}: {result['status']}; checks={len(result['checks'])}; deferred assertions={len(result['deferred'])}", file=summary)
-              print("Evening: internal service execution; Hourly: planning regression; parents: observation checks. MCP, authentication, trust, security and Link remain deferred.", file=summary)
+              print("Five full local sequences: companion HTTP and software passkeys, persisted policy, Protect and twin execution. Hourly retains its planning contract. Link replay rejection and independent relocking remain item 38a.", file=summary)
           PYTHON
 
       - name: Live HA lamp and bounded restoration
@@ -460,6 +465,7 @@ jobs:
           ./wheel-smoke/bin/python -c 'from hirz.risk import CLASSES; from hirz.constitution.preview import SITUATIONS; assert len(CLASSES) == len(SITUATIONS) == 40; print("PASS packaged catalogs: 40 classes, 40 situation groups")'
           ./wheel-smoke/bin/python -c 'from hirz.mcp.cards import assets; assert len(assets()) == 5; print("PASS five packaged cards")'
           ./wheel-smoke/bin/python -c 'from importlib.resources import files; ui = files("hirz.companion").joinpath("ui"); assert all(ui.joinpath(name).is_file() for name in ("index.html", "manifest.webmanifest", "sw.js")); print("PASS packaged companion")'
+          ./wheel-smoke/bin/python -c 'from hirz.protect.organizations import registry; assert registry()[0].id == "comed"; print("PASS packaged organization registry")'
           ./wheel-smoke/bin/hirz --help
       - run: docker build --tag hirz-ci:check .
       - name: Container runs as the existing unprivileged user

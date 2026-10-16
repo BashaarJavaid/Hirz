@@ -1,7 +1,10 @@
 import { test, expect } from "@playwright/test";
+import { readFileSync } from "node:fs";
 
 test("unchanged reference host calls authenticated household tools through the relay", async ({ page, request }) => {
   test.skip(!process.env.HIRZ_CARD_LIVE, "Run through scripts.smoke_cards --browser-test");
+  const fixtures = JSON.parse(readFileSync(process.env.HIRZ_CARD_FIXTURES!, "utf8"));
+  await page.clock.setFixedTime(new Date(fixtures.at));
   // Only discovery is configured; every MCP request reaches the real OAuth-protected server.
   await page.route("http://localhost:8080/api/servers", route => route.fulfill({ contentType: "application/json", body: '["http://127.0.0.1:8082/home/mcp"]' }));
   expect((await request.post("http://127.0.0.1:8082/home/mcp", { headers: { Origin: "http://attacker.example" }, data: {} })).status()).toBe(403);

@@ -42,6 +42,9 @@ def create_app(
     simulator: Simulator | None = None,
 ) -> FastAPI:
     """One SDK manager per app; only tests/smoke register diagnostic tools."""
+    from hirz.protect.organizations import registry
+
+    registry()
     security = local_security(port)
     server = create_server(
         security, authentication=cache is not None and engine is not None
@@ -91,6 +94,18 @@ def create_app(
     if companion is not None:
         app.include_router(companion_router(companion))
 
+        from fastapi.exceptions import RequestValidationError
+
+        @app.exception_handler(RequestValidationError)
+        async def invalid_input(
+            request: Request, exc: RequestValidationError
+        ) -> JSONResponse:
+            return JSONResponse(
+                {"detail": "Invalid request fields."},
+                status_code=422,
+                headers={"Cache-Control": "no-store"},
+            )
+
         @app.exception_handler(ValueError)
         async def refused(request: Request, exc: ValueError) -> JSONResponse:
             return JSONResponse(
@@ -125,6 +140,8 @@ def create_app(
             "/approvals",
             "/constitution",
             "/household",
+            "/checkins",
+            "/contact-links",
             "/audit",
             "/twin",
         ):

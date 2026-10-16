@@ -943,7 +943,9 @@ semantic limits. MCP, UI and live Bedrock remain later work; internal scenario e
 ## Item 22 executable evening
 
 Use the existing local PostgreSQL service, `.env` signing key, and pinned native
-Dogwood. The runner creates and migrates a uniquely named disposable database;
+Dogwood. The committed evening and parents files now require both frontend
+bundles and use [item 35's full contract](#full-local-scenario-assertions-item-35).
+The runner creates and migrates a uniquely named disposable database;
 it does not migrate or seed the development database.
 
 ```bash
@@ -960,11 +962,11 @@ Pipeline-authorized restoration. Missing HA or failed restoration fails that gat
 It does not satisfy the physical-plug gate.
 
 Use `--artifacts-dir NEW_DIR` to select a new private evidence directory. Keep
-`report.json`, `audit.json` and `public-key.pem` together. The report identifies the
-seeded execution policy and the separate simulated preview. Failed databases are
-retained by name for diagnosis; remove them only after reviewing their evidence.
-Step and unchecked reports do not claim completion. No remote CI dispatch or
-public MCP/authentication claim is included.
+`report.json`, `audit.json` and `public-key.pem` together. Scoped runs distinguish
+seeded execution from simulated preview; full runs identify authenticated setup
+and reloaded execution policy. Failed databases are retained by name for diagnosis;
+remove them only after reviewing their evidence. Step and unchecked reports do not
+claim completion. The scripted host does not establish public MCP acceptance.
 
 For machine-readable results, use `--output <new-file>` or the retained
 `report.json`: native solver diagnostics can also appear on stdout
@@ -1524,6 +1526,10 @@ explicitly. No startup migration is introduced.
 
 ## Item 29 disposable simulator
 
+Shutdown drains periodic database work and stops playback between operations before
+stopping the HTTP servers and policy helpers. If that drain exceeds 15 seconds,
+acceptance fails and disposable storage is retained for diagnosis.
+
 `HIRZ_DATABASE_HOST` and `HIRZ_DATABASE_PORT` override the host and port used by
 `db.database_url` (defaults `127.0.0.1` and `5432`; port must be 1–65535). The
 simulator launcher sets them from `--database-host` and `--database-port`, so
@@ -1735,9 +1741,12 @@ Initialization creates separate recording credentials in `secrets/demo/.env`
 file privately. Never replace keys/passwords alongside retained recording state;
 restore the original configuration if it is partial, malformed, absent, or has a
 conflicting origin. No development migration, seed or reset is performed.
-The credential guard scans every recording-labeled container and volume on the
-Docker host, so a host holds one recording checkout at a time and retained failed
-runs must be disposed with explicit approval before another checkout initializes.
+The credential guard scans only containers and volumes labeled with both
+`org.hirz.recording=v1` and this checkout's `org.hirz.checkout` path hash, so
+another checkout's retained runs do not block initialization; retained failed runs
+of this checkout must still be disposed with explicit approval first. Moving a
+checkout gives it a new identity, so its earlier retained runs are no longer
+covered by its guard.
 
 Each foreground invocation builds the existing image and creates a unique Compose
 project, PostgreSQL volume and `secrets/demo/runs/<run-id>` directory (0700).
@@ -1813,3 +1822,158 @@ origin, `HIRZ_SIMULATOR_ARTIFACTS` pointing to its `artifacts` directory,
 `HIRZ_SIMULATOR_DISPLAY=show|dot` (see the test's display variable). Use a fresh
 run per cell. Virtual authenticators still undergo real server-side WebAuthn
 verification; they do not replace the manual real-phone rehearsal.
+
+## Trusted-contact acceptance (item 31)
+
+[ADR-022](./adr/ADR-022-trusted-checkins.md) records the approved scope. Item 34's
+access gate was recorded before implementation. Development migrations remain
+manual; do not upgrade the existing development database to run this acceptance.
+
+Put the approved Gmail **app password** privately in the regular mode-0600 `.env`
+as `HIRZ_CONTACT_SMTP_PASSWORD`. The sender/login is fixed by this temporary approval.
+Run `uv run --locked python scripts/init_contacts.py` to explicitly initialize the
+separate `HIRZ_CONTACT_ENCRYPTION_KEY`; malformed existing keys are refused, not
+replaced. Preserve that key to recover encrypted destinations and pending tokens.
+Use the existing HTTPS companion origin; SMTP requires certificate-verified STARTTLS.
+Name recipients explicitly before live sends. Their devices must reach the private
+tailnet origin; a delivered email alone does not establish that its link is reachable.
+
+Build both apps, then run the existing model-free simulator launcher with a new
+private artifacts directory and the configured HTTPS origin. It creates/migrates a
+**disposable** database through 0019 and writes owner enrollment invitations privately.
+Enroll both owners using real passkeys, activate each seed policy, pair across the
+two Household pages, and activate the pairing only after owner confirmation. Enable
+notifications in the recipient's iPhone Home Screen app. Email enrollment requires
+an explicit mailbox-link POST, then a fresh owner confirmation. Start new requests
+through authenticated MCP with explicit request confirmation. Verify actual phone
+push reception and the exact app/email answers, not just queue or SMTP acceptance.
+
+The launcher writes `contact-run.json` privately. A retained contact-only run can
+resume with `--resume-contact-run <descriptor> --artifacts-dir <new-private-dir>` at
+the original origin, preserving enrollments without migrating, seeding or issuing
+new invitations. Stop the previous server before resuming. This does not resume a
+played scenario or its in-memory OAuth grants. Resume permits only disposable
+`hirz_ha_smoke_*` databases already on 0019 and retains the database at shutdown;
+normal new runs retain the existing export-before-drop behavior. Preserve signed
+exports from each household before cleaning up any retained test database.
+
+Automated contact/security checks are in `tests/integration/test_trusted_checkins.py`
+and `tests/unit/test_contact_secrets.py`. The no-answer YAML is also replayed
+through authenticated MCP by that integration suite, which asserts the saved-phone
+fallback and explicitly confirmed linked retries. Its [full local CLI run](#full-local-scenario-assertions-item-35)
+is separate from this MCP acceptance. The latency harness now includes
+an immediate scripted exact-request form exchange in contact start/retry timings;
+setup/initialization stays outside timing, and final result decoding stays outside.
+Run both CI matrix gates; local timings are diagnostic only. No automated transport
+mock, software passkey or browser fixture substitutes for the required real tests.
+
+## Protect assessment acceptance (item 32)
+
+Build cards before starting MCP. Offline acceptance uses disposable PostgreSQL,
+authenticated MCP, a fresh Protect worker and independently verified signed exports:
+
+```sh
+HIRZ_LLM=off uv run --locked python -m scripts.smoke_protect --artifacts-dir secrets/NEW-PROTECT-OFFLINE
+```
+
+Live extraction requires `HIRZ_LLM=bedrock`, `AWS_PROFILE=hirz` and
+`HIRZ_PROTECT_BUDGET_LEDGER` pointing to the **same retained** item 32 ledger for
+all extraction, warmup and routing runs. Its aggregate ceiling is $2; never reset
+or replace it to bypass the ceiling. The worker uses the existing Haiku 4.5 US
+inference profile in us-east-1, one attempt, counted input and at most 512 output
+tokens. Missing credentials/ledger, counting failure, budget exhaustion, malformed
+output or a 15-second provider timeout leaves labeled keyword advice. The ledger check
+runs before CountTokens, so a missing, foreign or exhausted ledger contacts no provider.
+
+```sh
+AWS_PROFILE=hirz HIRZ_PROTECT_BUDGET_LEDGER="$PWD/secrets/item32-protect-budget.json" uv run --locked python -m scripts.smoke_protect --live --artifacts-dir secrets/NEW-PROTECT-LIVE
+```
+
+An explicit `--warmup` on the live harness permits a 180-second read timeout for
+the fixed schema, charged against that same ledger; runtime never warms or retries
+automatically. Recheck published pricing before paid verification. The latest price check and retained ledger history are in the
+[item 32 evidence](./verification-log.md#item-32--2026-10-11). `hirz` uses the `hirz-login` source
+profile; refresh it with `aws login --profile hirz-login` and verify with
+`aws sts get-caller-identity --profile hirz --no-cli-pager`.
+The private artifact directory retains `routing.json` for selection evidence and
+`failure.txt` when acceptance raises; these can contain the reported fixture text
+and must not be published as public CI artifacts.
+
+Protect uses the existing private case JSON; no migration or development database
+upgrade is required. Pending cases resume after restart. Abandoned running cases
+become fallback and incur no retry. Status reads refresh advice; duplicate tool
+receipts deliberately do not. Card fixtures come from `scripts.smoke_cards`;
+`apps/mcp-app/tests/cards.spec.ts` checks enrichment settlement and the 30-second
+limit. The isolated UI test `apps/web/tests/protect.spec.ts` expects the Vite dev
+server on loopback 5173 and mocks session/inbox data; it does not prove auth.
+
+## Organization verification (item 33)
+
+[ADR-023](./adr/ADR-023-organization-verification.md) defines the registry and saved
+revision contract. Update the packaged YAML only after reviewing the cited official
+source, then advance its revision and review date. Restart loads/validates once;
+malformed or ambiguous entries fail startup. Existing saved contacts need explicit
+owner review and re-save; historical cases retain their original evidence.
+
+Build both apps and run `HIRZ_LLM=off uv run --locked python -m scripts.smoke_companion
+--artifacts-dir <new-private-dir>` as one command. It now exercises browser passkey
+save/removal, authenticated MCP matching and wrong numbers, registry-only behavior,
+and independently verified signed exports. The disposable smoke creates its own
+contact-binding key; no email is sent. `scripts.smoke_cards --browser-test` includes
+the published reference and caller-ID limitation. The household-tool smoke's
+independent checker cases include organization matches, wrong numbers and unknown
+names. These use no paid model calls or real-phone acceptance and never migrate the
+development database. Run the existing full Python/TypeScript, packaging,
+conformance and both normal CI latency gates before closing item 33.
+
+## Courier correlation (item 33a)
+
+Run `HIRZ_LLM=off uv run --locked hirz scenario run
+scenarios/parents-scam-check.yaml --headless --assert --artifacts-dir <new-private-dir>`
+for service-backed assessment, check-in reply, twin press and courier publication,
+with independently verified signed audit exports. The database is disposable; no
+development migration is needed. See [ADR-024](./adr/ADR-024-courier-correlation.md).
+
+Build both apps before the existing `scripts.smoke_cards --browser-test` and
+`scripts.smoke_companion` checks. Card fixtures drive the full `cards.spec.ts`
+polling suite; companion acceptance additionally enrolls a second household,
+pairs a real app link, triggers a labeled twin press and checks private warning
+projection and revocation. No physical-device, paid inference or real-iPhone-push
+gate is added. Full Python/TypeScript, packaging, conformance and both normal CI
+latency gates remain required for closure.
+
+
+## Full local scenario assertions (item 35)
+
+Use the existing local PostgreSQL credentials, built MCP cards and companion
+assets (`pnpm --filter mcp-app build && pnpm --filter web build`), and pinned native
+Dogwood. Development migrations remain manual: these commands migrate only their
+uniquely named disposable databases. No Bedrock call or real contact delivery is
+needed. Each artifact directory must be new.
+
+```bash
+export HIRZ_DOGWOOD="$PWD/.tools/dogwood"
+export HIRZ_LLM=off
+for scenario in demo-evening parents-scam-check parents-scam-no-answer parents-ordinary-request stranger-in-window; do
+  uv run --locked hirz scenario run "scenarios/$scenario.yaml" --headless --assert --artifacts-dir "secrets/item35-$scenario"
+done
+uv run --locked hirz scenario run scenarios/demo-evening-hourly.yaml --headless --assert
+uv run --locked hirz scenario step scenarios/stranger-in-window.yaml --to 19:05 --assert
+uv run --locked python scripts/smoke_scenario.py --live-demo --artifacts-dir secrets/item35-ha
+```
+
+The five full runs require `full_sequence_passed`; Hourly retains
+`item17_planning_and_observations_passed` and its planning checks. Step stops before its target
+and returns `stopped`. Full runs without `--assert` fail. The report's setup and
+activation entries record software-passkey HTTP ceremonies; its final execution
+policy version is read from the reloaded stored policy. Private artifacts include
+the report, audit export and verification key. Verify success before cleanup;
+failure retains its database and available evidence. Never delete a failed run's
+evidence to turn it into a pass.
+
+[Scenario §3](./twin-and-scenarios.md#3-scenario-dsl) owns the assertions and Link
+deferral. Run the Python service-free suite, integration suite with appended
+coverage, combined 80% gate, ordinary CI and both normal latency jobs before item
+closure. Existing companion browser regressions cover approval-page rendering;
+headless ASGI ceremonies do not establish a physical phone or cloud-independent
+relock. No extra browser matrix is required.

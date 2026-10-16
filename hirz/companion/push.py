@@ -160,10 +160,18 @@ async def subscribe(
     return str(reference)
 
 
+def delivery_time(p: Pipeline, reference: str) -> datetime:
+    if reference.startswith(("checkin:", "courier:")):
+        from hirz.contacts.service import contact_time
+
+        return contact_time(p)
+    return p.clock()
+
+
 async def queue(
     p: Pipeline, principal: Principal, sub: Any, reference: str, expires_at: datetime
 ) -> None:
-    if expires_at <= p.clock():
+    if expires_at <= delivery_time(p, reference):
         return
     exists = await p.connection.scalar(
         sa.select(db.companion_delivery.c.reference).where(
@@ -178,12 +186,38 @@ async def queue(
                 subscription_id=sub["id"],
                 reference=reference,
                 expires_at=expires_at,
-                next_attempt=p.clock(),
+                next_attempt=delivery_time(p, reference),
             )
         )
 
 
 async def destination(p: Pipeline, member: UUID, reference: str) -> str | None:
+    if reference.startswith("courier:"):
+        from hirz.protect.courier import warnings
+
+        return (
+            "/checkins"
+            if any(w["id"] == reference for w in await warnings(p, member))
+            else None
+        )
+    if reference.startswith("checkin:"):
+        exists = await p.connection.scalar(
+            sa.select(db.checkin_jobs.c.id)
+            .join(
+                db.contact_links,
+                db.contact_links.c.id == db.checkin_jobs.c.link_id,
+            )
+            .where(
+                db.checkin_jobs.c.id == reference.removeprefix("checkin:"),
+                db.contact_links.c.recipient_household == p.household_id,
+                db.contact_links.c.recipient_member == member,
+                db.contact_links.c.status == "active",
+                db.contact_links.c.kind == "app",
+                db.checkin_jobs.c.status == "sent",
+                db.checkin_jobs.c.expires_at > delivery_time(p, "checkin:"),
+            )
+        )
+        return "/checkins" if exists else None
     if reference.startswith("notice:"):
         exists = await p.connection.scalar(
             sa.select(db.pending_notifications.c.audit_seq).where(
@@ -274,6 +308,42 @@ async def advance(p: Pipeline, config: Config) -> None:
                 await account(p.connection, p.household_id, sub["member_id"])
             ).model_copy(update={"surface": "scheduler"})
             member = await p.requester(principal)
+            from hirz.protect.courier import warnings
+
+            for warning in await warnings(p, sub["member_id"]):
+                if warning["delivery_source"] == "real":
+                    await queue(
+                        p,
+                        principal,
+                        sub,
+                        warning["id"],
+                        datetime.fromisoformat(warning["expires_at"]),
+                    )
+            checkins = (
+                (
+                    await p.connection.execute(
+                        sa.select(db.checkin_jobs.c.id, db.checkin_jobs.c.expires_at)
+                        .join(
+                            db.contact_links,
+                            db.contact_links.c.id == db.checkin_jobs.c.link_id,
+                        )
+                        .where(
+                            db.contact_links.c.recipient_household == p.household_id,
+                            db.contact_links.c.recipient_member == sub["member_id"],
+                            db.contact_links.c.kind == "app",
+                            db.contact_links.c.status == "active",
+                            db.checkin_jobs.c.status == "sent",
+                            db.checkin_jobs.c.expires_at > delivery_time(p, "checkin:"),
+                        )
+                    )
+                )
+                .mappings()
+                .all()
+            )
+            for checkin in checkins:
+                await queue(
+                    p, principal, sub, "checkin:" + checkin["id"], checkin["expires_at"]
+                )
             for approval in pending:
                 rule = p.bundle.policy().rule(
                     approval["proposal"]["class"], member.role
@@ -349,6 +419,16 @@ async def advance(p: Pipeline, config: Config) -> None:
     # Each network attempt is outside the household transaction.
     for sub in subscriptions:
         async with p.repo.write(p.clock):
+            at = sa.case(
+                (
+                    sa.or_(
+                        db.companion_delivery.c.reference.startswith("checkin:"),
+                        db.companion_delivery.c.reference.startswith("courier:"),
+                    ),
+                    delivery_time(p, "checkin:"),
+                ),
+                else_=p.clock(),
+            )
             job = (
                 (
                     await p.connection.execute(
@@ -357,8 +437,8 @@ async def advance(p: Pipeline, config: Config) -> None:
                             db.companion_delivery.c.subscription_id == sub["id"],
                             db.companion_delivery.c.status.in_(["pending", "sending"]),
                             sa.or_(
-                                db.companion_delivery.c.next_attempt <= p.clock(),
-                                db.companion_delivery.c.expires_at <= p.clock(),
+                                db.companion_delivery.c.next_attempt <= at,
+                                db.companion_delivery.c.expires_at <= at,
                             ),
                         )
                         .order_by(db.companion_delivery.c.next_attempt)
@@ -375,7 +455,8 @@ async def advance(p: Pipeline, config: Config) -> None:
             ).model_copy(update={"surface": "scheduler"})
             url = (
                 await destination(p, sub["member_id"], job["reference"])
-                if job["expires_at"] > p.clock() and job["attempts"] < 3
+                if job["expires_at"] > delivery_time(p, job["reference"])
+                and job["attempts"] < 3
                 else None
             )
             if url is None:
@@ -408,7 +489,8 @@ async def advance(p: Pipeline, config: Config) -> None:
                 .values(
                     attempts=attempts,
                     status="sending",
-                    next_attempt=p.clock() + timedelta(seconds=30 * attempts),
+                    next_attempt=delivery_time(p, job["reference"])
+                    + timedelta(seconds=30 * attempts),
                 )
             )
         gone = False
@@ -421,7 +503,7 @@ async def advance(p: Pipeline, config: Config) -> None:
             subscription = Subscription.model_validate_json(
                 Fernet(config.encryption_key.encode()).decrypt(sub["ciphertext"])
             )
-            if p.clock() >= job["expires_at"]:
+            if delivery_time(p, job["reference"]) >= job["expires_at"]:
                 raise ValueError("Notification expired before delivery")
             await webpush_async(
                 subscription_info=subscription.model_dump(exclude={"expirationTime"}),
@@ -429,7 +511,14 @@ async def advance(p: Pipeline, config: Config) -> None:
                 vapid_private_key=config.vapid_private_key,
                 vapid_claims={"sub": config.subject},
                 timeout=5,
-                ttl=max(0, int((job["expires_at"] - p.clock()).total_seconds())),
+                ttl=max(
+                    0,
+                    int(
+                        (
+                            job["expires_at"] - delivery_time(p, job["reference"])
+                        ).total_seconds()
+                    ),
+                ),
             )
             status = "sent"
         except WebPushException as exc:

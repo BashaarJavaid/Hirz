@@ -15,3 +15,12 @@ describe("card trust boundary", () => {
     expect(money(null)).toBe("Unavailable");
   });
 });
+
+describe("Protect extraction contract", () => {
+  it("accepts legacy cases and rejects unknown extraction signals", () => {
+    const result = { speakable: { headline: "Assessment", details: [], options: [] }, data: { status: "ok", case: { case_id: "fixture" } } };
+    expect(readResult({ structuredContent: result }).data.case?.case_id).toBe("fixture");
+    const extraction = { status: "complete", keyword_signals: [], model_signals: [{ signal: "execute_payment", weight: 2 }], queued_at: "2026-10-11T12:00:00Z" };
+    expect(() => readResult({ structuredContent: { ...result, data: { ...result.data, case: { ...result.data.case, extraction } } } })).toThrow();
+  });
+});

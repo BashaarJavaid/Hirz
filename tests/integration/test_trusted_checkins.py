@@ -1,0 +1,1332 @@
+"""Real-channel services in disposable databases with signed native Pipeline decisions."""
+
+import asyncio
+from datetime import timedelta
+from pathlib import Path
+from uuid import UUID
+
+import pytest
+import sqlalchemy as sa
+from cryptography.fernet import Fernet
+from test_companion_auth_database import enroll
+from test_database import connect
+from test_database import scratch_database as scratch_database
+from test_pipeline_database import setup
+
+from hirz import db
+from hirz.companion import auth
+from hirz.constitution.schema import load
+from hirz.contacts import checkins
+from hirz.contacts.secrets import Config
+from hirz.contacts.service import Command, command, guess
+from hirz.graph.seeds import demo_id, load_seeds, read_seed
+from hirz.mcp.household import HouseholdTools
+from hirz.mcp.trust import advance as simulated
+from hirz.pipeline.service import Pipeline, PolicyBundle
+from tests.unit.test_companion_auth import Authenticator
+from tests.unit.test_pipeline import ident, policy_edit
+
+pytestmark = pytest.mark.integration
+
+
+def consume_receipt_in_fresh_process(database, household, policy_yaml, key_pem, at):
+    """Fresh worker memory; only private disposable fixture inputs cross the pipe."""
+    from cryptography.hazmat.primitives.serialization import load_pem_private_key
+
+    from hirz.constitution.boundary import Dogwood
+    from hirz.constitution.schema import loads
+    from hirz.contacts import service
+    from hirz.pipeline.audit import AuditWriter
+
+    async def run():
+        async with connect(database) as c:
+            boundary = Dogwood()
+            p = Pipeline(
+                c,
+                await PolicyBundle.validate(household, loads(policy_yaml), boundary),
+                boundary,
+                AuditWriter(load_pem_private_key(key_pem, password=None)),
+                lambda: at,
+            )
+            service.now = lambda: at
+            await checkins.advance(p)
+
+    try:
+        asyncio.run(run())
+    except Exception:
+        raise SystemExit(
+            "Disposable receipt worker failed; private inputs withheld"
+        ) from None
+
+
+@pytest.mark.parametrize("mode", ["auto", "ask"])
+@pytest.mark.parametrize("answer", ["genuine", "not_genuine", "will_call", "no_answer"])
+def test_real_cross_household_receipt_isolation_and_deadline(
+    scratch_database, monkeypatch, answer, mode, tmp_path
+):
+    config = Config(Fernet.generate_key().decode(), "https://home.example")
+    monkeypatch.setenv("HIRZ_CONTACT_ENCRYPTION_KEY", config.encryption_key)
+    monkeypatch.setenv("HIRZ_COMPANION_ORIGIN", config.origin)
+
+    async def run():
+        async with connect(scratch_database) as c:
+            p = await setup(
+                c,
+                policy_edit("communication.contact_trusted_contact", mode=mode),
+                native=True,
+            )
+            clock = [p.clock()]
+            monkeypatch.setattr("hirz.contacts.service.now", lambda: clock[0])
+            p.clock = lambda: clock[0]
+            seed = read_seed(Path("constitutions/quinn-parents.yaml"))
+            await load_seeds(c, [seed], lambda: clock[0] - timedelta(seconds=1))
+            q = Pipeline(
+                c,
+                await PolicyBundle.validate(
+                    seed.household_id,
+                    load(Path("constitutions/quinn-parents.yaml")),
+                    p.boundary,
+                ),
+                p.boundary,
+                p.audit,
+                lambda: clock[0],
+            )
+
+            async def owner(pipeline, member_id):
+                session = await enroll(
+                    pipeline,
+                    await auth.initial_invitation(pipeline, member_id),
+                    Authenticator(),
+                )
+                async with c.begin():
+                    current = await auth.session(c, session["session"], clock[0])
+                return current["principal"].model_copy(
+                    update={"passkey_verified": True, "requester_confirmed": True}
+                )
+
+            actor = await owner(p, ident("members", "malik"))
+            recipient = await owner(q, demo_id(seed.slug, "members", "mom"))
+            async with p.repo.write(p.clock):
+                created = await command(
+                    p,
+                    actor,
+                    Command(
+                        operation="create", name="Other owner", relationship="family"
+                    ),
+                    config,
+                )
+                contact = UUID(created["id"])
+                invitation = await command(
+                    p,
+                    actor,
+                    Command(operation="invite", contact_id=contact, method="app"),
+                    config,
+                )
+            async with q.repo.write(q.clock):
+                await command(
+                    q,
+                    recipient,
+                    Command(operation="accept", value=invitation["invitation"]),
+                    config,
+                )
+            with pytest.raises(ValueError):
+                async with q.repo.write(q.clock):
+                    await command(
+                        q,
+                        recipient,
+                        Command(operation="accept", value=invitation["invitation"]),
+                        config,
+                    )
+            async with p.repo.write(p.clock):
+                await command(
+                    p,
+                    actor,
+                    Command(
+                        operation="confirm",
+                        contact_id=contact,
+                        reference=invitation["id"],
+                    ),
+                    config,
+                )
+                await command(
+                    p,
+                    actor,
+                    Command(operation="word", contact_id=contact, value="CaféSecret"),
+                    config,
+                )
+            tools = HouseholdTools(p, actor)
+            started = await tools.call(
+                "verify_trusted_identity",
+                {
+                    "operation": "start",
+                    "contact": str(contact),
+                    "text": "Did you request five hundred dollars?",
+                    "request_id": "real-start",
+                },
+            )
+            case = started.data.case
+            if mode == "ask":
+                assert case.verification is None
+                async with c.begin():
+                    assert (
+                        await c.scalar(sa.select(db.checkin_jobs.c.expires_at)) is None
+                    )
+                clock[0] += timedelta(minutes=3)
+                approved = await tools.call(
+                    "approve_action",
+                    {
+                        "action_id": started.data.decision.action_id,
+                        "approval_id": started.data.decision.approval.approval_id,
+                        "approved": True,
+                        "request_id": "approve-real",
+                    },
+                )
+                assert approved.data.decision.decision == "execute", approved
+                started = await tools.call(
+                    "verify_trusted_identity",
+                    {"operation": "status", "case_id": case.case_id},
+                )
+                case = started.data.case
+                assert case.verification.expires_at == clock[0] + timedelta(minutes=2)
+            assert case.verification.source == "real", started
+            assert "number" not in case.claim.model_dump_json(exclude_none=True)
+            async with c.begin():
+                job = dict(
+                    (
+                        await c.execute(
+                            sa.select(db.checkin_jobs).where(
+                                db.checkin_jobs.c.case_id == case.case_id
+                            )
+                        )
+                    )
+                    .mappings()
+                    .one()
+                )
+            # No simulated worker can close an explicitly real case.
+            await simulated(p, None)
+            await checkins.advance(p)
+            with pytest.raises(ValueError):
+                await HouseholdTools(q, recipient).call(
+                    "verify_trusted_identity",
+                    {"operation": "status", "case_id": case.case_id},
+                )
+            with pytest.raises(ValueError):
+                async with p.repo.write(p.clock):
+                    await command(
+                        p,
+                        actor,
+                        Command(
+                            operation="reply",
+                            reference=job["id"],
+                            request_hash=job["request_hash"],
+                            answer="genuine",
+                        ),
+                        config,
+                    )
+            with pytest.raises(ValueError):
+                async with q.repo.write(q.clock):
+                    await command(
+                        q,
+                        recipient,
+                        Command(
+                            operation="reply",
+                            reference=job["id"],
+                            request_hash="changed",
+                            answer="genuine",
+                        ),
+                        config,
+                    )
+            async with p.repo.write(p.clock):
+                assert (await guess(p, actor, case.case_id, "Cafe\u0301Secret"))[
+                    "matches"
+                ]
+                for _ in range(4):
+                    assert not (await guess(p, actor, case.case_id, "incorrect"))[
+                        "matches"
+                    ]
+                assert (await guess(p, actor, case.case_id, "CaféSecret"))["limited"]
+            if answer != "no_answer":
+                if answer == "genuine" and mode == "auto":
+                    from unittest.mock import patch
+
+                    append = q.audit.append
+
+                    async def fail_receipt(*args, **kwargs):
+                        if (
+                            isinstance(args[4], dict)
+                            and args[4].get("operation") == "contact_receipt"
+                        ):
+                            raise RuntimeError("receipt audit unavailable")
+                        return await append(*args, **kwargs)
+
+                    async with c.begin():
+                        before = await c.scalar(
+                            sa.select(sa.func.count()).select_from(db.audit_log)
+                        )
+                    with (
+                        patch.object(type(q.audit), "append", side_effect=fail_receipt),
+                        pytest.raises(RuntimeError, match="receipt audit unavailable"),
+                    ):
+                        async with q.repo.write(q.clock):
+                            await command(
+                                q,
+                                recipient,
+                                Command(
+                                    operation="reply",
+                                    reference=job["id"],
+                                    request_hash=job["request_hash"],
+                                    answer=answer,
+                                ),
+                                config,
+                            )
+                    async with c.begin():
+                        assert (
+                            await c.scalar(
+                                sa.select(sa.func.count()).select_from(db.audit_log)
+                            )
+                            == before
+                        )
+                        assert not await c.scalar(
+                            sa.select(db.checkin_receipts.c.job_id)
+                        )
+
+                    # Two independent recipient transactions may retry one answer;
+                    # the channel lock and receipt key permit exactly one receipt.
+                    async def concurrent_reply():
+                        async with connect(scratch_database) as other:
+                            recipient_pipeline = Pipeline(
+                                other, q.bundle, q.boundary, q.audit, q.clock
+                            )
+                            async with recipient_pipeline.repo.write(q.clock):
+                                return await command(
+                                    recipient_pipeline,
+                                    recipient,
+                                    Command(
+                                        operation="reply",
+                                        reference=job["id"],
+                                        request_hash=job["request_hash"],
+                                        answer=answer,
+                                    ),
+                                    config,
+                                )
+
+                    replies = await asyncio.gather(
+                        concurrent_reply(), concurrent_reply()
+                    )
+                    assert replies == [{"ok": True}, {"ok": True}]
+                    async with c.begin():
+                        assert (
+                            await c.scalar(
+                                sa.select(sa.func.count()).select_from(
+                                    db.checkin_receipts
+                                )
+                            )
+                            == 1
+                        )
+                async with q.repo.write(q.clock):
+                    value = Command(
+                        operation="reply",
+                        reference=job["id"],
+                        request_hash=job["request_hash"],
+                        answer=answer,
+                    )
+                    assert (await command(q, recipient, value, config))["ok"]
+                    assert (await command(q, recipient, value, config))["ok"]
+                with pytest.raises(ValueError):
+                    async with q.repo.write(q.clock):
+                        await command(
+                            q,
+                            recipient,
+                            value.model_copy(
+                                update={
+                                    "answer": "will_call"
+                                    if answer != "will_call"
+                                    else "not_genuine"
+                                }
+                            ),
+                            config,
+                        )
+            # Revocation serializes with accepted receipts; an earlier receipt wins.
+            if answer == "will_call":
+                async with q.repo.write(q.clock):
+                    await command(
+                        q,
+                        recipient,
+                        Command(operation="withdraw", reference=invitation["id"]),
+                        config,
+                    )
+            clock[0] += timedelta(minutes=3)
+            if answer == "genuine" and mode == "auto":
+                import multiprocessing
+
+                from cryptography.hazmat.primitives import serialization
+
+                from hirz.constitution.schema import dump
+
+                child = multiprocessing.get_context("spawn").Process(
+                    target=consume_receipt_in_fresh_process,
+                    args=(
+                        scratch_database,
+                        p.household_id,
+                        dump(p.bundle.policy()),
+                        p.audit.key.private_bytes(
+                            serialization.Encoding.PEM,
+                            serialization.PrivateFormat.PKCS8,
+                            serialization.NoEncryption(),
+                        ),
+                        clock[0],
+                    ),
+                )
+                child.start()
+                try:
+                    await asyncio.to_thread(child.join, 20)
+                    assert child.exitcode == 0, "Fresh receipt worker must finish"
+                finally:
+                    if child.is_alive():
+                        child.terminate()
+                        await asyncio.to_thread(child.join, 5)
+                    child.close()
+            else:
+                await checkins.advance(p)
+            result = await tools.call(
+                "verify_trusted_identity",
+                {"operation": "status", "case_id": case.case_id},
+            )
+            assert result.data.case.verification.status == answer
+            assert result.data.case.risk_band == case.risk_band
+            if answer == "no_answer":
+                assert "saved in your own phone" in result.speakable.headline
+                with pytest.raises(ValueError, match="expired or closed"):
+                    async with q.repo.write(q.clock):
+                        await command(
+                            q,
+                            recipient,
+                            Command(
+                                operation="reply",
+                                reference=job["id"],
+                                request_hash=job["request_hash"],
+                                answer="genuine",
+                            ),
+                            config,
+                        )
+            async with c.begin():
+                payloads = str(
+                    (await c.execute(sa.select(db.audit_log.c.payload))).scalars().all()
+                )
+                assert (
+                    "CaféSecret" not in payloads
+                    and invitation["invitation"] not in payloads
+                )
+                from alembic.autogenerate import compare_metadata
+                from alembic.migration import MigrationContext
+
+                drift = await c.run_sync(
+                    lambda sync: compare_metadata(
+                        MigrationContext.configure(sync), db.metadata
+                    )
+                )
+                assert not drift, drift
+            from hirz.audit import retain_export
+
+            for pipeline in (p, q):
+                folder = tmp_path / str(pipeline.household_id)
+                folder.mkdir(mode=0o700)
+                verified, _ = await retain_export(
+                    c, pipeline.household_id, p.audit.key.public_key(), folder
+                )
+                assert verified["status"] == "valid"
+
+    asyncio.run(run())
+
+
+def test_contact_http_passkey_binding_mailbox_and_failure(
+    scratch_database, monkeypatch
+):
+    from unittest.mock import patch
+
+    import httpx
+    from webauthn.helpers import base64url_to_bytes
+
+    from hirz.api.app import create_app
+    from hirz.companion import policy
+    from hirz.companion.api import Companion
+    from hirz.constitution.schema import dump
+    from hirz.contacts.worker import advance
+    from hirz.graph.models import now
+    from tests.unit.test_companion_auth import CONFIG
+
+    config = Config(Fernet.generate_key().decode(), CONFIG.origin)
+    monkeypatch.setenv("HIRZ_CONTACT_ENCRYPTION_KEY", config.encryption_key)
+    monkeypatch.setenv("HIRZ_COMPANION_ORIGIN", config.origin)
+
+    async def run():
+        async with connect(scratch_database) as c:
+            p = await setup(c, native=True)
+            p.clock = now
+            key = Authenticator()
+            owner = await enroll(
+                p, await auth.initial_invitation(p, ident("members", "malik")), key
+            )
+            async with p.repo.write(p.clock):
+                current = await auth.session(c, owner["session"], p.clock())
+                actor = current["principal"].model_copy(
+                    update={"passkey_verified": True, "requester_confirmed": True}
+                )
+                draft = await policy.draft(p, actor, dump(p.bundle.policy()))
+                await policy.activate(
+                    p, actor, draft["id"], draft["candidate_hash"], current["digest"]
+                )
+            service = Companion(c.engine, p.audit, CONFIG)
+            app = create_app(companion=service)
+            async with httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=app), base_url=CONFIG.origin
+            ) as client:
+                client.cookies.set(auth.SESSION_COOKIE, owner["session"])
+                client.cookies.set(auth.BROWSER_COOKIE, "contact-http")
+                client.headers.update(
+                    {
+                        "origin": CONFIG.origin,
+                        "x-hirz-csrf": auth.csrf(owner["session"]),
+                    }
+                )
+
+                async def change(value, altered=None):
+                    begin = await client.post(
+                        "/api/auth/begin",
+                        json={"operation": "contact", "contact": value},
+                    )
+                    assert begin.status_code == 200, begin.text
+                    options = begin.json()
+                    return await client.post(
+                        "/api/auth/finish",
+                        json={
+                            "id": options["id"],
+                            "contact": altered or value,
+                            "credential": key.response(
+                                base64url_to_bytes(options["publicKey"]["challenge"])
+                            ),
+                        },
+                    )
+
+                organization = {
+                    "operation": "save_organization",
+                    "organization_id": "comed",
+                    "registry_revision": "2026-10-11",
+                }
+                for altered in (
+                    organization | {"organization_id": "other"},
+                    organization | {"registry_revision": "2026-10-12"},
+                ):
+                    assert (await change(organization, altered)).status_code == 400
+                assert (
+                    await change(organization | {"registry_revision": "2026-10-10"})
+                ).status_code == 400
+                assert (
+                    await change(organization | {"value": "+18005555555"})
+                ).status_code == 400
+                saved = await change(organization)
+                assert saved.status_code == 200, saved.text
+                public = (await client.get("/api/contacts")).json()["organizations"][0]
+                assert public["phone"] == "+18003347661"
+                assert public["status"] == "saved"
+                assert public["contact_id"] == saved.json()["id"]
+                assert (
+                    await change(
+                        {"operation": "remove", "contact_id": saved.json()["id"]}
+                    )
+                ).status_code == 200
+                assert (await client.get("/api/contacts")).json()["organizations"][0][
+                    "status"
+                ] == "not_saved"
+
+                value = {
+                    "operation": "create",
+                    "name": "Email contact",
+                    "relationship": "family",
+                }
+                refused = await change(value, value | {"name": "Changed contact"})
+                assert refused.status_code == 400
+                result = await change(value)
+                assert result.status_code == 200, result.text
+                contact = result.json()["id"]
+                result = await change(
+                    {
+                        "operation": "invite",
+                        "contact_id": contact,
+                        "method": "email",
+                        "value": "Test.Local+Tag@EXAMPLE.COM",
+                    }
+                )
+                assert result.status_code == 200, result.text
+                reference = result.json()["id"]
+                async with c.begin():
+                    row = (
+                        (
+                            await c.execute(
+                                sa.select(db.contact_links).where(
+                                    db.contact_links.c.id == reference
+                                )
+                            )
+                        )
+                        .mappings()
+                        .one()
+                    )
+                    private = config.open(row["ciphertext"])
+                    assert private["destination"] == "Test.Local+Tag@example.com"
+                    assert "Test.Local" not in str(
+                        (await c.execute(sa.select(db.audit_log.c.payload)))
+                        .scalars()
+                        .all()
+                    )
+                assert (await client.get("/contact-links")).status_code == 200
+                assert (await client.get("/api/contact-links/confirm")).status_code in {
+                    405,
+                    421,
+                }
+                confirm = {
+                    "operation": "confirm",
+                    "contact_id": contact,
+                    "reference": reference,
+                }
+                assert (await change(confirm)).status_code == 400
+                preview = await client.post(
+                    "/api/contact-links/view", json={"token": private["token"]}
+                )
+                assert (
+                    preview.status_code == 200
+                    and preview.json()["kind"] == "enrollment"
+                )
+                assert (
+                    await client.post(
+                        "/api/contact-links/confirm", json={"token": private["token"]}
+                    )
+                ).status_code == 200
+                assert (
+                    await client.post(
+                        "/api/contact-links/confirm", json={"token": private["token"]}
+                    )
+                ).status_code == 403
+                confirmed = await change(confirm)
+                assert confirmed.status_code == 200, confirmed.text
+                async with service.pipeline(p.household_id) as q:
+                    result = await HouseholdTools(q, actor).call(
+                        "verify_trusted_identity",
+                        {
+                            "operation": "start",
+                            "contact": contact,
+                            "text": "Exact reported request",
+                            "request_id": "email-check",
+                        },
+                    )
+                    assert result.data.case.verification.method == "verified_email", (
+                        result
+                    )
+                    case = result.data.case
+                    async with q.connection.begin():
+                        job = (
+                            (
+                                await q.connection.execute(
+                                    sa.select(db.checkin_jobs).where(
+                                        db.checkin_jobs.c.case_id == case.case_id
+                                    )
+                                )
+                            )
+                            .mappings()
+                            .one()
+                        )
+                        token = config.open(job["ciphertext"])["token"]
+                    with patch("hirz.contacts.checkins.send_email") as smtp:
+                        await advance(q)
+                    smtp.assert_called_once()
+                preview = await client.post(
+                    "/api/contact-links/view", json={"token": token}
+                )
+                assert preview.status_code == 200, preview.text
+                assert preview.json()["text"] == "Exact reported request"
+                assert (
+                    await client.post(
+                        "/api/contact-links/confirm",
+                        json={
+                            "token": token,
+                            "request_hash": "wrong",
+                            "answer": "genuine",
+                        },
+                    )
+                ).status_code == 403
+                response = {
+                    "token": token,
+                    "request_hash": preview.json()["request_hash"],
+                    "answer": "not_genuine",
+                }
+                assert (
+                    await client.post("/api/contact-links/confirm", json=response)
+                ).status_code == 200
+                assert (
+                    await client.post("/api/contact-links/confirm", json=response)
+                ).status_code == 200
+                assert (
+                    await client.post("/api/contact-links/view", json={"token": token})
+                ).status_code == 403
+                async with service.pipeline(p.household_id) as q:
+                    await advance(q)
+                    result = await HouseholdTools(q, actor).call(
+                        "verify_trusted_identity",
+                        {"operation": "status", "case_id": case.case_id},
+                    )
+                    assert result.data.case.verification.status == "not_genuine"
+                retry = await client.post(
+                    "/api/checkins/retry",
+                    json={
+                        "case_id": case.case_id,
+                        "method": "email",
+                        "confirmed": True,
+                        "request_id": "email-retry",
+                    },
+                )
+                assert retry.status_code == 200, retry.text
+                retried = retry.json()["data"]["case"]
+                assert retried["previous_case_id"] == case.case_id
+                import smtplib
+
+                async with service.pipeline(p.household_id) as q:
+                    with patch(
+                        "hirz.contacts.checkins.send_email",
+                        side_effect=smtplib.SMTPAuthenticationError(535, b"fixture"),
+                    ):
+                        await advance(q)
+                    await advance(q)
+                    result = await HouseholdTools(q, actor).call(
+                        "verify_trusted_identity",
+                        {"operation": "status", "case_id": retried["case_id"]},
+                    )
+                    assert result.data.case.verification.reason == "delivery_failed"
+                    # Retries still count after the job's creation leaves the window.
+                    from hirz.contacts.worker import send_allowed
+
+                    async with q.connection.begin():
+                        created_at = await q.connection.scalar(
+                            sa.select(db.checkin_jobs.c.created_at).where(
+                                db.checkin_jobs.c.case_id == retried["case_id"]
+                            )
+                        )
+                        with patch(
+                            "hirz.contacts.worker.contact_time",
+                            return_value=created_at
+                            + timedelta(minutes=15, microseconds=1),
+                        ):
+                            assert not await send_allowed(q, UUID(contact))
+                        with patch(
+                            "hirz.contacts.worker.contact_time",
+                            return_value=created_at + timedelta(minutes=17),
+                        ):
+                            assert await send_allowed(q, UUID(contact))
+                inbox = await client.get("/api/checkins")
+                assert inbox.status_code == 200
+                assert private["token"] not in inbox.text and token not in inbox.text
+                # App invitation revocation cannot revoke the independent email.
+                app_invite = await change(
+                    {
+                        "operation": "invite",
+                        "contact_id": contact,
+                        "method": "app",
+                    }
+                )
+                assert app_invite.status_code == 200
+                assert (
+                    await change(
+                        {
+                            "operation": "revoke",
+                            "contact_id": contact,
+                            "reference": app_invite.json()["id"],
+                        }
+                    )
+                ).status_code == 200
+                links = (await client.get("/api/contacts")).json()["links"]
+                assert (
+                    next(link for link in links if link["id"] == reference)["status"]
+                    == "active"
+                )
+                pending = await client.post(
+                    "/api/checkins/retry",
+                    json={
+                        "case_id": case.case_id,
+                        "method": "email",
+                        "confirmed": True,
+                        "request_id": "revoke-pending-email",
+                    },
+                )
+                assert pending.status_code == 200
+                assert (
+                    await change(
+                        {
+                            "operation": "revoke",
+                            "contact_id": contact,
+                            "reference": reference,
+                        }
+                    )
+                ).status_code == 200
+                async with service.pipeline(p.household_id) as q:
+                    await advance(q)
+                    revoked = await HouseholdTools(q, actor).call(
+                        "verify_trusted_identity",
+                        {
+                            "operation": "status",
+                            "case_id": pending.json()["data"]["case"]["case_id"],
+                        },
+                    )
+                    assert revoked.data.case.verification.reason == "channel_revoked"
+                    original = await HouseholdTools(q, actor).call(
+                        "verify_trusted_identity",
+                        {
+                            "operation": "status",
+                            "case_id": case.case_id,
+                        },
+                    )
+                    assert original.data.case.verification.status == "not_genuine"
+                assert (
+                    await client.post("/api/contact-links/confirm", json=response)
+                ).status_code == 403
+
+    asyncio.run(run())
+
+
+def test_no_answer_scenario_through_authenticated_mcp(scratch_database, tmp_path):
+    import yaml
+
+    from hirz.twin.scenario import LoadedScenario
+    from scripts.smoke_household_tools import mcp_process
+    from scripts.smoke_tool_budget import Environment
+
+    async def run():
+        async with connect(scratch_database) as c:
+            from test_database import migrate
+
+            await migrate(c)
+            env = Environment(c, tmp_path, "demo-evening")
+            await env.prepare()
+            scenario = LoadedScenario(Path("scenarios/parents-scam-no-answer.yaml"))
+            spec = yaml.safe_load(
+                Path("scenarios/parents-scam-no-answer.yaml").read_text()
+            )
+            sentence = next(
+                row["text"] for row in spec["timeline"] if row["event"] == "voice"
+            )
+            env.clock_file.write_text(scenario.time("17:35").isoformat())
+            try:
+                async with (
+                    env.servers(),
+                    mcp_process(env.listeners[1], env.config),
+                    env.client(3) as client,
+                ):
+                    args = {
+                        "operation": "start",
+                        "contact": "Malik",
+                        "text": sentence,
+                        "request_id": "not-confirmed",
+                    }
+                    refused = await client.session.call_tool(
+                        "verify_trusted_identity", args
+                    )
+                    assert (
+                        refused.structuredContent["data"]["code"] == "CONFIRM_REQUIRED"
+                    )
+                    started = await client.call(
+                        "",
+                        "verify_trusted_identity",
+                        args | {"request_id": "confirmed"},
+                    )
+                    assert started.data.case.verification.status == "pending", started
+                    assert started.data.case.verification.source == "twin"
+                    case = started.data.case
+                    env.clock_file.write_text(scenario.time("17:38").isoformat())
+                    p = env.pipelines[1]
+                    p.clock = lambda: scenario.time("17:38")
+                    await simulated(p, None)
+                    done = await client.call(
+                        "",
+                        "verify_trusted_identity",
+                        {"operation": "status", "case_id": case.case_id},
+                    )
+                    assert done.data.case.verification.status == "no_answer"
+                    assert "contact saved in your own phone" in done.speakable.headline
+                    retry = await client.call(
+                        "",
+                        "verify_trusted_identity",
+                        {
+                            "operation": "retry",
+                            "method": "app",
+                            "case_id": case.case_id,
+                            "request_id": "retry-confirmed",
+                        },
+                    )
+                    assert retry.data.case.previous_case_id == case.case_id
+                    assert retry.data.case.claim == case.claim
+                    assert retry.data.case.verification.status == "pending"
+                    original = await client.call(
+                        "",
+                        "verify_trusted_identity",
+                        {"operation": "status", "case_id": case.case_id},
+                    )
+                    assert original.data.case == done.data.case
+                    assert original.speakable == done.speakable
+                from hirz.audit import retain_export
+
+                folder = tmp_path / "parents-signed"
+                folder.mkdir(mode=0o700)
+                result, _ = await retain_export(
+                    c, p.household_id, p.audit.key.public_key(), folder
+                )
+                assert result["status"] == "valid"
+            finally:
+                for listener in env.listeners:
+                    listener.close()
+
+    asyncio.run(run())
+
+
+def test_inconsistent_rows_close_without_stopping_the_tick(
+    scratch_database, monkeypatch
+):
+    """A corrupt receipt and a corrupt enrollment close; the healthy job advances."""
+    from unittest.mock import patch
+
+    from hirz.audit import verify_database
+    from hirz.contacts.worker import advance
+
+    config = Config(Fernet.generate_key().decode(), "https://home.example")
+    monkeypatch.setenv("HIRZ_CONTACT_ENCRYPTION_KEY", config.encryption_key)
+    monkeypatch.setenv("HIRZ_COMPANION_ORIGIN", config.origin)
+
+    async def run():
+        async with connect(scratch_database) as c:
+            p = await setup(
+                c,
+                policy_edit("communication.contact_trusted_contact", mode="auto"),
+                native=True,
+            )
+            clock = [p.clock()]
+            monkeypatch.setattr("hirz.contacts.service.now", lambda: clock[0])
+            p.clock = lambda: clock[0]
+            seed = read_seed(Path("constitutions/quinn-parents.yaml"))
+            await load_seeds(c, [seed], lambda: clock[0] - timedelta(seconds=1))
+            q = Pipeline(
+                c,
+                await PolicyBundle.validate(
+                    seed.household_id,
+                    load(Path("constitutions/quinn-parents.yaml")),
+                    p.boundary,
+                ),
+                p.boundary,
+                p.audit,
+                lambda: clock[0],
+            )
+
+            async def owner(pipeline, member_id):
+                session = await enroll(
+                    pipeline,
+                    await auth.initial_invitation(pipeline, member_id),
+                    Authenticator(),
+                )
+                async with c.begin():
+                    current = await auth.session(c, session["session"], clock[0])
+                return current["principal"].model_copy(
+                    update={"passkey_verified": True, "requester_confirmed": True}
+                )
+
+            actor = await owner(p, ident("members", "malik"))
+            recipient = await owner(q, demo_id(seed.slug, "members", "mom"))
+            async with p.repo.write(p.clock):
+                contact = UUID(
+                    (
+                        await command(
+                            p,
+                            actor,
+                            Command(
+                                operation="create",
+                                name="Other owner",
+                                relationship="family",
+                            ),
+                            config,
+                        )
+                    )["id"]
+                )
+                invitation = await command(
+                    p,
+                    actor,
+                    Command(operation="invite", contact_id=contact, method="app"),
+                    config,
+                )
+            async with q.repo.write(q.clock):
+                await command(
+                    q,
+                    recipient,
+                    Command(operation="accept", value=invitation["invitation"]),
+                    config,
+                )
+            async with p.repo.write(p.clock):
+                await command(
+                    p,
+                    actor,
+                    Command(
+                        operation="confirm",
+                        contact_id=contact,
+                        reference=invitation["id"],
+                    ),
+                    config,
+                )
+                mailbox = await command(
+                    p,
+                    actor,
+                    Command(
+                        operation="invite",
+                        contact_id=contact,
+                        method="email",
+                        value="other.owner@example.com",
+                    ),
+                    config,
+                )
+            tools = HouseholdTools(p, actor)
+            cases = [
+                (
+                    await tools.call(
+                        "verify_trusted_identity",
+                        {
+                            "operation": "start",
+                            "contact": str(contact),
+                            "text": text,
+                            "request_id": f"check-{index}",
+                        },
+                    )
+                ).data.case
+                for index, text in enumerate(
+                    ("Did you ask for gift cards?", "Did you ask for a wire?")
+                )
+            ]
+            assert all(case.verification.status == "pending" for case in cases)
+
+            async def job(case_id):
+                return dict(
+                    (
+                        await c.execute(
+                            sa.select(db.checkin_jobs).where(
+                                db.checkin_jobs.c.case_id == case_id
+                            )
+                        )
+                    )
+                    .mappings()
+                    .one()
+                )
+
+            # Approved test-only corruption: a receipt whose binding contradicts its
+            # job, and a pending mailbox link with nothing sealed to deliver.
+            async with c.begin():
+                corrupt = await job(cases[0].case_id)
+                await c.execute(
+                    db.checkin_receipts.insert().values(
+                        job_id=corrupt["id"],
+                        household_id=p.household_id,
+                        member_id=None,
+                        answer="genuine",
+                        request_hash="tampered",
+                        proof="passkey",
+                        accepted_at=clock[0],
+                        decision_seq=corrupt["decision_seq"],
+                    )
+                )
+                await c.execute(
+                    db.contact_links.update()
+                    .where(db.contact_links.c.id == mailbox["id"])
+                    .values(ciphertext=None)
+                )
+                link_seq = await c.scalar(
+                    sa.select(db.contact_links.c.decision_seq).where(
+                        db.contact_links.c.id == mailbox["id"]
+                    )
+                )
+            with (
+                patch("hirz.contacts.checkins.send_email") as checkin_smtp,
+                patch("hirz.contacts.worker.send_email") as enrollment_smtp,
+            ):
+                assert await advance(p) is None  # the tick returns normally
+            checkin_smtp.assert_not_called()
+            enrollment_smtp.assert_not_called()
+            async with c.begin():
+                closed, healthy = (
+                    await job(cases[0].case_id),
+                    await job(cases[1].case_id),
+                )
+                verify = (
+                    (
+                        await c.execute(
+                            sa.select(db.audit_log.c.payload).where(
+                                db.audit_log.c.household_id == p.household_id,
+                                db.audit_log.c.event_type == "VERIFY",
+                                db.audit_log.c.payload["reason"].astext
+                                == "inconsistent_record",
+                            )
+                        )
+                    )
+                    .scalars()
+                    .all()
+                )
+                grant_event = await c.scalar(
+                    sa.select(db.audit_log.c.event_type).where(
+                        db.audit_log.c.household_id == p.household_id,
+                        db.audit_log.c.seq == closed["decision_seq"],
+                    )
+                )
+                enrollment = (
+                    (
+                        await c.execute(
+                            sa.select(db.contact_links).where(
+                                db.contact_links.c.id == mailbox["id"]
+                            )
+                        )
+                    )
+                    .mappings()
+                    .one()
+                )
+            assert closed["status"] == "closed" and closed["ciphertext"] is None
+            assert grant_event == "EXECUTE"
+            assert [(v["case_id"], v["status"], v["decision_seq"]) for v in verify] == [
+                (cases[0].case_id, "no_answer", closed["decision_seq"])
+            ]
+            assert verify[0]["receipt"] is None
+            assert (healthy["status"], healthy["attempts"]) == ("sent", 1)
+            assert enrollment["delivery_status"] == "failed"
+            assert enrollment["decision_seq"] != link_seq
+            status = await tools.call(
+                "verify_trusted_identity",
+                {"operation": "status", "case_id": cases[0].case_id},
+            )
+            state = status.data.case.verification
+            assert (state.status, state.reason) == ("no_answer", "inconsistent_record")
+            assert "inconsistent" in status.speakable.headline
+            assert "confirmed" not in status.speakable.headline
+            # Closed rows are not retried on the next tick.
+            await advance(p)
+            async with c.begin():
+                assert (await job(cases[0].case_id))["decision_seq"] == closed[
+                    "decision_seq"
+                ]
+            evidence, _ = await verify_database(
+                c, p.household_id, p.audit.key.public_key()
+            )
+            assert evidence["status"] == "valid"
+
+    asyncio.run(run())
+
+
+async def keyless_fixture(c, monkeypatch, config):
+    """Owner, app-confirmed contact and a pending mailbox link, created with the key."""
+    p = await setup(
+        c,
+        policy_edit("communication.contact_trusted_contact", mode="auto"),
+        native=True,
+    )
+    clock = [p.clock()]
+    monkeypatch.setattr("hirz.contacts.service.now", lambda: clock[0])
+    p.clock = lambda: clock[0]
+    seed = read_seed(Path("constitutions/quinn-parents.yaml"))
+    await load_seeds(c, [seed], lambda: clock[0] - timedelta(seconds=1))
+    q = Pipeline(
+        c,
+        await PolicyBundle.validate(
+            seed.household_id,
+            load(Path("constitutions/quinn-parents.yaml")),
+            p.boundary,
+        ),
+        p.boundary,
+        p.audit,
+        lambda: clock[0],
+    )
+
+    async def owner(pipeline, member_id):
+        session = await enroll(
+            pipeline,
+            await auth.initial_invitation(pipeline, member_id),
+            Authenticator(),
+        )
+        async with c.begin():
+            current = await auth.session(c, session["session"], clock[0])
+        return current["principal"].model_copy(
+            update={"passkey_verified": True, "requester_confirmed": True}
+        )
+
+    actor = await owner(p, ident("members", "malik"))
+    recipient = await owner(q, demo_id(seed.slug, "members", "mom"))
+    async with p.repo.write(p.clock):
+        contact = UUID(
+            (
+                await command(
+                    p,
+                    actor,
+                    Command(
+                        operation="create", name="Other owner", relationship="family"
+                    ),
+                    config,
+                )
+            )["id"]
+        )
+        invitation = await command(
+            p,
+            actor,
+            Command(operation="invite", contact_id=contact, method="app"),
+            config,
+        )
+    async with q.repo.write(q.clock):
+        await command(
+            q,
+            recipient,
+            Command(operation="accept", value=invitation["invitation"]),
+            config,
+        )
+    async with p.repo.write(p.clock):
+        await command(
+            p,
+            actor,
+            Command(
+                operation="confirm", contact_id=contact, reference=invitation["id"]
+            ),
+            config,
+        )
+        mailbox = await command(
+            p,
+            actor,
+            Command(
+                operation="invite",
+                contact_id=contact,
+                method="email",
+                value="other.owner@example.com",
+            ),
+            config,
+        )
+    return p, clock, contact, HouseholdTools(p, actor), mailbox
+
+
+def test_app_checkin_times_out_without_contact_key(scratch_database, monkeypatch):
+    """A worker without the contact key still closes an app check-in as no_answer."""
+    from unittest.mock import patch
+
+    from hirz.audit import verify_database
+    from hirz.contacts.worker import advance
+
+    config = Config(Fernet.generate_key().decode(), "https://home.example")
+    monkeypatch.setenv("HIRZ_CONTACT_ENCRYPTION_KEY", config.encryption_key)
+    monkeypatch.setenv("HIRZ_COMPANION_ORIGIN", config.origin)
+
+    async def run():
+        async with connect(scratch_database) as c:
+            p, clock, contact, tools, _ = await keyless_fixture(c, monkeypatch, config)
+            case = (
+                await tools.call(
+                    "verify_trusted_identity",
+                    {
+                        "operation": "start",
+                        "contact": str(contact),
+                        "text": "Did you ask for gift cards?",
+                        "request_id": "keyless",
+                    },
+                )
+            ).data.case
+            assert case.verification.method == "app_confirmation"
+            monkeypatch.delenv("HIRZ_CONTACT_ENCRYPTION_KEY")
+            with (
+                patch("hirz.contacts.checkins.send_email") as checkin_smtp,
+                patch("hirz.contacts.worker.send_email") as enrollment_smtp,
+            ):
+                await advance(p)
+                clock[0] = case.verification.expires_at + timedelta(seconds=1)
+                await advance(p)
+            checkin_smtp.assert_not_called()
+            enrollment_smtp.assert_not_called()
+            async with c.begin():
+                job = (
+                    (
+                        await c.execute(
+                            sa.select(db.checkin_jobs).where(
+                                db.checkin_jobs.c.case_id == case.case_id
+                            )
+                        )
+                    )
+                    .mappings()
+                    .one()
+                )
+                verify = (
+                    (
+                        await c.execute(
+                            sa.select(db.audit_log.c.payload).where(
+                                db.audit_log.c.household_id == p.household_id,
+                                db.audit_log.c.event_type == "VERIFY",
+                                db.audit_log.c.payload["case_id"].astext
+                                == case.case_id,
+                            )
+                        )
+                    )
+                    .scalars()
+                    .all()
+                )
+            assert (job["status"], job["attempts"]) == ("closed", 1)
+            closed = [v for v in verify if v.get("worker_surface") == "scheduler"]
+            assert [(v["status"], v["reason"], v["decision_seq"]) for v in closed] == [
+                ("no_answer", "expired", job["decision_seq"])
+            ]
+            state = (
+                await tools.call(
+                    "verify_trusted_identity",
+                    {"operation": "status", "case_id": case.case_id},
+                )
+            ).data.case.verification
+            assert (state.status, state.reason) == ("no_answer", "expired")
+            evidence, _ = await verify_database(
+                c, p.household_id, p.audit.key.public_key()
+            )
+            assert evidence["status"] == "valid"
+
+    asyncio.run(run())
+
+
+def test_email_enrollment_waits_without_contact_key(scratch_database, monkeypatch):
+    """Without the key a pending mailbox link is neither sent nor failed."""
+    from unittest.mock import patch
+
+    from hirz.contacts.worker import advance
+
+    config = Config(Fernet.generate_key().decode(), "https://home.example")
+    monkeypatch.setenv("HIRZ_CONTACT_ENCRYPTION_KEY", config.encryption_key)
+    monkeypatch.setenv("HIRZ_COMPANION_ORIGIN", config.origin)
+
+    async def run():
+        async with connect(scratch_database) as c:
+            p, clock, _, _, mailbox = await keyless_fixture(c, monkeypatch, config)
+
+            async def row():
+                async with c.begin():
+                    return dict(
+                        (
+                            await c.execute(
+                                sa.select(db.contact_links).where(
+                                    db.contact_links.c.id == mailbox["id"]
+                                )
+                            )
+                        )
+                        .mappings()
+                        .one()
+                    )
+
+            before = await row()
+            assert (before["status"], before["delivery_status"]) == (
+                "pending",
+                "pending",
+            )
+            monkeypatch.delenv("HIRZ_CONTACT_ENCRYPTION_KEY")
+            with patch("hirz.contacts.worker.send_email") as enrollment_smtp:
+                await advance(p)
+                # Even past its expiry nothing is closed while the key is absent.
+                clock[0] = before["expires_at"] + timedelta(seconds=1)
+                await advance(p)
+            enrollment_smtp.assert_not_called()
+            after = await row()
+            assert after == before
+
+    asyncio.run(run())

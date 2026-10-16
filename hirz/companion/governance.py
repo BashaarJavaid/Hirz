@@ -19,6 +19,11 @@ async def prepare(p: Pipeline, action: Action, principal: Principal) -> None:
         and action.params.get("operation") == "publish"
         and principal.surface == "scheduler"
     )
+    contact_worker = (
+        action.action_class == "governance.contacts"
+        and action.params.get("operation") == "process"
+        and principal.surface == "scheduler"
+    )
     if (
         p._companion_command is None
         or p._companion_command.content_hash != action.content_hash
@@ -27,11 +32,14 @@ async def prepare(p: Pipeline, action: Action, principal: Principal) -> None:
         or principal.surface != "app"
         and not drafting
         and not publishing_run
+        and not contact_worker
     ):
         raise ValueError("Companion mutations require an internal command")
     fresh = (
         action.action_class == "governance.credentials"
         or action.params.get("operation") == "activate"
+        or action.action_class == "governance.contacts"
+        and action.params.get("operation") not in {"guess", "process"}
     )
     if fresh and (
         not principal.passkey_verified
@@ -44,6 +52,7 @@ async def prepare(p: Pipeline, action: Action, principal: Principal) -> None:
         action.action_class != "governance.credentials"
         and principal.credential_id is None
         and not drafting
+        and not contact_worker
     ):
         raise ValueError("Constitution changes require an authenticated credential")
 

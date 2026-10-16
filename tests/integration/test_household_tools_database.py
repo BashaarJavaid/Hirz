@@ -448,7 +448,9 @@ def test_trust_is_private_advisory_until_explicit_start(scratch_database, outcom
                             source="twin",
                         ),
                     )
-            tools = HouseholdTools(p, PRINCIPAL)
+            tools = HouseholdTools(
+                p, PRINCIPAL.model_copy(update={"requester_confirmed": True})
+            )
             assessed = await tools.call(
                 "assess_request_risk",
                 dict(
@@ -579,7 +581,11 @@ def test_trust_is_private_advisory_until_explicit_start(scratch_database, outcom
                 clock[0] += timedelta(seconds=1)
                 async with p.repo.write(p.clock):
                     await contact_management.remove(
-                        p, owner["principal"], UUID(contact["id"])
+                        p,
+                        owner["principal"].model_copy(
+                            update={"passkey_verified": True}
+                        ),
+                        UUID(contact["id"]),
                     )
                 async with connection.begin():
                     assert (
@@ -604,6 +610,7 @@ def test_trust_is_private_advisory_until_explicit_start(scratch_database, outcom
                 "no_answer" if outcome == "removed" else outcome
             )
             if outcome == "removed":
+                assert status.data.case.verification.reason == "contact_removed"
                 assert status.speakable.headline == (
                     "The contact was removed. No reply will be accepted for this check."
                 )

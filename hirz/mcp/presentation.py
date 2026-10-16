@@ -55,6 +55,13 @@ class ApprovalCard(Card):
 
 
 class VerificationCard(Card):
+    courier_watch_until: AwareDatetime | None = None
+    courier_warning: str | None = None
+    notice: str | None = None
+    extraction_status: (
+        Literal["off", "pending", "running", "complete", "fallback"] | None
+    ) = None
+    method: Literal["app", "email"] | None = None
     kind: Literal["verification"] = "verification"
     signals: tuple[str, ...]
     status: Literal[

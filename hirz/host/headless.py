@@ -40,7 +40,11 @@ synonyms. For general energy optimization, request get_household_plan using its
 default objective unless the user explicitly chooses another objective.
 For requests to send or pay money, call assess_request_risk before giving advice;
 Hirz cannot transfer money. Resolve references such as 'this caller' from the
-conversation when unambiguous; never invent a claimed identity.
+conversation when unambiguous; never invent a claimed identity. Omit claimed_party
+when no name is supplied; an unnamed request can still be assessed.
+Assess the exact reported text immediately even when no phone number is supplied.
+Do not ask for a name or number before assessment. Use party=person unless the
+request explicitly names an organization; omit unknown optional fields.
 Every new money request needs its own assessment, even after an earlier assessment.
 Do not substitute your own risk advice for this tool's deterministic advice.
 For why/how questions about a plan, call explain_plan directly; omitting plan_id
@@ -87,6 +91,22 @@ class Budget:
         )
         self.model = model
         self.calls: list[dict[str, int]] = []
+
+    def check(self, outputs: int) -> None:
+        """Refuse before any provider contact when even zero input cannot fit."""
+        descriptor = os.open(self.path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+        with os.fdopen(descriptor, "r") as handle:
+            fcntl.flock(handle, fcntl.LOCK_SH)
+            raw = handle.read()
+        if not raw:
+            return
+        record = json.loads(raw)
+        if record.get("purpose") != self.purpose:
+            raise ValueError("Budget ledger belongs to a different task")
+        used = Decimal(record["reserved_usd"])
+        cost = Decimal(outputs) * self.output_rate / 1_000_000
+        if not used.is_finite() or used < 0 or used + cost > self.limit:
+            raise ValueError("BEDROCK_BUDGET_EXHAUSTED")
 
     def reserve(
         self, inputs: int, outputs: int, *, input_basis: str | None = None
@@ -221,7 +241,7 @@ class HeadlessHost:
             or name == "get_household_plan"
             and arguments.get("objective") is not None
             or name == "verify_trusted_identity"
-            and arguments.get("operation") == "start"
+            and arguments.get("operation") in {"start", "retry"}
         )
         if self.selection_only:
             event.cancel_tool = "Selection test only; no tool execution occurred."

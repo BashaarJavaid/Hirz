@@ -560,3 +560,23 @@ Dogwood; they cannot be loosened by household rules. AWS analysis remains
 unavailable. The UI reports `dogwood-local` and `not analyzed: local mode`; this is
 not AWS analysis success. [Current verification status](./verification-log.md#item-28--in-progress--2026-09-25)
 remains incomplete.
+
+## Item 31 contact permissions — 2026-10-07
+
+`communication.contact_trusted_contact` governs real check-ins and mailbox
+confirmation delivery, retaining auto/ask/never. An exact-request grant binds the
+initiating household/member, contact, immutable channel version, case and reported
+request hash. Redemption retains that binding; delivery re-evaluates current policy
+and, when applicable, the redeemed approval and current eligible votes. Changing a
+channel never transfers its old permissions. Requester confirmation is mandatory
+even under auto, independently of policy approval.
+
+The reserved internal `governance.contacts` rule permits owner app creation,
+invitation, activation, revocation, removal and word rotation; enrolled owner/adult
+app acceptance, withdrawal, phone confirmation and replies; private app safe-word
+checks; and scheduler processing. Fresh operation-bound passkeys gate trust changes
+and app replies. The private mailbox capability authorizes only its explicit POST
+confirmation or one reply; it provides no principal/session in either household.
+All resulting changes retain Pipeline decisions and signed audit evidence. The
+worker consumes the recipient household's receipt without using its identity as a
+requester in the initiating household. [ADR-022](./adr/ADR-022-trusted-checkins.md).

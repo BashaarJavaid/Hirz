@@ -139,6 +139,8 @@ class MemberAccount(Model):
 
 
 class TrustedContact(Entity):
+    party: Literal["person", "organization"] = "person"
+    organization_id: Text | None = None
     display_name: Text
     relationship: Text
     member_id: UUID | None = None
@@ -146,6 +148,8 @@ class TrustedContact(Entity):
 
 
 class ContactChannel(Entity):
+    provenance: Literal["contact-confirmed", "registry-confirmed"] | None = None
+    registry_revision: str | None = None
     contact_id: UUID
     kind: Literal["phone", "email", "hirz_app"]
     value_hash: Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]

@@ -6,6 +6,58 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-10-15: Promote Phase 6 and its review fixes to `main` through PR #10 after ordinary CI and one passing normal latency dispatch ([evidence](./docs/verification-log.md#promotion-ci--2026-10-15)).
+
+- 2026-10-15: Correct documentation drift from the Phase 6 review: Ring remnants after the failed item 34 gate, the demo courier line, the README `hirz/` layout and contact-key note, dated 2026-10-07 changelog lines, and the scam threat-model row now Partial ([evidence](./docs/verification-log.md#documentation-drift-corrected)).
+
+- 2026-10-15: The stranger scenario now checks that the unlock result's spoken text never says who the visitor is. A unit test checks that no verification reply, real or twin, is spoken as advice to pay, and pins the genuine-reply advice sentence. The real no-answer headline drops to two sentences (`Do not send anything; call…`), so it now renders under the Speakable limit instead of failing validation ([evidence](./docs/verification-log.md#stranger-wording-guard-and-genuine-reply-negative-test)).
+
+- 2026-10-15: The evening scenario now checks each of the five plan revisions, the guest room at 72°F, the idle dishwasher before 23:31, and the ordered 23:31 consent, nighttime votes and verified dishwasher start; the evening goes from 62 to 76 checks, with no runtime change ([evidence](./docs/verification-log.md#demo-evening-asserts-revisions-and-the-dishwasher-window)).
+
+- 2026-10-15: Review nits: a shared `LINK_DEFERRAL` constant with a mismatch reason on the full-sequence check, intent comments on `contact_time`, the `send_allowed` scan, the `scam_pattern` evidence label and organization `trusted`, and organization cases now explain why they cannot start a person check ([evidence](./docs/verification-log.md#review-nits-deferral-constant-wall-clock-comment-scan-ceiling-evidence-label-organization-wording)).
+
+- 2026-10-15: Record `reason: contact_removed` when a contact is removed during a twin check-in and branch on that reason instead of the stored headline text; spoken wording and the `twin` label are unchanged ([evidence](./docs/verification-log.md#twin-contact-removal-uses-the-canonical-reason)).
+
+- 2026-10-15: Add a unit test that fails when the reserved `governance.contacts` rule and `Command.operation` name different contact operations (with `save_organization`, `guess` and `process` listed as explicit exceptions); the rule text is unchanged ([evidence](./docs/verification-log.md#contact-operation-vocabulary-cross-checked)).
+
+- 2026-10-15: Add a unit test that fails when the Protect signal names in scoring, both advice label maps, the companion check-ins page or the card schema disagree; no signal renamed ([evidence](./docs/verification-log.md#signal-names-cross-checked-across-python-and-typescript)).
+
+- 2026-10-15: Load the Protect worker's policy bundle only when a household has a pending or running extraction; an idle household now costs one small existence query per second instead of a policy load ([evidence](./docs/verification-log.md#protect-worker-loads-policy-only-when-work-is-pending)).
+
+- 2026-10-15: Check the Protect budget ledger before CountTokens so a missing, foreign or exhausted ledger makes no provider call; the counted reservation and $2 ceiling are unchanged ([ADR-015](./docs/adr/ADR-015-household-tools.md), [evidence](./docs/verification-log.md#ledger-gate-precedes-every-provider-call)).
+
+- 2026-10-15: Let the contact worker advance and time out app check-ins without `HIRZ_CONTACT_ENCRYPTION_KEY`; email check-ins and enrollment stay untouched until the key is set, and `hirz worker` says so at startup ([ADR-022](./docs/adr/ADR-022-trusted-checkins.md#app-check-ins-without-the-contact-key--2026-10-15), [evidence](./docs/verification-log.md#app-check-ins-advance-without-the-contact-key)).
+
+- 2026-10-15: Close a self-contradictory check-in job or pending enrollment link through a Pipeline decision and audit row (reason `inconsistent_record`) and continue the worker tick; database, audit and policy failures still stop the worker ([ADR-022](./docs/adr/ADR-022-trusted-checkins.md#inconsistent-stored-records--2026-10-15), [evidence](./docs/verification-log.md#corrupt-check-in-jobs-close-themselves)).
+
+- 2026-10-14: Complete item 35 full local scenario assertions through companion HTTP and software passkeys, persisted policy and exact request references; enforce strict completion while retaining the approved Link deferral and existing planning inputs ([ADR-006](./docs/adr/ADR-006-twin-first-adapters.md#full-local-scenario-sequences--2026-10-14-author-approved), [evidence](./docs/verification-log.md#item-35--2026-10-14)).
+
+- 2026-10-14: Build companion assets before full scenario CI and align the existing live card browser with its scenario fixture clock, preserving production expiry behavior ([evidence](./docs/verification-log.md#live-card-fixture-clock-correction)).
+
+- 2026-10-11: Complete item 33a: correlate fresh unexpected doorbell presses with reported CRITICAL cases, independently authorize member/contact warnings, and publish private app warnings through the shared worker; preserve check-in results and explicit simulated provenance ([ADR-024](./docs/adr/ADR-024-courier-correlation.md), [evidence](./docs/verification-log.md#item-33a--2026-10-11)).
+
+- 2026-10-11: Complete item 33: owner-saved ComEd contacts and deterministic advisory number comparisons, preserving person workflows and historical evidence ([ADR-023](./docs/adr/ADR-023-organization-verification.md), [evidence](./docs/verification-log.md#item-33--2026-10-11)).
+
+- 2026-10-11: Implement immediate Protect advice, private hypothetical decisions, budgeted background signal extraction and card/phone updates; complete item 32 acceptance ([ADR-015](./docs/adr/ADR-015-household-tools.md#protect-assessment-and-enrichment-amendment--2026-10-11), [evidence](./docs/verification-log.md#item-32--2026-10-11)).
+
+- 2026-10-11: Drain simulator periodic database work before stopping its servers so acceptance cleanup can close connections safely; retain failure storage ([evidence](./docs/verification-log.md#simulator-cleanup-follow-up)).
+
+- 2026-10-07: Record successful item 31 CI, including both latency gates, while retaining Partial status for deferred real email and iPhone push acceptance ([evidence](./docs/verification-log.md#final-ci-gates-and-retained-partial-status--2026-10-07)).
+
+- 2026-10-07: Verify Mom’s real app check-in and Malik’s passkey reply across households, with both signed chains independently verified; email/push remain deferred ([evidence](./docs/verification-log.md#real-cross-household-app-reply--2026-10-07)).
+
+- 2026-10-07: Verify accepted receipts in a fresh worker process and record deferred real email/push acceptance; clarify shared-Echo visibility of an initiating member’s case results ([evidence](./docs/verification-log.md#card-state-acceptance-follow-up--2026-10-07)).
+
+- 2026-10-07: Show mailbox delivery failures and verify explicit retries on scripted Show/Dot, concurrent replies and independent channel revocation ([evidence](./docs/verification-log.md#concurrent-replies-browser-retries-and-real-delivery-limitation--2026-10-07)).
+
+- 2026-10-07: Tighten contact retry caps and verify signed receipt rollback; let the acceptance host decline unrelated clarification forms ([evidence](./docs/verification-log.md#follow-up-checks-and-phone-pairing--2026-10-07)).
+
+- 2026-10-07: Implement item 31 contact enrollment, real check-in jobs/receipts, private safe words and companion views; acceptance remains partial ([ADR-022](./docs/adr/ADR-022-trusted-checkins.md), [evidence](./docs/verification-log.md#item-31--2026-10-07)).
+
+- 2026-10-07: Apply the no-credentials Ring gate fallback before Phase 6: retain the twin doorbell and remove the Ring track ([evidence](./docs/verification-log.md#item-34--ring-access-gate--2026-10-07)).
+
+- 2026-10-07: Scope the recording credential guard to the checkout path so retained runs from another checkout no longer block initialization ([evidence](./docs/verification-log.md#per-checkout-recording-guard--2026-10-07)).
+
 - 2026-10-06: Pass the normal latency gate for the frozen startup generation on the single approved promotion re-dispatch ([evidence](./docs/verification-log.md#promotion-dispatch--2026-10-06)).
 
 - 2026-10-06: Verify the localhost Compose quickstart and Twin page after approved retained-run disposal, document manual recovery and successful wrapper-driven shutdown ([evidence](./docs/verification-log.md#localhost-compose-quickstart-verified--2026-10-06)).

@@ -1,10 +1,10 @@
 """Approved bounded advisory signals and private simulated contact checks."""
 
-import re
+import os
 from datetime import datetime, timedelta
 from hashlib import sha256
 from typing import Literal
-from uuid import UUID, uuid4
+from uuid import UUID, uuid4, uuid5
 
 import sqlalchemy as sa
 
@@ -17,108 +17,44 @@ from hirz.pipeline.models import (
     Action,
     Principal,
     Requester,
+    SupplementalEvidence,
     Target,
     VerificationCase,
     VerificationClaim,
-    VerificationSignal,
+    VerificationExtraction,
     VerificationState,
     VerificationSubject,
 )
+from hirz.pipeline.preview import PreviewEvidence
 from hirz.pipeline.service import Pipeline
 from hirz.planner.coordinator import Clarification
-from hirz.risk import RiskBand
+from hirz.protect.advice import notice
+from hirz.protect.organizations import compare, organization_speech, resolve
+from hirz.protect.phone import phone as phone
+from hirz.protect.scoring import band as band
+from hirz.protect.scoring import scam_pattern
+from hirz.protect.scoring import signals as signals
 from hirz.twin.people import ContactScript
 from hirz.twin.world import TwinWorld
 
-# Approved 2026-09-23. Advisory only; never supplies execution's trusted scam flag.
-PHRASES: dict[str, tuple[int, tuple[str, ...]]] = {
-    "financial_or_access_request": (
-        2,
-        (
-            "send money",
-            "pay money",
-            "transfer money",
-            "wire money",
-            "dollars",
-            "gift cards",
-            "bank details",
-            "password",
-            "verification code",
-            "unlock the door",
-            "open the door",
-        ),
-    ),
-    "unfamiliar_channel_reported": (
-        2,
-        ("strange number", "new number", "unknown number", "different number"),
-    ),
-    "secrecy": (2, ("keep this secret", "don't tell anyone")),
-    "third_party_recipient": (
-        2,
-        ("courier", "someone collecting money", "another person's account"),
-    ),
-    "urgency_language": (1, ("urgent", "immediately", "right now")),
-    "claimed_authority": (1, ("police", "government", "bank", "irs")),
-}
-
-
-def signals(text: str) -> tuple[VerificationSignal, ...]:
-    found = []
-    for name, (weight, phrases) in PHRASES.items():
-        matched = False
-        for clause in re.split(r"[.!?;,\n]", text.casefold().replace("’", "'")):
-            for phrase in phrases:
-                for match in re.finditer(r"\b" + re.escape(phrase) + r"\b", clause):
-                    prefix = re.findall(r"[a-z']+", clause[: match.start()])[-3:]
-                    if phrase == "don't tell anyone" or not {
-                        "no",
-                        "not",
-                        "never",
-                    }.intersection(prefix):
-                        matched = True
-        if matched:
-            found.append(
-                VerificationSignal.model_validate(dict(signal=name, weight=weight))
-            )
-    return tuple(found)
-
-
-def phone(text: str) -> str:
-    if not re.fullmatch(r"\+?[0-9 ().-]+", text):
-        raise ValueError("Provide a phone number without extensions or letters.")
-    digits = re.sub(r"[ ().-]", "", text)
-    if digits.startswith("+"):
-        if not 8 <= len(digits) - 1 <= 15:
-            raise ValueError("International numbers need eight through fifteen digits.")
-        return digits
-    if len(digits) == 10:
-        return "+1" + digits
-    if len(digits) == 11 and digits.startswith("1"):
-        return "+" + digits
-    raise ValueError("International numbers require an explicit plus country code.")
-
-
-def band(found: tuple[VerificationSignal, ...]) -> RiskBand:
-    score = sum(s.weight for s in found)
-    return (
-        RiskBand.LOW
-        if score == 0
-        else RiskBand.MEDIUM
-        if score <= 2
-        else RiskBand.HIGH
-        if score <= 4
-        else RiskBand.CRITICAL
-    )
-
 
 async def assess(
-    p: Pipeline, principal: Principal, args: RiskInput, snapshot: ContextSnapshot
+    p: Pipeline,
+    principal: Principal,
+    args: RiskInput,
+    snapshot: ContextSnapshot,
+    *,
+    case_id: str | None = None,
 ) -> Result:
     contacts = [
         r
         for r in snapshot.data["trusted_contacts"]
-        if str(r["display_name"]).casefold() == args.claimed_party.casefold()
-        or str(r["id"]) == args.claimed_party
+        if r.get("party", "person") == "person"
+        and (
+            args.claimed_party
+            and str(r["display_name"]).casefold() == args.claimed_party.casefold()
+            or str(r["id"]) == args.claimed_party
+        )
     ]
     contact = contacts[0] if len(contacts) == 1 and args.party == "person" else None
     comparison: (
@@ -156,45 +92,103 @@ async def assess(
                 )
     found = signals(args.text)
     risk = band(found)
+    extraction = VerificationExtraction(
+        status="pending" if os.environ.get("HIRZ_LLM", "off") == "bedrock" else "off",
+        keyword_signals=found,
+        queued_at=p.clock(),
+    )
+    action = Action.model_validate(
+        {
+            "action_id": uuid4().hex,
+            "class": "finance.verify_request",
+            "target": {"adapter": "household", "entity": str(p.household_id)},
+            "params": {},
+            "requested_by": (await p.requester(principal)).model_dump(),
+            "reason": "Hypothetical reported request assessment",
+            "content_hash": "",
+        }
+    )
+    action = action.model_copy(update={"content_hash": action_hash(action)})
+    evaluation = await p.assess_operation(
+        action,
+        principal,
+        None,
+        (),
+        p.clock(),
+        preview=PreviewEvidence(
+            # An in-process keyword fact is not an observation and is never "real";
+            # see ADR-004 "Protect evidence amendment — 2026-10-11".
+            scam_pattern=SupplementalEvidence(
+                household_id=p.household_id,
+                observed_at=p.clock(),
+                source="twin",
+                scam_pattern=scam_pattern(found),
+            )
+        ),
+    )
     speech = response(
         "This request has warning signs. Check with your trusted contact before acting."
         if found
         else "I found no listed warning signs. A trusted-contact check is still available.",
-        details=(),
+        details=(notice(extraction),),
         options=("Check with a trusted contact",),
     )
+    organization_comparison = None
     if args.party == "organization":
+        organization = resolve(args.claimed_party)
+        if organization:
+            contact, organization_comparison = await compare(
+                p, organization, args.presented_number
+            )
+            if organization_comparison:
+                results = (
+                    organization_comparison.saved_contact,
+                    organization_comparison.registry,
+                )
+                comparison = (
+                    "matches"
+                    if "matches" in results
+                    else "does_not_match"
+                    if "does_not_match" in results
+                    else "insufficient_information"
+                )
         speech = response(
-            "There is insufficient information to verify this organization in the preview.",
-            options=("Check with a trusted contact",),
+            **organization_speech(
+                organization_comparison, bool(found), extraction, comparison
+            ),
         )
-        comparison = "insufficient_information" if args.presented_number else None
-    if comparison is not None:
+    if comparison is not None and args.party == "person":
         line = {
-            "matches": "The supplied number matches a verified saved number; this does not establish identity.",
-            "does_not_match": "The supplied number does not match a verified saved number.",
-            "insufficient_information": "There is insufficient verified information to compare the supplied number.",
+            "matches": "The supplied number matches a saved contact number; this does not establish identity.",
+            "does_not_match": "The supplied number is unverified: it does not match a saved contact number.",
+            "insufficient_information": "The supplied number is unverified; there is insufficient saved information to compare it.",
         }[comparison]
         speech = speech.model_copy(
             update={
-                "speakable": speech.speakable.model_copy(update={"details": (line,)})
+                "speakable": speech.speakable.model_copy(
+                    update={"details": (*speech.speakable.details, line)}
+                )
             }
         )
     case = VerificationCase(
-        case_id=uuid4().hex,
+        case_id=case_id or uuid4().hex,
         claim=VerificationClaim(text=args.text, presented_number=args.presented_number),
         subject=VerificationSubject(
             contact_id=str(contact["id"]) if contact else None,
+            # trusted = a current saved record exists at this registry revision; never caller identity (ADR-023)
             trusted=contact is not None,
             claimed_party=args.claimed_party,
             party=args.party,
         ),
+        assessment_decision=evaluation.decision,
+        extraction=extraction,
         signals=found,
         risk_band=risk,
         recommended=("verify_via_verified_channel", "do_not_transfer")
         if found
         else ("verify_via_verified_channel",),
         number_comparison=comparison,
+        organization_comparison=organization_comparison,
         speakable=speech.speakable.model_dump(mode="json"),
     )
     await command(
@@ -207,6 +201,17 @@ async def assess(
 
 
 def case_response(case: VerificationCase) -> Result:
+    from hirz.protect.courier import member_warning
+
+    warning = member_warning(case)
+    if warning:
+        original = case_response(case.model_copy(update={"courier": None}))
+        return response(
+            "An unexpected doorbell press followed your reported request. Don’t hand anything over.",
+            details=(warning, original.speakable.headline),
+            source="real" if case.courier and case.courier.source == "real" else "twin",
+            case=case,
+        )
     state = case.verification
     if state is None:
         return Result.model_validate(
@@ -217,15 +222,36 @@ def case_response(case: VerificationCase) -> Result:
         "genuine": "The simulated reply confirms this specific request. Talk to the contact using their saved number.",
         "not_genuine": "The simulated reply says they did not make this request. Do not send anything.",
         "will_call": "The simulated reply says the contact will call. No real call has been arranged.",
-        "no_answer": "There was no simulated reply. Do not send anything; contact the person through a channel you trust.",
+        "no_answer": "There was no simulated reply. Do not send anything; call the contact saved in your own phone.",
     }[state.status]
-    if (
-        state.status == "no_answer"
-        and case.speakable.get("headline")
-        == "The contact was removed. No reply will be accepted for this check."
-    ):
-        headline = str(case.speakable["headline"])
-    return response(headline, source="twin", case=case)
+    if state.source == "real":
+        headline = {
+            "pending": "A contact check is pending. Ask me again for the reply.",
+            "genuine": "The contact confirmed this specific request. Call the contact saved in your own phone before acting.",
+            "not_genuine": "The contact says they did not make this request. Do not send anything.",
+            "will_call": "The contact says they intend to call. This does not arrange or confirm a call.",
+            "no_answer": "The contact has not answered. Do not send anything; call the contact saved in your own phone.",
+        }[state.status]
+    if state.reason:
+        headline = {
+            "approval_refused": "Approval was not completed. Call the contact saved in your own phone.",
+            "permission_changed": "Permission for this check changed. Call the contact saved in your own phone.",
+            "expired": "The check expired without a reply. Call the contact saved in your own phone.",
+            "delivery_failed": "The check could not be delivered. Call the contact saved in your own phone.",
+            "contact_removed": "The contact was removed. This check is closed.",
+            "channel_revoked": "The contact channel was revoked. Call the contact saved in your own phone.",
+            "inconsistent_record": "This check was closed because its stored record was inconsistent. Call the contact saved in your own phone.",
+        }[state.reason]
+        if state.reason == "contact_removed" and state.source == "twin":
+            headline = (
+                "The contact was removed. No reply will be accepted for this check."
+            )
+    return response(
+        headline,
+        details=(notice(case.extraction),) if case.extraction else (),
+        source=state.source,
+        case=case,
+    )
 
 
 async def verify(
@@ -243,8 +269,11 @@ async def verify(
         matches = [
             r
             for r in snapshot.data["trusted_contacts"]
-            if str(r["id"]) == args.contact
-            or str(r["display_name"]).casefold() == args.contact.casefold()
+            if r.get("party", "person") == "person"
+            and (
+                str(r["id"]) == args.contact
+                or str(r["display_name"]).casefold() == args.contact.casefold()
+            )
         ]
         if len(matches) != 1:
             raise Clarification("Please name one trusted household contact exactly.")
@@ -287,7 +316,30 @@ async def verify(
                 status="unavailable",
             )
         )
-    if args.case_id:
+    if args.operation == "retry":
+        original = cases[0]
+        if original.verification is None or original.verification.status == "pending":
+            raise ValueError("Wait for the current check to finish before retrying")
+        from hirz.protect.advice import retry_advice
+
+        original = retry_advice(original, p.clock())
+        case = original.model_copy(
+            update={
+                "case_id": uuid5(
+                    p.household_id, str(member.member_id) + ":" + str(args.request_id)
+                ).hex,
+                "previous_case_id": original.case_id,
+                "courier": None,
+                "verification": None,
+            }
+        )
+        await command(
+            p,
+            "record_verification",
+            {"operation": "assess", "case": case.model_dump(mode="json")},
+            principal,
+        )
+    elif args.case_id:
         case = cases[0]
         if case.verification:
             return case_response(case)
@@ -305,12 +357,41 @@ async def verify(
                 request_id=args.request_id or "",
             ),
             snapshot,
+            case_id=uuid5(
+                p.household_id, str(member.member_id) + ":" + str(args.request_id)
+            ).hex,
         )
         assert result.data.case
         case = result.data.case
-    if not case.subject.contact_id or case.subject.party != "person":
+    if case.subject.party == "organization":
+        return response(
+            "An organization case cannot start a person check. Call the organization's published number, and separately ask a trusted person.",
+            status="unavailable",
+            case=case,
+        )
+    if not case.subject.contact_id:
         return response(
             "A verified simulated app channel is required for this preview's contact check.",
+            status="unavailable",
+            case=case,
+        )
+    from hirz.contacts.checkins import selected as select_channel
+    from hirz.contacts.checkins import start
+
+    real_channel = await select_channel(p, case.subject.contact_id, args.method)
+    if real_channel:
+        return await start(p, principal, case, real_channel)
+    real_history = await p.connection.scalar(
+        sa.select(db.contact_links.c.id)
+        .where(
+            p.scope(db.contact_links),
+            db.contact_links.c.contact_id == UUID(case.subject.contact_id),
+        )
+        .limit(1)
+    )
+    if real_history or args.method == "email":
+        return response(
+            "That verified contact method is unavailable. Call the contact saved in your own phone.",
             status="unavailable",
             case=case,
         )
@@ -338,7 +419,15 @@ async def verify(
             action_id=uuid4().hex,
             **{"class": "communication.contact_trusted_contact"},
             target=Target(adapter="contacts", entity=case.subject.contact_id),
-            params={},
+            params={
+                "household_id": str(p.household_id),
+                "member_id": member.member_id,
+                "case_id": case.case_id,
+                "channel": str(channels[0]["id"]),
+                "request_hash": sha256(
+                    case.claim.model_dump_json().encode()
+                ).hexdigest(),
+            },
             requested_by=Requester(
                 member_id=None, role="unknown", surface=principal.surface
             ),
@@ -347,6 +436,27 @@ async def verify(
         )
     )
     action = action.model_copy(update={"content_hash": action_hash(action)})
+    if not principal.requester_confirmed:
+        from hirz.pipeline.confirmation import RequesterReview, review_context
+
+        review = review_context.get()
+        binding = (
+            review.binding(p.bundle.fingerprint, action, principal) if review else ""
+        )
+        if not review or binding not in review.accepted:
+            if review:
+                raise RequesterReview(
+                    binding,
+                    action,
+                    f"Confirm a simulated app check for this exact reported request: “{case.claim.text}”",
+                )
+            return response(
+                "Please explicitly confirm this contact check.",
+                status="clarification",
+                code="CONFIRM_REQUIRED",
+                case=case,
+            )
+        principal = principal.model_copy(update={"requester_confirmed": True})
     decision = await p.mutate_locked(action, principal)
     if decision.decision != "execute":
         return response(
@@ -399,6 +509,8 @@ async def advance(p: Pipeline, world: TwinWorld | None) -> None:
             case = VerificationCase.model_validate(row["document"])
             state = case.verification
             assert state
+            if state.source != "twin":
+                continue
             status = "no_answer" if p.clock() >= state.expires_at else "pending"
             if world and world.household.id == p.household_id:
                 scripts = [

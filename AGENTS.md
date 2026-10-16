@@ -132,13 +132,19 @@ Item 29 adds `HIRZ_LLM=off uv run --locked python -m scripts.simulator_demo --or
 
 Item 30 adds `uv run --locked python scripts/demo.py init --origin <HTTPS-origin>` and `uv run --locked python scripts/demo.py run` for isolated scripted recording. Trusted Tailscale forwarding to 8002 is required; enrollment, activation and Echo consent remain manual. Failed runs retain storage; only verified shutdown permits cleanup. Procedure: `docs/development.md#item-30-recording-stack`; verified recording and shutdown evidence: `docs/verification-log.md#item-30`.
 
+Item 32 adds `HIRZ_LLM=off uv run --locked python -m scripts.smoke_protect --artifacts-dir <new-private-dir>` for authenticated assessment, separate-worker and signed-audit acceptance. Live flags and the shared $2 budget ledger procedure are in `docs/development.md`; never reset the ledger to retry.
+
 ## Current phase
 
-Phase 5 is complete and promoted to main on 2026-10-06. Review fixes (policy
-cache, Twin/push loops, dependencies, web split, companion CI job, localhost
-origin, frozen startup generation) are merged to main on 2026-10-06 (PR #9); the localhost
-Compose Twin check is verified. Next is Phase 6 item 31. Item 28 stays Partial
-for Web Push; issue #7 remains open. Development stays on 0005; migrations remain manual.
+Phase 5 and items 32, 33, 33a and 35 are complete; Phase 6 and its 2026-10-15
+review fixes are merged to main ([evidence](docs/verification-log.md#phase-6-review-fixes--2026-10-15)).
+Next: Phase 7, item 36 (ROADMAP.md). A real check-in requires the contact key
+(`scripts/init_contacts.py`).
+Item 31 remains Partial for real email/push acceptance; item 28 still owes real Web
+Push (issue #7). Ring access failed; retain the twin doorbell. Link replay and
+independent relocking remain item 38a. Paid Protect shares
+`HIRZ_PROTECT_BUDGET_LEDGER` with a $2 ceiling. Development stays on 0005;
+migrations remain manual.
 
 ---
 

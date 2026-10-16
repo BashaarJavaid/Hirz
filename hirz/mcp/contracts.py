@@ -7,7 +7,15 @@ Structured content supports native rendering and optional MCP App presentation.
 
 from typing import Annotated, Any, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    SerializerFunctionWrapHandler,
+    StrictBool,
+    model_serializer,
+    model_validator,
+)
 from pydantic.json_schema import GenerateJsonSchema, JsonSchemaValue
 from pydantic_core import CoreSchema
 
@@ -34,6 +42,7 @@ Number = Annotated[float, Field(strict=True, allow_inf_nan=False)]
 
 
 FIELD_DESCRIPTIONS = {
+    "method": "Choose app or email for an explicit retry of the same reported request.",
     "scope": "Which household information to read: people, energy, environment, constraints, member, or all.",
     "member": "One household member's exact displayed name or returned reference; required only for member scope.",
     "horizon": "Tonight, overnight and tomorrow morning end at the next household-local 8 AM; next_24h covers 24 hours.",
@@ -65,8 +74,8 @@ FIELD_DESCRIPTIONS = {
     "minutes": "Explicit maximum charging or requested door-unlock duration in minutes; required for those actions.",
     "beneficiary": "Exact household member for whom the temperature change is requested; does not establish who spoke.",
     "claimed_requester": "Unverified claimed speaker name; can only lower the linked account's authority.",
-    "claimed_party": "Name of the person or organization the suspicious request claims to come from.",
-    "party": "Whether the claimed party is a person or organization; organization verification is unavailable.",
+    "claimed_party": "Reported name, only if supplied; omit when unknown. Never invent a name.",
+    "party": "Person or organization. Organization number matches never authenticate callers.",
     "presented_number": "Phone number explicitly supplied by the user. Omit when unknown; a stored-number match never proves identity.",
     "case_id": "Returned private verification case reference. Use it to disambiguate multiple pending checks.",
     "contact": "Exact trusted contact name or returned reference. Starting without a case also requires the request text.",
@@ -100,7 +109,7 @@ def input_schema(model: type["Input"]) -> dict[str, Any]:
         field["description"] = FIELD_DESCRIPTIONS[name]
     if model is VerifyInput:
         schema["properties"]["operation"]["description"] = (
-            "Start a new simulated contact check, or read status when the user asks again. Starting requires a request key."
+            "Start or explicitly retry a contact check, or read status when the user asks again. Starts and retries require confirmation and a request key."
         )
     return schema
 
@@ -275,14 +284,15 @@ class PermissionInput(ActionInput):
 
 class RiskInput(Input):
     text: Sentence
-    claimed_party: Reference
+    claimed_party: Reference | None = None
     party: Literal["person", "organization"]
     presented_number: Reference | None = None
     request_id: RequestKey
 
 
 class VerifyInput(Input):
-    operation: Literal["start", "status"]
+    method: Literal["app", "email"] | None = None
+    operation: Literal["start", "status", "retry"]
     case_id: Reference | None = None
     contact: Reference | None = None
     text: Sentence | None = None
@@ -295,8 +305,29 @@ class VerifyInput(Input):
                 raise ValueError(
                     "A new check needs a case or contact and request text, plus a request key."
                 )
-        elif self.text is not None or self.request_id is not None:
-            raise ValueError("A status read does not accept new text or a request key.")
+        elif self.operation == "retry":
+            if (
+                not self.case_id
+                or not self.method
+                or not self.request_id
+                or self.text is not None
+                or self.contact is not None
+            ):
+                raise ValueError(
+                    "A retry needs an existing case, method and request key, without new text."
+                )
+        elif (
+            self.text is not None
+            or self.request_id is not None
+            or self.method is not None
+        ):
+            raise ValueError(
+                "A status read does not accept new text, method or a request key."
+            )
+        if self.operation == "start" and self.method is not None:
+            raise ValueError(
+                "Starting uses the first available method allowed by the household rules."
+            )
         return self
 
 
@@ -325,6 +356,14 @@ class AuditSummary(Input):
 
 
 class ToolData(Input):
+    @model_serializer(mode="wrap")
+    def public_case(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        value: dict[str, Any] = handler(self)
+        if value.get("case"):
+            value["case"].pop("assessment_decision", None)
+            value["case"].pop("courier", None)
+        return value
+
     status: Literal[
         "ok",
         "clarification",
@@ -558,12 +597,12 @@ TOOLS: dict[str, tuple[type[Input], str, str]] = {
     "assess_request_risk": (
         RiskInput,
         "verify",
-        "Assess requests to send money, pay someone, transfer funds, share a code or grant access, including direct commands to send or pay money. Call this tool before giving risk advice; Hirz cannot transfer money. Does not initiate contact. Include a number only if the user supplied it.",
+        "Assess requests to send money, pay someone, transfer funds, share a code or grant access, including direct commands to send or pay money. Call immediately with the reported text before giving risk advice; Hirz cannot transfer money. Names and numbers are optional: do not ask for them before assessment. Use party=person unless an organization is explicitly reported. Omit unknown claimed_party and presented_number. Does not initiate contact.",
     ),
     "verify_trusted_identity": (
         VerifyInput,
         "verify",
-        "Start a simulated contact check or read its current status. Starting with contact and text first assesses the request's risk, then opens the check; a separate assess_request_risk call is unnecessary. Starting with case_id checks an existing assessment. When the user asks again, call operation=status to read the latest reply even if an earlier result was pending. No real communication is available.",
+        "Person checks only: start with contact and exact text or case_id; retry with case_id and app/email method. Confirm starts/retries explicitly. Read status when asked; provenance distinguishes real/simulated replies. For organization advice, separately name a person and the exact request.",
     ),
     "propose_household_rule": (
         ProposalInput,

@@ -7,6 +7,7 @@ import { Button } from "./components/ui/button";
 import { Tonight } from "./pages/Tonight";
 import { Approvals } from "./pages/Approvals";
 import { ConstitutionPage } from "./pages/Constitution";
+import { Checkins, ContactLink } from "./pages/Checkins";
 import { Household } from "./pages/Household";
 import { Audit } from "./pages/Audit";
 import { Twin } from "./pages/Twin";
@@ -66,11 +67,11 @@ function Shell({ session, refresh }: { session: Session; refresh: () => void }) 
       <NavLink to="/tonight" className="wordmark">Hirz</NavLink>
       <p className="muted">{session.member?.display_name}’s household</p>
       <nav aria-label="Main">
-        {["tonight", "approvals", "constitution", "household", "audit", "twin"].map(page => <NavLink
+        {["tonight", "approvals", "constitution", "household", "checkins", "audit", "twin"].map(page => <NavLink
           key={page}
           to={`/${page}`}
         >
-          {page[0].toUpperCase() + page.slice(1)}
+          {page === "checkins" ? "Check-ins" : page[0].toUpperCase() + page.slice(1)}
         </NavLink>)}
       </nav>
       <AsyncButton
@@ -88,6 +89,7 @@ function Shell({ session, refresh }: { session: Session; refresh: () => void }) 
         <Route path="/constitution" element={<ConstitutionPage />} />
         <Route path="/approvals" element={<Approvals />} />
         <Route path="/household" element={<Household />} />
+        <Route path="/checkins" element={<Checkins />} />
         <Route path="/audit" element={<Audit />} />
         <Route path="/twin" element={<Twin />} />
         <Route path="*" element={<Navigate replace to="/tonight" />} />
@@ -105,6 +107,7 @@ function CompanionApp() {
 }
 
 function App() {
-  return useLocation().pathname === "/simulator" ? <Simulator /> : <CompanionApp />;
+  const path = useLocation().pathname;
+  return path === "/simulator" ? <Simulator /> : path === "/contact-links" ? <ContactLink /> : <CompanionApp />;
 }
 createRoot(document.getElementById("root")!).render(<BrowserRouter><App /></BrowserRouter>);

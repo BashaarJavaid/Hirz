@@ -127,6 +127,9 @@ async def ingest(p: "Pipeline", registry: Registry, principal: Principal) -> Dec
                 result = await p.redeem(action, scheduler)
         if result.decision != "execute":
             raise ValueError("Observation ingestion was not authorized")
+        from hirz.protect.courier import advance
+
+        await advance(p)
         return result
     finally:
         p._observation_batch = None

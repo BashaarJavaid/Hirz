@@ -17,6 +17,7 @@ from hirz.audit import (
 )
 from hirz.constitution.boundary import Dogwood
 from hirz.executor.local import compose
+from hirz.executor.local import policy as reload_policy
 from hirz.executor.observations import ingest
 from hirz.executor.observations import readings as registry_readings
 from hirz.executor.plans import PlanService
@@ -54,6 +55,10 @@ class Host:
         self.plans = PlanService(pipeline)
         self.coordinator = Coordinator(pipeline)
         self.saved: dict[str, str] = {}
+        self.results: dict[str, dict[str, Any]] = {}
+        self.kinds: dict[str, str] = {}
+        self.phone: Any = None
+        self.phone_views: dict[str, dict[str, Any]] = {}
         self.plan_id: str | None = None
         self.responded: set[str] = set()
         self.turns: list[dict[str, Any]] = []
@@ -129,7 +134,31 @@ class Host:
                 args[key] = self.saved[reference[1:]]
         value: str | None = None
         result: Any
-        if call.tool == "get_household_plan":
+        if (
+            call.tool
+            in {
+                "assess_request_risk",
+                "verify_trusted_identity",
+                "propose_household_rule",
+            }
+            or call.tool == "execute_household_action"
+            and "action" in args
+        ):
+            from hirz.mcp.household import HouseholdTools
+
+            answer = await HouseholdTools(
+                self.p,
+                principal.model_copy(update={"requester_confirmed": call.confirmed}),
+            ).call(call.tool, args)
+            result = answer.model_dump(mode="json")
+            value = (
+                answer.data.case.case_id
+                if answer.data.case
+                else answer.data.decision.action_id
+                if answer.data.decision
+                else answer.data.reference
+            )
+        elif call.tool == "get_household_plan":
             result = (await self.current(principal)).model_dump(mode="json")
             value = result["plan_id"]
         elif call.tool == "get_household_context":
@@ -232,7 +261,172 @@ class Host:
                     "Result name must be unique and identify a saved object"
                 )
             self.saved[call.save_as] = value
-        return {"tool": call.tool, "status": "executed", "result": result}
+            self.results[call.save_as] = result
+            self.kinds[call.save_as] = (
+                "proposal"
+                if call.tool == "propose_household_rule"
+                else "action"
+                if call.tool == "execute_household_action"
+                else call.tool
+            )
+        output = {"tool": call.tool, "status": "executed", "result": result}
+        if (
+            self.phone
+            and call.save_as
+            and self.kinds[call.save_as] == "action"
+            and "data" in result
+            and result["data"].get("decision", {}).get("approval")
+        ):
+            view = await self.phone.approvals(member)
+            decision = result["data"]["decision"]
+            selected = next(
+                (
+                    r
+                    for r in view["approvals"]
+                    if r["id"] == decision["approval"]["approval_id"]
+                    and r["action"]["action_id"] == value
+                ),
+                None,
+            )
+            if selected is None:
+                raise ValueError(
+                    "Requested approval is missing from the authenticated inbox"
+                )
+            self.phone_views[call.save_as] = {
+                "approval": selected,
+                "door": view["door"],
+            }
+            output["companion"] = self.phone_views[call.save_as]
+        return output
+
+    def reference(self, reference: str | None, kind: str) -> str:
+        name = (reference or "").removeprefix("$")
+        if (
+            not reference
+            or not reference.startswith("$")
+            or self.kinds.get(name) != kind
+        ):
+            raise ValueError("Missing, unresolved or wrong-kind scenario reference")
+        return self.saved[name]
+
+    async def service_check(self, check: Any) -> bool:
+        if check.kind == "policy":
+            from hirz.companion.policy import current
+
+            async with self.p.connection.begin():
+                stored = await current(self.p)
+            return bool(
+                stored["status"] == "active"
+                and stored["version"] == check.equals["version"]
+            )
+        name = (check.subject or "").removeprefix("$")
+        if name not in self.results:
+            raise ValueError("Unresolved assertion result")
+        actual = self.results[name]
+        if check.kind == "approval":
+            actual = self.phone_views.get(name, {})
+        if check.kind == "action":
+            ident = self.reference(check.subject, "action")
+            async with self.p.connection.begin():
+                row = (
+                    (
+                        await self.p.connection.execute(
+                            sa.select(db.actions).where(
+                                self.p.scope(db.actions),
+                                db.actions.c.action_id == ident,
+                            )
+                        )
+                    )
+                    .mappings()
+                    .one()
+                )
+                actual = dict(row)
+        for key, expected in check.equals.items():
+            if key in {"wording_contains", "wording_excludes"}:
+                speech = actual.get("speakable", {})
+                wording = " ".join(
+                    [
+                        speech.get("headline", ""),
+                        *speech.get("details", []),
+                        *speech.get("options", []),
+                    ]
+                )
+                if not isinstance(expected, list) or not all(
+                    isinstance(v, str) for v in expected
+                ):
+                    raise ValueError("Wording checks require a list of strings")
+                if any((v in wording) != (key == "wording_contains") for v in expected):
+                    return False
+                continue
+            value: Any = actual
+            for part in key.split("."):
+                if not isinstance(value, dict) or part not in value:
+                    return False
+                value = value[part]
+            if value != expected:
+                return False
+        return True
+
+    async def phone_event(self, index: int, phone: Any) -> dict[str, Any]:
+        from hirz.companion.policy import patched
+        from hirz.constitution.schema import dump
+
+        event = self.loaded.spec.timeline[index]
+        member = event.member or ""
+        if event.event == "constitution.activate":
+            proposal = self.reference(event.proposal, "proposal")
+            candidate = patched(self.p.bundle.policy(), self.loaded.patches[index])
+            result = await phone.activate(member, dump(candidate), proposal)
+            self.p.bundle = await reload_policy(self.p)
+            self.loaded.policy = self.p.bundle.policy()
+        else:
+            action_id = self.reference(event.request, "action")
+            answer = self.results[(event.request or "")[1:]]["data"]
+            decision = answer["decision"]
+            approval = decision.get("approval")
+            if not approval:
+                raise ValueError("Referenced request has no approval")
+            async with self.p.connection.begin():
+                document = await self.p.connection.scalar(
+                    sa.select(db.actions.c.proposal).where(
+                        self.p.scope(db.actions), db.actions.c.action_id == action_id
+                    )
+                )
+            action = Action.model_validate(document)
+            reviewed = self.phone_views[(event.request or "")[1:]]["approval"]
+            if (
+                action.action_id != decision["action_id"]
+                or reviewed["id"] != approval["approval_id"]
+                or reviewed["action"]["action_id"] != action.action_id
+                or reviewed["action"]["content_hash"] != action.content_hash
+                or action_hash(action) != action.content_hash
+            ):
+                raise ValueError("Approval request changed")
+            await phone.enroll(member)
+            result = await phone.ceremony(
+                member,
+                dict(
+                    operation="approve",
+                    approval_id=approval["approval_id"],
+                    action_hash=action.content_hash,
+                    approved=event.event == "app.approve",
+                ),
+            )
+            result.update(
+                action_id=action_id,
+                approval_id=approval["approval_id"],
+                action_hash=action.content_hash,
+                authenticated=True,
+            )
+        return dict(
+            index=index,
+            at=self.loaded.times[index].isoformat(),
+            event=event.event,
+            status="executed",
+            linked_member=str(self.loaded.ref("members", member)),
+            surface="app",
+            result=result,
+        )
 
     async def responses(self) -> int:
         spec = self.loaded.spec.execution
@@ -361,6 +555,25 @@ async def bootstrap(loaded: LoadedScenario, connection: Any) -> Pipeline:
                     update={"adapter": binding.adapter, "entity_id": binding.entity}
                 ),
                 expected_version=old["valid_from"],
+            )
+        from hashlib import sha256
+
+        from hirz.graph.models import ContactChannel
+
+        for contact in spec.verified_app_fixtures:
+            await p.repo.put(
+                "contact_channels",
+                ContactChannel(
+                    id=uuid4(),
+                    household_id=p.household_id,
+                    contact_id=loaded.ref("trusted_contacts", contact),
+                    kind="hirz_app",
+                    value_hash=sha256(
+                        b"explicit disposable verified-app fixture"
+                    ).hexdigest(),
+                    verified_at=world.clock() - timedelta(seconds=1),
+                    source="twin",
+                ),
             )
         if spec.ev_needed_by:
             await p.repo.put(
@@ -562,6 +775,73 @@ async def overnight_checks(
     ]
 
 
+async def verification_check(p: Pipeline, check: Any) -> bool:
+    from hirz.pipeline.models import VerificationCase
+    from hirz.protect.courier import member_warning
+
+    async with p.connection.begin():
+        documents = (
+            (
+                await p.connection.execute(
+                    sa.select(db.verification_cases.c.document).where(
+                        p.scope(db.verification_cases)
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+    if len(documents) != 1:
+        return False
+    case = VerificationCase.model_validate(documents[0])
+    actual = {
+        "risk_band": case.risk_band.value,
+        "status": case.verification.status if case.verification else None,
+        "presented_number": case.claim.presented_number,
+        "member_warning": bool(member_warning(case)),
+        "contact_publication": case.courier.contact.status if case.courier else None,
+        "contact_source": case.courier.contact.source if case.courier else None,
+        "honest_wording": bool(member_warning(case))
+        and "Hirz cannot identify the visitor." in str(member_warning(case)),
+    }
+    return all(
+        key in actual and actual[key] == value for key, value in check.equals.items()
+    )
+
+
+# Full-sequence scenarios must name this deferral byte for byte.
+LINK_DEFERRAL = "Link replay rejection and independently operated relocking"
+
+
+def full_sequence_complete(
+    loaded: LoadedScenario, report: dict[str, Any], assertions: bool
+) -> bool:
+    return (
+        assertions
+        and len(report["events"]) == len(loaded.spec.timeline)
+        and {c.get("index") for c in report["checks"] if "index" in c}
+        == set(range(len(loaded.spec.assertions.checks)))
+        and bool(report["checks"])
+        and all(c["status"] == "passed" for c in report["checks"])
+        and all(c.expectation == LINK_DEFERRAL for c in loaded.spec.assertions.deferred)
+        and all(
+            event.get("index") == index
+            and event["event"] == required.event
+            and len(event.get("tools", [])) == len(required.script)
+            and (
+                (event["event"] == "link.replay" and event["status"] == "deferred")
+                or (
+                    event["status"] in {"executed", "simulated"}
+                    and all(t["status"] == "executed" for t in event.get("tools", []))
+                )
+            )
+            for index, (required, event) in enumerate(
+                zip(loaded.spec.timeline, report["events"], strict=True)
+            )
+        )
+    )
+
+
 async def retain_audit(p: Pipeline, folder: Path) -> tuple[dict[str, Any], list[Any]]:
     return await retain_export(
         p.connection, p.household_id, p.audit.key.public_key(), folder
@@ -621,6 +901,7 @@ async def run_execution(
             if live:
                 p.clock = now
             host = Host(loaded, p)
+            phone = None
             config = ",".join(
                 f"{d}:{'scenario' if d == 'energy' and spec.rate_plan == 'comed_time_of_day' else 'twin'}"
                 for d in spec.adapters
@@ -645,6 +926,19 @@ async def run_execution(
             executor = Executor(p, registry, world=world, refresh_polls=True)
             refresh = RefreshWorker(p, registry, world=world)
             try:
+                if spec.execution.full_sequence:
+                    from hirz.twin.scenario_auth import Phone
+
+                    phone = Phone(p, loaded)
+                    host.phone = phone
+                    report["setup"] = await phone.initialize()
+                    p.bundle = await reload_policy(p)
+                    p.require_active = True
+                    report["limitations"] = [
+                        "Software passkeys over companion HTTP; scripted voice uses linked internal principals.",
+                        "Local twin relock only. Link replay rejection and independently operated relocking remain item 38a.",
+                        "No live feeds, paid inference or real contact delivery.",
+                    ]
                 fixed = {
                     spec.clock.start,
                     stop,
@@ -713,8 +1007,20 @@ async def run_execution(
                         if when != at:
                             continue
                         event = spec.timeline[index]
-                        event_result = await loaded.apply(index, proposals, p.boundary)
+                        if phone and event.event in {
+                            "constitution.activate",
+                            "app.approve",
+                            "app.deny",
+                        }:
+                            event_result = await host.phone_event(index, phone)
+                        else:
+                            event_result = await loaded.apply(
+                                index, proposals, p.boundary
+                            )
                         if event.event == "voice":
+                            await ingest(
+                                p, registry, host.principal(event.member or "")
+                            )
                             for call in event.script:
                                 if isinstance(call, ScriptCall):
                                     event_result["tools"].append(
@@ -727,6 +1033,9 @@ async def run_execution(
                             progress(
                                 f"{at.isoformat()} {event.event}: {event_result['status']}"
                             )
+                    from hirz.mcp.trust import advance as advance_checks
+
+                    await advance_checks(p, world)
                     # Presence changes are ingested before planning and device evaluation.
                     await ingest(p, registry, host.principal(spec.execution.member))
                     if at < stop:
@@ -755,6 +1064,18 @@ async def run_execution(
                     for i, when in enumerate(loaded.check_times):
                         if when == at:
                             reached.add(i)
+                            checked = (
+                                await verification_check(p, spec.assertions.checks[i])
+                                if spec.assertions.checks[i].kind == "verification"
+                                else await host.service_check(spec.assertions.checks[i])
+                                if spec.assertions.checks[i].kind
+                                in {"result", "action", "approval"}
+                                or phone
+                                and spec.assertions.checks[i].kind == "policy"
+                                else loaded.check(
+                                    spec.assertions.checks[i], readings, sources=sources
+                                )
+                            )
                             report["checks"].append(
                                 dict(
                                     index=i,
@@ -763,11 +1084,7 @@ async def run_execution(
                                     status="unchecked"
                                     if not assertions
                                     else "passed"
-                                    if loaded.check(
-                                        spec.assertions.checks[i],
-                                        readings,
-                                        sources=sources,
-                                    )
+                                    if checked
                                     else "failed",
                                 )
                             )
@@ -863,6 +1180,11 @@ async def run_execution(
                 )
                 report["responses"] = host.turns
                 report["preview_policy_version"] = loaded.policy.version
+                report["execution_policy_version"] = (
+                    p.bundle.policy().version
+                    if phone
+                    else loaded.execution_policy.version
+                )
                 report["initial_summary"] = host.initial_summary
                 async with connection.begin():
                     actions = {
@@ -935,13 +1257,29 @@ async def run_execution(
                             outcome["status"] = "unchecked"
                     report["checks"].extend(outcomes)
                 report["checks"].extend(checks)
+                if spec.execution.full_sequence and not to:
+                    complete = full_sequence_complete(loaded, report, assertions)
+                    report["checks"].append(
+                        dict(
+                            kind="full_sequence",
+                            status="passed" if complete else "failed",
+                        )
+                    )
+                    if any(
+                        c.expectation != LINK_DEFERRAL for c in spec.assertions.deferred
+                    ):
+                        report["checks"][-1]["reason"] = (
+                            f"deferred expectation must be exactly {LINK_DEFERRAL!r}"
+                        )
                 report["status"] = (
                     "failed"
                     if any(c["status"] == "failed" for c in report["checks"])
                     else "stopped"
                     if to
                     else (
-                        "item22_execution_passed"
+                        "full_sequence_passed"
+                        if spec.execution.full_sequence
+                        else "item22_execution_passed"
                         if spec.execution.plan_at
                         else "execution_checks_passed"
                     )
@@ -954,6 +1292,11 @@ async def run_execution(
                 report["responses"] = host.turns
                 report["initial_summary"] = host.initial_summary
                 report["preview_policy_version"] = loaded.policy.version
+                report["execution_policy_version"] = (
+                    p.bundle.policy().version
+                    if phone
+                    else loaded.execution_policy.version
+                )
                 if not (folder / "audit.json").exists():
                     if connection.in_transaction():
                         await connection.rollback()
@@ -961,6 +1304,8 @@ async def run_execution(
                         report["audit"], _ = await retain_audit(p, folder)
                     except Exception as audit_error:
                         report["audit_error"] = type(audit_error).__name__
+                if phone:
+                    await phone.close()
                 await registry.close()
                 await loaded.registry.close()
     except BaseException as exc:

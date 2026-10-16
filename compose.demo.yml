@@ -16,6 +16,7 @@ services:
     restart: "no"
     labels:
       org.hirz.recording: "v1"
+      org.hirz.checkout: "${HIRZ_DEMO_CHECKOUT:?Use scripts/demo.py run}"
 
   simulator:
     build: .
@@ -60,8 +61,10 @@ services:
     stop_grace_period: 120s
     labels:
       org.hirz.recording: "v1"
+      org.hirz.checkout: "${HIRZ_DEMO_CHECKOUT:?Use scripts/demo.py run}"
 
 volumes:
   postgres:
     labels:
       org.hirz.recording: "v1"
+      org.hirz.checkout: "${HIRZ_DEMO_CHECKOUT:?Use scripts/demo.py run}"

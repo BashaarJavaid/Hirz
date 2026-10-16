@@ -4,7 +4,7 @@
 
 Hirz lets your family decide what Alexa may do on its own, what it must ask about, and what it may never do. It holds a shared model of the people, devices, schedules, energy, and trust relationships in a home, plans against household goals instead of one-off commands, and acts only inside boundaries the household wrote down. The name for that in the architecture docs is *bounded autonomy*.
 
-> Built for the **Build, Ship, Shape: Amazon Developer Hackathon 2026**: Alexa+ track, Ring track (kept only if the Ring sandbox access gate in `ROADMAP.md` item 34 passes), and both mini-challenges, AWS Builder and Open Source. Designed as a startup, not a weekend project: see [`ROADMAP.md`](./ROADMAP.md) for the hackathon cut line and what comes after it.
+> Built for the **Build, Ship, Shape: Amazon Developer Hackathon 2026**: Alexa+ track and both mini-challenges, AWS Builder and Open Source. Designed as a startup, not a weekend project: see [`ROADMAP.md`](./ROADMAP.md) for the hackathon cut line and what comes after it.
 
 ---
 
@@ -153,7 +153,7 @@ graph TD
         Energy["Energy: ComEd Time-of-Day rate table + Hourly feed, Open-Meteo, battery + solar twin"]
         Wear["Wearable: Oura / Whoop / Bee / twin"]
         Cal["Calendar: Google / ICS / twin"]
-        Door["Doorbell: Ring sandbox / twin"]
+        Door["Doorbell: twin"]
         Notify["Notifications: web push, email"]
     end
     Exec --> Adapters
@@ -235,13 +235,17 @@ Hirz/
 │   ├── planner/                    # MILP scheduler, coordinator, plan diff
 │   ├── executor/                   # action runtime, scheduler, verify-after-act
 │   ├── protect/                    # trusted contacts, verification, request assessment
-│   ├── explain/                    # Bedrock-backed explainer (structured in, structured out)
+│   ├── contacts/                   # trusted contacts, enrollment, real check-ins
+│   ├── memory/                     # private session memory, consented preferences
+│   ├── explainer/                  # Bedrock-backed explainer (structured in, structured out)
 │   ├── audit/                      # hash chain, signing, export, verifier
 │   ├── adapters/                   # one package per domain; each has real/ and twin/
 │   ├── twin/                       # physics models, sim clock, scenario engine
-│   ├── link/                       # Hirz Link: the home agent that obeys only signed commands
+│   ├── link/                       # Hirz Link: the home agent that obeys only signed commands (Phase 7, not yet built)
 │   ├── mcp/                        # MCP server, tools, OAuth PRM, MCP App resources
 │   ├── api/                        # companion API (FastAPI)
+│   ├── companion/                  # companion API, passkeys, push, policy activation
+│   ├── host/                       # scripted host, simulator, selection
 │   └── cli.py                      # hirz CLI: decide, plan, scenario, verify-audit, doctor
 ├── apps/
 │   ├── mcp-app/                    # React MCP App bundle (plan card, approval card, verification card, scorecard)
@@ -489,6 +493,11 @@ enrollment and linking.
 A phone needs the Tailscale HTTPS origin instead of localhost; see
 [recording setup and shutdown](./docs/development.md#item-30-recording-stack).
 The hosted demo remains planned under item 38c.
+
+Starting a real check-in requires `uv run --locked python scripts/init_contacts.py`
+first; without the contact key the worker prints a status line, email check-ins
+stay disabled and app check-ins still time out
+([trusted-contact setup](./docs/development.md#trusted-contact-acceptance-item-31)).
 
 ## Documentation
 

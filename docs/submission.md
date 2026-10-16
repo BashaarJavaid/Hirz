@@ -1,6 +1,6 @@
 # Hackathon Submission Checklist
 
-Build, Ship, Shape: Amazon Developer Hackathon 2026. Submission period 2026-08-31 10:15 PT to **2026-10-23 12:00 PT**. Judging 2026-11-09 to 2026-11-20. Tracks entered: **Alexa+** and, if the item 34 gate passes, **Ring** (the rules say "Identify which Primary Track(s) you are submitting your Project into"). Mini-challenges entered: **AWS Builder** and **Open Source**. "A project can only win one (1) track prize and one (1) mini challenge prize"; nothing stops it entering more than one.
+Build, Ship, Shape: Amazon Developer Hackathon 2026. Submission period 2026-08-31 10:15 PT to **2026-10-23 12:00 PT**. Judging 2026-11-09 to 2026-11-20. Tracks entered: **Alexa+**. Mini-challenges entered: **AWS Builder** and **Open Source**. "A project can only win one (1) track prize and one (1) mini challenge prize"; nothing stops it entering more than one.
 
 Two-stage judging: Stage One is a pass/fail check that the project fits the track and actually calls the required technology; Stage Two scores four equally weighted criteria (Tech Implementation, Design, Potential Impact, Quality of the Idea), with up to 10 percent bonus from friction-log entries. Judges may judge from the description, images, and video alone, so those three carry the whole case.
 
@@ -8,12 +8,12 @@ Two-stage judging: Stage One is a pass/fail check that the project fits the trac
 
 ## Required components
 
-- [ ] **Working project** built with the required tech: a self-hosted MCP server (spec 2025-11-25 or later, Streamable HTTP) actually called by the demo; Ring API actually called (sandbox synthetic devices count).
+- [ ] **Working project** built with the required tech: a self-hosted MCP server (spec 2025-11-25 or later, Streamable HTTP) actually called by the demo.
 - [ ] **Public GitHub repo** with all source, assets, run instructions, and `LICENSE` (Apache-2.0) detectable at the root.
 - [ ] **Demo video** under 3 minutes, YouTube or Vimeo, public, English, showing the project functioning on the intended surface (the simulator, honestly labeled; the Alexa developer-console clip is in the gallery, not the video). No third-party trademarks or copyrighted music. See `docs/demo-script.md`.
 - [ ] **Text description** of features and functionality (draft below).
 - [ ] **Product feedback** for every tool/API/SDK used (template below).
-- [ ] **Track selection**: Alexa+; Ring too only if the access gate in `ROADMAP.md` item 34 passed (otherwise remove Ring from this checklist, the description, the product-feedback list, and the README banner, and keep the twin doorbell).
+- [ ] **Track selection**: Alexa+.
 - [ ] **Mini-challenges**: both.
   - **AWS Builder**: the services and how they are used, in the product-feedback answer: AgentCore Runtime (hosts the MCP server), Gateway + Policy (Cedar/Dogwood compiled from the constitution, temporal approval rule), Memory, Identity (write-capable credentials readable by one Lambda role only), Bedrock (Claude for narration and drafting, the emulator), Strands, KMS (the key that signs home commands; only the Gateway's Lambda may use it), S3 Object Lock (audit anchors), EventBridge Scheduler, App Runner, RDS, CDK.
   - **Open Source**: the rule asks for "a new, **additional** open-source project or [a contribution] to an existing public repository during the hackathon window, **alongside** a primary track submission". Hirz is the primary submission, so Hirz itself does not qualify. The entry is the separate repository from `ROADMAP.md` items 25a and 29a: the add-on conformance checker and the host harness extracted from Hirz's simulator. The form's four fields: **contribution URL**, **project repository URL**, **GitHub username**, and a description of **what it does, how it works, and why it matters** (add-on developer access is limited to select partners, so builders test against emulated hosts; the checker tells any add-on developer in one command whether their server meets Amazon's published contract. The claim is about what the checker verifies, with its test suite as evidence, never about other entrants' simulators). The rules rate "feature addition with tests, bug fix that unblocks other developers, new integration pattern" above "README update, typo fix". The MCP Python SDK User-Agent pull request, if still open, is listed as a small extra and never leads. Dogwood Python bindings are decided after the item 7 gate.
@@ -45,13 +45,9 @@ Two-stage judging: Stage One is a pass/fail check that the project fits the trac
 >
 > Built on MCP 2025-11-25 (Streamable HTTP, OAuth 2.1 PKCE, MCP Apps following Amazon's add-on design guide), Python and TypeScript, PostgreSQL, Amazon Bedrock, and Amazon Bedrock AgentCore (Runtime, Gateway, Policy, Memory, Identity), KMS, and S3 Object Lock, with an Alexa+ simulator that hosts the real MCP server through an emulated orchestrator because add-on developer access is limited to select partners. The simulator's host harness and an add-on conformance checker are published as a separate open-source project.
 
-**Ring paragraph (include only if the item 34 gate passed), framed in the track's own priority categories:**
-
-> **Ring: access control, caretaking, event-based triggers.** *Access control:* a Ring press is matched to the household's expected arrivals, and the unlock is a governed action on Hirz's own lock (Ring has no lock API): never for an unexpected visitor once the family writes that rule, and otherwise only after an approval on a phone. *Event-based triggers:* a vehicle-classified motion event enriches the arrival context ("a vehicle arrived at 6:58; Mom is expected at 7:00"), and a doorbell that goes offline makes Hirz more cautious about opening the door it can no longer see. *Caretaking:* at a parent's home, an unexpected visitor shortly after a reported scam call raises a warning and notifies the family member Hirz verified. Hirz never identifies a person from video.
-
 ## Product feedback (template, one block per tool)
 
-For each of: Alexa+ MCP Toolkit docs and contract; the Alexa+ add-on design guide; MCP Apps SDK (`@modelcontextprotocol/ext-apps`); MCP Python SDK; AgentCore Runtime; AgentCore Gateway + Policy; Dogwood CLI; AgentCore Memory; AgentCore Identity; Amazon Bedrock (Claude, Nova); Strands Agents SDK; AWS KMS; Ring Developer API; Home Assistant API; the community Alexa Skill MCP bridge; Smartcar sandbox; ComEd Hourly Pricing API; Open-Meteo:
+For each of: Alexa+ MCP Toolkit docs and contract; the Alexa+ add-on design guide; MCP Apps SDK (`@modelcontextprotocol/ext-apps`); MCP Python SDK; AgentCore Runtime; AgentCore Gateway + Policy; Dogwood CLI; AgentCore Memory; AgentCore Identity; Amazon Bedrock (Claude, Nova); Strands Agents SDK; AWS KMS; Home Assistant API; the community Alexa Skill MCP bridge; Smartcar sandbox; ComEd Hourly Pricing API; Open-Meteo:
 
 - What it was used for.
 - What worked well (setup, docs, performance, reliability).

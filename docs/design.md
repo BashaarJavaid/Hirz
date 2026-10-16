@@ -123,9 +123,76 @@ Only EV-bar width, verification-result opacity and lock-indicator position trans
 at 200ms ease-out, with reduced motion disabling all three.
 
 Preparation polls every second for 30 seconds; pending verification polls every
-two seconds until server expiry; visible door cards poll every two seconds. There
+two seconds until a terminal server result; visible door cards poll every two seconds. There
 is at most one outstanding call. Hidden cards pause; errors and teardown stop
 polling. Manual retry preserves the gesture's request ID. Stale, malformed and
 failed data disable affected actions; late replies to replaced content are ignored.
 Linux Chromium baselines comprise ten inline light/dark images and four plan/scorecard
 fullscreen images, plus a 1280×800 scaling check. Initial images require author review.
+
+## Item 31 contact screens — 2026-10-07
+
+Household adds owner passkey-confirmed contact/channel setup, explicit out-of-band
+activation, revocation/removal, and safe-word rotation. The receiving household
+accepts its invitation while signed into its own profile, can withdraw its app
+link, and can confirm a phone number with an explicit “contact-confirmed” label.
+The fallback displays neither that number nor a dialing link.
+
+Check-ins shows addressed requests and the initiating member's private cases. The
+requester is the recorded member name; “Did you make this request?” precedes the
+exact reported text in a quotation. The three answers are No, Yes, and the intention
+to call. A yes confirms only that request; a call intention is not a completed or
+arranged call. Method and provenance remain visible. Safe-word results supply
+supporting evidence without changing the case or band. Terminal cases expose
+explicit app/email retry confirmation. New cases still start through MCP.
+
+The restricted email page consumes a fragment locally, clears it from browser
+history, then uses body-only POST requests. Opening/scanning a link changes no
+state; separate buttons review and confirm. The page grants no household session.
+Pending cards keep non-overlapping polling until a server terminal result, including
+a delayed worker expiry. Companion pending views use the same polling discipline;
+manual refresh and push navigation discover new requests. No polling path speaks.
+
+### Protect advice updates (item 32)
+
+Cards and Check-ins show the extraction notice alongside the existing headline
+and source label. Off/fallback says “Keyword-only check; some warning signs may
+be missed.” Pending/running says “Additional warning checks are in progress.”
+Only model-added signals are prefixed “Possible”; the card keeps at most three
+signals. An unnamed or unmatched assessment offers checking with a saved contact
+without a picker or an inferred identity. Speech carries the notice in details;
+no later speech is triggered by publication.
+
+Enrichment polls the existing case status every two seconds until settlement or
+30 seconds, then leaves Refresh available. Check-ins follows the same window.
+Existing pending contact checks retain their original polling/deadline behavior.
+A genuine reply still confirms only the quoted request and never endorses payment.
+
+### Organization contacts and comparisons (item 33)
+
+Household adds Organization contacts: published ComEd phone (clickable), official
+source link, review date, saved/review-required/not-saved status and owner-only
+save/re-save/remove controls using the existing passkey ceremony. Person contact
+selectors exclude organization records. No saved phone value reaches tools/speech.
+Check-ins and the verification card show the canonical comparison headline and
+“Published ComEd contact” reference. Hypothetical assessments retain simulated
+badges. Organization cases hide safe words, retry and person check buttons; they
+offer a separately named trusted-person check and independent utility contact.
+Caller-ID limitations, warning advice and extraction notice fit three speech
+details. Matching never endorses payment or authenticates a caller.
+
+## Courier warnings (item 33a)
+
+Verification cards and private Check-ins retain the original check result beside
+an independently published courier warning. A read-only “Warnings for you” section
+shows dated recipient warnings, with “Simulated doorbell event.” for non-real
+presses. There is no dismiss or acknowledgment control. The contact sees only the
+approved text, saved member name, event time and source label.
+
+Visible verification cards poll every two seconds through `courier_watch_until`
+or until `courier_warning` arrives, including after terminal replies. Compare the
+server's `as_of` with the watch deadline so a paused simulator does not expire by
+wall time. Existing hidden-tab suspension, one outstanding request, error handling
+and teardown remain in force. Private Check-ins follows the same window; an empty
+recipient inbox retains push and Refresh discovery. Polling never initiates speech.
+Approved wording: [ADR-024](./adr/ADR-024-courier-correlation.md).

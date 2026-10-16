@@ -12,6 +12,7 @@ from pathlib import Path
 
 import httpx
 import uvicorn
+from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from mcp import ClientSession
@@ -34,6 +35,8 @@ from scripts.smoke_oauth import Storage, authenticate, process
 async def run(folder: Path) -> None:
     if os.environ.get("HIRZ_LLM", "off") != "off":
         raise ValueError("This check requires Bedrock off")
+    os.environ["HIRZ_CONTACT_ENCRYPTION_KEY"] = Fernet.generate_key().decode()
+    os.environ["HIRZ_COMPANION_ORIGIN"] = "https://hirz.example.test"
     folder.mkdir(mode=0o700, parents=True, exist_ok=False)
     folder = folder.resolve()
     logging.disable(logging.CRITICAL)

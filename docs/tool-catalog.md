@@ -16,7 +16,7 @@ acceptance remains tracked in [the evidence log](./verification-log.md#item-29).
 | explain_plan | read | Optional plan_id and focus (summary, conflicts, action/goal reference); stored facts and bounded narration. |
 | approve_action | act | approved, exact plan_id/version for plans, plus action_id/approval_id for a planned pending action; immediate pending actions omit plan references; request_id; stale consent refused; security remains passkey-gated. |
 | execute_household_action | act | action plus applicable profile, room, temperature_f, percent, minutes, beneficiary, claimed_requester; request_id; queued execution. |
-| assess_request_risk | verify | text, claimed_party, party, optional presented_number, request_id; deterministic advice, no contact initiation. |
+| assess_request_risk | verify | text, party, request_id; optional claimed_party and presented_number; immediate keyword advice, optional background enrichment, no contact initiation. |
 | verify_trusted_identity | verify | operation start/status; case_id/contact, text for a new request and request_id for start; private simulated app checks only. |
 | propose_household_rule | plan | text, request_id; records the sentence with CONSTITUTION_PROPOSED, without drafting, delivery or activation. |
 | evaluate_permission | read | Shared action fields, optional at and required request_id; current policy preview with DRY_RUN, no authority. |
@@ -127,7 +127,7 @@ Naming follows the 2025-11-25 guidance: lowercase, underscores, verb first. Amaz
 
 | Tool | Scope | Purpose |
 |---|---|---|
-| `assess_request_risk` | verify | Assesses a described request against the household's own records. This is also where any request to send money, share a code, or pay someone lands ("requests to send money" is in the description, with synonyms). `claimed_party: person` ("Malik called from a strange number and needs five hundred dollars"): signals, band, and recommended next steps. An optional `presented_number` is compared with that person's verified channels only when the member actually reads it out; the answer is "matches the number you have saved" or "does not match", never "it is really him", and with no number given the tool says nothing about the number. Checking with the contact is offered at every band, not only CRITICAL. `claimed_party: organization` ("someone from the utility is asking for a payment"): checks the presented channel against saved verified contacts for that organization and the curated registry and returns `matches`, `does_not_match`, or `insufficient_information`. Never treats caller-provided facts as true. |
+| `assess_request_risk` | verify | Assesses a described request against the household's own records. This is also where any request to send money, share a code, or pay someone lands ("requests to send money" is in the description, with synonyms). `party: person` ("Malik called from a strange number and needs five hundred dollars"): signals, band, and recommended next steps. An optional `presented_number` is compared with that person's verified channels only when the member actually reads it out; the answer is "matches the number you have saved" or "does not match", never "it is really him", and with no number given the tool says nothing about the number. Checking with the contact is offered at every band, not only CRITICAL. `party: organization` ("someone from the utility is asking for a payment"): checks the presented channel against saved verified contacts for that organization and the curated registry and returns `matches`, `does_not_match`, or `insufficient_information`. Never treats caller-provided facts as true. |
 | `verify_trusted_identity` | verify | Opens or advances a verification case for a trusted contact using the constitution's method order; returns status (`pending`, `genuine`, `not_genuine`, `will_call`, `no_answer`) and what was used. The check-in asks the contact about the specific request, not "was it you?". Alexa cannot speak when the reply arrives: the first `speakable` says to ask again in a minute, the card and the member's phone update on their own, and a later call returns the result. `genuine` is spoken as "Malik says he did ask for that. Talk to him on the number you have saved", never as advice to pay; `no_answer` as "Malik hasn't answered. Don't send anything." The contact answers in their own Hirz app and may belong to another Hirz household. Asked about someone with no open case, it reports whether they are a trusted contact and which verification methods are available; it never returns channel values. |
 
 ## Governance
@@ -140,7 +140,7 @@ Naming follows the 2025-11-25 guidance: lowercase, underscores, verb first. Amaz
 
 ### What was merged, and where it went
 
-Earlier drafts listed twenty-three tools. Nothing was dropped; each capability now lives in one place: `get_household_member`, `get_current_constraints`, `get_energy_state`, and `get_environment_state` are scopes of `get_household_context`; `create_household_plan`, `optimize_energy_plan`, and `forecast_energy_cost` are `get_household_plan`; `record_household_preference` is `revise_household_plan`; `evaluate_plan_conflicts` is `explain_plan` with `focus: conflicts`; `approve_plan` and `request_high_risk_approval` are `approve_action`; `execute_energy_action` and `apply_environment_profile` are `execute_household_action`; `verify_organization` is `assess_request_risk` with `claimed_party: organization`; `get_trusted_contact` is answered by `verify_trusted_identity`. The twelfth tool, `propose_household_rule`, was added on 2026-09-17 so the constitution is reachable from Alexa, not only from the companion app.
+Earlier drafts listed twenty-three tools. Nothing was dropped; each capability now lives in one place: `get_household_member`, `get_current_constraints`, `get_energy_state`, and `get_environment_state` are scopes of `get_household_context`; `create_household_plan`, `optimize_energy_plan`, and `forecast_energy_cost` are `get_household_plan`; `record_household_preference` is `revise_household_plan`; `evaluate_plan_conflicts` is `explain_plan` with `focus: conflicts`; `approve_plan` and `request_high_risk_approval` are `approve_action`; `execute_energy_action` and `apply_environment_profile` are `execute_household_action`; `verify_organization` is `assess_request_risk` with `party: organization`; `get_trusted_contact` is answered by `verify_trusted_identity`. The twelfth tool, `propose_household_rule`, was added on 2026-09-17 so the constitution is reachable from Alexa, not only from the companion app.
 
 ---
 
@@ -276,3 +276,68 @@ transactions/locks unwind before prompts; resumed calls reauthorize and re-resol
 references. Claimed names never raise authority. Host commitment review is separate;
 there is no new caller-supplied authority Boolean, voice security approval or voice
 constitution activation. See [ADR-020](./adr/ADR-020-simulator.md).
+
+## Item 31 contact contract — 2026-10-07
+
+The twelve-tool surface retains `verify_trusted_identity` start/status and adds
+`operation: retry`, requiring `case_id`, `request_id` and the flat `method: app |
+email`. A retry preserves the exact claim in a new case with `previous_case_id`;
+it never changes the original result. Starts and retries require explicit exact
+request confirmation, including for auto policy and simulated checks. Clients
+without form elicitation receive `CONFIRM_REQUIRED`; no authority flag is accepted
+in tool input. A host commitment prompt does not replace server confirmation.
+
+Start selects the first active real app/email channel in the constitution's method
+order. An unavailable callback is not attempted. Safe words are supporting checks
+in the initiating member's private companion view, not a tool or delivery method.
+Once a contact has real enrollment history, unavailable/revoked real channels never
+fall back to a fixture. Real SMTP and push run in the worker outside the tool and
+outside transactions. Pending approval has no reply deadline; queueing starts two
+minutes for app, fifteen for email. Status preserves all five outcomes and supplies
+reason-specific wording for expiry, delivery failure, removal, revocation or lost
+approval/permission. Cards label method and real/simulated provenance. Updates never
+trigger speech without another member request. [ADR-022](./adr/ADR-022-trusted-checkins.md).
+
+### Protect assessment updates (item 32)
+
+An omitted `claimed_party` remains unknown and resolves no contact. Never invent a
+name to route a money request: `assess_request_risk` accepts it unnamed. Named,
+matched contacts retain the existing confirmed contact-plus-original-text flow;
+unnamed/unmatched cases retain a generic contact-check offer at every band.
+
+New cases carry optional extraction metadata. With `HIRZ_LLM=off`, speech details
+say “Keyword-only check; some warning signs may be missed.” Pending/running work
+says “Additional warning checks are in progress.” Failure returns keyword advice;
+model-only warnings are possible warnings. The hypothetical assessment Decision
+is private, immutable and omitted from tool output. No assessment starts contact.
+`verify_trusted_identity(operation=status, case_id=...)` reads current advice;
+a duplicate request key returns the exact original receipt, even after enrichment.
+Legacy cases remain readable without submission or re-scoring. The twelve-tool
+surface and source labels are unchanged. [ADR-015](./adr/ADR-015-household-tools.md#protect-assessment-and-enrichment-amendment--2026-10-11).
+
+### Organization comparisons (item 33)
+
+Use `party="organization"`, `claimed_party="ComEd"` or the approved alias
+`Commonwealth Edison`, and the optional user-supplied `presented_number`. No new
+tool or input. Do not infer “the utility” or accept lookalike names. Optional
+`organization_comparison` on the canonical case records public source, review and
+registry/saved revisions, plus separate comparison outcomes. It contains no saved
+phone value. `subject.trusted` means a current household-saved record, never caller
+identity; public-registry matches alone leave it false. Risk is unchanged.
+
+A supplied number produces the approved source-specific match/mismatch/insufficient
+headline plus the caller-ID limitation, advice and extractor notice (three details
+maximum). Without a number, no comparison claim is made. Checking with a separately
+named person using the exact original request remains available at every band;
+organization cases themselves cannot start person checks. Status and receipt replay
+retain the original comparison evidence. [ADR-023](./adr/ADR-023-organization-verification.md).
+
+## Courier warnings (item 33a)
+
+No tool is added. Verification card metadata adds nullable `courier_watch_until`
+and `courier_warning`; subsequent member status reads return approved warning
+speech and the original check-in result. Internal courier state/action bindings
+are excluded from tool serialization and schemas. `GET /checkins` adds a
+recipient-scoped `warnings` list with text, event time, provenance and delivery
+source; a contact never receives the original claim or case document. See
+[ADR-024](./adr/ADR-024-courier-correlation.md) for authorization and lifetime.

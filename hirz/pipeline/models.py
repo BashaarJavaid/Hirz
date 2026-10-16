@@ -18,6 +18,7 @@ from pydantic import (
     field_validator,
     model_validator,
 )
+from pydantic.json_schema import SkipJsonSchema
 
 from hirz.explainer.models import NarrationMetadata
 from hirz.risk import CLASSES, RiskBand
@@ -382,7 +383,7 @@ class VerificationClaim(Model):
 class VerificationSubject(Model):
     contact_id: str | None = None
     trusted: bool
-    claimed_party: str = Field(min_length=1, max_length=200)
+    claimed_party: str | None = Field(default=None, min_length=1, max_length=200)
     party: Literal["person", "organization"]
 
 
@@ -399,23 +400,96 @@ class VerificationSignal(Model):
 
 
 class VerificationState(Model):
-    method: Literal["app_confirmation"] = "app_confirmation"
+    method: Literal["app_confirmation", "verified_email"] = "app_confirmation"
     status: Literal["pending", "genuine", "not_genuine", "will_call", "no_answer"]
     sent_to: str
     started_at: AwareDatetime
     expires_at: AwareDatetime
-    source: Literal["twin"] = "twin"
+    source: Literal["real", "twin"] = "twin"
+    reason: (
+        Literal[
+            "expired",
+            "delivery_failed",
+            "contact_removed",
+            "channel_revoked",
+            "approval_refused",
+            "permission_changed",
+            "inconsistent_record",
+        ]
+        | None
+    ) = None
+
+
+class VerificationExtraction(Model):
+    status: Literal["off", "pending", "running", "complete", "fallback"]
+    keyword_signals: tuple[VerificationSignal, ...]
+    model_signals: tuple[VerificationSignal, ...] = ()
+    queued_at: AwareDatetime
+    started_at: AwareDatetime | None = None
+    finished_at: AwareDatetime | None = None
+    failure_code: (
+        Literal[
+            "disabled",
+            "budget",
+            "counting",
+            "provider",
+            "invalid_output",
+            "interrupted",
+            "retry_unfinished",
+        ]
+        | None
+    ) = None
+
+
+type NumberComparison = Literal["matches", "does_not_match", "insufficient_information"]
+
+
+class OrganizationComparison(Model):
+    organization_id: str
+    display_name: str
+    source_url: str
+    reviewed_on: str
+    registry_revision: str
+    saved_revision: str | None = None
+    saved_contact: NumberComparison
+    registry: NumberComparison
+
+
+class CourierDelivery(Model):
+    action_id: str | None = None
+    status: Literal["pending", "approval", "published", "stopped"] = "pending"
+    source: Literal["real", "twin"]
+    expires_at: AwareDatetime
+    published_at: AwareDatetime | None = None
+    reason: str | None = None
+
+
+class CourierState(Model):
+    press_at: AwareDatetime
+    observation_id: str
+    asset_id: str
+    source: Literal["real", "real API, demo devices", "twin"]
+    detected_at: AwareDatetime
+    member_id: str
+    member_name: str
+    contact_id: str | None = None
+    channel_id: str | None = None
+    member: CourierDelivery
+    contact: CourierDelivery
 
 
 class VerificationCase(Model):
+    courier: SkipJsonSchema[CourierState | None] = None
+    organization_comparison: OrganizationComparison | None = None
+    assessment_decision: SkipJsonSchema[Decision | None] = None
+    extraction: VerificationExtraction | None = None
+    previous_case_id: str | None = None
     case_id: str
     claim: VerificationClaim
     subject: VerificationSubject
     signals: tuple[VerificationSignal, ...]
     risk_band: RiskBand
     recommended: tuple[Literal["verify_via_verified_channel", "do_not_transfer"], ...]
-    number_comparison: (
-        Literal["matches", "does_not_match", "insufficient_information"] | None
-    ) = None
+    number_comparison: NumberComparison | None = None
     verification: VerificationState | None = None
     speakable: dict[str, JsonValue]

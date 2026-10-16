@@ -10,7 +10,7 @@ test.use({ userAgent: process.env.HIRZ_BROWSER_LEGACY ? "Mozilla/5.0 (iPhone; CP
 
 test.afterEach(async ({ context }) => { await context.unrouteAll({ behavior: "ignoreErrors" }); });
 
-test("real WebAuthn registration, initial activation, rule review and signed export", async ({ page, context, request }) => {
+test("real WebAuthn registration, initial activation, rule review and signed export", async ({ page, context, request, browser }) => {
   test.setTimeout(300000);
   test.skip(!artifacts, "Requires the explicitly started disposable companion_demo server");
   const invitations = JSON.parse(await readFile(`${artifacts}/invitations.json`, "utf8"));
@@ -55,6 +55,97 @@ test("real WebAuthn registration, initial activation, rule review and signed exp
   await page.getByRole("button", { name: "Preview changes" }).click();
   await page.getByRole("button", { name: "Activate with passkey" }).click();
   await expect(page.getByRole("heading", { name: "Version 7 · active", exact: true })).toBeVisible();
+  await page.getByRole("link", { name: "Household", exact: true }).click();
+  const organizations = page.getByRole("heading", { name: "Organization contacts" }).locator("..");
+  await expect(organizations.getByRole("link", { name: "+18003347661", exact: true })).toHaveAttribute("href", "tel:+18003347661");
+  await expect(organizations.getByRole("link", { name: "Official source" })).toHaveAttribute("href", /poweringlives.comed.com/);
+  await page.getByRole("button", { name: "Save ComEd with passkey", exact: true }).click();
+  await expect(organizations.getByText("Saved", { exact: true })).toBeVisible();
+  await accessibility(page);
+  async function organization(number: string) {
+    const reply = await voice("assess_request_risk", { party: "organization", claimed_party: "ComEd", text: "ComEd requested immediate payment", presented_number: number, request_id: crypto.randomUUID() });
+    expect(reply.isError).not.toBeTruthy();
+    return reply.structuredContent;
+  }
+  const saved = await organization("800-334-7661");
+  expect(saved.data.case.organization_comparison.saved_contact).toBe("matches");
+  expect(saved.data.case.organization_comparison.registry).toBe("matches");
+  expect(saved.data.presentation.can_check).toBe(false);
+  expect((await organization("800-334-7662")).data.case.number_comparison).toBe("does_not_match");
+  await page.getByRole("link", { name: "Check-ins", exact: true }).click();
+  await expect(page.getByText("Published ComEd contact · Reviewed 2026-10-11").first()).toBeVisible();
+  await expect(page.getByText("Check a safe word privately")).toHaveCount(0);
+  await page.getByRole("link", { name: "Household", exact: true }).click();
+  await page.getByRole("button", { name: "Remove ComEd", exact: true }).click();
+  await expect(organizations.getByText("Not saved", { exact: true })).toBeVisible();
+  const removed = await organization("+18003347661");
+  expect(removed.data.case.subject.trusted).toBe(false);
+  expect(removed.data.case.organization_comparison.saved_contact).toBe("insufficient_information");
+  expect(removed.data.case.organization_comparison.registry).toBe("matches");
+  // A separately enrolled household receives only the authorized courier projection.
+  const otherContext = await browser.newContext();
+  const other = await otherContext.newPage();
+  other.setDefaultTimeout(15000);
+  page.setDefaultTimeout(15000);
+  try {
+    await otherContext.route(`${origin}/**`, async route => {
+      const url = new URL(route.request().url());
+      const response = await route.fetch({ url: backend + url.pathname + url.search });
+      await route.fulfill({ response });
+    });
+    const otherCdp = await otherContext.newCDPSession(other);
+    await otherCdp.send("WebAuthn.enable");
+    await otherCdp.send("WebAuthn.addVirtualAuthenticator", { options: { protocol: "ctap2", transport: "internal", hasResidentKey: true, hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true } });
+    if (process.env.HIRZ_BROWSER_LEGACY) await other.addLocatorHandler(other.getByRole("button", { name: "Continue with passkey" }), async button => { await button.click(); });
+    await other.goto(origin);
+    await other.getByText("Set up a passkey or recover access").click();
+    await other.getByLabel("Invitation or one-time recovery code").fill(invitations.invitations[1].token);
+    await other.getByRole("button", { name: "Enroll a passkey" }).click();
+    await other.getByRole("button", { name: "I saved my recovery code" }).click();
+    await other.getByRole("link", { name: "Constitution", exact: true }).click();
+    await other.getByRole("button", { name: "Preview changes" }).click();
+    await other.getByRole("button", { name: "Activate with passkey" }).click();
+    await expect(other.getByRole("heading", { name: "Version 1 · active", exact: true })).toBeVisible();
+    await page.getByText("Create a contact", { exact: true }).click();
+    await page.getByLabel("Name", { exact: true }).fill("Courier recipient");
+    await page.getByLabel("Relationship", { exact: true }).fill("Family");
+    await page.getByRole("button", { name: "Create with passkey", exact: true }).click();
+    await page.getByRole("button", { name: "Courier recipient", exact: true }).click();
+    await page.getByRole("button", { name: "Create app pairing invitation", exact: true }).click();
+    await expect(page.getByRole("status").filter({ hasText: "Single-use pairing invitation" }).locator("code")).toBeVisible();
+    const pairing = await page.getByRole("status").filter({ hasText: "Single-use pairing invitation" }).locator("code").textContent();
+    await other.getByRole("link", { name: "Household", exact: true }).click();
+    await other.getByText("Accept an app pairing invitation", { exact: true }).click();
+    await other.getByLabel("Invitation", { exact: true }).fill(pairing!);
+    await other.getByRole("button", { name: "Accept with my passkey", exact: true }).click();
+    await expect(other.getByText("App link · confirmed. This grants no login to the other household.", { exact: true })).toBeVisible();
+    await page.reload();
+    await page.getByRole("button", { name: "Courier recipient", exact: true }).click();
+    await page.getByRole("button", { name: "I verified the intended contact out of band — activate", exact: true }).click();
+    await expect(page.getByText("app · active", { exact: true })).toBeVisible();
+    const assessed = await voice("assess_request_risk", { party: "person", claimed_party: "Courier recipient", text: "Malik called from a strange number and needs five hundred dollars", request_id: "browser-courier" });
+    expect(assessed.structuredContent.data.case.risk_band).toBe("critical");
+    await other.getByRole("link", { name: "Check-ins", exact: true }).click();
+    expect(await other.evaluate(async () => (await (await fetch("/api/checkins")).json()).warnings)).toEqual([]);
+    const ringOnly = await page.evaluate(async () => {
+      const session = await (await fetch("/api/auth/session")).json();
+      return (await fetch("/api/twin/doorbell", { method: "POST", headers: { "X-Hirz-CSRF": session.csrf } })).status;
+    });
+    expect(ringOnly).toBe(200);
+    await other.getByRole("button", { name: "Refresh inbox" }).click();
+    const warning = other.getByRole("heading", { name: "Warnings for you" }).locator("..");
+    await expect(warning).toContainText("Malik reported a suspicious request.");
+    await expect(warning).toContainText("Simulated doorbell event.");
+    const inbox = await other.evaluate(async () => (await (await fetch("/api/checkins")).json()));
+    expect(inbox.cases).toEqual([]);
+    expect(inbox.received).toEqual([]);
+    expect(JSON.stringify(inbox)).not.toContain("five hundred");
+    expect(JSON.stringify(inbox)).not.toContain(assessed.structuredContent.data.case.case_id);
+    await page.getByRole("button", { name: "Revoke this app channel", exact: true }).click();
+    await expect(page.getByText("app · revoked", { exact: true })).toBeVisible();
+    await other.getByRole("button", { name: "Refresh inbox" }).click();
+    await expect(warning).toContainText("No warnings.");
+  } finally { await otherContext.close().catch(() => undefined); }
   const before = await voice("evaluate_permission", { action: "pause_automation", request_id: "before-activation" });
   expect(before.structuredContent.data.decision.constitution.version).toBe(7);
   await page.getByRole("link", { name: "Approvals", exact: true }).click();
@@ -163,7 +254,7 @@ test("real WebAuthn registration, initial activation, rule review and signed exp
   await page.getByRole("button", { name: "No, that wasn’t me", exact: true }).click();
   await expect(page.getByText("not genuine", { exact: true })).toBeVisible();
   await page.getByRole("link", { name: "Audit", exact: true }).click();
-  for (const name of ["Tonight", "Approvals", "Constitution", "Household", "Audit", "Twin"]) {
+  for (const name of ["Tonight", "Approvals", "Constitution", "Household", "Check-ins", "Audit", "Twin"]) {
     await page.getByRole("link", { name, exact: true }).click();
     await expect(page.getByRole("heading", { level: 1, name, exact: true })).toBeVisible();
     await expect(page.getByText("Loading…", { exact: true })).toHaveCount(0);

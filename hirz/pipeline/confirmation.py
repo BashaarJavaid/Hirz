@@ -13,8 +13,8 @@ from hirz.pipeline.models import Action, Principal
 
 
 class RequesterReview(Exception):
-    def __init__(self, binding: str, action: Action):
-        self.binding, self.action = binding, action
+    def __init__(self, binding: str, action: Action, message: str | None = None):
+        self.binding, self.action, self.message = binding, action, message
 
 
 @dataclass

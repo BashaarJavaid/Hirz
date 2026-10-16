@@ -194,6 +194,7 @@ test("numeric car limit records a revision then polls", async ({ page }) => {
 
 function pending() {
   const initial = structuredClone(fixtures.results.verification);
+  initial.data.presentation.courier_watch_until = null;
   const expires = new Date(Date.parse(fixtures.at) + 120000).toISOString();
   initial.data.presentation.status = "pending";
   initial.data.presentation.can_check = false;
@@ -210,22 +211,39 @@ for (const status of ["genuine", "not_genuine", "will_call", "no_answer"]) test(
   terminal.speakable.headline = status === "genuine" ? "Talk to the contact using their saved number." : "Contact the person through a channel you trust.";
   const { frame, calls } = await mount(page, "verification", "light", () => terminal, initial);
   await advance(page, 2100);
-  await expect(frame.getByRole("status")).toHaveText(status.replaceAll("_", " "));
+  await expect(frame.locator(".verification-result")).toHaveText(status.replaceAll("_", " "));
   const stopped = calls.length;
   await advance(page, 5000);
   expect(calls.length).toBe(stopped);
   await expect(frame.getByText(/send money|pay now/i)).toHaveCount(0);
 });
 
-test("pending expiry does not invent a reply", async ({ page }) => {
+test("pending expiry polls until the worker supplies a terminal result", async ({ page }) => {
   const initial = pending();
-  const { frame, calls } = await mount(page, "verification", "light", () => initial, initial);
+  let result = initial;
+  const { frame, calls } = await mount(page, "verification", "light", () => result, initial);
   await page.clock.setFixedTime(new Date(Date.parse(fixtures.at) + 121000));
-  await expect(frame.getByRole("status")).toHaveText("pending");
-  await expect(frame.getByRole("button", { name: "Refresh", exact: true })).toBeVisible();
+  await expect(frame.locator(".verification-result")).toHaveText("pending");
+  const before = calls.length;
+  await advance(page, 5000);
+  expect(calls.length).toBeGreaterThan(before);
+  result = structuredClone(initial);
+  result.data.presentation.status = "no_answer";
+  result.data.case.verification.status = "no_answer";
+  await advance(page, 2100);
+  await expect(frame.locator(".verification-result")).toHaveText("no answer");
   const stopped = calls.length;
   await advance(page, 5000);
   expect(calls.length).toBe(stopped);
+});
+
+test("real email check shows method and honest provenance", async ({ page }) => {
+  const initial = pending();
+  initial.data.presentation.source = "live";
+  initial.data.presentation.method = "email";
+  const { frame } = await mount(page, "verification", "light", () => initial, initial);
+  await expect(frame.getByText("Check by email", { exact: true })).toBeVisible();
+  await expect(frame.getByText("live", { exact: true })).toBeVisible();
 });
 
 test("malformed results have no action controls", async ({ page }) => {
@@ -342,4 +360,73 @@ test("scorecard pagination preserves the selected query", async ({ page }) => {
   await frame.getByRole("button", { name: "Next page" }).click();
   await expect.poll(() => calls.length).toBe(2);
   expect(calls[1].arguments).toEqual({ ...(fixtures.inputs?.scorecard ?? {}), cursor: "opaque-next-page" });
+});
+
+test("Protect enrichment polls then stops with Refresh at thirty seconds", async ({ page }) => {
+  const initial = structuredClone(fixtures.results.verification);
+  initial.data.presentation.courier_watch_until = null;
+  initial.data.presentation.extraction_status = "pending";
+  initial.data.presentation.notice = "Additional warning checks are in progress.";
+  const { frame, calls } = await mount(page, "verification", "light", () => initial, initial);
+  await expect(frame.getByText(initial.data.presentation.notice)).toBeVisible();
+  await advance(page, 2100);
+  await expect.poll(() => calls.length).toBe(2);
+  expect(calls[1]).toMatchObject({ name: "verify_trusted_identity", arguments: { operation: "status", case_id: initial.data.case.case_id } });
+  await page.clock.setFixedTime(new Date(Date.parse(fixtures.at) + 31000));
+  await expect(frame.getByRole("button", { name: "Refresh", exact: true })).toBeVisible();
+  const stopped = calls.length;
+  await advance(page, 3000);
+  expect(calls.length).toBe(stopped);
+});
+
+test("Protect enrichment publishes possible warnings without later speech", async ({ page }) => {
+  const initial = structuredClone(fixtures.results.verification);
+  initial.data.presentation.courier_watch_until = null;
+  initial.data.presentation.extraction_status = "pending";
+  initial.data.presentation.notice = "Additional warning checks are in progress.";
+  const terminal = structuredClone(initial);
+  terminal.data.presentation.extraction_status = "complete";
+  terminal.data.presentation.notice = "Additional warning checks completed; possible warning signs are advisory.";
+  terminal.data.presentation.signals = ["Possible pressure to act quickly"];
+  const { frame, calls } = await mount(page, "verification", "light", () => terminal, initial);
+  await advance(page, 2100);
+  await expect(frame.getByText("Possible pressure to act quickly")).toBeVisible();
+  const stopped = calls.length;
+  await advance(page, 3000);
+  expect(calls.length).toBe(stopped);
+});
+
+
+test("organization comparison retains simulated source and offers only a separate person check", async ({ page }) => {
+  const initial = fixtures.organization;
+  const { frame } = await mount(page, "verification", "light", undefined, initial);
+  await expect(frame.getByRole("heading", { name: "The supplied number matches Hirz’s published ComEd record." })).toBeVisible();
+  await expect(frame.getByText("Published ComEd contact · Reviewed 2026-10-11")).toBeVisible();
+  await expect(frame.getByText("Caller ID can be forged. A match does not establish identity or mean you should pay.")).toBeVisible();
+  await expect(frame.locator(".badge")).toHaveText("simulated");
+  await expect(frame.getByRole("button", { name: /Check with/ })).toHaveCount(0);
+  expect(await frame.locator(".content").evaluate(el => el.scrollHeight <= el.clientHeight)).toBe(true);
+  expect(initial.speakable.headline.split(/\s+/).length).toBeLessThanOrEqual(20);
+  expect(initial.speakable.details.length).toBeLessThanOrEqual(3);
+  expect(JSON.stringify(initial.speakable)).not.toContain("800-334-7661");
+});
+
+
+test("courier watch follows scenario time after a reply and stops at publication", async ({ page }) => {
+  const initial = pending();
+  initial.data.presentation.status = "genuine";
+  initial.data.case.verification.status = "genuine";
+  initial.data.presentation.courier_watch_until = new Date(Date.parse(fixtures.at) + 3600000).toISOString();
+  let result = initial;
+  const { frame, calls } = await mount(page, "verification", "light", () => result, initial);
+  await page.clock.setFixedTime(new Date(Date.parse(fixtures.at) + 7200000));
+  await page.waitForTimeout(2200);
+  expect(calls.length).toBeGreaterThan(1);
+  result = structuredClone(initial);
+  result.data.presentation.courier_warning = "Simulated doorbell event. An unexpected doorbell press followed your reported request. Don’t hand anything over. Hirz cannot identify the visitor.";
+  await expect(frame.getByRole("alert")).toContainText("Hirz cannot identify the visitor.");
+  const stopped = calls.length;
+  await page.waitForTimeout(2500);
+  expect(calls.length).toBe(stopped);
+  await expect(frame.locator(".verification-result")).toHaveText("genuine");
 });

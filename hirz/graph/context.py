@@ -26,6 +26,8 @@ from hirz.graph.repository import snapshot_sql
 
 
 class ChannelSummary(Entity):
+    provenance: Literal["contact-confirmed", "registry-confirmed"] | None = None
+    registry_revision: str | None = None
     contact_id: UUID
     kind: Literal["phone", "email", "hirz_app"]
     verified_at: AwareDatetime | None = None

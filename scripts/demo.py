@@ -2,6 +2,7 @@
 
 import argparse
 import fcntl
+import hashlib
 import json
 import os
 import re
@@ -35,6 +36,9 @@ from hirz.mcp.dev_oauth import signing_key as oauth_key
 ROOT = Path(__file__).resolve().parents[1]
 DEMO = ROOT / "secrets/demo"
 LABEL = "org.hirz.recording=v1"
+# The checkout path hash keeps another checkout's retained runs from blocking this one; a moved checkout is a new identity.
+CHECKOUT = hashlib.sha256(str(ROOT).encode()).hexdigest()[:16]
+CHECKOUT_LABEL = "org.hirz.checkout=" + CHECKOUT
 KEYS = {
     "POSTGRES_PASSWORD",
     "AUDIT_SIGNING_KEY",
@@ -144,7 +148,15 @@ def initialize(origin: str) -> None:
         flags = ("--all",) if kind == "container" else ()
         retained |= bool(
             command(
-                "docker", kind, "ls", *flags, "--quiet", "--filter", f"label={LABEL}"
+                "docker",
+                kind,
+                "ls",
+                *flags,
+                "--quiet",
+                "--filter",
+                f"label={LABEL}",
+                "--filter",
+                f"label={CHECKOUT_LABEL}",
             ).strip()
         )
     if retained:
@@ -305,6 +317,7 @@ def run() -> None:
             "HIRZ_DEMO_GID": str(os.getgid()),
             "HIRZ_DEMO_RUN": run_id,
             "HIRZ_DEMO_RUN_DIR": str(folder),
+            "HIRZ_DEMO_CHECKOUT": CHECKOUT,
         }
     )
     prefix = (

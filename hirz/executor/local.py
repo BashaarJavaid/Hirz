@@ -145,6 +145,17 @@ async def worker(args: argparse.Namespace) -> int:
         for key, value in values.items():
             if key.startswith("HIRZ_") and key not in os.environ:
                 os.environ[key] = value
+        if not os.environ.get("HIRZ_CONTACT_ENCRYPTION_KEY"):
+            print(
+                json.dumps(
+                    {
+                        "engine": "dogwood-local",
+                        "status": "contact_email_disabled",
+                        "detail": "Email check-ins and email enrollment are disabled because HIRZ_CONTACT_ENCRYPTION_KEY is unset; app check-ins still advance.",
+                    }
+                ),
+                flush=True,
+            )
         scenario = os.environ.get("HIRZ_TWIN_SCENARIO")
         loaded = LoadedScenario(Path(scenario)) if scenario else None
         world = loaded.world if loaded else None
@@ -235,57 +246,73 @@ async def worker(args: argparse.Namespace) -> int:
                             world=world,
                             explainer=configured(),
                         )
-                        while True:
-                            refresh_pipeline.bundle = await policy(refresh_pipeline)
-                            from hirz.companion.drafting import advance as draft_rules
-                            from hirz.companion.push import Config as PushConfig
-                            from hirz.companion.push import advance as deliver_push
-                            from hirz.companion.twin import advance as advance_twin
-                            from hirz.mcp.trust import advance
-                            from hirz.mcp.worker import prepare_plans
+                        from hirz.protect.worker import background
 
-                            async def preparation_and_refresh() -> None:
-                                await advance(refresh_pipeline, world)
-                                await draft_rules(refresh_pipeline)
-                                if push_config := PushConfig.environment():
-                                    await deliver_push(refresh_pipeline, push_config)
-                                await prepare_plans(refresh_pipeline, loaded)
-                                await refresh.batch()
-                                await advance_twin(refresh_pipeline)
+                        async with background(values, args.database, p) as protect:
+                            while True:
+                                if protect.done():
+                                    await protect
+                                refresh_pipeline.bundle = await policy(refresh_pipeline)
+                                from hirz.companion.drafting import (
+                                    advance as draft_rules,
+                                )
+                                from hirz.companion.push import Config as PushConfig
+                                from hirz.companion.push import advance as deliver_push
+                                from hirz.companion.twin import advance as advance_twin
+                                from hirz.mcp.trust import advance
+                                from hirz.mcp.worker import prepare_plans
 
-                            task = asyncio.create_task(preparation_and_refresh())
-                            decisions: list[Decision] = []
-                            try:
-                                while not task.done():
-                                    decisions.extend(
-                                        await executor.sweep(endings_only=True)
+                                async def preparation_and_refresh() -> None:
+                                    await advance(refresh_pipeline, world)
+                                    from hirz.contacts.worker import (
+                                        advance as advance_contacts,
                                     )
-                                    await asyncio.wait({task}, timeout=0.1)
-                                await task
-                            finally:
-                                if not task.done():
-                                    task.cancel()
-                                    await asyncio.gather(task, return_exceptions=True)
-                            decisions.extend(await executor.sweep())
-                            print(
-                                json.dumps(
-                                    {
-                                        "engine": "dogwood-local",
-                                        "sources": sorted(
-                                            set(registry.sources.values())
-                                            | ({"twin"} if world else set())
-                                        ),
-                                        "decisions": [
-                                            d.model_dump(mode="json", by_alias=True)
-                                            for d in decisions
-                                        ],
-                                    }
-                                ),
-                                flush=True,
-                            )
-                            if args.once:
-                                return 0
-                            await asyncio.sleep(1)
+
+                                    await advance_contacts(refresh_pipeline)
+                                    await draft_rules(refresh_pipeline)
+                                    if push_config := PushConfig.environment():
+                                        await deliver_push(
+                                            refresh_pipeline, push_config
+                                        )
+                                    await prepare_plans(refresh_pipeline, loaded)
+                                    await refresh.batch()
+                                    await advance_twin(refresh_pipeline)
+
+                                task = asyncio.create_task(preparation_and_refresh())
+                                decisions: list[Decision] = []
+                                try:
+                                    while not task.done():
+                                        decisions.extend(
+                                            await executor.sweep(endings_only=True)
+                                        )
+                                        await asyncio.wait({task}, timeout=0.1)
+                                    await task
+                                finally:
+                                    if not task.done():
+                                        task.cancel()
+                                        await asyncio.gather(
+                                            task, return_exceptions=True
+                                        )
+                                decisions.extend(await executor.sweep())
+                                print(
+                                    json.dumps(
+                                        {
+                                            "engine": "dogwood-local",
+                                            "sources": sorted(
+                                                set(registry.sources.values())
+                                                | ({"twin"} if world else set())
+                                            ),
+                                            "decisions": [
+                                                d.model_dump(mode="json", by_alias=True)
+                                                for d in decisions
+                                            ],
+                                        }
+                                    ),
+                                    flush=True,
+                                )
+                                if args.once:
+                                    return 0
+                                await asyncio.sleep(1)
                     finally:
                         await refresh_registry.close()
             finally:

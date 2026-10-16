@@ -29,3 +29,9 @@ One file per consequential decision, each with the alternatives that were reject
 - [ADR-020-simulator.md](./ADR-020-simulator.md) — local authenticated host, stateful MCP elicitation, independent Echo histories and bounded inference; Haiku/scripted closure with Nova acceptance deferred
 
 - [ADR-021-extracted-host-harness.md](./ADR-021-extracted-host-harness.md) — independent Python/React host packages, explicit runner and item 29a acceptance
+
+- [`ADR-022-trusted-checkins.md`](./ADR-022-trusted-checkins.md) — Private cross-household app and email check-ins, enrollment, revocation and safe words
+
+- [`ADR-023-organization-verification.md`](./ADR-023-organization-verification.md) — Curated organization records, owner passkey saves and advisory number comparisons
+
+- [`ADR-024-courier-correlation.md`](./ADR-024-courier-correlation.md) — Fresh press correlation, independent warning authorization and recipient-scoped inbox publication

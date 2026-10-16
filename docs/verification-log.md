@@ -11954,3 +11954,1620 @@ nearest-rank p95, no discarded samples and the **250 ms** warm p95 gate. This
 normal run is the acceptance gate for the frozen-generation change (`366e7fc`);
 it is local Twin evidence on GitHub runners, not an AWS cold-start measurement or
 proof that issue #7 is fixed.
+
+### Per-checkout recording guard — 2026-10-07
+
+`scripts/demo.py` now derives `org.hirz.checkout=<hash>` from the first 16 hex
+characters of the SHA-256 of the resolved checkout path, and `initialize()` passes
+it as a second `--filter label=` beside `org.hirz.recording=v1` to both
+`docker volume ls` and `docker container ls --all`, so only this checkout's
+retained runs block initialization when `secrets/demo/.env` is missing; the error
+text is unchanged. `run()` passes the hash as `HIRZ_DEMO_CHECKOUT`, and
+`compose.demo.yml` applies it as a required label on the postgres service, the
+simulator service and the `postgres` volume, beside the unchanged host-wide label.
+
+Tests and checks (main checkout):
+
+```
+$ uv run --locked pytest tests/unit/test_demo.py --no-cov -q
+21 passed in 5.57s
+$ uv run --locked pytest -q
+1521 passed, 204 deselected, 2 warnings in 218.71s (0:03:38)
+$ uv run ruff check . && uv run mypy hirz/ scripts/ alembic/
+All checks passed!
+Success: no issues found in 184 source files
+```
+
+`test_missing_credentials_with_retained_docker_storage` now asserts both filters
+reach `docker volume ls`; the new
+`test_other_checkout_retained_storage_does_not_block` returns a volume only when
+the checkout filter is absent and asserts initialization writes `.env` with mode
+0600.
+
+Docker check, in a scratch clone of the working tree with `uv sync --locked`. The
+host started with no recording-labeled volumes or containers.
+
+1. `docker volume create --label org.hirz.recording=v1 hirz-guard-probe-other`
+   (another checkout's retained run), then in the clone
+   `uv run --locked python scripts/demo.py init --origin http://localhost:8002`:
+   `Demo credentials initialized in secrets/demo/.env (0600); development unchanged.`,
+   exit 0, `ls -l` showed `-rw-------`.
+2. The clone's hash, computed independently from its resolved path, was
+   `183a2c5f706efb3a`. After
+   `docker volume create --label org.hirz.recording=v1 --label org.hirz.checkout=183a2c5f706efb3a hirz-guard-probe-same`
+   and removing only the clone's throwaway `.env`, the same init printed
+   `FAIL: Demo state exists without credentials; restore the original secrets/demo/.env. Nothing was reset.`,
+   exit 1, and `secrets/demo` held only `.lock`.
+3. `docker compose -p probe -f compose.demo.yml config` with dummy values rendered
+   `org.hirz.checkout: 183a2c5f706efb3a` beside `org.hirz.recording: v1` in all
+   three label blocks; without `HIRZ_DEMO_CHECKOUT` it refused:
+   `error while interpolating volumes.postgres.labels.org.hirz.checkout: required variable HIRZ_DEMO_CHECKOUT is missing a value: Use scripts/demo.py run`.
+4. The main checkout's `secrets/demo/.env` was untouched (mode 0600, dated
+   2026-10-03 16:28). Both probe volumes were removed,
+   `docker volume ls --filter label=org.hirz.recording=v1` and
+   `docker ps -a --filter label=org.hirz.recording=v1` printed only headers, and
+   the clone was deleted.
+
+Not claimed: no `scripts/demo.py run` or full recording, no Tailscale origin, no
+change to the disposal procedure, and no check of runs retained before this
+change, which carry no checkout label and so no longer block any checkout's guard.
+
+Independent rerun by the orchestrating session on 2026-10-07, same procedure in
+a fresh scratch clone (hash `cc803a545f6558bc`): 21 demo tests passed, Ruff and
+mypy clean, 293 files already formatted; the other-checkout probe let init
+proceed (exit 0, `.env` mode 0600) and the same-checkout probe was refused with
+the unchanged error (exit 1, only `.lock` retained); both probe volumes and the
+clone were removed and both label listings printed only headers.
+
+
+## Item 34 — Ring access gate — 2026-10-07
+
+Before item 31 implementation, checked the local `.env` and process environment
+for configured `RING`/`HIRZ_RING` key names without printing values: none.
+The Browser skill bootstrap returned exactly `No browser is available`; its
+documented discovery returned `[]`. No signed-in portal was available to register
+an app or obtain credentials. No synthetic webhook was received or signature
+verified. This is an environment/access limitation, not a Ring API rejection.
+
+Read [Ring getting started](https://developer.amazon.com/docs/ring/get-started.html):
+registration/configuration supplies client credentials and an HMAC signature key;
+the published testing path uses a personal account and devices. That documentation
+alone does not prove whether this account can obtain device-free sandbox access.
+No device purchase, registration, or credentials are claimed.
+
+**Gate outcome: failed (no credentials).** Apply item 34's documented fallback:
+remove the Ring track from submission and the README banner, retain the twin
+doorbell, and mark the forged-Ring-event threat row not applicable. Full Ring
+integration was not implemented.
+
+## Item 31 — 2026-10-07
+
+Implementation is **Partial**. Approved scope and rejected alternatives are in
+[ADR-022](./adr/ADR-022-trusted-checkins.md). Item 34's gate above was recorded before
+implementation; no Ring credentials or signed webhook were obtained.
+
+Initial local checks (macOS, Python 3.12, Node 24, native pinned Dogwood):
+
+- `tests/integration/test_trusted_checkins.py`: 9 checks passed in 51.05 seconds
+  before the later authenticated-MCP scenario addition and receipt-audit tightening.
+  These exercised all three replies and expiry under auto/ask, delayed receipt
+  consumption, accepted-before-withdrawal ordering, pairing, changed-request refusal,
+  member/household isolation, safe-word limits, real WebAuthn software signatures,
+  mailbox explicit confirmation, linked email retry and permanent delivery failure.
+  Both households' exported chains verified independently. Tests used disposable
+  databases; transport mocks and software authenticators are not real acceptance.
+- Schema comparison found no difference between migration 0019 and SQLAlchemy
+  metadata. The previous household-tool integration checks passed (15 combined
+  tests in 37.61 seconds at the earlier implementation stage).
+- Full service-free run: 1519 passed; three loopback-binding tests failed under
+  the workspace sandbox (243.39 seconds, two existing dependency warnings).
+  Rerunning those with local network access passed the two WebSocket tests; the
+  fixed-port test then found the deliberately running phone test issuer on 8003.
+  That fixed-port check remains owed after the phone server stops. Initial coverage
+  was 70%; integration coverage and the required combined 80% gate remain pending.
+- Ruff check, mypy (192 source files), TypeScript lint/typecheck and the five
+  TypeScript unit tests passed during implementation. Both bundles built; Vite
+  reported the existing React Router directive and bundle-size warnings.
+- The no-answer observation scenario passed six checks before its clock alignment
+  adjustment. Observation-only output does not establish MCP execution; the new
+  authenticated replay must pass separately. Its first run caught a fixture clock
+  earlier than the graph bootstrap; the corrected run reached start, expiry and
+  retry but an overly broad result comparison still needed adjustment because
+  presentation timestamps legitimately change.
+
+Real acceptance in progress: the author explicitly chose Mom (Quinn Parents),
+Malik (Quinn Home), and one private mailbox recipient. Gmail app-password presence
+was checked without printing it. A separate contact Fernet key was explicitly
+initialized in the private `.env`. Tailscale was stopped and was resumed; the
+existing tailnet-only HTTPS route returned 200 for health, Check-ins and restricted
+link pages. The author reported Mom's real passkey enrollment and policy activation.
+No live email or successful iPhone push is claimed at this stage.
+
+Private phone artifacts are under `secrets/item31-phone-20261007-a` and `-b` (ignored,
+private permissions). Before restarting the owned test server for the corrected
+wall-clock push path, the home chain was empty and the parents chain independently
+verified valid. The original disposable database was retained and resumed without
+seeding, migrating or replacing passkeys; Mom's enrollment survived. The author
+reported the phone's native contact dropdown did not open; it was replaced with
+visible contact buttons, with a single contact preselected. Actual phone interaction
+is still being rechecked. This is application feedback, not a proven browser-vendor
+contract failure, so no third-party friction is attributed to it.
+
+Required outstanding evidence includes completed real pairing/push/reply and
+mailbox enrollment/reply, the final security/concurrency suite, authenticated scenario
+and scripted Show/Dot checks, independent MCP conformance, complete combined coverage,
+and both CI latency matrix gates. No remaining Phase 6 threat protections are claimed.
+
+### Follow-up checks and phone pairing — 2026-10-07
+
+The full disposable integration suite finished with **211 passed, 1 failed** in
+822.84 seconds. The failure was the raw MCP test host treating a foreign-contact
+clarification form as the check-in confirmation form. The host now explicitly
+cancels unrelated clarification forms; the unchanged symmetric isolation assertions
+then passed (1 test, 26.89 seconds). Combined service-free/integration coverage is
+**89%** (15,619 statements, 1,718 missed); `coverage report --fail-under=80` passed.
+The fixed-port service-free check remains pending while the live issuer owns 8003.
+
+The contact suite passed nine checks with one new test-injection error (49.98
+seconds): the rollback probe tried to read a Decision as a dictionary. After fixing
+the probe, that check passed in 5.72 seconds. It injects failure at the signed
+receipt event and verifies that neither the receipt nor its preceding grant/audit
+rows survive. The HTTP check also verifies that recent retry attempts still count
+after their job creation leaves the rolling cap window. The cap conservatively
+uses the retry lease as well as creation time, without adding a new storage shape.
+A preapproval terminal case now uses one captured timestamp for its zero-length
+interval. The no-answer YAML supplies the required empty `deferred` list.
+The authenticated no-answer MCP replay passed separately (1 test, 7.96 seconds),
+including explicit start/retry confirmation, saved-number fallback and immutable
+original case. These are disposable/software tests, not real recipient acceptance.
+
+Independent twelve-tool MCP conformance completed **117 PASS, 0 FAIL, 0 WARN,
+0 SKIP, 8 MANUAL**, `complete: true`, with no missing evidence; its 611-row signed
+export independently verified. Private artifacts are
+`secrets/item31-independent-mcp.json` and its adjacent conformance report.
+
+The author confirmed Malik's real enrollment and pairing acceptance; read-only
+status confirmed both active credentials and the app link awaiting owner activation.
+The visible-button phone fix worked: the author created the invitation. The author
+asked to defer notifications because the available phone cannot enable them;
+**real iPhone push reception remains unverified and item 31 remains Partial**.
+Email enrollment/reply and real app reply are still in progress. No notification
+or email success is inferred from enrollment or pairing alone.
+
+After explicit author approval, implementation commit `ec387a6` was pushed to
+`phase6/trusted-checkins` and [CI run 37644311166](https://github.com/BashaarJavaid/Hirz/actions/runs/37644311166)
+was dispatched. Lint/types, TypeScript tests, native Cedar, build, release and
+independent conformance jobs passed at the observed stage; remaining jobs, including
+both latency gates, had not completed. A follow-up commit carries the fixes above;
+only final-commit CI results can establish those gates.
+
+### Concurrent replies, browser retries and real delivery limitation — 2026-10-07
+
+The expanded contact integration suite passed **10 tests in 52.33 seconds**,
+including two independent recipient transactions submitting the same answer:
+exactly one signed receipt survived, and both callers received the idempotent
+success. Late replies after timeout were rejected. An additional HTTP revocation
+probe then passed (1 test, 8.46 seconds): revoking the app invitation left the
+independent email active, revoking that email closed its pending retry with
+`channel_revoked`, old capabilities were rejected, and the original terminal case
+remained unchanged.
+
+The existing scripted browser runner passed the parents scenario on **Show (15.8
+seconds) and Dot (15.7 seconds)** with assertions for explicit exact-request start
+and retry prompts, a linked pending retry, and the original `not_genuine` result.
+The simulator's recorded vocabulary now includes explicit app/email retry sentences;
+25 simulator unit tests passed in 1.67 seconds. The no-answer observation CLI also
+passed all six checks after clock/schema corrections; it explicitly reports no
+persistence, audit or MCP execution. Its separate authenticated MCP replay is the
+execution evidence recorded above. TypeScript lint/type checks and mypy (192 files)
+passed after these changes.
+
+Real app pairing is active. Both independently verified household exports are
+retained privately under `secrets/item31-pairing-audit`; no passkeys or household
+sessions were fabricated. The author is not yet ready for the timed app reply test,
+so no live check-in was sent. Push is deferred at the author's request.
+
+The first authorized mailbox enrollment exhausted three delivery attempts. Direct
+connection-only diagnostics failed before TLS/authentication with `OSError: [Errno
+65] No route to host`; IPv4-only access to the same SMTP endpoint timed out. No
+probe sent an extra message. Tailscale reported Running, no exit node and no health
+warnings. This does not validate or invalidate the app password. The observed
+limitation is recorded in the [friction log](./friction-log.md#item-31--smtp-endpoint-unreachable-from-the-acceptance-host--2026-10-07).
+Household now distinguishes waiting, sent and failed mailbox-confirmation delivery.
+Real mailbox enrollment/reply remains unverified; the endpoint and verified STARTTLS
+requirement were not changed.
+
+Follow-up commit `22098d7` was pushed and [CI run 37645337505](https://github.com/BashaarJavaid/Hirz/actions/runs/37645337505)
+started. The earlier dispatch was superseded, not counted as a passing gate. Both
+latency gates and remaining browser/CI results remain pending at this entry.
+
+### Card-state acceptance follow-up — 2026-10-07
+
+The authenticated reference-host relay passed (1 browser test, 2.9 seconds), with
+private fixtures and independently verified exports under `secrets/item31-cards-final`.
+The local macOS card selection initially had three failures: two Linux screenshot
+baselines differed in font rendering (the actual and expected images were inspected;
+no baseline was overwritten), and the new real-email assertion incorrectly searched
+for capitalized `Live` while the badge renders `live`. The assertion was corrected;
+Linux CI remains the screenshot gate. Pending-expiry polling and all four terminal
+polling checks passed in that first selection.
+
+During the retained phone-server restart, the existing fixed-port unit test again
+found port 8003 occupied. The test now accepts an already occupied port as its
+intended occupied-port setup, still requiring the production guard to refuse it and
+still propagating every other bind error. No service is stopped by that test.
+
+The corrected local card-state selection passed **6 tests in 48.0 seconds** and
+the occupied-port guard passed in 0.94 seconds. A fresh-process receipt probe passed
+in 7.90 seconds: after the recipient's accepted reply committed, a newly spawned
+worker loaded only persisted case/receipt state and fixture configuration, consumed
+the receipt after expiry, and both household audit chains independently verified.
+No parent-process Pipeline object was reused by that worker.
+
+A diagnostic limitation is retained explicitly: an earlier failed database test
+printed a local development connection string in its traceback. It was not committed;
+subsequent failure reporting withheld private inputs and avoided full tracebacks.
+This is not presented as proof that all diagnostic logs were free of secret material.
+
+Final implementation commit `d99c079` is under [CI run 37646760754](https://github.com/BashaarJavaid/Hirz/actions/runs/37646760754).
+Its preceding dispatch was superseded by acceptance-test corrections; no superseded
+run is counted as passing both latency gates.
+
+The author independently reproduced the SMTP timeout and no-route errors in their
+own Mac Terminal, ruling out an agent-only connectivity failure, then explicitly
+deferred real email acceptance. Read-only status confirmed both pending email
+enrollments had stopped delivery (`failed`, with three and zero attempts respectively);
+no future email retry is queued. Real app reply remains on hold at the author's
+request. These deferrals do not waive item 31's completion requirements.
+
+### Real cross-household app reply — 2026-10-07
+
+After the author explicitly confirmed readiness and the exact sentence, authenticated
+MCP started Mom's check to Malik: **“Did you ask Mom to send $500?”** The tool returned
+`pending`, `app_confirmation`, `source: real`. The author opened Malik's Check-ins
+page and confirmed **“Answered with my passkey.”** Authenticated MCP status then
+returned `not_genuine`: “The contact says they did not make this request. Do not
+send anything.” No payment instruction or number-comparison claim was made.
+
+Persisted evidence independently confirms requester Mom in Quinn Parents, recipient
+Malik in Quinn Home, exact reported text, distinct households, passkey proof,
+`not_genuine`, one app delivery attempt and a closed job. The server accepted the
+receipt at **2026-10-07T16:11:55.966579Z**, **56.561052 seconds before expiry**. The
+requesting worker consumed the recipient's audited receipt; it did not impersonate
+Malik. Both household signed exports independently verified valid after the reply.
+Private exports and the derived proof summary are under
+`secrets/item31-real-app-reply-audit`; MCP start/status artifacts are retained in
+`secrets/item31-phone-20261007-c`. The retained server is run `-d`, preserving the
+same disposable database and real passkeys.
+
+This is real passkey/app inbox acceptance over the private Tailscale HTTPS origin,
+using the approved demo identities and the local simulated OAuth issuer for MCP.
+Household policy/audit clocks retain the disposable scenarios; contact deadlines
+and receipt acceptance use wall time. It is not a real push or email result.
+Those two author-deferred gates keep item 31 Partial. CI run 37646760754 remains
+active for Python tests and both required latency gates; the other ten jobs passed.
+
+### Completed CI tests; latency gates pending — 2026-10-07
+
+[Run 37646760754](https://github.com/BashaarJavaid/Hirz/actions/runs/37646760754)
+completed its Python job successfully: **1,522 service-free tests passed** in
+264.69 seconds, **212 integration tests passed** in 852.87 seconds, and combined
+coverage was **89%** (15,624 statements, 1,668 missed). The same job passed the
+simulator browser check (1 test, 26.9 seconds), authenticated card relay (1 test,
+2.7 seconds), and **47 card browser tests**, including the Linux screenshot
+baselines, in 2.1 minutes. All eleven non-latency jobs passed; the two required
+latency jobs were still running when this entry was appended.
+
+This dispatch tests `d99c07913c9a92e68ea85f8d612186398c52832a`. The subsequent
+`b8f9a14` adds the fresh-process receipt regression and documentation; its
+application, benchmark, dependency, migration and workflow files are identical
+to the dispatch commit (`git diff d99c079..b8f9a14 -- hirz scripts apps
+constitutions alembic infra pyproject.toml uv.lock pnpm-lock.yaml .github` is
+empty). Its separate push CI is also being checked. A running latency job is
+not recorded as a passed gate.
+
+### Final CI gates and retained partial status — 2026-10-07
+
+[Dispatch 37646760754](https://github.com/BashaarJavaid/Hirz/actions/runs/37646760754)
+finished **successful: all 13 jobs passed**, including both required normal latency
+gates. Each scenario measured **54 cases across all twelve tools**, with five
+warmups and 100 measured calls per case, nearest-rank p95 and no discarded samples.
+The 250 ms limit was unchanged; this was not a diagnostic dispatch.
+
+| Scenario | Slowest case p95 | Slowest aggregate tool p95 | Result |
+|---|---|---|---|
+| `demo-evening` | `plan-approval`: 113.868 ms | `verify_trusted_identity`: 102.073 ms | Pass |
+| `demo-evening-hourly` | `objective-greenest`: 187.387 ms | `get_household_plan`: 166.196 ms | Pass |
+
+These are authenticated local twin tool timings on CI, not AWS deployment or real
+transport latency. Full payload-free timing tables are retained in the linked CI
+job logs. The tested application commit and equivalence to the later regression
+commit are recorded above.
+
+[Follow-up push CI 37648945777](https://github.com/BashaarJavaid/Hirz/actions/runs/37648945777)
+also finished successfully on `b8f9a14`, including the fresh-process receipt
+regression: **1,522 service-free tests**, **212 integration tests**, **89% combined
+coverage**, **159 native Cedar conformance tests**, five TypeScript unit tests,
+the companion and simulator browser checks, authenticated card relay, and all
+**47 Linux card browser tests** passed. Latency is dispatch-only and was skipped
+in this push run; the two actual passing gates are in the dispatch above.
+
+The final evidence changes are documentation only. `ruff format --check .` passed
+after the evidence edits (**304 files already formatted**); `git diff --check`
+and the identical `AGENTS.md`/`CLAUDE.md` check passed. The retained phone server
+survived the agent-session restart and returned healthy. No additional live
+check-in or email was sent during this final verification.
+
+Item 31 remains **Partial solely for the author-deferred real email enrollment/reply
+and real iPhone Home Screen push reception**. The real cross-household app inbox
+reply, independently verified signed household exports, automated scenarios,
+security acceptance, browser/conformance checks and required CI gates are recorded
+above. SMTP connectivity failure remains an environment limitation; neither email
+delivery nor the app password's validity was demonstrated. No remaining Phase 6
+protection, public AWS deployment, or full Ring integration is claimed.
+
+## Item 32 — 2026-10-11
+
+### Initial local implementation and acceptance
+
+Item remains open pending live Haiku acceptance, full combined coverage and the
+required regression CI/normal latency gates. Item 31's deferred email/push gates,
+organization verification, courier correlation and items 34–35 are excluded.
+
+Implemented the approved ADR-015/ADR-004 amendment: immediate keyword advice,
+optional unknown subject, immutable private hypothetical Pipeline decision,
+strict budgeted background extraction, durable audited transitions, monotone
+publication and current-status rendering. No migration or development-database
+upgrade. Cases created before this change remain unchanged and are not submitted.
+
+Local checks on macOS with the existing Python 3.12 environment, Node 24 tools,
+native Dogwood and disposable PostgreSQL:
+
+- `.venv/bin/pytest --tb=short -q`: **1537 passed, 215 deselected**, 269.15 seconds;
+  service-free coverage alone is 70%, not the combined gate. The first collection
+  attempt found a duplicate test module basename; the integration module was
+  renamed `test_protect_database.py` and the complete suite then passed.
+- Protect unit/contracts checks: **54 passed** before adding the ordinary scenario
+  check; latest Protect-only run **16 passed**. Covers all bands, the override,
+  negation/deduplication, empty/wrong/malformed model output, extra fields,
+  delimited injection text, counting/budget/provider failures, legacy cases,
+  unnamed input and private Decision serialization.
+- Initial Protect database suite: **2 passed**. Uses a blocked provider and separate
+  connections to verify no household lock during inference, worker exclusion,
+  immutable decisions/claims, original receipt replay, abandoned-running fallback,
+  concurrent contact timeout, retry copies and cross-household refusal. A later
+  follow-up also covers cancellation while the SDK thread is still running.
+- `.venv/bin/python -m scripts.smoke_protect --artifacts-dir secrets/item32-offline-20261011`:
+  PASS. Exact roadmap scam is CRITICAL; Malik and Dad dinner sentences are LOW;
+  named Malik cases retain an eligible saved-contact check. Four cases remain
+  `extraction=off`, no contact jobs are initiated, no supplied-number comparison
+  appears, and retries reproduce original receipts. Separate worker process exits
+  successfully. Two independent signed exports validate (**3 and 12 rows**), in
+  the private artifact directory; disposable database dropped, development unchanged.
+- `.venv/bin/python -m scripts.smoke_household_tools --audit-output secrets/item32-conformance-audit.json --conformance-cli ../addon-check/dist/cli.js`
+  with `HIRZ_LLM=off`: **117 PASS, 0 FAIL/WARN/SKIP, 8 MANUAL**, complete independent
+  conformance evidence; **611 signed rows** verified offline. The manual checks
+  remain explicitly manual. MCP restart, exact receipts and separate worker pass.
+- Card fixtures: `HIRZ_LLM=off .venv/bin/python -m scripts.smoke_cards --artifacts-dir secrets/item32-cards-20261011`.
+  Reference-host Chromium tests with these fixtures: **8 passed** covering both
+  updated verification screenshots, four contact outcomes, enrichment settlement,
+  two-second polling and the 30-second cutoff with Refresh. Reviewed the light
+  screenshot: notice, two warning rows, simulated label and saved-contact button
+  fit the 768×480 card. The first run exposed ambiguous test status selectors and
+  MCP progress metadata in an exact object assertion; scoped selectors and a
+  partial request assertion fixed those tests without relaxing behavior checks.
+- `pnpm --filter web exec playwright test tests/protect.spec.ts`: **1 passed**.
+  Mocked session/inbox, real browser and Vite page: current advice, possible-warning
+  label, bounded polling and manual Refresh. This UI test does not prove authentication.
+- `pnpm -r lint`, `pnpm -r typecheck`, `pnpm -r test`: pass (**6 TypeScript tests**).
+  Both card and companion production builds pass. Existing Vite dependency directive
+  and chunk-size warnings remain; no unrelated bundle change was made.
+- Ruff check and strict mypy pass (**198 source files**); format check passes
+  (**312 files**) before the later evidence/docs updates. Final check is still owed.
+
+Published Haiku 4.5 geographic cross-region prices were rechecked against the
+[Anthropic Bedrock table, page 6](https://www-cdn.anthropic.com/files/4zrzovbb/website/3684c2faafb97418665782cea0001f439f74b1d2.pdf)
+on 2026-10-11: input/output $1.10/$5.50 per million tokens. The live warmup command
+used `AWS_PROFILE=hirz`, the retained path `secrets/item32-protect-budget.json`,
+`--live --warmup` and `secrets/item32-live-20261011`; credential retrieval failed
+before inference (`CredentialRetrievalError`). No successful paid call is claimed.
+The user was given `aws login --profile hirz-login` and the `hirz` STS check;
+live acceptance waits for refreshed credentials. Do not reset the shared ledger.
+
+The sandbox initially refused uv's existing cache and one loopback database
+connection. Existing environment executables and authorized local-network execution
+resolved these restrictions; the uv cache issue is already recorded in the friction
+log's item 8 follow-up. No new upstream defect is claimed. Keyword recall and
+model false warnings remain limitations; threat-model claims are unchanged.
+
+### Additional checks before CI dispatch
+
+- Protect concurrency/recovery follow-up: **2 passed**, including cancellation
+  retaining the extraction-only lock until the SDK thread settles; no database
+  transaction spans that thread. A canceled attempt recovers to fallback with no
+  second inference. Real contact regression suite: **10 passed**, 71.58 seconds.
+- Authenticated companion API follow-up: **1 passed**, 9.07 seconds. Real virtual
+  passkey enrollment and policy activation precede the test session; anonymous
+  inbox access is refused, the initiating member reads pending then complete
+  advice, and `assessment_decision` is absent. The initial test expected 401;
+  it was corrected to the existing endpoint's 403 refusal without changing auth.
+- Protect unit follow-up: **16 passed**, including loading the new ordinary scenario,
+  its exact recorded assessment route, and validation of both generated Converse
+  and CountTokens requests against the installed botocore service model.
+- Phone UI rerun: **1 passed** with accessible notice updates. The browser test now
+  uses `HIRZ_BROWSER_BACKEND` in CI and the local Vite origin when run alone.
+- The two changed verification baselines were regenerated in the exact pinned
+  Linux Playwright image used by CI: **2 passed**. The first local screenshots
+  were macOS renderings; only Linux baselines are retained for the CI comparison.
+- The initial implementation is on branch `phase6/protect-assessment`, commit
+  `4cc5325`; its [push CI](https://github.com/BashaarJavaid/Hirz/actions/runs/38177033384)
+  is a preliminary run, not the required workflow-dispatch latency gate.
+
+### Final local checks and normal CI dispatch
+
+- Full integration run with appended coverage: **214 passed**, 948.69 seconds.
+  The final targeted Protect run then passed **19 tests**, including the phone
+  test added after full-suite collection. `coverage report --fail-under=80` passed
+  at **89%** (15,825 statements, 1,713 missed). Logs are private local artifacts
+  `/tmp/hirz-item32-integration.log` and `/tmp/hirz-item32-final-targeted.log`.
+- Final offline `scripts.smoke_protect` rerun passed with CRITICAL/LOW/LOW/LOW,
+  no contact jobs or finance/contact actions, exact duplicate receipts, and
+  independently valid signed exports of **3 + 12 rows**. Artifacts:
+  `secrets/item32-offline-final-20261011`; disposable database dropped.
+- [Normal CI dispatch](https://github.com/BashaarJavaid/Hirz/actions/runs/38177357493)
+  targets implementation commit `8106d33`, with `latency_diagnostic=false`.
+  Lint/types, TypeScript tests, production build, companion browser acceptance,
+  independent conformance, scenario regressions and native policy conformance
+  passed. Python regression and both normal latency jobs were still running
+  when this entry was written; this does not claim final CI acceptance.
+- Live Haiku acceptance remains blocked on refreshing AWS profile `hirz-login`.
+  No successful paid inference is claimed and the $2 ledger must be retained.
+
+### Live Haiku acceptance after credential refresh
+
+AWS STS succeeded for profile `hirz` after the user refreshed `hirz-login`. Pricing
+was rechecked against the same published Bedrock geographic rates before inference.
+The initial explicit warmup and diagnostic calls exposed an ordinary-tool response
+discriminator missing from AWS's documented enum; the validator fix and exact
+observed error are recorded in the [friction log](./friction-log.md#item-32--converse-tool-discriminator-differs-from-documented-enum--2026-10-11).
+Only `type: "tool_use"` is accepted as an optional transport field; server tools,
+unknown envelope fields and extra extraction-payload fields remain rejected.
+
+Two subsequent live acceptance runs passed extraction but failed routing because
+Haiku asked for a phone number/name. The tool description and both host instruction
+sets now explicitly require immediate assessment of reported text, omitting unknown
+optional fields. Private harness diagnostics retain failure traces and routing
+results instead of exposing reported text on failure stdout.
+
+Final command: `AWS_PROFILE=hirz HIRZ_PROTECT_BUDGET_LEDGER="$PWD/secrets/item32-protect-budget.json" .venv/bin/python -m scripts.smoke_protect --live --artifacts-dir secrets/item32-live-20261011-5`.
+Result: **PASS**, with all four extraction states `complete`: exact roadmap scam
+**CRITICAL**, Malik dinner **LOW**, Dad dinner **LOW**, secrecy paraphrase **MEDIUM**
+with an additional model-only warning. The exact money command selected only
+`assess_request_risk`, with `party=person` and the original text; neither a name nor
+a number was invented. Selection-only host mode executed no tool or action.
+Authenticated MCP duplicates retained original receipts, status showed current
+advice, and no contact job or financial action was created. Both signed chains
+verified independently (**3 + 28 rows**); the successful disposable database was
+dropped and development data remained unchanged. Failed-run databases were retained
+by the existing disposable infrastructure for diagnosis.
+
+The shared ledger now retains **18 reservations totaling $0.0870562**, including
+failed validations, diagnostics, all extraction attempts and routing. This is a
+conservative reservation total, not a claim about invoiced spend. No case received
+an automatic paid retry. Protect/MCP unit regression: **93 passed**; strict mypy
+and Ruff passed after the compatibility correction. Final CI is being re-dispatched
+on the routing correction; item 32 remains partial until those gates settle.
+
+### Final implementation CI dispatch
+
+The final normal dispatch is [38178563999](https://github.com/BashaarJavaid/Hirz/actions/runs/38178563999)
+on `46e3ea0`, with `latency_diagnostic=false`. Earlier normal dispatches
+[38177357493](https://github.com/BashaarJavaid/Hirz/actions/runs/38177357493) and
+[38178399759](https://github.com/BashaarJavaid/Hirz/actions/runs/38178399759) were
+superseded by the live-provider compatibility and routing corrections; their
+canceled latency jobs are not acceptance evidence. The duplicate push run was
+canceled so the final full dispatch is the gate of record. Results will be
+appended after settlement.
+
+### Malformed-response guard and card-selector follow-up
+
+A final provider review added an explicit object check before reading tool-envelope
+fields. The adversarial list-shaped envelope now becomes bounded `invalid_output`
+fallback; **17 Protect unit tests** pass. Valid provider behavior is unchanged,
+so no additional paid calls were made. [Normal CI 38179669833](https://github.com/BashaarJavaid/Hirz/actions/runs/38179669833)
+targets production commit `3888629`; the preceding `46e3ea0` dispatch was superseded.
+
+On `3888629`, CI passed **1,539 service-free tests**, **215 integration tests**,
+and the **89% combined coverage gate** (15,825 statements, 1,693 missed), plus
+117 independent conformance checks with 614 verified audit rows, 159 native policy
+checks, companion browser acceptance, Show/Dot/account-switching checks and scenario
+restoration. The Python job nevertheless failed at the Linux card suite: **48
+passed, one failed, one skipped**. The existing pending-expiry test used an
+unqualified status selector, which matched both the new accessible notice and the
+contact result (`strict mode violation: getByRole('status') resolved to 2 elements`).
+This is a test-selector failure, not evidence that the full gate passed.
+
+The two assertions now target `.verification-result`, matching the existing
+contact-result checks. The full card suite in CI's pinned Linux image then passed
+**49 tests**, with its existing optional test skipped, in **2.4 minutes**. Only test
+selectors changed after `3888629`; production code, timing paths and fixtures are
+identical. Both normal latency jobs continue on `3888629`; regression CI is rerun
+on the selector correction. No failed timing samples or acceptance assertions were
+removed. Final closure still awaits those results.
+
+### Both normal latency gates passed
+
+Production commit `3888629` passed the normal (`latency_diagnostic=false`)
+[evening gate](https://github.com/BashaarJavaid/Hirz/actions/runs/38179669833/job/114589452719)
+and [hourly gate](https://github.com/BashaarJavaid/Hirz/actions/runs/38179669833/job/114589452752).
+Each retained five warmups and 100 measured calls for each of 54 cases, with all
+12 pooled-tool rows also passing the unchanged 250 ms raw authenticated JSON-RPC
+p95 limit. Highest case p95: **126.310 ms evening**, **180.971 ms hourly** (both
+`objective-greenest`). `assess_request_risk` pooled p95: **62.155 / 78.647 ms**,
+400 measured calls per scenario. No samples were discarded; SDK references are
+separate from the raw gate. These are local twin measurements, not AWS ingress,
+cold-start or Alexa-host latency claims.
+
+The overall dispatch remains red because of the separately corrected card-test
+selector. [Regression rerun 38182038654](https://github.com/BashaarJavaid/Hirz/actions/runs/38182038654)
+is on `a2d3a4c`; `git diff 3888629..a2d3a4c --name-only` contains only
+`apps/mcp-app/tests/cards.spec.ts` and this evidence log. Production code and timing
+paths are identical across these commits. Item closure still awaits that regression
+run's final result.
+
+### Simulator cleanup follow-up
+
+Regression run [38182038654](https://github.com/BashaarJavaid/Hirz/actions/runs/38182038654)
+passed service-free/integration tests and combined coverage, and its simulator
+browser assertion passed. The job then failed during disposable database removal:
+`psycopg.errors.ObjectInUse: database "hirz_ha_smoke_f3072b74580b42b2a9020df0146a51df" is being accessed by other users`;
+`DETAIL: There is 1 other session using the database.` The exact leftover backend
+owner was not captured; this is not a claim that the separate issue #7 is resolved.
+
+The simulator launcher canceled its periodic tasks at arbitrary connection-use or
+close points. It now requests periodic-loop shutdown, waits for its current
+iteration to finish, and takes the scenario lock before canceling playback between
+operations. Servers and their policy helpers stop after those tasks. The bounded
+shutdown still fails and retains storage on timeout; no force-drop or session
+termination bypass was added. The MCP server, Protect worker and measured tool
+paths are unchanged.
+
+A deterministic test blocks connection cleanup, requests stop, and proves the task
+waits until cleanup finishes without starting another iteration. **43 focused
+Protect/simulator unit tests** and strict mypy pass. Two authenticated local browser
+runs passed with real enrollment, PKCE, cards, Dot, account switching and both themes,
+then removed their disposable databases successfully. The final ordering is covered
+by `secrets/item32-shutdown-20261011-3` (**1 passed**, 28.9 seconds); the preceding
+iteration is retained at `secrets/item32-shutdown-20261011-2`. The first local attempt
+omitted `HIRZ_DOGWOOD` and failed closed before execution; later runs explicitly set
+it to the existing `.tools/dogwood`. No paid calls or development migrations occurred.
+Regression CI is rerun for this simulator-launcher correction; both normal latency
+passes remain applicable to unchanged MCP production code.
+
+### Item 32 closure — 2026-10-11
+
+**Complete.** [Regression CI 38184101994](https://github.com/BashaarJavaid/Hirz/actions/runs/38184101994)
+passed on `53f6348`, including the corrected simulator shutdown and card selectors:
+
+- **1,540 service-free tests** and **215 integration tests**; combined coverage
+  **89%** (15,825 statements, 1,693 missed), above the unchanged 80% gate.
+- **117 independent conformance passes**, zero failures/warnings/skips, eight
+  manual checklist entries, complete evidence, and **614 independently verified
+  signed audit rows**; development data unchanged.
+- **159 native policy conformance tests**, Python lint/format/strict types,
+  TypeScript lint/types/tests, package/container builds and scenario restoration.
+- Companion browser acceptance: **2 passed**. Authenticated simulator
+  enrollment/PKCE/bridge/Show/Dot/account switching: **1 passed**, followed by
+  successful disposable cleanup. Authenticated unchanged reference host: **1
+  passed**. Linux card baselines and behavior: **49 passed**; the live-host test
+  is intentionally run in its separate authenticated stage rather than this
+  fixture-only stage.
+
+Both required normal latency gates passed on the identical MCP implementation
+`3888629`, as recorded above: highest case p95 **126.310 / 180.971 ms**, with no
+discarded samples and no threshold change. The only subsequent executable change
+is the disposable simulator launcher's shutdown ordering; it is not imported by
+the timing harness and changes no MCP, Pipeline, executor or extraction path.
+The full later regression run covers that launcher correction. The failed earlier
+CI runs remain recorded and are not represented as successful complete runs.
+
+Live Haiku acceptance and the independent worker/signed-export checks passed as
+recorded above. The shared $2 ledger retains **18 reservations, $0.0870562 total**,
+including all diagnostic/failed attempts. No additional paid run was needed for
+the malformed-envelope or test/launcher corrections. The AWS strict-tool
+discriminator discrepancy is recorded in the friction log; no broader provider
+or simulator shutdown defect is claimed resolved.
+
+Item 31's deferred real delivery acceptance, organization verification, courier
+correlation and items 34–35 are outside this closure. No claim of physical
+Show/Dot interaction, real-world scam detection accuracy, AWS ingress latency,
+real contact delivery or preventing payments outside Hirz was added. Keyword recall can miss
+warning signs and model extraction can add false warnings; model signals remain
+advisory and cannot alter the private hypothetical Decision, contact permission
+or device authority. Threat-model claims remain unchanged. Final documentation
+format and instruction-file equality checks follow this entry.
+
+Final documentation checks passed after closure updates: Ruff check, Ruff format
+(**312 files**), `git diff --check`, and byte-for-byte equality of `AGENTS.md` and
+`CLAUDE.md`. Their Current phase is **57 words**. The retained budget ledger was
+rechecked unchanged at 18 reservations and $0.0870562. The closure commit changes
+only documentation; executable acceptance remains tied to the CI revisions above.
+
+## Item 33 — 2026-10-11
+
+### Implementation and initial acceptance
+
+Approved scope and rejected alternatives are in [ADR-023](./adr/ADR-023-organization-verification.md).
+Reviewed ComEd's official page on 2026-10-11; it publishes 800-334-7661. No provider
+calls were added to assessment, no Bedrock calls were made, and the development
+database was not migrated. Registry data is packaged, validated and cached;
+comparison evidence is advisory and cannot lower risk or authorize actions.
+
+Initial local checks:
+
+- `.venv/bin/pytest tests/unit/test_organizations.py tests/unit/test_protect.py tests/unit/test_household_tools.py --no-cov`: the first run had 75 passes and one schema-size failure. Canonical organization evidence increased tools/list beyond the 120,000-byte guard. The bounded guard is now 122,000 bytes; no tool or input was added and the latency corpus is unchanged. Later results follow below.
+- `HIRZ_DOGWOOD="$PWD/.tools/dogwood" .venv/bin/pytest tests/integration/test_organizations_database.py -m integration --no-cov`: 1 passed after adding the missing reserved owner-app operation to the constitution rule. This was an implementation omission, not third-party friction. Expanded security checks follow below.
+- `pnpm -r lint`, `pnpm -r typecheck`, `pnpm -r test`: pass; 5 card and 1 web unit tests. Both card and web builds passed. The first local Node was v23.11.0; subsequent verification uses the prescribed Node 24 path.
+- `.venv/bin/mypy hirz/ scripts/ alembic/`: no issues in 200 source files.
+- `HIRZ_LLM=off HIRZ_DOGWOOD="$PWD/.tools/dogwood" .venv/bin/python -m scripts.smoke_companion --artifacts-dir /private/tmp/hirz-item33-companion`: 2 browser tests passed, 1 simulator-specific test skipped as designed. The extended smoke saved ComEd through browser WebAuthn, checked matching and lookalike numbers through authenticated MCP, removed the contact and checked registry-only matching. Setup source/phone links, no organization safe-word control, and accessibility checks passed. Signed exports verified independently; private evidence remains under that directory.
+- `HIRZ_LLM=off HIRZ_DOGWOOD="$PWD/.tools/dogwood" .venv/bin/python -m scripts.smoke_cards --artifacts-dir /private/tmp/hirz-item33-cards --browser-test`: authenticated unchanged reference-host test passed, signed exports retained, disposable database dropped and development database unchanged.
+- With Node 24 and `HIRZ_CARD_FIXTURES=/private/tmp/hirz-item33-cards/fixtures.json`, `pnpm --filter mcp-app exec playwright test tests/cards.spec.ts -g organization`: 1 passed, including published reference, simulated badge, caller-ID limitation, absent person action, speech limits and no clipped card content.
+
+The sandbox blocked uv's shared cache and loopback PostgreSQL. Installed virtualenv
+commands and reviewed loopback escalations were used; no security setting or
+production guard was weakened. Neither is third-party friction. Full suites,
+combined coverage, packaging, conformance and normal CI latency remain pending
+at this entry; item 33 is not yet closed.
+
+### Compatibility review and broader local gates
+
+Code review identified that adding a new reserved constitution operation would
+change compiled Cedar for already activated households. Organization saves now use
+the existing owner-only create/confirm grants, with organization ID/revision in
+the audit reference; the fresh passkey still binds the distinct save_organization
+command. No compiled-rule change or reactivation/backfill is required. The initial
+CI dispatch was superseded for this correction; its results do not close item 33.
+
+Expanded contact/organization integration checks: **11 passed** in 75.10 seconds,
+including concurrent saves, unchanged versions, stale revisions, historical case
+replay, same-named person compatibility, non-owner/missing/revoked credentials,
+atomic audit failure and cross-household/private-case isolation. The shared HTTP
+ceremony rejects changed organization IDs/revisions and supplied destinations.
+
+The first full service-free run had **1557 passed, 3 failed**, all three failures
+being sandbox-refused loopback binds in existing tests. The permitted rerun of
+those tests plus organization/startup checks passed **24 tests**; coverage was
+appended. The full disposable integration run follows before coverage is claimed.
+
+Independent conformance initially rejected the new cases because authProbe was
+omitted (own fixture error, no third-party friction). After supplying all six
+required fields, `/private/tmp/hirz-item33-conformance-2.json` retained **620 signed
+rows**, independently verified; the checker reported **129 PASS, 0 FAIL, 0 WARN,
+0 SKIP, 8 MANUAL**, complete with no missing execution evidence. The successful
+disposable database was dropped. The first failed run deliberately retained
+`hirz_ha_smoke_d66acbca35d440e4b88152c0c1f008ba` under the existing failure policy.
+
+Node **24.21.0** workspace lint/types/tests pass (5 card, 1 web unit tests), and
+both apps build. `uv build` produced the wheel and source archive; both contain
+organizations.yaml, and a Python process in `/private/tmp` loaded/validated the
+registry directly from the wheel, with `hirz.__file__` confirmed inside it.
+
+### Durable organization enrichment correction
+
+The full local disposable suite passed **216 tests** in 898.07 seconds; the final
+focused registry/HTTP checks passed **24 tests** and combined coverage remained
+**89%** (15,969 statements). The 35 non-screenshot reference-host behavior tests
+also passed. Linux screenshot acceptance remains in CI.
+
+Further review found a serialization defect missed by the first enrichment unit
+check: organization speech used tuples inside the canonical JSON-valued speakable
+object. Its JSON round trip converted them to lists, so Pipeline's exact
+publication comparison refused the update. The helper now produces JSON lists.
+The unit test requires a warning-free canonical round trip; the disposable test
+now queues organization enrichment, injects recorded model signals, runs the real
+worker publication, checks the added warning and unchanged comparison, and replays
+the exact original pending receipt. **22 unit tests** and the expanded organization
+integration test (**1 passed**, 11.67 seconds) passed; coverage remains **89%**.
+No model provider was called. This correction supersedes the earlier CI revision;
+only the final run below may close the item. No third-party friction was earned.
+
+### Final acceptance and closure — 2026-10-11
+
+[CI 38189465696](https://github.com/BashaarJavaid/Hirz/actions/runs/38189465696)
+completed successfully on implementation commit
+`2c85b43b5719c39add0d96114e3a5e0877d46afe`, dispatched with
+`latency_diagnostic=false`. All 13 jobs passed (including the existing release
+placeholder, which publishes nothing). Superseded dispatches 38187542032,
+38187727123 and 38187768189 do not supply closure evidence.
+
+- Python Ruff lint/format and strict mypy passed. Service-free tests: **1,562 passed**, 218 deselected, 215.81 seconds. Disposable PostgreSQL integration: **216 passed**, 1,564 deselected, 803.11 seconds. Combined coverage: **89%**, 15,969 statements, 1,689 missed, above the required 80%. Only the existing Starlette/httpx and AnyIO deprecation warnings remained.
+- TypeScript workspace lint, types and tests passed (5 card tests and 1 web test). The companion browser job passed **2 tests**, with its simulator-only test intentionally skipped; it verified the owner WebAuthn save, authenticated MCP matching/wrong-number assessments, archived removal, registry-only comparison, accessibility and independently verified signed exports.
+- The Python job passed the simulator browser acceptance and authenticated reference-host acceptance (**1 test each**). Linux Chromium card baselines and behavior passed **50 tests**, with **1 intentional skip**. These include organization wording/source/simulated labels, absent person-only controls, speech limits and the card viewport checks. Local behavior-only acceptance also passed 35 tests as recorded above.
+- Native Cedar conformance passed **159 tests**. Both scripted scenario regressions and real HA demo lamp/restoration passed; these are demo devices, not physical-device acceptance.
+- Independent twelve-tool conformance passed **129 checks**, with **0 FAIL, 0 WARN, 0 SKIP, 8 MANUAL**, complete and no missing execution evidence. **623 signed rows** verified offline in CI; its disposable database was removed. The local retained export has 620 rows as recorded above; these are separate runs, not conflicting totals.
+- Card/web builds, Python wheel/source archive and container build passed. Fresh-wheel probes loaded all five cards, companion assets and the validated ComEd registry. Local archive inspection additionally confirmed organizations.yaml in both wheel and source archive.
+
+Both normal latency gates passed with the unchanged corpus: five warmups and
+**100 measured calls for each of 54 cases** per scenario (5,400 measurements),
+plus all **12 pooled tool rows**. The gate is nearest-rank raw authenticated
+JSON-RPC tools/call p95, request send through full response body, with no discarded
+samples; SDK references remain separate. These are local twin timings, not AWS
+cold-start or ingress claims. Private raw evidence is not uploaded.
+
+| CI job | Highest case p95 | Pooled assess_request_risk p95 | Limit |
+| --- | ---: | ---: | ---: |
+| [demo-evening](https://github.com/BashaarJavaid/Hirz/actions/runs/38189465696/job/114618966327) | 171.211 ms (objective-greenest) | 82.338 ms (400 calls) | 250 ms |
+| [demo-evening-hourly](https://github.com/BashaarJavaid/Hirz/actions/runs/38189465696/job/114618966409) | 124.648 ms (objective-greenest) | 56.224 ms (400 calls) | 250 ms |
+
+Local commands used Python 3.12.13, Node 24.21.0 and the pinned native Dogwood;
+CI used the repository's locked Ubuntu 24.04 toolchain. Payload-free CI logs and
+status were retained locally as `/tmp/item33-ci-*-final.log` and
+`/tmp/item33-ci-final-status.json`. Private companion/card exports remain under
+`/private/tmp/hirz-item33-companion` and `/private/tmp/hirz-item33-cards`; the
+independent local export is `/private/tmp/hirz-item33-conformance-2.json`.
+
+Item 33 acceptance is complete. No paid Bedrock calls, real-phone acceptance,
+development-database migration, new tool, dependency or risk-weight change was
+made. Courier correlation, Ring and item 31's deferred email/push acceptance remain
+outside this closure. The combined impersonation threat-model row remains Planned.
+The registry can age and a matching number cannot authenticate a caller. Final
+friction review found no earned third-party entry; the transient CI watch connection
+reset recovered through a normal status read and did not affect the jobs. Final
+documentation checks follow below; the closure commit changes documentation only.
+
+Final closure checks passed: Ruff check, Ruff format (**317 files**),
+`git diff --check`, and byte-for-byte equality of AGENTS.md/CLAUDE.md. Current
+phase is **56 words**. The final diff against the tested implementation contains
+only the six completion/evidence documents; executable code remains at the
+successful CI revision above.
+
+## Item 33a — 2026-10-11
+
+Implementation and verification in progress; no closure or threat-model upgrade
+is claimed by this entry. Decisions are in
+[ADR-024](./adr/ADR-024-courier-correlation.md).
+
+Initial local verification (macOS, existing Python 3.12 environment and Node 24,
+native pinned Dogwood, HIRZ_LLM=off):
+
+- `pytest tests/unit/test_courier.py --no-cov -q`: **32 passed**. Inclusive case
+  window, all reply statuses, fresh/available/non-future observations and presses,
+  and start-inclusive/end-exclusive arrival windows are exercised.
+- `pytest tests/integration/test_courier_database.py -m integration --no-cov`:
+  initial **13 passed**, including concurrent workers, restart/no duplicate audit,
+  all nine independent auto/ask/never combinations, real app link projection and
+  revocation, multiple cases, late enrichment and audit rollback. Later additional
+  denial, push failure and rate-limit tests are recorded below when finished.
+- Connected integration selection (`test_courier_database.py`,
+  `test_trusted_checkins.py`, `test_protect_database.py`,
+  `test_companion_push_database.py`): **29 passed in 174.12s**.
+- Service-backed parents command with `--headless --assert`: **15/15 checks passed**,
+  **41 signed rows independently verified**, no deferred assertions, no finance
+  execution or unlock. Private artifacts:
+  `secrets/scenario-runs/courier-33a-02`; report `/tmp/hirz-courier-33a-02.json`.
+  The disposable database was dropped; development was unchanged.
+- `scripts.smoke_cards --browser-test`: authenticated unchanged reference-host
+  acceptance **1 passed**, with signed fixture exports in `/tmp/hirz-33a-cards`.
+  Full local card suite: **37 behavior tests passed**, **14 Linux screenshot
+  comparisons failed** on macOS font rendering. The plan image diff was inspected;
+  no Linux baseline was replaced. CI remains the screenshot gate.
+- `tools/list`: **120,624 bytes total**, **17,927 bytes largest tool**; existing
+  122,000 total/20,000 per-tool limits remain unchanged. Internal courier state is
+  omitted from tool schemas/serialization; the consumer card projection is typed.
+- TypeScript lint/types/tests and both builds passed (5 MCP card unit tests and
+  1 web unit test). Python wheel/sdist built with `uv build`; the wheel contains
+  `hirz/protect/courier.py` and the verification-card asset.
+
+Corrections made during verification: the first database test found a missing
+PostgreSQL array cast in `jsonb_set`; it was fixed before the passing run. The first
+full service-free run had **1589 passed, 5 failed** because scenario tests still
+assumed parents had no execution and mocked none of the newly connected check-in
+worker; the affected **23 tests passed** after updating those assumptions. A full
+rerun and combined coverage are pending. An added synthetic denial test reused its
+assessment request key; its approval key was corrected. The initial no-isolation
+packaging command lacked the isolated build backend; ordinary `uv build` passed.
+No third-party defect or new acceptance limitation was inferred from these errors.
+
+Later local runs: the full service-free suite passed **1594 tests, 234 deselected**
+in **341.94s**, with **70%** service-free coverage; the combined integration run is
+still pending. Authenticated companion browser acceptance passed **2 tests** with
+one simulator-only test intentionally skipped, retaining **498 home + 5 parents
+signed rows** in `/tmp/hirz-33a-companion-04`. This includes a second authenticated
+household, real app pairing, a labeled twin press, private recipient warning and
+revocation. The parents simulator browser passed **1 test**, completed its timeline
+and independently verified **85 signed rows** in `/tmp/hirz-33a-simulator-02`; the
+unplayed evening household has zero rows. The first simulator attempt encountered
+an occupied local issuer port; retry used ports 8012/8013, without terminating the
+existing process. Successful simulator shutdown dropped its disposable database.
+
+Independent add-on conformance passed **129, 0 fail/warn/skip, 8 manual**,
+`complete=true`, with **620 signed rows** independently verified in
+`/tmp/hirz-33a-conformance.json`. The eight manual disclosures remain the existing
+checker limitations, not new acceptance gates. No paid calls were used.
+
+Review identified that a short approval lifetime also needs a wall-clock deadline
+when scenario time pauses. The implementation now binds the initial remaining
+approval lifetime into the courier deadline. Its focused regression and the
+removed-member test passed **2/2**; the expanded courier suite also exercises the
+daily shared cap and revocation before publication. Ruff check/format (**321
+files**) and mypy (**201 source files**) passed after the correction. Initial CI
+runs test implementation `1020365`; a new normal dispatch is required for this
+correction before item closure.
+
+The full local integration run passed **233 tests, 1596 deselected**, in **993.88s**
+with **89%** combined coverage. The final courier-only run then passed **19 tests
+in 57.24s** with `--cov=hirz --cov-append`; `coverage report --fail-under=80` passed
+at **90%** (**16,204 statements, 1,685 missed**). This includes the new short
+wall-clock approval deadline, removed member, 3/15-minute and 20/day caps, and
+revoked pending channel checks. Its earlier no-coverage run passed all **19 in
+66.17s**. The full integration run includes the real five-minute interrupted MCP
+prompt-expiry test. No development migration was applied.
+
+Final implementation revision is `7937cd3f1479e83d5b54c6b293779a1f64e289c7`.
+Normal dispatch [38197146388](https://github.com/BashaarJavaid/Hirz/actions/runs/38197146388)
+uses `latency_diagnostic=false`; results are pending. Superseded runs
+38196795584/38196805164 were cancelled by the branch's existing concurrency policy
+when the correction was pushed and dispatched; they are not closure evidence.
+
+Completed final-revision CI evidence (latency still pending at this point):
+service-free **1594 passed, 237 deselected, 269.81s**; integration **235 passed,
+1596 deselected, 975.24s**; combined coverage gate **90%** (**16,204 statements,
+1,686 missed**). The simulator browser passed **1 test**, the authenticated
+reference host **1 test**, and Linux Chromium card baselines/behavior **51 tests**.
+The separate companion browser job passed **2 tests** with its simulator-only
+case intentionally skipped. Add-on conformance passed **129, 0 fail/warn/skip,
+8 manual**, `complete=true`, with **623 signed rows independently verified**.
+Python lint/types, TypeScript lint/types/tests, native Cedar conformance,
+packaging/Docker, release metadata and the scenario job all passed. Relevant job
+logs are retained locally as `/tmp/hirz-33a-ci-{python,companion,conformance,scenarios}.log`.
+
+Item 33a closure — 2026-10-11 (America/New_York): normal CI run
+[38197146388](https://github.com/BashaarJavaid/Hirz/actions/runs/38197146388)
+completed **successfully for every job** on the final implementation revision
+above. Both ordinary, non-diagnostic latency gates passed: evening **1 passed in
+3127.96s**, highest case p95 **171.528 ms** (`objective-greenest`); Hourly **1 passed
+in 3407.35s**, highest case p95 **191.890 ms** (`objective-greenest`). Each report
+contains **54 cases and 12 tool aggregates**, all within **250 ms**; each case uses
+five warmups and 100 measured calls, with no discarded samples. Logs:
+`/tmp/hirz-33a-ci-latency-evening.log` and
+`/tmp/hirz-33a-ci-latency-hourly.log`. These are local twin CI measurements, not AWS
+cold-start or real-device claims.
+
+The service-backed parents scenario, authenticated cross-household warning flow,
+shared worker, independent permissions, durable deduplication, short wall-clock
+expiry, shared rate caps, audit rollback, push failure and privacy checks earn the
+courier row's **Partial** status. Unreported requests and presses older than 60
+seconds cannot trigger a warning; publication does not identify the visitor or
+prove phone reception. Item 35 remains open. Item 31's real email/iPhone-push
+acceptance, item 28's real Web Push and the failed Ring access gate remain unchanged.
+No manual walkthrough, physical-device or real-iPhone-push gate was added; no paid
+inference or development migration was performed. Final third-party friction review
+found no earned new entry. Closure changes documentation only; executable code and
+tests remain at the successful CI revision above.
+
+Final closure checks passed: Ruff check/format (**321 files**), `git diff --check`,
+byte-for-byte AGENTS.md/CLAUDE.md equality, evidence-link checks and a **60-word**
+Current phase. The diff from the tested implementation contains only the six
+completion/evidence documents; no executable code or tests changed after CI.
+
+
+## Item 35 — 2026-10-14
+
+### Local full-sequence implementation and initial acceptance
+
+Implemented the approved [ADR-006 amendment](./adr/ADR-006-twin-first-adapters.md#full-local-scenario-sequences--2026-10-14-author-approved).
+On macOS ARM64, Python 3.12.13 and the existing pinned native Dogwood, ran
+`HIRZ_LLM=off HIRZ_DOGWOOD="$PWD/.tools/dogwood" .venv/bin/hirz scenario run
+scenarios/<name>.yaml --headless --assert --artifacts-dir secrets/item35/<run>`.
+The existing virtualenv was used because sandboxed `uv` could not access its
+user cache; no dependency or lockfile changed. PostgreSQL runs in Docker Desktop.
+Only uniquely named disposable databases were migrated; development remains
+unmigrated. These initial artifacts predate the final execution-policy report-field
+correction; policy assertions already checked persisted active v8, not that field.
+
+| Scenario / private run | Status | Events | Checks | Independently verified audit rows |
+|---|---|---:|---:|---:|
+| parents-ordinary-request / ordinary2 | full_sequence_passed | 1 | 8 | 20 |
+| parents-scam-check / parents-scam-check2 | full_sequence_passed | 5 | 17 | 52 |
+| parents-scam-no-answer / parents-scam-no-answer2 | full_sequence_passed | 4 | 12 | 41 |
+| stranger-in-window / stranger-in-window2 | full_sequence_passed | 7 | 18 | 103 |
+| demo-evening / demo-evening2 | full_sequence_passed | 21 | 62 | 3708 |
+
+Each successful disposable database was dropped only after independent export
+verification. Earlier ordinary1 failed before database creation because PostgreSQL
+was stopped. Initial parents/stranger/evening failures exposed old narrative
+wording and an unconfirmed request's canonical `ASK_REQUESTER_CONFIRMATION` event;
+those failed databases and signed evidence remain. Explicit confirmed unlock
+requests now assert `ASK_CONSTITUTION`, still requiring a separate signed phone
+approval. No inputs or savings thresholds were changed.
+
+Hourly passed `item17_planning_and_observations_passed` (16 observation checks,
+plus its planning reports). `stranger-in-window --to 19:05 --assert` returned
+`stopped`, before the phone denial, with unexecuted assertions retained. The new
+four-scenario integration regression passed 4/4 in 27.05 seconds. Focused scenario
+unit tests passed 34/34 after strengthening exact-request binding and completion.
+Ruff and mypy passed (203 source files). Node 24 frontend lint/types and 6 Vitest
+checks passed. A direct browser invocation without its fixture server failed with
+`net::ERR_CONNECTION_REFUSED`; the existing companion smoke is the proper backend
+launcher and is being used for the browser gate.
+
+Full Python coverage, HA restoration, companion browser acceptance and remote
+ordinary/normal-latency CI are pending in this entry. No completion or threat-model
+promotion is claimed yet. The evidence establishes local software-passkey/twin
+behavior only: no physical phone, real contact delivery, paid inference, Ring,
+Link replay rejection, cloud-independent relock or AWS boundary claim.
+
+### Local regressions and corrected coverage baseline
+
+The final service-free run passed **1605 tests** (241 deselected) in 232.47 s.
+The initial full run had loaded the old frozen-model test before its correction;
+34 focused tests passed after the correction, then the whole service-free suite
+was rerun before beginning integration coverage. Service-free coverage alone is
+69%; it is not the combined coverage gate. The 239 selected integration tests
+are running with `--cov=hirz --cov-append`.
+
+Existing browser acceptance used Node 24 and
+`HIRZ_LLM=off HIRZ_DOGWOOD="$PWD/.tools/dogwood" .venv/bin/python
+scripts/smoke_companion.py --artifacts-dir secrets/item35/companion1`.
+It passed **2 browser tests** with the separately launched simulator test skipped,
+then printed `PASS authenticated MCP proposal, browser passkeys, running worker
+and independently verified exports`. The retained 390px light-theme approval
+screenshot was inspected: “Someone is at the front door.”, explicit simulated
+provenance, schedule context, duration and separate passkey/deny controls render
+without identifying the visitor. The headless stranger assertion separately
+verifies the expected-Mom context returned by the authenticated inbox.
+
+The unchanged HA smoke passed via `.venv/bin/python scripts/smoke_scenario.py
+--live-demo --artifacts-dir secrets/item35/ha1`: `execution_checks_passed`,
+`restored: true`, **3 checks and 28 independently verified audit rows**, including
+both ordered lamp verifications. The source remains `real API, demo devices`.
+The temporary database was dropped after verification; existing HA and Postgres
+volumes were preserved. The stalled public image pull workaround is recorded in
+[the friction log](./friction-log.md#item-35--docker-desktop-credential-helper-stalls-a-public-pull--2026-10-14).
+
+The standalone stranger fixture's complete `initial` mapping and bindings were
+compared equal to the evening's committed mappings. The intentional stop report
+retains setup version 7 and final execution version 8 after authenticated
+activation. No planning inputs, initial forecast ranges or overnight invariants
+were changed.
+
+Commit `45ec686` was pushed on `phase6/full-local-scenarios`. Requested ordinary CI
+and both normal latency jobs run in
+[workflow dispatch 38663905878](https://github.com/BashaarJavaid/Hirz/actions/runs/38663905878),
+with `latency_diagnostic=false`; completion remains pending until its results.
+
+
+### CI asset prerequisite correction
+
+The first dispatched scenario job failed at startup on clean Linux before any
+HTTP ceremony. Its stdout report had been redirected, so the log retained only
+exit 1 and the failed disposable database name. Inspection found the new
+`Phone -> create_app(companion=...)` dependency requires built companion assets;
+`create_app` explicitly refuses missing `hirz/companion/ui/index.html` with
+`Build the companion first: pnpm --filter web build`. The scenario job was the
+one new companion caller without the existing `build-cards` composite action.
+Added that action (which builds both frontend bundles), and documented the same
+local prerequisite. This is an implementation integration omission, not claimed
+third-party friction. The first run is not an acceptance pass; a new complete
+normal CI dispatch is required after this workflow correction.
+
+### Final assertion and procedure review
+
+Strengthened ordinary-request assertions to require the exact original claim,
+empty signal list, `verify_via_verified_channel` recommendation and `Check with a
+trusted contact` option; a generic occurrence of “check” was insufficient evidence.
+Strengthened no-answer wording to require “call the contact saved in your own phone”.
+Both full CLI reruns passed (`secrets/item35/ordinary3`, 8 checks / 20 signed rows;
+`secrets/item35/no-answer3`, 12 checks / 41 signed rows), with verified exports and
+successful disposable cleanup. Updated older procedure references to distinguish
+legacy scoped runs from the five current full sequences. Runtime code is unchanged
+from `45ec686`; the corrected workflow is in `4503ccd`.
+
+The superseded `45ec686` push/dispatch runs were cancelled after their scenario
+startup failure, freeing the corrected revision's queued jobs. Full normal gates
+are now running in [38664423546](https://github.com/BashaarJavaid/Hirz/actions/runs/38664423546).
+The final fixture assertions will also run in ordinary push CI before closure.
+
+### Complete local coverage and final-fixture browser failure
+
+The ordered local coverage run finished successfully: **1605 service-free tests**
+in 232.47 s, then **239 integration tests** in 934.54 s, then
+`.venv/bin/coverage report --fail-under=80` exited 0 at **90%** (16,437 statements,
+1,678 missed). Both pytest commands used `HIRZ_LLM=off` and the pinned native
+`HIRZ_DOGWOOD`; integration appended to the freshly reset service-free coverage.
+Logs are `/tmp/hirz-item35-unit-final.log`,
+`/tmp/hirz-item35-integration.log` and `/tmp/hirz-item35-coverage.log`.
+This includes authenticated activation/policy reload, 19 companion unlock cases,
+four new full sequences, Protect, executor, refresh and trusted check-ins.
+The existing `test_bound_doorbell_approval` and disposable decide cases cover
+unexpected v7 ASK versus v8 DENY; pipeline security-channel and offline-doorbell
+risk regressions also passed. No development migration was applied.
+
+The final-fixture push [38665151880](https://github.com/BashaarJavaid/Hirz/actions/runs/38665151880)
+at `1e1e65c` failed its companion browser job at the unchanged keyboard-outline
+assertion in `apps/web/tests/accessibility.ts:45`: `Expected: > 0`, `Received: 0`.
+It had one browser pass, one failure and one separate-simulator skip. This same
+browser suite passed locally and in corrected normal dispatch `38664423546`;
+the final commit only strengthened two YAML assertion sets and documentation.
+The failed log is retained at `/tmp/hirz-item35-companion-ci-failed.log`.
+No assertion has been weakened and no root cause is claimed. One unchanged-job
+rerun is intended after the current run finishes; an earlier attempt was refused
+with `job 116195570826 cannot be rerun` while other jobs were still running.
+
+### Live card fixture clock correction
+
+The normal dispatch passed 1605 service-free and 239 integration tests, its 90%
+combined coverage gate, and simulator browser acceptance, then failed the live
+MCP Apps reference-host test: `locator.click: Test timeout of 30000ms exceeded`
+at `apps/mcp-app/tests/live.spec.ts:15`, repeatedly finding the ten-minute-unlock
+button disabled. The retained log is `/tmp/hirz-item35-ci-python-failed.log`.
+The harness serves the committed October 13 scenario time, while this one browser
+test used wall time (October 15 UTC). The card correctly considered its data
+expired. Static card tests already use the fixture clock; the live test now uses
+the same `page.clock.setFixedTime` approach, with its private fixture path passed
+by the existing smoke launcher. Production expiry and committed scenario inputs
+are unchanged. This is our test-clock omission, not third-party friction.
+
+`HIRZ_LLM=off HIRZ_DOGWOOD="$PWD/.tools/dogwood" .venv/bin/python -m
+scripts.smoke_cards --artifacts-dir secrets/item35/card-live1 --browser-test`
+with Node 24 passed the existing live browser test in 4.4 s, retained five card
+fixtures and independently verified **401 home / 6 parents signed rows** before
+dropping its disposable database. Ruff, Python typing and MCP App lint/browser
+typing passed for the correction. The normal latency jobs continue unchanged;
+neither this launcher nor its Playwright test is part of their workload.
+The next ordinary CI run will also rerun the unchanged companion suite, replacing
+the pending isolated retry; GitHub's direct rerun API confirmed HTTP 403,
+`The workflow run containing this job is already running`.
+
+### Final CI gates and accepted local scope — 2026-10-14
+
+**Item 35 is complete within the approved local twin scope.** All five full
+headless sequences pass **117 checks** in total, with authenticated seed-policy
+activation, persisted v8 activation where scripted, exact signed approval/denial
+binding, local ten-minute unlock/relock and the approved Link deferral visible.
+Hourly retains its planning contract and unchanged inputs. Intentional step runs
+remain `stopped`; unchecked full runs and unsupported deferrals cannot pass.
+Successful disposable runs clean up only after independent signed-export
+verification; failed local runs remain retained. Development migrations remain
+manual and no development schema upgrade was performed.
+
+[Ordinary CI 38667532326](https://github.com/BashaarJavaid/Hirz/actions/runs/38667532326)
+passed on `e74d00c617cc8e1f40fa0b4732a6aa7c71dfcc62`:
+
+- Python: **1605 service-free tests** in 267.71 s, **239 integration tests** in
+  986.81 s, then the combined coverage gate passed at **90%** (16,437 statements,
+  1,688 missed). The local ordered coverage run above independently passed 1844
+  tests and 90% coverage.
+- All five full CLI sequences, Hourly planning and the live HA lamp/restoration
+  regression passed. Lint, strict types, packaging, TypeScript tests, native Cedar
+  conformance and independent add-on conformance passed.
+- Companion acceptance passed **2 browser tests** and verified its signed exports;
+  its separately launched simulator test was skipped there and passed in the
+  Python job (**1 passed**, 33.4 s). The corrected authenticated reference-host
+  browser test passed (**1 passed**, 2.7 s). Existing Linux Chromium card baselines
+  and behavior passed **51 tests**, with the separately launched live test skipped.
+  No additional browser matrix was added.
+
+The companion focus-outline check passed unchanged in this run after its earlier
+single failure. No root cause or application fix is claimed for that intermittent
+result. Its pass is retained in `/tmp/hirz-item35-ci-companion-passed.log`; final
+Python/browser output is `/tmp/hirz-item35-ci-python-passed.log`. The superseded
+`1e1e65c` push was cancelled by the corrected push and is not an acceptance pass.
+
+Both **normal** (`latency_diagnostic=false`, `HIRZ_BUDGET_DIAGNOSTIC=0`) latency
+jobs passed on `4503ccda7a8fc25bdc3bd626ad0c7aa8e34b5730`:
+
+| Gate | Cases / tools passing | Highest case p95 | Case | Test duration |
+|---|---:|---:|---|---:|
+| [Evening](https://github.com/BashaarJavaid/Hirz/actions/runs/38664423546/job/116193253453) | 54 / 12 | 171.710 ms | plan-approval | 3066.30 s |
+| [Hourly](https://github.com/BashaarJavaid/Hirz/actions/runs/38664423546/job/116193253637) | 54 / 12 | 190.800 ms | objective-greenest | 3362.43 s |
+
+Each case used five warmups and 100 measured calls, nearest-rank p95, with no
+discarded samples; every case and tool aggregate stayed below 250 ms. The gate is
+raw authenticated JSON-RPC request-send through full response body, excluding
+final decoding/validation. Contact-start/retry cases include their exact-request
+confirmation exchange; SDK reference timings remain outside the gate. Complete
+public timing tables are in those job logs, also retained locally as
+`/tmp/hirz-item35-latency-evening.log` and
+`/tmp/hirz-item35-latency-hourly.log`. These are local twin measurements, not AWS
+cold-start evidence.
+
+The containing dispatch's overall conclusion is **failure** because it ran the
+older live-card browser clock; only its two successful latency jobs are accepted
+here. `git diff --name-only 4503ccd e74d00c` confirms subsequent changes are the
+two stronger parent assertion sets, documentation, and the card browser/launcher
+clock correction. Runtime code, latency harness/tests and evening/Hourly benchmark
+inputs are unchanged. The final ordinary run verifies the browser correction.
+
+Security evidence includes the full stranger denial and evening relock; existing
+`test_bound_doorbell_approval` and disposable decide cases cover v7 ASK versus v8
+DENY. `test_alexa_security_approval_remains_pending_and_claim_cannot_raise_authority`
+verifies `phone_required`, zero votes and a pending request for both Alexa approval
+and denial attempts. Offline-doorbell and factor-applicability tests verify
+`state_stale` and its band increase. Only the unexpected-visitor threat row is
+earned, explicitly limited to local twin/software-passkey evidence.
+
+No paid inference, real contact delivery, physical-phone acceptance, Ring or AWS
+implementation was added. Link replay rejection and independently operated
+relocking remain item 38a; this local relock does not establish cloud-failure
+resilience. Existing email/push deferrals remain. The Docker credential-helper
+entry above is the earned third-party friction; the two CI integration omissions
+and intermittent focus check are not presented as third-party defects.
+
+### Closure records and final formatting
+
+After appending the final evidence, marked roadmap item 35 complete without
+rewriting its specification, updated the changelog, and mirrored the **64-word**
+Current phase in `AGENTS.md` and `CLAUDE.md`. Only the unexpected-visitor threat
+row changed; its Yes claim is explicitly local twin. The final diff after tested
+commit `e74d00c` contains only these six documentation files. Ruff check and format
+check passed (**324 files already formatted**), `git diff --check` passed, and
+`cmp AGENTS.md CLAUDE.md` confirmed byte-identical instruction files. No further
+runtime change or broad test rerun was needed.
+
+## Phase 6 review fixes — 2026-10-15
+
+### Corrupt check-in jobs close themselves
+
+Environment: macOS 15.7.3 (arm64), Python 3.12.13, uv 0.12.15, PostgreSQL 16.15 in
+the local Compose stack, base commit `e69cbec` on `phase6/full-local-scenarios`.
+The Compose stack had Postgres and Home Assistant up but not the Hirz liveness
+container; `docker compose -f compose.dev.yml up -d` started it, after which
+`uv run python scripts/check_dev.py` printed four PASS lines (Postgres, `/health`,
+HA 123 entities, unauthenticated HA read 401) and exited 0. No migration was run
+against the development database.
+
+New test `test_inconsistent_rows_close_without_stopping_the_tick` in
+`tests/integration/test_trusted_checkins.py` (disposable database, native Dogwood)
+starts two real app check-ins and one email enrollment link for the same contact,
+then, as approved test-only corruption, inserts a receipt with a tampered
+`request_hash` for the first job and nulls the enrollment link's ciphertext. One call
+to `hirz.contacts.worker.advance` (the contact portion of the `hirz worker` tick)
+returned normally with SMTP patched and never called. Asserted: the corrupt job is
+`closed` with no ciphertext and its `decision_seq` is an `EXECUTE` decision; exactly
+one `VERIFY` audit row carries reason `inconsistent_record`, status `no_answer`,
+that decision and `receipt: null`; the case status reads `no_answer` /
+`inconsistent_record` and the headline does not say the contact confirmed; the second
+job advanced to `sent` with one attempt; the enrollment link is `failed` with a new
+decision; a second tick does not touch the closed job; the full signed chain verifies
+(`verify_database` status `valid`).
+
+Negative control: with the `hirz/` changes stashed, the same test failed with
+`ValueError: Invalid receipt binding` (`1 failed, 10 deselected in 3.33s`), the crash
+the worker previously turned into `{"status": "failed"}`.
+
+Commands and summary lines:
+
+- `uv run ruff check .` — `All checks passed!`
+- `uv run mypy hirz/ scripts/ alembic/` — `Success: no issues found in 203 source files`
+- `uv run pytest -q` — `1605 passed, 242 deselected, 2 warnings in 225.11s (0:03:45)`
+- `uv run pytest tests/integration/test_trusted_checkins.py -m integration --no-cov -q`
+  — `11 passed in 55.18s`
+- `uv run ruff format --check .` (run last, after this entry) — `324 files already formatted`
+
+Not claimed: the full `hirz worker` loop was not run against a corrupted database
+(the test drives the contact-worker step it calls); no CI run, latency gate or
+combined coverage run was made for this fix; no TypeScript changed (cards and the
+companion render the reason through the existing Python headline), so the `pnpm`
+checks were not rerun. Corrupt case or action JSON that fails model validation, an
+undecryptable ciphertext, and a missing contact configuration still stop the worker
+by design (fail closed); they are not treated as row inconsistencies.
+
+### App check-ins advance without the contact key
+
+Environment: macOS 15.7.3 (arm64), Python 3.12.13, uv 0.12.15, PostgreSQL 16.15 in
+the local Compose stack, base commit `6a57938` on `phase6/full-local-scenarios`.
+`uv run python scripts/check_dev.py` passed (last line `PASS HA: unauthenticated
+state read -> 401.`). No migration was run against the development database.
+
+Two new tests in `tests/integration/test_trusted_checkins.py` (disposable databases,
+native Dogwood) create an app-confirmed contact and a pending email enrollment link
+with the key set, then `monkeypatch.delenv("HIRZ_CONTACT_ENCRYPTION_KEY")` before
+calling `hirz.contacts.worker.advance` with SMTP patched:
+
+- `test_app_checkin_times_out_without_contact_key`: an app check-in started with the
+  key advances to `sent`, then, with the clock one second past its two-minute
+  deadline, closes with one attempt; exactly one scheduler `VERIFY` row records
+  `no_answer` / `expired` with the job's closing decision; the status tool reads
+  `no_answer` / `expired`; SMTP was never called; the signed chain verifies (`valid`).
+- `test_email_enrollment_waits_without_contact_key`: two ticks, the second past the
+  link's expiry, leave the enrollment row byte-for-byte unchanged (`pending` /
+  `pending`, no new decision) and SMTP is never called.
+
+Negative control: with the `hirz/` changes stashed, the app test failed with
+`AssertionError: assert ('pending', 0) == ('closed', 1)` (`1 failed, 1 passed, 11
+deselected in 4.16s`); the enrollment test passes on both versions, as intended.
+
+Startup line: from an empty mode-0600 `.env` directory with the key unset,
+`hirz worker --household 00000000-0000-0000-0000-000000000000 --once` printed
+`{"engine": "dogwood-local", "status": "contact_email_disabled", "detail": "Email
+check-ins and email enrollment are disabled because HIRZ_CONTACT_ENCRYPTION_KEY is
+unset; app check-ins still advance."}` and then the existing `failed` line (no
+database configured there).
+
+Commands and summary lines:
+
+- `uv run ruff check .` — `All checks passed!`
+- `uv run mypy hirz/ scripts/ alembic/` — `Success: no issues found in 203 source files`
+- `uv run pytest -q` — `1605 passed, 244 deselected, 2 warnings in 239.66s (0:03:59)`
+- `uv run pytest tests/integration/test_trusted_checkins.py -m integration --no-cov -q`
+  — `13 passed in 57.05s`
+- `uv run ruff format --check .` (run last, after this entry) — `324 files already formatted`
+
+Not claimed: starting or approving a real check-in (`checkins.queued`) and companion
+contact setup still require the key, unchanged; only the worker's advance and timeout
+were made key-independent. The full `hirz worker` loop against a live check-in was not
+run; no CI run, latency gate or combined coverage run was made; no TypeScript changed.
+
+### Ledger gate precedes every provider call
+
+`hirz/protect/bedrock.py` called Bedrock CountTokens before reserving in
+`HIRZ_PROTECT_BUDGET_LEDGER`, so an exhausted or foreign ledger still produced one
+(unbilled) provider contact per case. A new `Budget.check(outputs)` in
+`hirz/host/headless.py` reads the ledger under a shared lock and raises when it
+belongs to another purpose or when even zero input plus 512 output tokens would
+exceed the limit; `extract` calls it before creating the client or counting. The
+atomic `reserve(count, 512)` after counting is unchanged and still enforces the $2
+ceiling, so a concurrent reservation between check and reserve can at worst cause
+one unbilled CountTokens followed by the existing `budget` failure. An unset
+variable already failed before any client was created.
+
+New test `test_ledger_gate_precedes_every_provider_call` in
+`tests/unit/test_protect.py` (cases `absent`, `ceiling` at `reserved_usd: "2"`,
+`other_purpose`) asserts `ExtractionFailure("budget")`, `client.mock_calls == []`
+and an unchanged ledger file.
+
+Negative control: with the `hirz/` changes stashed, `uv run pytest
+tests/unit/test_protect.py -q --no-cov -k ledger_gate` gave `2 failed, 1 passed, 17
+deselected in 1.01s` (`ceiling` and `other_purpose` recorded `call.count_tokens(...)`;
+`absent` passes on both versions, as intended).
+
+Commands and summary lines:
+
+- `uv run ruff check .` — `All checks passed!`
+- `uv run mypy hirz/ scripts/ alembic/` — `Success: no issues found in 203 source files`
+- `uv run pytest tests/unit/test_protect.py -q --no-cov` — `20 passed in 1.28s`
+- `uv run pytest -q` — `1608 passed, 244 deselected, 2 warnings in 221.85s (0:03:41)`
+- `uv run ruff format --check .` (run last, after this entry) — `324 files already formatted`
+
+Not claimed: no live Bedrock call was made, no `--live` flag was used and the
+retained item 32 ledger was not read or touched; the worker path through
+`hirz.pipeline.service` was not run end to end; no integration, CI or latency run.
+
+### Protect worker loads policy only when work is pending
+
+`hirz/protect/worker.py` `background(...)` reloaded the household policy bundle
+from PostgreSQL on every one-second iteration, even with no extraction pending.
+The loop now first runs one `SELECT EXISTS` over the household's verification
+cases whose extraction status is `pending` or `running` (the same predicate, now
+the shared `waiting(p)`, that `advance` uses to select the next case) and only
+then loads the bundle and calls `advance`. The separate connection/task, the
+per-household session advisory lock, the no-transaction-around-the-provider rule,
+the `running` → `interrupted` fallback and the one-second cadence are unchanged.
+
+New integration test `test_background_loads_policy_only_when_extraction_pending`
+in `tests/integration/test_protect_database.py` drives the real `background(...)`
+against a disposable database with `hirz.executor.local.policy` replaced by a
+counting loader and `extract` patched (no provider call): about three idle
+iterations load nothing; one pending case is completed with exactly one load; two
+further idle iterations add none.
+
+Negative control: with the `hirz/` change stashed, `uv run pytest
+tests/integration/test_protect_database.py -m integration --no-cov -q -k
+background` gave `1 failed, 3 deselected in 5.29s` (`AssertionError: assert
+[UUID('536fa8...ba418e710a0')] == []` on the idle assertion).
+
+Commands and summary lines:
+
+- `uv run python scripts/check_dev.py` — no `FAIL` lines
+- `uv run pytest tests/integration/test_protect_database.py -m integration --no-cov -q` — `4 passed in 17.87s`
+- `uv run ruff check .` — `All checks passed!`
+- `uv run mypy hirz/ scripts/ alembic/` — `Success: no issues found in 203 source files`
+- `uv run pytest -q` — `1608 passed, 245 deselected, 2 warnings in 238.66s (0:03:58)`
+- `uv run ruff format --check .` (run last, after this entry) — `324 files already formatted`
+
+Not claimed: no live Bedrock call, no `--live` flag, the item 32 ledger was not
+touched; no CI, latency or App Runner run; query cost was not measured, only the
+absence of idle policy loads. ADR-015 was not changed because its Protect
+amendment does not state a per-iteration policy reload.
+
+### Signal names cross-checked across Python and TypeScript
+
+The six Protect signal names were copied in four places with nothing tying them
+together. New unit test `test_signal_names_agree_across_python_and_typescript` in
+`tests/unit/test_protect.py` takes `hirz/protect/scoring.py` `PHRASES` keys as the
+set and asserts it equals the `VerificationSignal.signal` literal, the keys of
+both label maps in `hirz/protect/advice.py`, the `signalLabels` keys in
+`apps/web/src/pages/Checkins.tsx` and the `signal` `z.enum` in
+`apps/mcp-app/src/schema.ts` (the last two by a commented regex over the file
+text). To make the second advice map importable, its inline dict in `labels()`
+was hoisted unchanged to the module constant `POSSIBLE`; the two maps carry
+different wording, so they were not collapsed. No signal was renamed; no build
+step, shared package, code generation or dependency was added.
+
+Negative controls: adding `"bogus_signal"` to the `schema.ts` enum gave `1 failed,
+20 deselected in 0.91s`; adding `bogus_signal: "x"` to `signalLabels` in
+`Checkins.tsx` gave `1 failed, 20 deselected in 0.85s`. Both edits were reverted
+with `git checkout --`.
+
+Commands and summary lines:
+
+- `uv run pytest tests/unit/test_protect.py -q --no-cov` — `21 passed in 1.52s`
+- `uv run ruff check .` — `All checks passed!`
+- `uv run mypy hirz/ scripts/ alembic/` — `Success: no issues found in 203 source files`
+- `uv run pytest -q` — `1609 passed, 245 deselected, 2 warnings in 237.08s (0:03:57)`
+- `uv run ruff format --check .` (run last, after this entry) — `324 files already formatted`
+
+Not claimed: no TypeScript lint, typecheck or test run (no TypeScript file
+changed); no integration, CI or latency run. The text check covers only the two
+named TypeScript literals, not any other place a signal name may be typed.
+
+### Contact operation vocabulary cross-checked
+
+The reserved `governance.contacts` rule in `hirz/constitution/schema.py` names
+each contact operation in one condition string, and `Command.operation` in
+`hirz/contacts/service.py` repeats the vocabulary with nothing tying the two.
+New unit test `test_contact_rule_names_exactly_the_contact_operations` in
+`tests/unit/test_constitution.py` extracts every `action.params.operation == "<x>"`
+literal from the rule and asserts the set equals the `Command.operation` values
+minus `save_organization` (granted as `create` or `confirm`, never by its own
+name) plus `guess` (safe-word check) and `process` (scheduler), which are granted
+outside `Command`. The rule string, schema and Cedar output were not changed, so
+no before/after compile diff was needed; the optional refactor that builds the
+rule from grouped tuples was not done.
+
+Negative control: deleting ` or action.params.operation == "reply"` from the rule
+gave `1 failed, 78 deselected in 0.59s` (`Extra items in the right set`); the edit
+was reverted with `git checkout --` and `git status --short` showed only
+`M tests/unit/test_constitution.py`.
+
+Commands and summary lines:
+
+- `uv run pytest tests/unit/test_constitution.py -k contact_rule --no-cov -q` — `1 passed, 78 deselected in 0.70s`
+- `uv run ruff check .` — `All checks passed!`
+- `uv run mypy hirz/ scripts/ alembic/` — `Success: no issues found in 203 source files`
+- `uv run pytest -q` — `1610 passed, 245 deselected, 2 warnings in 234.00s (0:03:54)`
+- `HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run pytest tests/cedar_conformance --no-cov -q` — `81 passed in 152.29s (0:02:32)`
+- `uv run ruff format --check .` (run last, after this entry) — `324 files already formatted`
+
+Not claimed: the test checks names only, not which surface or role each clause
+allows; it does not find `grant(...)` calls with other operation strings; no
+integration, CI or latency run.
+
+### Twin contact removal uses the canonical reason
+
+Removing a contact while a twin check-in is pending (`remove` in
+`hirz/companion/contacts.py`) now records `verification.reason = "contact_removed"`
+on the canonical `VerificationState`, as the real path already does, and
+`case_response` in `hirz/mcp/trust.py` branches on that reason instead of comparing
+the stored `speakable.headline` text. The wording is unchanged: twin says "The
+contact was removed. No reply will be accepted for this check.", real says "The
+contact was removed. This check is closed.", and twin cases stay labeled
+`source: twin`. No headline fallback was kept: twin cases live only in disposable
+twin databases, and an older twin case without a reason now reads as the generic
+simulated `no_answer` ("There was no simulated reply. Do not send anything; ..."),
+which is still a refusal to act.
+
+New unit test `test_twin_contact_removal_branches_on_reason_not_headline` in
+`tests/unit/test_household_tools.py`: a twin case with an edited headline and
+`reason="contact_removed"` reports the twin removal wording, and a case with the
+old headline but no reason reads as the generic simulated `no_answer`. The
+`removed` outcome of the existing database test in
+`tests/integration/test_household_tools_database.py` now also asserts the stored
+reason.
+
+Bite proof: with the `hirz/` change stashed, the new test gave `1 failed, 39
+deselected in 0.92s` (`assert 'The contact ...ck is closed.' == 'The contact
+...r this check.'`); `git stash pop` restored it.
+
+Commands and summary lines:
+
+- `uv run pytest tests/unit/test_household_tools.py tests/unit/test_companion_auth.py --no-cov -q` — `42 passed in 1.76s`
+- `uv run ruff check .` — `All checks passed!`
+- `uv run mypy hirz/ scripts/ alembic/` — `Success: no issues found in 203 source files`
+- `uv run pytest -q` — `1611 passed, 245 deselected, 2 warnings in 223.44s (0:03:43)`
+- `uv run python scripts/check_dev.py` — four `PASS` lines (Postgres, `/health`, HA 123 entities, HA unauthenticated 401)
+- `uv run pytest tests/integration/test_household_tools_database.py -m integration --no-cov -q` — `11 passed in 20.24s` (disposable databases; development database not migrated)
+- `uv run ruff format --check .` (run last, after this entry) — first run flagged `hirz/mcp/trust.py` (line length); after `uv run ruff format hirz/mcp/trust.py` the unit file re-ran `40 passed in 2.16s`, `ruff check` `All checks passed!`, and the check gave `324 files already formatted`
+
+Not claimed: no CI, latency, browser or card run; the companion page and MCP App
+card were not rendered; no real-channel check-in was exercised.
+
+### Review nits: deferral constant, wall-clock comment, scan ceiling, evidence label, organization wording
+
+- `hirz/twin/execution.py`: the full-sequence deferral sentence is now the
+  module constant `LINK_DEFERRAL`, used by `full_sequence_complete`; when a
+  scenario's deferral differs, the `full_sequence` check carries `reason:
+  "deferred expectation must be exactly '<sentence>'"`. Sentence and scenario
+  files unchanged.
+- `hirz/contacts/service.py`: `contact_time(p)` kept (35 `contact_time(` matches
+  across `hirz/`, `scripts/` and `tests/`); a ponytail comment cites ADR-022.
+- `hirz/contacts/worker.py` `send_allowed`: comment naming the full courier-case
+  scan and the `published_at` column/index upgrade. No code change.
+- `hirz/mcp/trust.py`: comments at the `scam_pattern` `SupplementalEvidence`
+  (ADR-004 "Protect evidence amendment — 2026-10-11") and at
+  `subject.trusted` (ADR-023). An organization case asked to start a person check
+  now says "An organization case cannot start a person check. Call the
+  organization's published number, and separately ask a trusted person." (18
+  words); a person case without a contact keeps the old wording. No test asserted
+  the old wording, and `docs/tool-catalog.md` does not quote it.
+
+Commands and summary lines:
+
+- `uv run ruff check .` — `All checks passed!`
+- `uv run mypy hirz/ scripts/ alembic/` — `Success: no issues found in 203 source files`
+- `uv run pytest tests/unit/test_scenario_execution.py tests/unit/test_organizations.py tests/unit/test_household_tools.py -q --no-cov` — `96 passed in 4.13s`
+- `uv run pytest -q` — `1611 passed, 245 deselected, 2 warnings in 224.90s (0:03:44)`
+- `uv run python scripts/check_dev.py` — PASS lines through `HA: unauthenticated state read -> 401`
+- `HIRZ_DOGWOOD=$PWD/.tools/dogwood uv run hirz scenario run scenarios/demo-evening.yaml --headless --assert --output <scratch>/nits-demo-evening.json` — report `status: full_sequence_passed`, `{"kind": "full_sequence", "status": "passed"}`, audit `valid` (3634 rows); `disposable_database=dropped; development_database=unchanged`
+- `uv run ruff format --check .` (run last, after this entry) — first run flagged `hirz/twin/execution.py` (line wrap); after `uv run ruff format hirz/twin/execution.py`, `ruff check` passed and the scenario unit file re-ran `34 passed in 2.94s`; then `324 files already formatted`
+
+Not claimed: the mismatch `reason` and the new organization wording were not
+exercised by a test or a run; no CI, latency or browser run.
+
+### Demo evening asserts revisions and the dishwasher window
+
+Environment: macOS 15.7.3 (arm64), Python 3.12.13, uv 0.12.15, PostgreSQL 16.15 in
+the local Compose stack, native Dogwood at `.tools/dogwood`, base commit `cd7dfda` on
+`phase6/full-local-scenarios`. `uv run python scripts/check_dev.py` printed PASS lines
+through `HA: unauthenticated state read -> 401`. Only `scenarios/demo-evening.yaml`
+changed; nothing in `hirz/` changed. No migration was run against the development
+database.
+
+Added with existing DSL kinds only (sources: `docs/twin-and-scenarios.md` §3 and
+ADR-005 "Planned device approval resumption — 2026-09-22", including the approved
+explicit 23:31 dishwasher request; `constitutions/quinn-home.yaml` for Dad's `adult`
+role):
+
+- Five `result` checks (`$revised_target`, `$ceiling`, `$guest_comfort`,
+  `$overnight_dishwasher` at 17:35; `$kitchen` at 22:40): `decision.decision: execute`,
+  `decision.event_type: EXECUTE`, `decision.constitution.rule:
+  governance.record_constraint`, `clarification: null`; `$kitchen` also
+  `decision.boundary.roles: {adult: true}` (Dad's linked account, not the owner).
+- Two `observation` checks: `hvac.guest_room` `target_f: 72` at 23:05 (Mom asleep in
+  that room) and +1d 06:45 (before the 07:00 end of the request).
+- One `observation` check: `dishwasher` `'on': false, power_kw: 0` at 23:30, the last
+  event time before the 23:31 boundary.
+- Six ordered `audit_sequence_includes` selectors after the 19:16 relock:
+  `PLAN_APPROVED`, `ASK_CONSTITUTION`/`APPROVED:energy.hvac_adjust`,
+  `ASK_CONSTITUTION`/`APPROVED`/`VERIFIED:energy.appliance_start`. Matched seqs 2129,
+  2344, 2389, 3178, 3196, 3218: the dishwasher's vote and verified start follow the
+  fresh 23:31 consent.
+
+Commands and summary lines:
+
+| Command | Result |
+|---|---|
+| `HIRZ_DOGWOOD=$PWD/.tools/dogwood uv run hirz scenario run scenarios/demo-evening.yaml --headless --assert --output <scratch>/before.json` (HEAD, before) | `status: full_sequence_passed`, **62 checks**, 62 passed; audit `valid` (3704 rows); 2:21 wall |
+| Same, after the change (`<scratch>/after.json`) | `status: full_sequence_passed`, **76 checks**, 76 passed; audit `valid` (3628 rows); `disposable_database=dropped; development_database=unchanged`; 2:21 wall |
+| Bite proof: 23:30 dishwasher `'on': false` changed to `true` | exit 1, `status: failed`; failing `{"index": 29, "kind": "observation", "at": "2026-10-14T04:30:00+00:00", "status": "failed"}` and `{"kind": "full_sequence", "status": "failed"}`; disposable database `hirz_ha_smoke_24b4c8f2bda14638a875943a5079792c` retained per contract. Reverted with `git checkout --`; `git status --short` then empty before restoring the intended change |
+| `uv run pytest tests/unit/test_scenario.py tests/unit/test_scenario_execution.py -q --no-cov` | `79 passed in 13.70s` |
+| `uv run ruff check .` / `uv run mypy hirz/ scripts/ alembic/` | `All checks passed!` / `Success: no issues found in 203 source files` |
+| `uv run ruff format --check .` (run last, after this entry) | `324 files already formatted` |
+
+The evening's own count went from 62 to 76 checks. The other four full sequences were
+not rerun in this session, and the item 35 roadmap line (measured 2026-10-14) is unchanged.
+
+Not claimed: a revision `result` carries only the decision, `constraint_id` and
+`clarification`, so the 50% target/ceiling, 72°F, 23:31 and 23:00 values are not
+assertable from it (the EV value stays covered by `ev_soc_at` and the built-in
+`ev_ceiling_throughout`; 23:00 by the built-in `dad_attribution`). An `'on': true`
+observation after 23:31 was not added: the start time (04:15 in this run) is chosen
+by the planner and is not stated in §3, and no single time lies inside every valid
+105-minute cycle between 23:31 and 07:00. Plan-consent results cannot be saved
+(`approve_action` has no saveable object). No CI, latency or browser run.
+
+### Stranger wording guard and genuine-reply negative test
+
+Environment: macOS 15.7.3 (arm64), Python 3.12.13, uv 0.12.15, PostgreSQL 16.15 in
+the local Compose stack, native Dogwood at `.tools/dogwood`, base commit `909f468` on
+`phase6/full-local-scenarios`. `uv run python scripts/check_dev.py` printed PASS lines
+through `HA: unauthenticated state read -> 401`. Nothing in `hirz/` changed. No
+migration was run against the development database.
+
+Changes (sources: ROADMAP item 34 verify text, `ARCHITECTURE.md` §5.7, ADR-022):
+
+- `scenarios/stranger-in-window.yaml`: the existing 19:04 `result` check on `$unlock`
+  gains `wording_excludes: ["Mom is at", "It's Mom", "is Mom", "Unlock for Mom",
+  "Mom is here", "visitor is"]`. The `approval` check's exact `door.context` equality
+  (the schedule line) is unchanged. The new key sits inside an existing check, so the
+  count stays 18.
+- `tests/unit/test_household_tools.py::test_no_verification_outcome_is_spoken_as_advice_to_pay`:
+  every terminal status (`genuine`, `not_genuine`, `will_call`, `no_answer`) × every
+  `reason` (read from the `VerificationState` Literals, plus `None`) × `source`
+  `real`/`twin` is rendered through `case_response`. No headline, detail or option may
+  match the case-insensitive, word-bounded pattern `pay`, `send the money`, `send it`,
+  `go ahead`, `safe to`, `it is really`, `it's really`, `really him/her`. Each
+  unreasoned `genuine` headline must contain the code's advice sentence: real
+  "Call the contact saved in your own phone before acting.", twin "Talk to the contact
+  using their saved number." That is 63 renders.
+
+Commands and summary lines:
+
+| Command | Result |
+|---|---|
+| `HIRZ_DOGWOOD=$PWD/.tools/dogwood uv run hirz scenario run scenarios/stranger-in-window.yaml --headless --assert --output <scratch>/before.json` (HEAD, before) | exit 0, `status: full_sequence_passed`, **18 checks**, 18 passed; audit `valid` |
+| Same, after the change (`<scratch>/after.json`) | exit 0, `status: full_sequence_passed`, **18 checks**, 18 passed; audit `valid` |
+| Bite proof: `"requires approval"` (present in the `$unlock` headline "Unlocking requires approval in your Hirz phone app.") added to `wording_excludes` | exit 1, `status: failed`; failing `{"index": 7, "kind": "result", "at": "2026-10-14T00:04:00+00:00", "status": "failed"}` and `{"kind": "full_sequence", "status": "failed"}`; disposable database `hirz_ha_smoke_8ba84fc0cf1e4ddca27f6362260b418c` retained per contract. Reverted |
+| Second probe: `"Mom is expected"` (present only in the inbox `door.context`) added to the same `wording_excludes` | exit 0, `status: full_sequence_passed`, 18 passed: as expected, `wording_excludes` reads only the result's top-level `speakable`. Reverted |
+| Bite proof B: `call the contact` added to the test's forbidden pattern | `AssertionError: ('real', 'genuine', None, 'The contact confirmed this specific request. Call the contact saved in your own phone before acting.')`, `1 failed`. Reverted |
+| `uv run pytest tests/unit/test_household_tools.py -q --no-cov` | `41 passed` |
+| `uv run ruff check .` / `uv run mypy hirz/ scripts/ alembic/` | `All checks passed!` / `Success: no issues found in 203 source files` |
+| `uv run pytest -q` (service-free) | `1612 passed, 245 deselected, 2 warnings in 226.00s` |
+| `uv run ruff format --check .` (run last, after this entry) | `324 files already formatted` |
+
+Surfaces not covered by a negative wording check (the DSL was not widened):
+`wording_excludes` reads only the `speakable` at the top level of the checked object.
+The `approval` check's object (`{approval, door}` from the companion inbox) has no
+`speakable`, so a negative check there would pass without checking anything. That
+surface stays guarded by the exact `door.context` equality. The decision's own
+`data.decision.speakable` ("This request needs approval on your phone." in this run)
+and `presentation.label` are not reached by `wording_excludes` either.
+
+Found, not fixed: `case_response` cannot render `source: real`, `status: no_answer`,
+`reason: None`. Its headline "The contact has not answered. Do not send anything. Call
+the contact saved in your own phone." has three sentences, and `Speakable` rejects it
+("Headline exceeds speech limit"). Every real `no_answer` producer in
+`hirz/contacts/checkins.py` sets a reason, so the combination looks unreachable today.
+The test skips it with a comment and does not claim it.
+
+Not claimed: no CI, latency, browser or live-contact run. The other full sequences were
+not rerun.
+
+Follow-up the same day: the real `no_answer` headline in `hirz/mcp/trust.py` now has the same two-sentence shape as the twin one ("The contact has not answered. Do not send anything; call the contact saved in your own phone."). The skip is removed, so the test renders all 64 combinations; after the change, `uv run pytest tests/unit/test_household_tools.py -q --no-cov` gave `41 passed`, ruff printed `All checks passed!`, mypy printed `Success: no issues found in 203 source files`, and `uv run pytest -q` gave `1612 passed, 245 deselected`. The old string was quoted nowhere else (no test, scenario, doc or `apps/` baseline).
+
+### Documentation drift corrected
+
+Documentation only; no code or tests changed. Files: `ARCHITECTURE.md` (§5.7 doorbell bullet now says the doorbell is a labeled twin event source after the failed [Ring gate](#item-34--ring-access-gate--2026-10-07); Ring webhook, HMAC, event classification and `device_offline` handling named as the deferred real-adapter design), `README.md` (diagram node `Doorbell: twin`; `hirz/` layout adds `contacts/`, `memory/`, `companion/`, `host/`, renames `explain/` to `explainer/`, marks `link/` not yet built; one quickstart note on `scripts/init_contacts.py`), `docs/demo-script.md` (twin doorbell card, tagline without Ring, courier line matching `MEMBER` in `hirz/protect/courier.py`), `ROADMAP.md` item 41 (Ring conditional removed), `THREAT_MODEL.md` (scam row Partial, items 31–33, local), `CHANGELOG.md` (six undated 2026-10-07 lines dated from their commits), `CLAUDE.md`/`AGENTS.md` (Current phase).
+
+Checks: `diff CLAUDE.md AGENTS.md` printed nothing. `grep -rn -i "ring sandbox\|ring track"` over README, demo script, submission, ROADMAP and ARCHITECTURE matched only ROADMAP item 34 (line 72) and the cut-order paragraph (line 101), both left as historical text. Every added anchor (`item-34--ring-access-gate--2026-10-07`, `item-32-closure--2026-10-11`, `item-33--2026-10-11`, `final-ci-gates-and-retained-partial-status--2026-10-07`, `phase-6-review-fixes--2026-10-15`, development.md `trusted-contact-acceptance-item-31`) matches exactly one heading. `uv run pytest tests/unit -q --no-cov -k "readme or docs or catalog or roadmap"` gave `20 passed, 1511 deselected`.
+
+Not changed: the demo script's spoken pending and "wasn't him" lines are composed narration, not single headlines from `hirz/mcp/trust.py`, and no `no_answer` line is quoted there.
+
+### Final local verification before promotion
+
+Combined local gate run on 2026-10-15 at `c11d903`, after the twelve review-fix commits `6a57938` through `c11d903` on `phase6/full-local-scenarios`, with `HIRZ_DOGWOOD="$PWD/.tools/dogwood"`. No code or tests changed; every command ran once and passed, with no environment retries.
+
+| Step | Command | Summary line |
+|---|---|---|
+| 1 | `uv run ruff check . && uv run mypy hirz/ scripts/ alembic/` | `All checks passed!`; `Success: no issues found in 203 source files` |
+| 2 | `pnpm -r lint && pnpm -r typecheck && pnpm -r test` | exit 0; lint and typecheck `Done` for `apps/mcp-app` and `apps/web`; mcp-app `Test Files 2 passed (2)`, `Tests 5 passed (5)`; web `Test Files 1 passed (1)`, `Tests 1 passed (1)` |
+| 3 | `pnpm --filter mcp-app build` | `../../hirz/mcp/ui/index.html 415.51 kB │ gzip: 118.17 kB`, `✓ built in 83ms` |
+| 4 | `uv run python scripts/check_dev.py` | exit 0: Postgres `authenticated SELECT 1`; `/health -> 200`; HA `123 entities`; unauthenticated HA read `-> 401` (stack already up; no restart) |
+| 5a | `uv run pytest` | `1612 passed, 245 deselected, 2 warnings in 225.84s` (service-free coverage 69%) |
+| 5b | `uv run pytest -m integration --cov=hirz --cov-append` | `243 passed, 1614 deselected, 2 warnings in 908.79s (0:15:08)` |
+| 5c | `uv run --locked coverage report --fail-under=80` | `TOTAL 16499 1639 90%`, exit 0 |
+| 6 | `uv run pytest tests/cedar_conformance` | `81 passed in 158.48s` |
+| 8 | `HIRZ_LLM=off uv run --locked python scripts/smoke_mcp.py` | `protocol=2025-11-25`; `tools=what_can_you_do`; `PASS initialize -> tools/list -> tools/call; structured output validated` |
+
+Step 7, the six CI headless scenarios, each `uv run hirz scenario run scenarios/<name>.yaml --headless --assert --output <new scratch file>`, all exit 0, every check `passed`, each printing `disposable_database=dropped; development_database=unchanged`:
+
+| Scenario | `status` | Checks |
+|---|---|---|
+| `demo-evening.yaml` | `full_sequence_passed` | 76 |
+| `demo-evening-hourly.yaml` | `item17_planning_and_observations_passed` | 16 |
+| `parents-scam-check.yaml` | `full_sequence_passed` | 17 |
+| `parents-scam-no-answer.yaml` | `full_sequence_passed` | 12 |
+| `parents-ordinary-request.yaml` | `full_sequence_passed` | 8 |
+| `stranger-in-window.yaml` | `full_sequence_passed` | 18 |
+
+Measured five-full-sequence total: 76 + 17 + 12 + 8 + 18 = **131 checks**, the first post-fix measurement. The scenario reports stayed in the session scratch directory and are not retained evidence.
+
+Environment: macOS Darwin 24.6.0 (arm64), Python 3.12.13, uv 0.12.15, pnpm 12.4.2, Node v23.11.0 (the project specifies Node 24; this run used the Homebrew Node 23 on PATH). Compose services: `postgres:16.15@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94` (healthy), `ghcr.io/home-assistant/home-assistant:2026.9.2@sha256:a1bc133af84ee6505fe2c266d9805b7c75b780dfdc188edfee3b11e8f3cd8efe` (healthy), `hirz-hirz` (healthy).
+
+Not claimed: the latency suite (CI `workflow_dispatch` is the gate of record), live Bedrock or any `--live` flag, browser smokes, the recording stack, real email or push delivery, and CI on this commit. No budget ledger was read or written.
+
+### Promotion CI — 2026-10-15
+
+[PR #10](https://github.com/BashaarJavaid/Hirz/pull/10) promotes `phase6/full-local-scenarios` at `cec193efddc9349f310d5ae24d18d5322403e51b` to `main`. No code or tests changed for the promotion.
+
+Ordinary CI on that commit: [push run 38819424593](https://github.com/BashaarJavaid/Hirz/actions/runs/38819424593) and [pull_request run 38819445822](https://github.com/BashaarJavaid/Hirz/actions/runs/38819445822) both succeeded, with `build`, `python-lint`, `python-types`, `python-test`, `ts-lint-types`, `ts-test`, `companion`, `cedar-conform`, `conformance`, `scenarios` and `release` all `success` and `latency` skipped (not a dispatch).
+
+The normal latency gate (no `latency_diagnostic`) was dispatched once with `gh workflow run ci.yml --ref phase6/full-local-scenarios`: [dispatch 38823198277](https://github.com/BashaarJavaid/Hirz/actions/runs/38823198277) on the same commit. Every job succeeded, including `latency (demo-evening)` (`1 passed in 3120.44s`) and `latency (demo-evening-hourly)` (`1 passed in 3310.77s`); no re-dispatch was needed. Figures copied from the jobs' payload-free timing summary:
+
+| Scenario | Highest case p95 | Case | Case maxima above 300 ms |
+|---|---|---|---|
+| `demo-evening` | **171.877 ms** | `objective-greenest` | 0 |
+| `demo-evening-hourly` | **194.842 ms** | `objective-greenest` | 0 |
+
+Every case row reads `PASS` against the unchanged **250 ms** warm p95 gate; five warmups and 100 measured calls per case, nearest-rank p95, no discarded samples. This is local Twin evidence on GitHub runners, not an AWS cold-start measurement or proof that issue #7 is fixed. The records-only commit that adds this entry gets ordinary CI only; the latency gate was not re-dispatched for it.
