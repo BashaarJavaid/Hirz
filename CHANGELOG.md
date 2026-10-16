@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-10-15: Promote Phase 6 and its review fixes to `main` through PR #10 after ordinary CI and one passing normal latency dispatch ([evidence](./docs/verification-log.md#promotion-ci--2026-10-15)).
+
 - 2026-10-15: Correct documentation drift from the Phase 6 review: Ring remnants after the failed item 34 gate, the demo courier line, the README `hirz/` layout and contact-key note, dated 2026-10-07 changelog lines, and the scam threat-model row now Partial ([evidence](./docs/verification-log.md#documentation-drift-corrected)).
 
 - 2026-10-15: The stranger scenario now checks that the unlock result's spoken text never says who the visitor is. A unit test checks that no verification reply, real or twin, is spoken as advice to pay, and pins the genuine-reply advice sentence. The real no-answer headline drops to two sentences (`Do not send anything; call…`), so it now renders under the Speakable limit instead of failing validation ([evidence](./docs/verification-log.md#stranger-wording-guard-and-genuine-reply-negative-test)).

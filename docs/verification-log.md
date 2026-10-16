@@ -13556,3 +13556,18 @@ Measured five-full-sequence total: 76 + 17 + 12 + 8 + 18 = **131 checks**, the f
 Environment: macOS Darwin 24.6.0 (arm64), Python 3.12.13, uv 0.12.15, pnpm 12.4.2, Node v23.11.0 (the project specifies Node 24; this run used the Homebrew Node 23 on PATH). Compose services: `postgres:16.15@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94` (healthy), `ghcr.io/home-assistant/home-assistant:2026.9.2@sha256:a1bc133af84ee6505fe2c266d9805b7c75b780dfdc188edfee3b11e8f3cd8efe` (healthy), `hirz-hirz` (healthy).
 
 Not claimed: the latency suite (CI `workflow_dispatch` is the gate of record), live Bedrock or any `--live` flag, browser smokes, the recording stack, real email or push delivery, and CI on this commit. No budget ledger was read or written.
+
+### Promotion CI — 2026-10-15
+
+[PR #10](https://github.com/BashaarJavaid/Hirz/pull/10) promotes `phase6/full-local-scenarios` at `cec193efddc9349f310d5ae24d18d5322403e51b` to `main`. No code or tests changed for the promotion.
+
+Ordinary CI on that commit: [push run 38819424593](https://github.com/BashaarJavaid/Hirz/actions/runs/38819424593) and [pull_request run 38819445822](https://github.com/BashaarJavaid/Hirz/actions/runs/38819445822) both succeeded, with `build`, `python-lint`, `python-types`, `python-test`, `ts-lint-types`, `ts-test`, `companion`, `cedar-conform`, `conformance`, `scenarios` and `release` all `success` and `latency` skipped (not a dispatch).
+
+The normal latency gate (no `latency_diagnostic`) was dispatched once with `gh workflow run ci.yml --ref phase6/full-local-scenarios`: [dispatch 38823198277](https://github.com/BashaarJavaid/Hirz/actions/runs/38823198277) on the same commit. Every job succeeded, including `latency (demo-evening)` (`1 passed in 3120.44s`) and `latency (demo-evening-hourly)` (`1 passed in 3310.77s`); no re-dispatch was needed. Figures copied from the jobs' payload-free timing summary:
+
+| Scenario | Highest case p95 | Case | Case maxima above 300 ms |
+|---|---|---|---|
+| `demo-evening` | **171.877 ms** | `objective-greenest` | 0 |
+| `demo-evening-hourly` | **194.842 ms** | `objective-greenest` | 0 |
+
+Every case row reads `PASS` against the unchanged **250 ms** warm p95 gate; five warmups and 100 measured calls per case, nearest-rank p95, no discarded samples. This is local Twin evidence on GitHub runners, not an AWS cold-start measurement or proof that issue #7 is fixed. The records-only commit that adds this entry gets ordinary CI only; the latency gate was not re-dispatched for it.
