@@ -6,7 +6,7 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
-- 2026-10-16: The companion keyboard sweep resolves the expected and focused control together on each Tab instead of indexing a list taken before the sweep, which Household's late `/contacts` load could shift; Playwright keeps a trace on failure, and the `companion` CI job uploads only the error context ([evidence](./docs/verification-log.md#companion-focus-sweep--2026-10-16)).
+- 2026-10-16: The companion keyboard sweep resolves the expected and focused control together on each Tab instead of indexing a list taken before the sweep, which Household's late `/contacts` load could shift; Playwright keeps a trace on failure, and the `companion` CI job uploads only the error context ([evidence](./docs/verification-log.md#companion-focus-sweep--2026-10-16), [PR #11](https://github.com/BashaarJavaid/Hirz/pull/11)).
 
 - 2026-10-15: Promote Phase 6 and its review fixes to `main` through PR #10 after ordinary CI and one passing normal latency dispatch ([evidence](./docs/verification-log.md#promotion-ci--2026-10-15)).
 
