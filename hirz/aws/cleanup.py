@@ -7,7 +7,8 @@ from typing import Any
 from botocore.exceptions import ClientError  # type: ignore[import-untyped]
 
 
-def empty_bucket(s3: Any, bucket: str) -> None:
+def empty_bucket(s3: Any, bucket: str, *, governance_bypass: bool = False) -> None:
+    bypass = {"BypassGovernanceRetention": True} if governance_bypass else {}
     for page in s3.get_paginator("list_object_versions").paginate(Bucket=bucket):
         versions = [
             {"Key": obj["Key"], "VersionId": obj["VersionId"]}
@@ -17,7 +18,7 @@ def empty_bucket(s3: Any, bucket: str) -> None:
             result = s3.delete_objects(
                 Bucket=bucket,
                 Delete={"Objects": versions[offset : offset + 1000], "Quiet": True},
-                BypassGovernanceRetention=True,
+                **bypass,
             )
             if result.get("Errors"):
                 raise ValueError("Owned S3 versions could not be removed")
@@ -29,7 +30,7 @@ def empty_bucket(s3: Any, bucket: str) -> None:
                     "Objects": [{"Key": obj["Key"]} for obj in page["Contents"]],
                     "Quiet": True,
                 },
-                BypassGovernanceRetention=True,
+                **bypass,
             )
             if result.get("Errors"):
                 raise ValueError("Owned S3 objects could not be removed")
@@ -169,7 +170,7 @@ def destroy(acceptance: Any) -> dict[str, Any]:
     s3 = acceptance.client("s3")
     try:
         if output.get("AnchorBucket"):
-            empty_bucket(s3, output["AnchorBucket"])
+            empty_bucket(s3, output["AnchorBucket"], governance_bypass=True)
     except ClientError as exc:
         if not absent(exc):
             raise

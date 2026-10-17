@@ -52,15 +52,21 @@ def test_sdk_cancellation_waits_for_thread_exit():
     asyncio.run(run())
 
 
-def test_cleanup_checks_per_object_errors():
+@pytest.mark.parametrize("governance_bypass", [False, True])
+def test_cleanup_checks_per_object_errors(governance_bypass):
     sdk = Mock()
     sdk.get_paginator.return_value.paginate.return_value = [
         {"Versions": [{"Key": "head", "VersionId": "v"}]}
     ]
     sdk.delete_objects.return_value = {"Errors": [{"Code": "AccessDenied"}]}
     with pytest.raises(ValueError):
-        empty_bucket(sdk, "owned")
-    assert sdk.delete_objects.call_args.kwargs["BypassGovernanceRetention"] is True
+        empty_bucket(sdk, "owned", governance_bypass=governance_bypass)
+    assert (
+        sdk.delete_objects.call_args.kwargs.get("BypassGovernanceRetention", False)
+        is governance_bypass
+    )
+    if not governance_bypass:
+        assert "BypassGovernanceRetention" not in sdk.delete_objects.call_args.kwargs
 
 
 def test_cleanup_retry_stops_tasks_when_service_and_repository_are_gone(tmp_path):

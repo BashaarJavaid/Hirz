@@ -13988,3 +13988,63 @@ fix. Adding the dispatch preserves the existing Pipeline cancellation path; all
 **3** AWS integration cases then passed in **11.17 seconds**, alongside Ruff,
 format checking and strict mypy for the changed module. Live cancellation remains
 to be rerun against the corrected image.
+
+### HTTPS companion browser gate — 2026-10-17
+
+After the private-origin correction completed, the opt-in Playwright AWS test
+passed against the generated HTTPS CloudFront hostname. It used a virtual CTAP2
+authenticator for actual server-verified enrollment, activated version 7 through
+the companion's preview/passkey ceremony, signed out and back in, and received
+HTTP **200** from the authenticated household read. Private `browser.json`,
+`browser.log` and the one-time `recovery.txt` remain in the acceptance directory;
+traces, screenshots and videos were disabled. The real-passkey check was requested
+from the user and remains pending. This browser result does not substitute for it.
+
+### Interim signed export — 2026-10-17
+
+The pre-quiet export `audit-20261017T041949.json` passed independent offline
+signature/hash-chain verification for **4 events**, sequence **1–4**, with the
+verification document retained alongside it. This is an interim companion gate
+export. It does not include the still-pending real-passkey, cancellation or quiet
+execution gates, and it retains the explicit unanchored/local-mode limitation.
+
+### Overnight cleanup attempt and expired endpoint — 2026-10-17
+
+At the user's next check (17:01 UTC), both the old CloudFront root and health URLs
+failed to connect. The timed cleanup log shows `HirzItem36: DELETE_IN_PROGRESS`
+followed by a redacted `ClientError`; it does not establish complete teardown.
+Before deletion, the guard retained a diagnostic export, a pre-deletion resource
+inventory and `audit-20261017T075316.json` with its independent verification.
+Current AWS access returns `CredentialRetrievalError`, so the actual remaining
+resources and cause of the cleanup error cannot yet be verified. The user was
+asked to refresh the non-root temporary login before cleanup is resumed; no new
+deployment was started. The old app link must no longer be presented as available.
+
+The initial required [workflow_dispatch latency run](https://github.com/BashaarJavaid/Hirz/actions/runs/38999196139)
+completed successfully on `59d49e3e30caa708d5ae774b2759a9e32c6af9a8`, and
+[regression CI](https://github.com/BashaarJavaid/Hirz/actions/runs/39001764937)
+completed successfully on the later ingress/cancellation correction
+`0e95e9599151ddb3cf8db544fcfe184c74903fa3`. This distinguishes the tested refs;
+the required latency gate on the final implementation ref remains owed. Real
+passkey, live cancellation/quiet execution and verified teardown remain incomplete.
+
+### Cleanup resumed under refreshed non-root access — 2026-10-17
+
+The refreshed login returned the expected `HirzDeploy/hirz-item36` session. The
+application stack was absent and the dedicated toolkit remained. Retrying cleanup
+identified the failure precisely: S3 DeleteObjects returned InvalidArgument,
+`x-amz-bypass-governance-retention is only applicable to Object Lock enabled buckets.`
+The cleanup helper now sends that header only for the Object Lock anchor bucket;
+toolkit bucket deletion omits it. Both modes are covered by the per-object failure
+test; **21 AWS unit tests** passed in **3.11 seconds**, plus Ruff and strict mypy.
+The resumed run cannot export from the already-deleted database; the guard's
+successfully verified four-event pre-deletion export remains retained.
+
+Read-only account inventory found zero NAT gateways, EIPs, RDS instances, ECS
+clusters, ALBs, CloudFront distributions, Lambda functions and Secrets Manager
+secrets in the acceptance region, with the old KMS signing key PendingDeletion.
+Only the dedicated toolkit bucket remained during its active cleanup. Final
+inventory will follow deletion. Any retry continues the original $10 aggregate
+allowance, usage limits and **2026-10-18T03:34:11Z** hard deadline; it receives no
+new day or spending budget. The original credit/eligibility evidence is retained;
+the expired administrative billing session was not used as a deployment fallback.
