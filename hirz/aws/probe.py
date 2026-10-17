@@ -103,8 +103,6 @@ async def run(
                 require_active=True,
             )
             p.bundle = await policy(p)
-            if operation == "cancel":
-                return await cancellation(p, loaded)
             if operation == "invite":
                 return {
                     "origin": os.environ["HIRZ_COMPANION_ORIGIN"],
@@ -158,7 +156,7 @@ async def run(
                     "engine": "dogwood-local",
                     "source": "twin",
                 }
-            if (
+            if operation != "cancel" and (
                 operation != "schedule"
                 or due is None
                 or due.tzinfo is None
@@ -177,6 +175,9 @@ async def run(
             await registry.start()
             try:
                 await ingest(p, registry, PRINCIPAL)
+                if operation == "cancel":
+                    return await cancellation(p)
+                assert due is not None
                 a = Action.model_validate(
                     {
                         "action_id": uuid4().hex,
@@ -217,7 +218,7 @@ async def run(
         await engine.dispose()
 
 
-async def cancellation(p: Pipeline, loaded: Any) -> dict[str, Any]:
+async def cancellation(p: Pipeline) -> dict[str, Any]:
     from hirz.executor.plans import PlanService, schedule_approved
     from hirz.executor.runtime import RuntimeInputs
     from hirz.pipeline.models import Plan, Requester

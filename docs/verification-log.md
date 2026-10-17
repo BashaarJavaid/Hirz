@@ -14048,3 +14048,51 @@ inventory will follow deletion. Any retry continues the original $10 aggregate
 allowance, usage limits and **2026-10-18T03:34:11Z** hard deadline; it receives no
 new day or spending budget. The original credit/eligibility evidence is retained;
 the expired administrative billing session was not used as a deployment fallback.
+
+### Prior deployment teardown verified; bounded retry — 2026-10-17
+
+The standard cleanup runner completed after the header fix. Subsequent inventory
+confirmed no toolkit buckets/ECR repositories, Hirz VPCs, CloudFront VPC origins,
+AgentCore Runtimes, Gateways, Memories, API-key providers or workload identities.
+Together with the preceding compute/network/database/secret inventory, the only
+remaining dedicated application resource is the old command key PendingDeletion.
+The nonbillable operator/deployment-access setup remains intentionally available.
+A private `teardown-verified` marker records this check. The resumed cleanup's fresh
+exports necessarily failed because the database/logs were already deleted; the
+original guard exported diagnostics and independently valid signed evidence first.
+
+The retry uses `secrets/item36-aws-2026-10-17-retry/`, separate fresh disposable
+fixtures and audit credentials, the same FixtureStart and original hard deadline,
+and the same aggregate allowance. No budget, usage allowance or lifetime was reset.
+The corrected implementation is `f2eaae9`; its required normal
+[workflow_dispatch](https://github.com/BashaarJavaid/Hirz/actions/runs/39052248289)
+is running. The previous dispatch targeting the superseded ref was replaced.
+
+The previous NAT gateway's CloudWatch `BytesInFromSource` plus
+`BytesInFromDestination` totals **1,776,496,469 bytes** (1.776496469 GB), retained in
+`nat-usage.json`, against the original aggregate 20 GB allowance. The retry's
+local cleanup guard targets **2026-10-17T21:06:14Z** and retains the original hard
+deadline. Its toolkit bootstrap passed; no additional customer KMS key was requested.
+Final-ref [push CI](https://github.com/BashaarJavaid/Hirz/actions/runs/39052236134)
+and the preceding dispatch run are underway, not yet claimed passed.
+
+### Retry bootstrap and cancellation timing correction — 2026-10-17
+
+The fresh retry completed desired-count-zero deployment, explicit initialize/
+migrate/seed tasks, desired-count-one deployment and an identical no-change
+redeploy. Actual worker IAM denials and signer-role positive controls passed.
+HTTPS virtual-authenticator enrollment, policy activation, sign-out/login and an
+authenticated household read passed at the new generated CloudFront origin.
+The real-passkey check remains pending.
+
+The first cancellation probe ran before initial polling and correctly received a
+signed POLICY_ERROR for missing `action.params.ev_soc_floor`, followed by
+DENY_CONSTITUTION for its budget grant. No consent or device execution was granted.
+An encrypted diagnostic retry after polling passed. The probe now uses the same
+explicit, audited adapter-read ingestion as the scheduled-action probe before
+requesting plan consent; no policy rule is weakened or bypassed. Moving the
+integration cancellation check before any tick/ingestion reproduced the failure
+(**1 failed**, 6.78 seconds), then passed after the fix (**3 passed**, 11.85 seconds).
+Ruff and strict mypy passed. The intermediate live signed export independently
+verified **30 events**. Failed proposed plans remain auditable; no synthetic
+activation or audit records were inserted to work around the failure.
