@@ -9,6 +9,9 @@
 !pnpm-lock.yaml
 !pnpm-workspace.yaml
 !tsconfig.json
+!infra/
+!infra/cdk/
+!infra/cdk/package.json
 !apps/
 !apps/web/
 !apps/web/**

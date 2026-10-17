@@ -23,3 +23,48 @@
 - *Boundary-sign observations too.* Would not help: facts originate in the home, and the limit recorded in ADR-003 (independent about policy, not about facts) is inherent.
 
 **Consequences:** A new component with its own tests: unsigned, tampered, expired, and replayed commands are each refused and audited; `hirz doctor --aws` sends one signed and one unsigned command. New AWS resource: one KMS key, pay-per-use, about a dollar a month, approved by the author on 2026-09-17. New failure modes, all fail-closed for actuation: Link offline (domain `unavailable`, twin fallback labeled simulated), KMS unavailable (no signature, no action). Local mode has no Link and no outside boundary and says so. Link's verification code is pure and runs in CI against a local development key behind the same signer interface. The same-trust-domain caveat stands: one AWS account and one developer deploy the Gateway, the Lambda, and the key, and `THREAT_MODEL.md` keeps "Compromised AWS account: No". Friction-log candidate: Home Assistant tokens cannot be scoped.
+
+## Item 36 infrastructure secret exception — 2026-10-16
+
+For the explicitly disposable AWS acceptance deployment, Secrets Manager holds
+database credentials, the audit signing key, the tick bearer secret and Cognito's
+machine-client secret. This is an approved **infrastructure-secret exception**;
+operational adapter credentials still belong to AgentCore Identity and no Home
+Assistant credential enters AWS. The synthetic Identity provider is backed by an
+explicit Secrets Manager secret containing a nonfunctional marker, registered
+through the native EXTERNAL secret-reference contract. It has no working device
+credential. A separate workload identity lets the signer-role positive-control
+probe exercise the Identity API. All of these resources are owned by the
+acceptance stack and removed at teardown.
+
+The worker, setup and MCP roles explicitly deny `kms:Sign`, Identity credential
+retrieval, and direct/BatchGetSecretValue access to the synthetic provider's backing
+secret. Among runtime roles, only `hirz-actions` may sign or read that credential.
+The MCP role also has no Gateway execution, Lambda execution or scheduling
+authority. [Identity's resource-scoping contract](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/scope-credential-provider-access.html)
+requires the provider, token vault, workload identity and directory resources.
+The [Gateway policy role](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/policy-permissions.html)
+needs authorization, partial authorization and policy-engine read permissions.
+Policies are synthesized and checked offline; actual IAM denials and signer-role
+positive controls are still live acceptance gates, not earned claims.
+
+RDS master credentials are granted only to the setup task. It creates a separate
+`hirz` login without superuser, database-creation, role-creation or replication
+privileges, owning the disposable database's application schema so migrations and
+materialized-view refresh work. Every connection uses `sslmode=verify-full` and
+the vendored AWS us-east-1 RDS CA bundle. [RDS certificate verification](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/PostgreSQL.Concepts.General.SSL.html)
+is required; disabling TLS or accepting any server certificate was rejected.
+The audit key is generated only by explicit initialization against an empty,
+consistent schema, then fetched and validated in memory at startup. Missing or
+malformed existing keys fail; startup never generates or replaces one. Environment
+variables carry secret ARNs, not values. One-off invitations and audit exports
+are sealed to the local runner's ephemeral recipient key before entering logs.
+
+The S3 anchor bucket has 30-day governance retention and runtime put-only access.
+The approved deployment-cleanup role may bypass governance solely to remove this
+owned deployment, including retained versions, after evidence export. The command
+key has a seven-day pending-deletion window. Neither resource claims audit anchoring
+or signed device execution yet; those remain items 38b and 38a/38d respectively.
+Storing adapter credentials in worker environment variables, sharing the RDS master
+login, silently repairing signing keys, and treating the LOG_ONLY placeholder as
+policy enforcement were rejected. See the [acceptance procedure](../development.md#item-36-aws-acceptance).

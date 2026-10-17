@@ -507,7 +507,9 @@ class Host:
         return count
 
 
-async def bootstrap(loaded: LoadedScenario, connection: Any) -> Pipeline:
+async def bootstrap(
+    loaded: LoadedScenario, connection: Any, *, audit: AuditWriter | None = None
+) -> Pipeline:
     spec = loaded.spec.execution
     assert spec
     world = loaded.world
@@ -523,7 +525,7 @@ async def bootstrap(loaded: LoadedScenario, connection: Any) -> Pipeline:
             world.household.id, loaded.execution_policy, dogwood
         ),
         dogwood,
-        AuditWriter(signing_key(read_env(Path(".env")))),
+        audit or AuditWriter(signing_key(read_env(Path(".env")))),
         world.clock,
     )
     async with p.repo.write(lambda: world.clock() - timedelta(seconds=1)):

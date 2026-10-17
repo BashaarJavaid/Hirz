@@ -1,0 +1,10 @@
+{
+  "app": "node --experimental-strip-types src/app.ts",
+  "context": {
+    "@aws-cdk/core:bootstrapQualifier": "hirzitem36",
+    "availability-zones:account=661550216013:region=us-east-1": [
+      "us-east-1a",
+      "us-east-1b"
+    ]
+  }
+}

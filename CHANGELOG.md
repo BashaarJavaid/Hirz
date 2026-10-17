@@ -6,6 +6,14 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-10-16: Verify the operator's MFA browser login and temporary `HirzDeploy` credentials through both CLI and Python SDK; direct operator EC2 access is denied ([evidence](./docs/verification-log.md#operator-login-verified--2026-10-16)).
+
+- 2026-10-16: Add IAM-only operator setup, require MFA for the deployment role, and document temporary browser-login profiles; actual human login verification remains pending ([procedure](./docs/development.md#item-36-aws-acceptance), [evidence](./docs/verification-log.md#non-root-deployment-access-setup--2026-10-16)).
+
+- 2026-10-16: Record the accepted item 36 tax exception and account billing/access preflight; service-charge clearance and non-root deployment setup remain required ([ADR-008](./docs/adr/ADR-008-agentcore-topology.md#tax-exception--2026-10-16), [evidence](./docs/verification-log.md#billing-and-deployment-access-preflight--2026-10-16)).
+
+- 2026-10-16: Add item 36 CDK, twin-only AWS companion/tick composition, explicit setup, schedule reconciliation and manual acceptance/cleanup tooling. Native solver work settles on cancellation. Deployment remains blocked by the zero-out-of-pocket prerequisite; no AWS enforcement or completion claim ([ADR-008](./docs/adr/ADR-008-agentcore-topology.md#item-36-acceptance-amendment--2026-10-16), [evidence](./docs/verification-log.md#item-36)).
+
 - 2026-10-16: The companion keyboard sweep resolves the expected and focused control together on each Tab instead of indexing a list taken before the sweep, which Household's late `/contacts` load could shift; Playwright keeps a trace on failure, and the `companion` CI job uploads only the error context ([evidence](./docs/verification-log.md#companion-focus-sweep--2026-10-16), [PR #11](https://github.com/BashaarJavaid/Hirz/pull/11)).
 
 - 2026-10-15: Promote Phase 6 and its review fixes to `main` through PR #10 after ordinary CI and one passing normal latency dispatch ([evidence](./docs/verification-log.md#promotion-ci--2026-10-15)).

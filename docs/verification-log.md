@@ -13587,3 +13587,290 @@ Fixed-code runs, same command: with the 300, 150 and 600 ms probe delay, `2 pass
 Environment: macOS arm64, **Node v23.11.0** (not the project's Node 24; no Node 24 installed on this machine), pnpm 12.4.2, uv 0.12.15, Playwright 1.57.0 Chromium. Private logs, error contexts and traces: `~/Projects/hirz-private-evidence/companion-focus-sweep-2026-10-16/`. Not claimed: that CI on GitHub runners now passes (not pushed), or which page failed in attempt 1. Polling pages (Twin, Constitution, Check-ins, Approvals) were not separately shown to race.
 
 **Promotion CI (2026-10-16).** [PR #11](https://github.com/BashaarJavaid/Hirz/pull/11) at `c2d098e`: push run [38842276501](https://github.com/BashaarJavaid/Hirz/actions/runs/38842276501) `success` and pull_request run [38842290372](https://github.com/BashaarJavaid/Hirz/actions/runs/38842290372) `success`; the `companion` job concluded `success` in both ([push job](https://github.com/BashaarJavaid/Hirz/actions/runs/38842276501/job/116784850032), [pull_request job](https://github.com/BashaarJavaid/Hirz/actions/runs/38842290372/job/116784892675)), every other job `success` and `latency` skipped as usual. No latency dispatch: the change touches no pipeline, tool, executor, refresh or storage code.
+
+
+## Item 36
+
+### Local implementation and verification — 2026-10-16
+
+**Partial, not acceptance or closure.** Implemented the approved CDK/Fargate topology,
+AWS companion and generic Runtime entrypoints, explicit setup/migration/seed tasks,
+authenticated request-scoped tick, persisted-action schedule projection, IAM probes,
+private evidence export, opt-in CloudFront browser check and dedicated cleanup.
+[ADR-008](./adr/ADR-008-agentcore-topology.md#item-36-acceptance-amendment--2026-10-16)
+and [ADR-009](./adr/ADR-009-signed-commands-home-agent.md) own the decisions;
+[development procedure](./development.md#item-36-aws-acceptance) owns operations.
+
+Environment: macOS Darwin arm64; Python 3.12.13, uv 0.12.15, Node **24.21.0**
+(`/opt/homebrew/opt/node@24/bin`), pnpm 12.4.2, pinned native Dogwood/helper,
+local Docker and disposable PostgreSQL databases. `HIRZ_LLM=off` for integration
+and browser checks. No AWS account API, deploy, asset upload, billing lookup or
+live Bedrock call was made. Existing development data and services were preserved.
+
+Completed local checks:
+
+- `pnpm -r lint`, `pnpm -r typecheck`, `pnpm -r test`: all passed; **11 TypeScript
+  tests** (infra 5, MCP App 5, web 1). Infra tests assert sizing, desired-count bounds,
+  private networking, HTTPS/caching, auth/scopes, retention, IAM boundaries and no
+  dependency cycles. `pnpm --filter infra synth` passes without account lookups;
+  the final template has **94 resources**, SHA-256
+  `b834ac8ef0fa8983f924847d430f4f54599f2f1aef3114917781dd2cdb64c23a`.
+- `.venv/bin/ruff check .`, `.venv/bin/ruff format --check .`: passed, **345 Python
+  files** formatted; `.venv/bin/mypy hirz/ scripts/ alembic/`: passed, **219 source
+  files**. `git diff --check` and `cmp AGENTS.md CLAUDE.md` pass.
+- `.venv/bin/pytest tests/unit/aws --no-cov --tb=short`: **19 passed in 2.71 s**.
+  Checks cover authentication before body handling, duplicate headers, body refusal,
+  duplicate ticks, timeout/cancellation settlement, subsequent recovery, schedule
+  creation/update/removal/repair, conflict versus permission errors, verified TLS
+  configuration, fixed twin fixtures, private request logs, tick Lambda inputs,
+  valid-token IAM denial probes, encrypted evidence, paginated diagnostic export,
+  cleanup retries/export failure and solver-thread cancellation.
+- `HIRZ_DOGWOOD="$PWD/.tools/dogwood" HIRZ_LLM=off .venv/bin/pytest
+  tests/integration/test_aws_worker.py -m integration --no-cov --tb=short`:
+  **3 passed in 12.17 s**. Real server-side passkey enrollment and activation,
+  Pipeline-authorized twin execution, duplicate delivery, restart composition,
+  canceled dispatch, plan cancellation with schedule creation/removal and signed
+  audit verification run in disposable databases. A separate non-superuser role
+  owns the database/schema, applies all migrations and refreshes the owned
+  `household_context` materialized view; all four privilege flags are false.
+  Interrupting after a committed twin dispatch deliberately preserves existing
+  fail-closed behavior: one execution attempt, no invented VERIFIED event, and a
+  signed failure/hold on the next tick. It does not silently redispatch.
+- `HIRZ_LLM=off HIRZ_DOGWOOD="$PWD/.tools/dogwood" uv run --locked python -m
+  scripts.smoke_companion --artifacts-dir /private/tmp/hirz-item36-companion`:
+  **2 browser tests passed (2.2 min), 2 skipped** (the opt-in AWS and simulator
+  cases). Smoke reported authenticated MCP proposal, browser passkeys, running
+  worker and independently verified exports. This is local HTTPS browser evidence,
+  not CloudFront or the user's physical passkey.
+- `docker build --platform linux/arm64 -t hirz:item36-local .` and `uv build`:
+  passed. The wheel contains AWS entrypoints/probes/Lambda code and the public RDS
+  CA bundle. A final temporary ARM64 container limited to **0.25 vCPU / 512 MiB**
+  passed `/ping`, real MCP SDK initialization, exact one-tool discovery
+  (`what_can_you_do`) and onboarding. Sampled memory was **149.1 MiB / 512 MiB**;
+  this is generic Runtime startup, not worker/planner capacity or AWS JWT proof.
+  The temporary container was stopped and removed.
+- `python scripts/smoke_aws.py invite --artifacts-dir
+  /private/tmp/hirz-item36-unapproved` without clearance exits 1 with the explicit
+  unresolved zero-out-of-pocket error before constructing an AWS session.
+  Offline acceptance runner passed CDK and Python contracts during development;
+  the final unit suite above includes later diagnostic and IAM probe checks.
+
+Service-free regression command: `HIRZ_DOGWOOD="$PWD/.tools/dogwood"
+.venv/bin/pytest --tb=short` initially produced **1622 passed, 3 failed,
+246 deselected, 2 warnings in 262.35 s**. All three failures were sandbox-denied
+loopback sockets (`test_demo::test_ports_and_private_directories` and both
+`test_dev::test_websocket_token_contract` variants). Re-running those three with
+local-network permission and `--cov=hirz --cov-append --tb=short` passed **3/3 in
+5.93 s**. Later AWS test additions are covered by the targeted runs above and the
+combined-coverage run recorded below; the initial count is not a claim that the
+final tree was collected in that first run.
+
+Other corrected local failures: the first CDK synthesis recursively staged its
+own output (recorded in the [friction log](./friction-log.md)); a request-log test
+initially supplied a mock instead of a P-256 audit key and was corrected to use a
+real generated test key; an interrupted-dispatch assertion initially expected
+verification, then was corrected to assert the existing fail-closed contract.
+An early sandbox-denied PostgreSQL test printed the **local development database
+password** in a dependency traceback. It is not reproduced here; subsequent runs
+used short tracebacks. The shared credential was not rotated in this task and
+should be rotated through the existing development procedure.
+
+Private artifacts are retained under ignored `secrets/item36-local-2026-10-16/`
+(logs, synthesized template, browser artifacts and coverage evidence). They are
+local evidence, not a GitHub artifact or a cloud acceptance result. Do not publish
+invitations, recovery material, raw traces or private evidence keys.
+
+Not claimed: zero billing exposure, account-specific AZ mapping/RDS availability,
+bootstrap/deployment/idempotency, cloud Cognito or Runtime/Gateway contracts,
+worker memory sufficiency under live AWS work, actual IAM negative/positive probes,
+CloudFront enrollment or physical passkey, thirty quiet wall-clock minutes and
+90-second execution, real-device verification, AgentCore policy enforcement,
+cloud diagnostics export/teardown or pending KMS deletion. The required normal
+`workflow_dispatch` latency gate and ordinary CI on the implementation ref remain
+unrun; this work has not been committed or pushed. Item 36 stays open. Financial
+clearance must resolve account-specific exposure under the approved $10/24-hour
+limits before any live deployment; a clearance file or alert is not a spending cap.
+
+
+### Final local regression and bootstrap follow-up — 2026-10-16
+
+The complete `HIRZ_DOGWOOD="$PWD/.tools/dogwood" HIRZ_LLM=off .venv/bin/pytest
+-m integration --cov=hirz --cov-append --tb=short` run passed **244 tests**, with
+1627 deselected and 2 warnings in **1238.26 s**. The combined coverage gate then
+passed at **88%** (17210 statements, 2034 missed). This process had collected before
+the final AWS test additions.
+
+Final-tree follow-up command:
+
+```sh
+HIRZ_DOGWOOD="$PWD/.tools/dogwood" HIRZ_LLM=off .venv/bin/pytest \
+  tests/unit/aws tests/integration/test_aws_worker.py \
+  tests/integration/test_household_tools_database.py::test_tool_transactions_retries_privacy_and_missing_worker_inputs \
+  tests/integration/test_refresh_database.py::test_refresh_obsolescence_restart_cancel_and_audit_rollback \
+  tests/integration/test_refresh_database.py::test_concurrent_refresh_does_not_delay_authorized_ending \
+  -m 'not latency' --cov=hirz --cov-append --tb=short
+.venv/bin/coverage report --fail-under=80
+```
+
+Result: **26 passed in 26.17 s**, comprising 20 AWS unit tests, 3 AWS PostgreSQL
+integration cases and 3 first-plan/refresh regressions. Final combined coverage is
+**89%: 17230 statements, 1846 missed**. No test is claimed as a latency acceptance
+measurement. Ruff, formatting, strict mypy and infra lint/type checks pass again.
+
+The ownership probe now also creates a **non-superuser setup role with CREATEDB
+and CREATEROLE**, proves it initially lacks SET membership in its created
+application role, grants SET/INHERIT, then transfers ownership and runs migrations
+under the unprivileged application role. This verifies the PostgreSQL 16 membership
+requirement relevant to RDS setup; it does not claim an RDS connection was tested.
+The separate initial run of this stronger ownership probe passed in **3.87 s**.
+
+The final bootstrap copies Cognito's generated machine-client secret into Secrets
+Manager through the already approved one-off setup task and refuses mismatched
+existing values. This removes CDK's implicit DescribeUserPoolClient helper Lambda
+and its roles/custom resource; the synthesized application now has **90 resources**
+and exactly **two Lambda functions** (`actions.handler`, `tick.handler`). Its
+SHA-256 is `75d5d42a622ff62b7538ce0b1fb59454b3721c1319116ed363fdacd8b7f5863d`,
+superseding the earlier 94-resource template hash. The five infra tests and offline
+synthesis pass after that change. Earlier and final templates are retained privately.
+The final development procedure puts AWS Playwright failure output inside the
+private artifacts directory, since error contexts can contain enrollment material.
+
+
+Final packaging also passed after the bootstrap changes: the normal Docker build
+completed after the credential-helper delay, followed by an isolated anonymous
+cached build (see the friction log). `uv build` produced a valid sdist and wheel.
+A temporary container and wheel inspection matched **all 16 AWS Python/certificate
+files byte-for-byte** to the final workspace; the wheel's ZIP integrity check passed.
+Final local image ID:
+`sha256:260b4e0392f36cd5e45063057dc7bcd231bea4de3ae10cbca2b92220985aca06`.
+The comparison container was removed. Only the three pre-existing development
+containers remained running. Final full/targeted coverage logs, image/package logs,
+source-match manifest, coverage database and both template versions are retained
+in the private evidence directory above. No live gate or closure claim changed.
+
+### Billing and deployment-access preflight — 2026-10-16
+
+The author explicitly accepted taxes as an exception to zero out-of-pocket;
+[ADR-008](adr/ADR-008-agentcore-topology.md#tax-exception--2026-10-16) records the
+decision. The $10 incremental service budget and 24-hour deployment maximum remain.
+These reads ran late on 2026-10-16 America/New_York (2026-10-17 UTC). Private raw
+responses are retained in `secrets/item36-billing-2026-10-16/`, directory mode 0700,
+files 0600; this directory is ignored and must not be published.
+
+- `sts get-caller-identity --profile hirz` confirmed account `661550216013` and a
+  root principal. No AWS resource mutations were made. Deployment must use assumed
+  `HirzDeploy` credentials, not this root session.
+- Billing `GetCredits` from 2026-09-01 returned one enabled credit with remaining
+  and estimated balances both **$149.96**, expiring **2028-08-31**. The separate
+  Free Tier API returned an active PAID plan and zero Free Tier plan credits;
+  that does not negate the promotional credit returned by Billing.
+- The credit's actual applicable-products list covers all 20 checked service
+  billing names: ECS/Fargate, RDS, EC2, VPC, ELB, CloudFront, Cognito, AgentCore,
+  Lambda, CloudWatch Events/Scheduler, KMS, S3, Secrets Manager, CloudWatch, ECR,
+  CloudFormation, Systems Manager, Data Transfer, Bedrock and Cost Explorer.
+  `eligibility.json` retains the exact names checked against `credits.json`.
+- Organizations returned `AWSOrganizationsNotInUseException`: this account is not
+  a member of an organization, so organization credit sharing is not competing
+  for this credit.
+- One Cost Explorer query grouped `UnblendedCost` by SERVICE and RECORD_TYPE for
+  `[2026-10-01, 2026-10-17)`. AWS marked the result estimated. It showed prior
+  Claude Haiku usage of **$0.0413776**, S3 usage **$0.00005** with matching credit,
+  Secrets Manager usage **$0.00001** with matching credit, and zero for remaining
+  rows. No matching credit row for Haiku appeared in this response; final billing
+  settlement is not claimed. This session made no model call.
+- The Cost Explorer query incurs **$0.01**, reserved against the $10 budget in
+  `preflight-budget.json`; **$9.99** remains before deployment. Cost Explorer is
+  explicitly eligible in the actual credit response. Its price is documented at
+  [AWS Cost Explorer pricing](https://aws.amazon.com/aws-cost-management/aws-cost-explorer/pricing/).
+- Paginated inventory across all **17 enabled regions** found no EC2 instances,
+  NAT gateways, EBS volumes, allocated Elastic IPs, RDS instances, ECS clusters,
+  ElastiCache clusters or ELBv2 load balancers. Additional reads found no global
+  S3 buckets or CloudFront distributions, and no us-east-1 CloudFormation stacks,
+  Lambda functions, AgentCore runtimes, Secrets Manager secrets or KMS keys.
+  Existing us-east-1 Resource Explorer returned 38 indexed resources, principally
+  default network/service metadata plus existing budget/anomaly configuration;
+  no index was created. This is a scoped inventory, not a claim to have queried
+  every AWS service or eliminated delayed billing.
+- The required zone mapping is confirmed: `us-east-1a` is `use1-az1`, and
+  `us-east-1b` is `use1-az2`; both are available.
+- IAM `GetRole(HirzDeploy)` returned `NoSuchEntity`. `ListUsers` returned no users;
+  `ListRoles` returned only the Resource Explorer, Support and Trusted Advisor
+  service-linked roles, with no pagination remaining. A non-root human deployment
+  identity and the separately administered deployment role still need setup.
+
+The public Price List API confirmed PostgreSQL Single-AZ `db.t4g.micro` at
+**$0.016/hour** and gp3 storage at **$0.115/GB-month** in us-east-1. The retained
+partial 24-hour baseline adds the ARM64 worker, NAT/EIP, ALB base charge and KMS key
+using [Fargate](https://aws.amazon.com/fargate/pricing/),
+[VPC](https://aws.amazon.com/vpc/pricing/),
+[ELB](https://aws.amazon.com/elasticloadbalancing/pricing/) and
+[KMS](https://aws.amazon.com/kms/pricing/) prices. It deliberately excludes variable
+usage, requests, secrets, asset storage and one-off tasks; it is not the complete
+acceptance estimate. No deployment-clearance file was issued. Finish that estimate
+and refresh billing before a later acceptance window; the non-root identity choice
+has been requested from the author. No application/toolkit deployment, acceptance
+or teardown gate has run, and item 36 remains incomplete.
+
+### Non-root deployment access setup — 2026-10-16
+
+After the author requested help setting up non-root access, the existing temporary
+root session was used for this separate administrative setup only. AWS
+`ValidateTemplate` accepted `infra/cdk/setup/operator.yaml` and
+`infra/cdk/setup/deploy-role.yaml`. The IAM-only `HirzItem36Operator` and
+`HirzItem36Access` stacks both reached **CREATE_COMPLETE**. They create the
+`hirz-operator` IAM user and `HirzDeploy` role; no application/toolkit resources,
+console password or access keys were created. The deployment acceptance window
+has not started.
+
+The role trusts only `arn:aws:iam::661550216013:user/hirz-operator` with
+`aws:MultiFactorAuthPresent=true`. The user's deployment permission requires the
+same MFA condition. Its remaining permissions are its own password/MFA setup,
+the account metadata needed by that console page, and AWS's
+`SignInLocalDevelopmentAccess` policy for temporary browser-based CLI credentials.
+The role's deployment permissions remain those in the approved setup template.
+
+Nine actual IAM policy simulations passed: AssumeRole is implicitly denied with
+missing or false MFA and allowed with true MFA; direct EC2 deployment, access-key
+creation, deployment-role policy editing and another user's password change are
+implicitly denied; own password change and own MFA enrollment are allowed before
+MFA. Read-back asserted the exact role trust, and `ListAccessKeys` confirmed **zero
+operator access keys**. These are policy simulations and configuration checks,
+not proof of an authenticated human session or the later runtime-role IAM gate.
+
+`~/.aws/config` was backed up privately, then updated so `hirz` assumes
+`HirzDeploy` through `hirz-operator` and the new `hirz-operator-login` browser
+session. The existing root browser-login profile was preserved and is reachable
+only through the explicitly named `hirz-bootstrap` setup profile, not the normal
+`hirz` profile chain. Assertions checked that the normal chain has no root
+fallback. The original configuration, stack responses, exact trust and simulation
+results are retained in the private evidence directory from the preceding entry.
+
+The author has been given the AWS-console steps to privately set the operator
+password, enroll MFA and sign in again. Browser login and actual `HirzDeploy`
+session verification remain pending that interaction. No password, MFA seed,
+authorization code or temporary credential was requested in chat or printed.
+`git diff --check` and equality of `AGENTS.md`/`CLAUDE.md` pass. No application code
+changed during this access setup, so application regressions were not repeated.
+
+### Operator login verified — 2026-10-16
+
+After the author completed password/MFA enrollment, `aws login --profile
+hirz-operator-login --region us-east-1` completed through the owner's browser.
+The CLI confirmed `arn:aws:iam::661550216013:user/hirz-operator` as the login
+identity. Both AWS CLI and repository Python SDK subsequently authenticated
+profile `hirz` as
+`arn:aws:sts::661550216013:assumed-role/HirzDeploy/hirz-item36`. The existing MFA
+requirement on the role trust was preserved. `ListMFADevices` confirmed one
+enrolled device; no MFA secret or temporary credential was printed or retained
+in evidence.
+
+At **2026-10-17T03:29:42.855044+00:00** (2026-10-16 America/New_York), a Python
+SDK verification asserted the operator and deployment-role identities, confirmed
+that direct operator EC2 `DescribeInstances` returned `UnauthorizedOperation`,
+and successfully read CloudFormation stacks through the deployment role. Both
+IAM-only administrative stacks remain `CREATE_COMPLETE`. The credential-free
+result is retained as `operator-login-verification.json` in the preceding private
+evidence directory. No access keys were created. Non-root deployment access is
+now verified; this does not complete the service-cost estimate, issue financial
+clearance, or start the application acceptance window. Live application acceptance,
+CI and teardown gates remain outstanding.

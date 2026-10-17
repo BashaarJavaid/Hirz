@@ -426,7 +426,7 @@ class RefreshWorker:
                 coordinated = await asyncio.shield(computation)
             except asyncio.CancelledError:
                 # Keep the session lock until the native solver thread actually exits.
-                await computation
+                await asyncio.gather(computation, return_exceptions=True)
                 raise
             if coordinated.inputs is None:
                 raise ValueError(
@@ -452,14 +452,21 @@ class RefreshWorker:
                     + " "
                     + "; ".join(result.plan.comparison_validity.reasons)
                 )
-            replacement = (
-                await asyncio.to_thread(
+            replay = asyncio.create_task(
+                asyncio.to_thread(
                     RuntimeInputs.from_schedule,
                     coordinated.inputs,
                     result.schedule,
                     prior=runtime,
                 )
-            ).model_copy(
+            )
+            try:
+                replacement_inputs = await asyncio.shield(replay)
+            except asyncio.CancelledError:
+                # Replay also uses a thread; request cancellation must settle it.
+                await asyncio.gather(replay, return_exceptions=True)
+                raise
+            replacement = replacement_inputs.model_copy(
                 update={
                     "exhausted": exhausted,
                     # A replaced delivery target remains the accepted obligation

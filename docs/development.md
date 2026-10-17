@@ -1977,3 +1977,213 @@ coverage, combined 80% gate, ordinary CI and both normal latency jobs before ite
 closure. Existing companion browser regressions cover approval-page rendering;
 headless ASGI ceremonies do not establish a physical phone or cloud-independent
 relock. No extra browser matrix is required.
+
+## Item 36 AWS acceptance
+
+**Status: local implementation; live deployment remains blocked.** The account's
+service-charge exposure is unresolved. Taxes are an explicitly accepted exception
+([ADR-008](adr/ADR-008-agentcore-topology.md#tax-exception--2026-10-16)); they no
+longer block deployment. Refresh credit eligibility, late-reported usage and other
+running capacity before the acceptance window. Do not bootstrap, upload assets,
+deploy, or invoke paid acceptance
+resources until the user resolves this prerequisite. Budget alerts cannot enforce
+it. The approved incremental limit is $10 and the deployment lifetime is at most
+24 hours, starting with the first attempt, including failed attempts. This procedure
+uses account `661550216013`, `us-east-1`, and temporary `HirzDeploy` credentials
+through profile `hirz`. No account calls were used to establish the local results.
+
+Local checks use Node 24, the locked pnpm workspace and the normal Python environment:
+
+```sh
+pnpm install --frozen-lockfile
+pnpm --filter infra synth
+uv run --locked python scripts/smoke_aws.py offline
+pnpm -r lint
+pnpm -r typecheck
+pnpm -r test
+```
+
+Synthesis has no account lookup: the approved AZ names are pinned as CDK context.
+Before deployment, check `describe-availability-zones` under the actual profile
+against `us-east-1a`/`use1-az1`, `us-east-1b`/`use1-az2`, and confirm PostgreSQL
+16.15 availability. A mismatch is a stop, not permission to change the architecture.
+The CDK tests check desired-count bounds, private networking, task/database sizes,
+JWT/scopes, LOG_ONLY, retention, IAM boundaries and dependency cycles. CI runs these
+and synthesis, never deployment. Required closure checks still include combined
+80% Python coverage, browser/package regressions and the `workflow_dispatch`
+latency gate for the actual implementation ref.
+
+The author separately authorized nonbillable human-access setup on 2026-10-16;
+this does not start application acceptance or clear service spending. An
+administrator applies `infra/cdk/setup/operator.yaml` as `HirzItem36Operator`,
+then `infra/cdk/setup/deploy-role.yaml` as `HirzItem36Access`, supplying
+`TrustedPrincipalArn=arn:aws:iam::661550216013:user/hirz-operator`. Both stacks
+contain IAM resources only and require `CAPABILITY_NAMED_IAM`. The operator has
+own-password/MFA setup permissions and the AWS `SignInLocalDevelopmentAccess`
+managed policy; its only deployment authority is to assume `HirzDeploy` with MFA.
+The role trust also requires MFA. Neither template creates a password or access key.
+
+In the AWS console, the administrator enables console access for `hirz-operator`;
+the owner sets the password privately, signs in as that user, enrolls a passkey or
+authenticator (name `hirz-operator`), and signs in again with MFA. No passwords,
+MFA seeds, codes or recovery material belong in chat, repository files or evidence.
+Use `aws login --profile hirz-operator-login --region us-east-1` and choose that
+IAM user, not the root console session. AWS documents the temporary browser-login
+flow and SDK credential-process bridge in its
+[CLI guide](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-sign-in.html).
+
+The local profiles are:
+
+```ini
+[profile hirz-operator-login]
+region = us-east-1
+# aws login writes the authenticated login_session here.
+
+[profile hirz-operator]
+credential_process = aws configure export-credentials --profile hirz-operator-login --format process
+region = us-east-1
+
+[profile hirz]
+role_arn = arn:aws:iam::661550216013:role/HirzDeploy
+source_profile = hirz-operator
+role_session_name = hirz-item36
+duration_seconds = 3600
+region = us-east-1
+```
+
+Verify `aws sts get-caller-identity --profile hirz` returns
+`arn:aws:sts::661550216013:assumed-role/HirzDeploy/hirz-item36` before deploying.
+The existing root login is preserved only as the explicit `hirz-bootstrap` setup
+profile; normal `hirz` commands cannot fall back to it. Do not remove the MFA
+condition to work around a failed login. The role permits deployment
+and cleanup of the approved services; it is not a spending cap. Its IAM role-writing
+permissions are limited to the dedicated toolkit, application roles and signer.
+The administrator may remove these nonbillable setup stacks after acceptance;
+first remove any owner-created console login/MFA device from the operator if
+deleting that user. Keep the access setup until application/toolkit teardown is
+verified. Do not
+modify an existing shared bootstrap stack. Use the dedicated qualifier:
+
+```sh
+pnpm --filter infra cdk bootstrap aws://661550216013/us-east-1 \
+  --profile hirz --toolkit-stack-name HirzItem36Toolkit --qualifier hirzitem36 \
+  --tags Project=Hirz --tags Environment=item36
+```
+
+Create a private artifacts directory (`0700`) and retain the exact UTC
+`FixtureStart` from the beginning of the acceptance window. Keep this parameter
+unchanged on every deployment. The following commands show placeholders that
+must be filled from that retained record; they are not shell defaults:
+
+```sh
+pnpm --filter infra cdk deploy HirzItem36 --profile hirz \
+  --parameters WorkerDesiredCount=0 --parameters FixtureStart=FIXED_UTC_START \
+  --outputs-file /PRIVATE/ARTIFACTS/outputs.json
+uv run --locked python scripts/smoke_aws.py bootstrap \
+  --artifacts-dir /PRIVATE/ARTIFACTS --billing-clearance /PRIVATE/clearance.json
+pnpm --filter infra cdk deploy HirzItem36 --profile hirz \
+  --parameters WorkerDesiredCount=1 --parameters FixtureStart=FIXED_UTC_START
+```
+
+`FIXED_UTC_START` has the form `2026-10-16T22:00:00+00:00` (example only).
+The reviewed clearance record names `account`, `zero_out_of_pocket_resolved: true`,
+`incremental_budget_usd: 10`, `maximum_hours: 24`, an aware `expires_at`, and `evidence`
+linking the actual account-specific resolution and user authorization, including
+the accepted tax exception. The resolution covers service charges; it does not
+assert that no tax can be payable. Creating
+this file is not evidence that billing exposure was resolved; the runner only
+checks that the operator supplied the required record. Without it live acceptance
+commands fail before contacting AWS. Export, inventory and cleanup remain available
+without it, including after the window expires.
+
+Bootstrap runs three explicit one-off ECS tasks: `hirz.aws.bootstrap initialize`,
+`migrate`, `seed`. Setup alone can read the RDS master password. The application's
+`hirz` database role owns its schema and all migrations run under that role.
+Setup explicitly grants itself SET/INHERIT membership before transferring ownership,
+as PostgreSQL 16 requires; the application role receives no setup privileges.
+The same explicit task copies the generated Cognito machine-client secret into
+Secrets Manager, avoiding an additional CDK helper Lambda; an existing mismatched
+secret is refused instead of replaced.
+Initialization refuses existing audit history or malformed keys. Seeding refuses
+an existing household rather than rewriting it. No development database is copied,
+no startup migration occurs, and no activation audit event is fabricated. The
+fixture includes one explicit synthetic home for cloud acceptance; all adapters
+are twin and the boundary remains `dogwood-local`. A first deployment has no
+worker until this bootstrap succeeds. If the task exceeds 512 MiB, stop and ask
+before increasing its allocation.
+
+Repeat the final `cdk deploy` command identically, retain its output, and retain
+`cdk diff HirzItem36 --profile hirz --fail` plus the synthesized template hash.
+Idempotency requires an actual unchanged deployment result, not only equal local
+syntheses. Provisioned Runtime/Gateway/Identity/Memory do not connect later household
+integrations. The Runtime has only generic onboarding. The Gateway's no-input
+`boundary_unavailable` target always fails; its LOG_ONLY policy is not enforcement.
+Cognito accepts S256 PKCE but does not require all authorization requests to use it.
+Native `hirz/...` scopes do not replace local `hirz:...` scopes.
+
+Generate the initial owner invitation and run the real HTTPS browser check:
+
+```sh
+uv run --locked python scripts/smoke_aws.py invite \
+  --artifacts-dir /PRIVATE/ARTIFACTS --billing-clearance /PRIVATE/clearance.json
+HIRZ_AWS_ARTIFACTS=/PRIVATE/ARTIFACTS pnpm --filter web exec playwright test tests/aws.spec.ts --output /PRIVATE/ARTIFACTS/browser-output
+```
+
+The browser uses a virtual authenticator, real server verification, exact CloudFront
+origin, secure cookies and CSRF. It enrolls, activates the seeded rule through the
+normal review ceremony, signs out/in and performs an authenticated household read.
+The invitation, recovery code and evidence recipient private key are local `0600`
+files. One-off task output is encrypted to that recipient before CloudWatch logging.
+Do not upload those artifacts to public CI. The user's real-passkey check remains a
+separate required gate: use the retained recovery code at the same HTTPS origin to
+enroll a physical passkey, sign in and review authenticated household data; retain
+the user's confirmation. This invalidates the software credential through the real
+recovery path. No test flag may substitute for that confirmation.
+
+After activation, run `smoke_aws.py iam`, then `cancel`, with the same artifact and
+clearance arguments. IAM probes execute in a one-off task using the actual worker
+role. Only AccessDenied responses pass; parameter errors do not. A temporary Lambda
+using `hirz-actions` must read the nonfunctional credential through both Identity
+and its backing secret and produce a signature over non-command test bytes; the
+runner independently verifies it and deletes the function in `finally`. The
+worker's Identity denial uses that control's valid workload token, so an invalid
+token cannot stand in for an IAM denial. It is passed only to the one-off task
+and omitted from retained results; the fixture credential is nonfunctional.
+The cancellation probe records and approves a synthetic plan through Pipeline, schedules
+its light, cancels through PlanService, then checks that reconciliation removes its
+schedule. It claims no energy saving.
+
+`smoke_aws.py quiet` creates a Pipeline-authorized twin-light action 33 minutes in
+the future, invokes a tick to derive the one-time schedule, removes that schedule,
+and restarts the worker before starting the quiet interval. If restart leaves less
+than 30 minutes until due, that run fails. From the recorded quiet start until due
++ 90 seconds, close every browser tab and stop manual probes: allow only scheduler
+ticks and platform health checks. The runner does no inbound application request
+in that interval. It checks retained request-class logs for at least 30 successful
+ticks and no other application traffic; these logs contain no paths, query strings,
+tokens or household details. Afterward it inspects persisted verification timestamps, sends
+duplicate ticks, checks the attempt was unchanged, and independently verifies the
+signed export against the audit key fetched separately through the deploy role.
+Inspect retained read-back evidence and CloudFront/ALB request metrics/logs to confirm
+no other traffic entered during the interval; the runner cannot prevent another
+person from opening the site. Remove all temporary probes, repeat the identical
+final deployment and retain the result before teardown.
+
+Run `smoke_aws.py inventory` and `export` with the artifact directory to retain
+stack resources, paginated CloudWatch logs and signed audit evidence. The diagnostic
+files are private and must not be uploaded to public CI. Export failure is an acceptance failure.
+Then run `smoke_aws.py cleanup --artifacts-dir /PRIVATE/ARTIFACTS` within the 24-hour
+window even if a gate failed. It attempts diagnostic and audit export first, reports failure explicitly
+and continues deletion; stops dedicated ECS tasks, removes derived schedules and
+the temporary probe, empties the owned Object Lock bucket using the approved
+governance bypass, destroys the application, removes owned ECR images and versioned
+assets, destroys the dedicated toolkit and deletes its retained buckets/repositories.
+RDS is disposable and has no final snapshot. Identity's external backing secret is
+owned by this stack. The key must remain PendingDeletion with a seven-day window.
+Retain the pre-destruction inventories and inspect service APIs afterward for
+remaining tasks, ALBs, NAT gateways, EIPs, RDS instances, CloudFront/VPC origins,
+secrets, logs, repositories and buckets. Stack deletion by itself is not the final
+no-billable-resources evidence. Failed or partial cleanup must be reported and
+repaired immediately, never labeled complete. The teardown helper's retry path
+uses retained pre-destruction inventory; keep that private directory until cleanup
+is verified. Item 36 stays open until every live gate and teardown passes.

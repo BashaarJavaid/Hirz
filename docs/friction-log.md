@@ -938,3 +938,38 @@ completed with zero reported vulnerabilities. The shell initially selected Node
   registry failure or a credential-store defect.
 - **Feature request:** Bound credential-helper waits and identify the helper in
   progress output so a stalled credential lookup is distinguishable from a download.
+
+## Item 36 — App Runner availability and CDK asset staging (2026-10-16)
+
+- **Tool/service:** AWS App Runner. **Severity:** Major. **Documentation:**
+  https://docs.aws.amazon.com/apprunner/latest/dg/apprunner-availability-change.html.
+  The service stopped accepting new customers on 2026-04-30, so the planned App
+  Runner path could not be treated as generally available for this new deployment.
+  **Observed API/CLI error:** none; no App Runner create request was made in this
+  session. **Workaround:** use the explicitly approved Fargate/internal-ALB path
+  with one NAT gateway during acceptance (ADR-008 amendment). **Feature request:**
+  make availability restrictions conspicuous alongside new-service setup instructions.
+
+- **Tool/service:** AWS CDK 2.273.0 asset staging. **Severity:** Minor.
+  **Documentation:** https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_ecr_assets.DockerImageAsset.html.
+  Synthesizing a repository-root image from the nested `infra/cdk` app recursively
+  copied its own `cdk.out` directory. **Exact error prefix:**
+  `ENAMETOOLONG: name too long, copyfile` (the remaining source/destination paths
+  repeated `infra/cdk/cdk.out/asset.29f740cd90efc35f18d00a491ad306969f459260baf4c6ac9564bca5a48f2694`).
+  **Workaround:** explicitly use `IgnoreMode.DOCKER` and exclude the synthesis
+  directory, dependencies, `.git` and `.env`; subsequent offline synthesis passes.
+  This records the legacy/default-ignore-mode interaction, not an AWS deployment
+  failure. **Feature request:** diagnose an asset recursively containing its output
+  directory before copying it.
+
+- **Tool/service:** Docker Desktop credential helper. **Severity:** Minor.
+  **Documentation:** https://docs.docker.com/reference/cli/docker/#credential-store-options.
+  During final local image builds, base-image resolution stopped producing progress;
+  `docker-credential-desktop` was still a buildx child after about two minutes.
+  No credential-helper error text was emitted. A superseded build was canceled
+  (`ERROR: failed to build: failed to solve: Canceled: context canceled`); the newer
+  normal build subsequently completed. An additional cached build using a temporary
+  anonymous `DOCKER_CONFIG` and the same local daemon also passed, without changing
+  the user's normal configuration or restarting development containers.
+  **Feature request:** identify a pending credential-helper lookup in build progress
+  and bound its wait, even when resolving public pinned base images.

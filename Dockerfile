@@ -5,6 +5,7 @@ RUN npm install --global pnpm@12.4.2
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json ./
 COPY apps/mcp-app/ ./apps/mcp-app/
 COPY apps/web/ ./apps/web/
+COPY infra/cdk/package.json ./infra/cdk/package.json
 COPY hirz/adapters/doorbell/twin/snapshot.svg ./hirz/adapters/doorbell/twin/snapshot.svg
 RUN pnpm install --frozen-lockfile && pnpm --filter mcp-app build && pnpm --filter web build
 
@@ -46,4 +47,4 @@ RUN uv sync --locked --no-dev --no-editable --no-cache \
     && useradd --uid 10001 --no-create-home hirz
 USER hirz
 EXPOSE 8000
-CMD ["uvicorn", "hirz.api.app:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "-m", "hirz.aws"]

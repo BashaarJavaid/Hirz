@@ -1,0 +1,34 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Non-root human login for item 36; set the console password and MFA in AWS, never in this template.
+Resources:
+  Operator:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: hirz-operator
+      Tags:
+        - {Key: Project, Value: Hirz}
+        - {Key: Environment, Value: item36}
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/SignInLocalDevelopmentAccess
+      Policies:
+        - PolicyName: OwnLoginAndDeploymentRole
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [iam:GetAccountPasswordPolicy, iam:ListAccountAliases, iam:ListVirtualMFADevices]
+                Resource: '*'
+              - Effect: Allow
+                Action: [iam:GetUser, iam:ChangePassword, iam:ListMFADevices, iam:GetMFADevice, iam:EnableMFADevice, iam:ResyncMFADevice]
+                Resource: arn:aws:iam::661550216013:user/hirz-operator
+              - Effect: Allow
+                Action: iam:CreateVirtualMFADevice
+                Resource: arn:aws:iam::661550216013:mfa/hirz-operator
+              - Effect: Allow
+                Action: sts:AssumeRole
+                Resource: arn:aws:iam::661550216013:role/HirzDeploy
+                Condition:
+                  Bool: {aws:MultiFactorAuthPresent: 'true'}
+Outputs:
+  OperatorArn:
+    Value: !GetAtt Operator.Arn

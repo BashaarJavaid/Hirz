@@ -76,16 +76,31 @@ async def prepare_plans(p: Pipeline, loaded: LoadedScenario | None) -> None:
                     "constraints": (),
                 }
             )
-            result = await asyncio.to_thread(
-                coordinate, inputs, snapshot, p.bundle.policy()
+            computation = asyncio.create_task(
+                asyncio.to_thread(coordinate, inputs, snapshot, p.bundle.policy())
             )
+            try:
+                result = await asyncio.shield(computation)
+            except asyncio.CancelledError:
+                # AWS ticks must settle the native solver before releasing the request.
+                await asyncio.gather(computation, return_exceptions=True)
+                raise
             if (
                 result.result.plan is None
                 or result.result.schedule is None
                 or result.inputs is None
             ):
                 raise ValueError("No feasible plan")
-            runtime = RuntimeInputs.from_schedule(result.inputs, result.result.schedule)
+            replay = asyncio.create_task(
+                asyncio.to_thread(
+                    RuntimeInputs.from_schedule, result.inputs, result.result.schedule
+                )
+            )
+            try:
+                runtime = await asyncio.shield(replay)
+            except asyncio.CancelledError:
+                await asyncio.gather(replay, return_exceptions=True)
+                raise
         except Exception:
             # Failed preparation records no Plan; cancellation still propagates.
             result = None

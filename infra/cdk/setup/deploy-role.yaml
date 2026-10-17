@@ -1,0 +1,76 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: One-time administrative setup, separate from item 36 application deployment.
+Parameters:
+  TrustedPrincipalArn:
+    Type: String
+    AllowedPattern: '^arn:aws:iam::661550216013:(user|role)/.+$'
+Resources:
+  HirzDeploy:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: HirzDeploy
+      MaxSessionDuration: 3600
+      Tags:
+        - {Key: Project, Value: Hirz}
+        - {Key: Environment, Value: item36}
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: {AWS: !Ref TrustedPrincipalArn}
+            Action: sts:AssumeRole
+            Condition:
+              Bool: {aws:MultiFactorAuthPresent: 'true'}
+      Policies:
+        - PolicyName: Item36Deployment
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cloudformation:*
+                  - ec2:*
+                  - ecs:*
+                  - elasticloadbalancing:*
+                  - rds:*
+                  - cognito-idp:*
+                  - bedrock-agentcore:*
+                  - lambda:*
+                  - events:*
+                  - scheduler:*
+                  - secretsmanager:*
+                  - kms:*
+                  - s3:*
+                  - ecr:*
+                  - logs:*
+                  - cloudwatch:*
+                  - ssm:*
+                Resource: '*'
+                Condition: {StringEquals: {aws:RequestedRegion: us-east-1}}
+              - Effect: Allow
+                Action: cloudfront:*
+                Resource: '*'
+              - Effect: Allow
+                Action: [sts:GetCallerIdentity, iam:ListRoles, iam:GetRole, iam:GetRolePolicy, iam:ListRolePolicies, iam:ListAttachedRolePolicies, iam:GetPolicy, iam:GetPolicyVersion]
+                Resource: '*'
+              - Effect: Allow
+                Action: [sts:AssumeRole, iam:CreateRole, iam:DeleteRole, iam:PutRolePolicy, iam:DeleteRolePolicy, iam:AttachRolePolicy, iam:DetachRolePolicy, iam:UpdateAssumeRolePolicy, iam:TagRole, iam:UntagRole, iam:PassRole]
+                Resource:
+                  - arn:aws:iam::661550216013:role/cdk-hirzitem36-*
+                  - arn:aws:iam::661550216013:role/HirzItem36-*
+                  - arn:aws:iam::661550216013:role/hirz-actions
+              - Effect: Allow
+                Action: iam:CreateServiceLinkedRole
+                Resource: '*'
+                Condition:
+                  StringEquals:
+                    iam:AWSServiceName:
+                      - ecs.amazonaws.com
+                      - elasticloadbalancing.amazonaws.com
+                      - rds.amazonaws.com
+                      - cloudfront.amazonaws.com
+                      - bedrock-agentcore.amazonaws.com
+                      - identity-network.bedrock-agentcore.amazonaws.com
+Outputs:
+  RoleArn:
+    Value: !GetAtt HirzDeploy.Arn

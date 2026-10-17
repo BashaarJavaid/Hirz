@@ -279,6 +279,8 @@ jobs:
           run_install: false
       - run: pnpm install --frozen-lockfile
       - run: pnpm -r test
+      - name: Offline AWS infrastructure synthesis (no deployment)
+        run: pnpm --filter infra synth
       - name: Browser coverage location
         run: |
           echo 'Authenticated companion browser checks run in the companion job; simulator and MCP card browser checks run in python-test; full simulator matrices remain in item 29 evidence.' | tee -a "$GITHUB_STEP_SUMMARY"
