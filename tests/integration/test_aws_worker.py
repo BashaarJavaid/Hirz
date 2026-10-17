@@ -203,11 +203,13 @@ def test_aws_tick_activation_cancellation_duplicate_and_restart(
                     )
                     if interrupt_after_dispatch:
                         assert events.count("VERIFY_FAILED") == 1
-                from hirz.aws.probe import cancellation
+                from hirz.aws.probe import run as probe
 
-                async with service.pipeline(p.household_id) as q:
-                    cancelled = await cancellation(q, loaded)
-                    assert cancelled["status"] == "cancelled"
+                monkeypatch.setattr("hirz.aws.probe.database", lambda _: c.engine)
+                monkeypatch.setattr("hirz.aws.probe.secret", lambda _: "fixture")
+                monkeypatch.setattr("hirz.aws.probe.signing_key", lambda _: audit.key)
+                cancelled = await probe("cancel", None, None)
+                assert cancelled["status"] == "cancelled"
                 summary, _ = await verify_database(
                     c, p.household_id, audit.key.public_key()
                 )

@@ -30,6 +30,7 @@ describe('item 36 acceptance infrastructure', () => {
     template.hasResourceProperties('AWS::EC2::VPC', { CidrBlock: '10.36.0.0/16' });
     template.resourceCountIs('AWS::EC2::NatGateway', 1);
     template.resourceCountIs('AWS::EC2::EIP', 1);
+    template.hasResourceProperties('AWS::EC2::SecurityGroupIngress', { IpProtocol: 'tcp', FromPort: 80, ToPort: 80, SourcePrefixListId: 'pl-3b927c52', GroupId: { 'Fn::GetAtt': ['OriginSecurityA7C4F0AE', 'GroupId'] } });
     template.hasResourceProperties('AWS::ElasticLoadBalancingV2::LoadBalancer', { Scheme: 'internal', LoadBalancerAttributes: Match.arrayWith([{ Key: 'idle_timeout.timeout_seconds', Value: '70' }]) });
     template.hasResourceProperties('AWS::CloudFront::VpcOrigin', { VpcOriginEndpointConfig: Match.objectLike({ OriginProtocolPolicy: 'http-only' }) });
     template.hasResourceProperties('AWS::CloudFront::Distribution', { DistributionConfig: Match.objectLike({

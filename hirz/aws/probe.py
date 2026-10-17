@@ -103,6 +103,8 @@ async def run(
                 require_active=True,
             )
             p.bundle = await policy(p)
+            if operation == "cancel":
+                return await cancellation(p, loaded)
             if operation == "invite":
                 return {
                     "origin": os.environ["HIRZ_COMPANION_ORIGIN"],

@@ -13944,3 +13944,47 @@ its non-root build import check and a network-disabled `hirz.aws.bootstrap --hel
 container with 0.25 vCPU / 512 MiB both passed. AWS unit tests passed **20/20** in
 2.95 seconds. The replacement cold deployment and actual initialization are still
 pending at this entry; this does not claim an application acceptance gate.
+
+### Live IAM boundary gate — 2026-10-17
+
+The corrected cold stack update passed. Actual worker task credentials were denied
+all three requested operations: `kms:Sign`, direct backing-secret
+`secretsmanager:GetSecretValue`, and AgentCore `GetResourceApiKey` using a valid
+workload token. A temporary Lambda using the signer role successfully retrieved
+the same nonfunctional synthetic credential through Identity and its backing
+secret, and signed the fixed noncommand test bytes. The runner independently
+verified that signature against the KMS public key. Private `iam.json` retains
+these results and the actual assumed worker-role ARN. The temporary Lambda was
+removed in the runner's `finally` block; a subsequent GetFunction returned
+ResourceNotFoundException. No real adapter credential, action command, Decision,
+or audit event was created by these IAM controls.
+
+### Bootstrap, first idempotency, and HTTPS ingress correction — 2026-10-17
+
+All three explicit setup tasks (`initialize`, `migrate`, `seed`) passed using the
+corrected image and the unchanged window start. `bootstrap.json` retains their
+ECS task ARNs. The desired-count-one deployment passed in 128.55 seconds; the
+identical repeat reported no changes and completed in 3.83 seconds. The first
+public health request returned HTTP 504 despite a healthy private ALB target.
+Inspection found that the ALB admitted only the VPC CIDR. The
+[documented VPC-origin rule](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-vpc-origins.html)
+requires the CloudFront managed prefix list or service security group instead.
+EC2 DescribeManagedPrefixLists verified `pl-3b927c52` as AWS-owned
+`com.amazonaws.global.cloudfront.origin-facing` in this fixed `us-east-1`
+deployment. Replacing the CIDR rule with that prefix list made the same HTTPS
+health request return **200**. No public ALB address, service, or capacity was added.
+All **5** infrastructure tests, TypeScript checking and ESLint passed, including an
+assertion binding the prefix-list rule specifically to the origin security group.
+The deployment update and subsequent browser acceptance remain pending at this
+entry; final idempotency will be repeated after all live corrections.
+
+### Cancellation command regression — 2026-10-17
+
+Reviewing the live runner exposed that `probe.run("cancel", ...)` did not dispatch
+to the already-tested cancellation implementation. The integration test now calls
+the actual command entrypoint with only infrastructure secret/client composition
+substituted locally. It reproduced the missing branch as a ValueError before the
+fix. Adding the dispatch preserves the existing Pipeline cancellation path; all
+**3** AWS integration cases then passed in **11.17 seconds**, alongside Ruff,
+format checking and strict mypy for the changed module. Live cancellation remains
+to be rerun against the corrected image.

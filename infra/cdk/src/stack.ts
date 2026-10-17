@@ -32,8 +32,9 @@ export class HirzStack extends Stack {
     });
     const workerSg = new ec2.SecurityGroup(this, 'WorkerSecurity', { vpc });
     const albSg = new ec2.SecurityGroup(this, 'OriginSecurity', { vpc });
-    // CloudFront creates its ENIs in this VPC; the ALB has no public address.
-    albSg.addIngressRule(ec2.Peer.ipv4(vpc.vpcCidrBlock), ec2.Port.tcp(80));
+    // AWS-managed CloudFront origin-facing prefix list in this fixed us-east-1 deployment.
+    // https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-vpc-origins.html
+    albSg.addIngressRule(ec2.Peer.prefixList('pl-3b927c52'), ec2.Port.tcp(80));
     workerSg.addIngressRule(albSg, ec2.Port.tcp(8000));
     const database = new rds.DatabaseInstance(this, 'Database', {
       vpc, vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },

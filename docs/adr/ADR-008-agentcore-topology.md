@@ -109,3 +109,14 @@ verification. Requiring tax clearance after this instruction is rejected; treati
 it as unrestricted spending approval is also rejected. The acceptance runner's
 clearance record must cite this exception explicitly when resolving service-charge
 exposure. A credit balance or clearance file still provides no hard spending cap.
+
+## Private-origin ingress clarification — 2026-10-17
+
+The internal ALB admits HTTP from the AWS-managed CloudFront origin-facing prefix
+list (`pl-3b927c52`, verified in the fixed `us-east-1` region). A VPC-CIDR-only rule
+was insufficient in live acceptance. This follows the documented
+[VPC-origin security group configuration](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-vpc-origins.html).
+The service-managed CloudFront security group is another supported choice, but
+looking it up after origin creation would add deployment machinery; the managed
+prefix list works on the initial deployment without another resource provider.
+The ALB and application retain private addresses.
