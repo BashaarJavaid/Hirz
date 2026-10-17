@@ -126,7 +126,7 @@ The verified toolchain and scaffold setup are in `README.md`; use Node 24.
 - `uv run --locked python scripts/smoke_household_tools.py --audit-output <new-file> --conformance-cli ../addon-check/dist/cli.js` — independent twelve-tool checks with `--require-complete` after restart; private cases, environment token and signed audit verification. Build the separate Node 24 checker first; only onboarding/context are timed. Procedure: `docs/development.md`.
 - `pnpm --filter mcp-app build` is required before authenticated MCP startup and Python packaging. `HIRZ_LLM=off uv run --locked python -m scripts.smoke_cards --artifacts-dir <new-dir> [--browser-test]` produces labeled twin fixtures and independently verified audit exports; browser mode uses the pinned reference host and a token-holding loopback relay. Setup and evidence mapping: `docs/development.md`.
 - `pnpm -r lint && pnpm -r typecheck && pnpm -r test`; `pnpm --filter web dev` (companion pages + simulator route), `pnpm --filter mcp-app build`.
-- `pnpm --filter infra synth` / `uv run --locked python scripts/smoke_aws.py offline` — offline item 36 contracts; deployment is manual and financially blocked. The two-pass bootstrap, live runner and dedicated teardown procedure are in `docs/development.md#item-36-aws-acceptance`.
+- `pnpm --filter infra synth` / `uv run --locked python scripts/smoke_aws.py offline` — offline item 36 contracts; deployment is manual and requires the current reviewed billing clearance. The two-pass bootstrap, live runner and dedicated teardown procedure are in `docs/development.md#item-36-aws-acceptance`.
 - `HIRZ_LLM=off|bedrock`, `HIRZ_ADAPTERS=devices:ha,ev:twin,energy:real,...` — runtime configuration.
 
 Item 29 adds `HIRZ_LLM=off uv run --locked python -m scripts.simulator_demo --origin <HTTPS-origin> --artifacts-dir <new-private-dir>` for disposable authenticated playback; `--browser-test` uses virtual authenticators with real server verification. Real companion enrollment/activation and explicit Echo PKCE consent are required. Paid host configuration uses a separate durable ledger ($20 Haiku ceiling; $10 Nova ceiling against the same total); procedure and acceptance limitations are in `docs/development.md` and the item 29 evidence.
@@ -138,7 +138,7 @@ Item 32 adds `HIRZ_LLM=off uv run --locked python -m scripts.smoke_protect --art
 ## Current phase
 
 Phase 6 is complete. Item 36 now has local CDK, AWS tick composition and acceptance
-tooling and verified non-root deployment access; live deployment requires service-charge clearance
+tooling and verified non-root deployment access; live acceptance is underway
 ([procedure](docs/development.md#item-36-aws-acceptance)). Item 36 remains incomplete
 until live acceptance, real-passkey confirmation, latency CI and teardown pass.
 Item 31 still owes email/push acceptance; item 28 owes real Web Push (#7). Ring

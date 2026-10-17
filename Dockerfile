@@ -43,8 +43,10 @@ COPY tariffs/ ./tariffs/
 COPY scripts/simulator_demo.py ./scripts/simulator_demo.py
 COPY --from=cards /build/hirz/mcp/ui/ ./hirz/mcp/ui/
 COPY --from=cards /build/hirz/companion/ui/ ./hirz/companion/ui/
-RUN uv sync --locked --no-dev --no-editable --no-cache \
+RUN chmod -R a+rX /app \
+    && uv sync --locked --no-dev --no-editable --no-cache \
     && useradd --uid 10001 --no-create-home hirz
 USER hirz
+RUN python -c "import hirz.aws.app, hirz.aws.bootstrap, hirz.aws.probe"
 EXPOSE 8000
 CMD ["python", "-m", "hirz.aws"]

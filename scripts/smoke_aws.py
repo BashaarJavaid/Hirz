@@ -343,7 +343,8 @@ def handler(event, context):
 
     def quiet(self) -> dict[str, Any]:
         self.within_window()
-        due = (datetime.now(UTC) + timedelta(minutes=33)).replace(microsecond=0)
+        # Leave time for the one-off task and ECS drain/start before the 30-minute quiet gate.
+        due = (datetime.now(UTC) + timedelta(minutes=40)).replace(microsecond=0)
         if due + timedelta(minutes=5) >= datetime.fromisoformat(
             self.parameters["FixtureStart"]
         ) + timedelta(hours=24):

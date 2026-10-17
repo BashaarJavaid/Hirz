@@ -1980,14 +1980,16 @@ relock. No extra browser matrix is required.
 
 ## Item 36 AWS acceptance
 
-**Status: local implementation; live deployment remains blocked.** The account's
-service-charge exposure is unresolved. Taxes are an explicitly accepted exception
+**Status: live acceptance underway; item 36 is incomplete.** The scoped
+service-charge review and current acceptance window are recorded in the
+[evidence log](verification-log.md#acceptance-window-opened--2026-10-16).
+Taxes are an explicitly accepted exception
 ([ADR-008](adr/ADR-008-agentcore-topology.md#tax-exception--2026-10-16)); they no
 longer block deployment. Refresh credit eligibility, late-reported usage and other
-running capacity before the acceptance window. Do not bootstrap, upload assets,
-deploy, or invoke paid acceptance
-resources until the user resolves this prerequisite. Budget alerts cannot enforce
-it. The approved incremental limit is $10 and the deployment lifetime is at most
+running capacity before an acceptance window. Bootstrap, asset publication,
+deployment and paid acceptance require a current reviewed clearance record;
+budget alerts cannot enforce the financial constraint. The approved incremental
+limit is $10 and the deployment lifetime is at most
 24 hours, starting with the first attempt, including failed attempts. This procedure
 uses account `661550216013`, `us-east-1`, and temporary `HirzDeploy` credentials
 through profile `hirz`. No account calls were used to establish the local results.
@@ -2153,7 +2155,7 @@ The cancellation probe records and approves a synthetic plan through Pipeline, s
 its light, cancels through PlanService, then checks that reconciliation removes its
 schedule. It claims no energy saving.
 
-`smoke_aws.py quiet` creates a Pipeline-authorized twin-light action 33 minutes in
+`smoke_aws.py quiet` creates a Pipeline-authorized twin-light action 40 minutes in
 the future, invokes a tick to derive the one-time schedule, removes that schedule,
 and restarts the worker before starting the quiet interval. If restart leaves less
 than 30 minutes until due, that run fails. From the recorded quiet start until due

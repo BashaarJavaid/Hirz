@@ -13874,3 +13874,73 @@ evidence directory. No access keys were created. Non-root deployment access is
 now verified; this does not complete the service-cost estimate, issue financial
 clearance, or start the application acceptance window. Live application acceptance,
 CI and teardown gates remain outstanding.
+
+### Acceptance window opened — 2026-10-16
+
+Published implementation `59d49e3e30caa708d5ae774b2759a9e32c6af9a8` on
+`feat/item36-aws-acceptance`. Ordinary
+[push CI](https://github.com/BashaarJavaid/Hirz/actions/runs/38999196589) and the
+required normal
+[workflow_dispatch](https://github.com/BashaarJavaid/Hirz/actions/runs/38999196139)
+were started; neither is claimed complete in this entry.
+
+Billing `GetCredits` immediately before deployment reconfirmed **$149.96** and
+eligibility of all 20 checked billing names. The 24-hour estimate is derived in
+the private `acceptance-estimate.json`: **$8.873058202083333333333333333**, leaving
+**$1.126941797916666666666666667** of the $10 limit. It includes the previous
+$2.47099952 baseline, a deliberately conservative **48 vCPU-hours × $0.075 = $3.60**
+RDS burst-credit allowance, 20 GB NAT processing, 24 ALB LCU-hours, six aggregate
+one-off task hours, 1500 Lambda invocations at the full 75-second timeout, seven
+secrets and 10000 secret reads, an AgentCore session allowance at the published
+v2 CPU/memory rates, a $1 variable-service reserve, and the $0.01 preflight query.
+The reserve covers limited logs, HTTPS/data transfer, asset storage and request
+charges; it is an allowance, not a guarantee or cap. Model inference, policy
+authoring, Memory ingestion and token load tests remain disabled. Sources and
+per-line arithmetic are retained with the estimate, including
+[RDS burst-credit pricing](https://aws.amazon.com/rds/postgresql/pricing/) and
+[AgentCore pricing](https://aws.amazon.com/bedrock/agentcore/pricing/).
+
+The tax exception, actual credit/eligibility responses, scoped account inventory,
+usage allowances and user instruction to finish acceptance support the private
+service-charge clearance record. No claim of a universal $0 spending guarantee
+is made. The acceptance window began **2026-10-17T03:34:11+00:00**, with target
+teardown **2026-10-17T07:34:11+00:00** and hard deadline
+**2026-10-18T03:34:11+00:00**. Failed attempts share that same window and budget.
+Artifacts are in `secrets/item36-aws-2026-10-17/`. A local process is armed to invoke
+the existing cleanup runner at the four-hour target unless teardown has already
+been verified; it creates no AWS resource and does not replace active supervision.
+
+The dedicated `HirzItem36Toolkit` reached CREATE_COMPLETE under `HirzDeploy`.
+Read-back confirmed `FileAssetsBucketKmsKeyId=AWS_MANAGED_KEY`, so no additional
+customer KMS key was provisioned for the toolkit. The initial application deploy
+uses `WorkerDesiredCount=0` and the unchanged window start as `FixtureStart`.
+Image publication succeeded with digest
+`sha256:6126e2bc516447e512d3088c27bed15a4c1f60fe94bb101992b5251039c5dab4`.
+The application was still provisioning at this entry; no live gate is claimed.
+
+The quiet runner now schedules 40 minutes ahead instead of 33, leaving ten minutes
+for its one-off task and the configured 80-second ECS drain/start before requiring
+at least 30 quiet minutes. The 30-minute wall-clock minimum, 90-second due-time
+check and maximum deployment lifetime are unchanged.
+
+The previously exposed local development PostgreSQL password was rotated with
+no credential output. Only its `.env` entry changed; the audit key and other
+settings were asserted unchanged. The existing PostgreSQL volume was retained
+while its container was refreshed. `scripts/check_dev.py` passed authenticated
+PostgreSQL SELECT 1, Hirz health, Home Assistant authentication (123 entities), and
+the expected unauthenticated HA 401. No migration or data reset occurred.
+
+### First live bootstrap correction — 2026-10-17
+
+The cold application deployment reached CREATE_COMPLETE in 1011.11 seconds with
+zero desired workers. Its first setup task exited before initialization because
+CDK's staged source directory was root-owned mode 0700 in the image; the exact
+failure and reproduction are recorded in the [friction log](./friction-log.md).
+No bootstrap operation completed in that attempt. The image now normalizes source
+read/traverse permissions and imports the three AWS entry modules after `USER hirz`
+during its build. The corrected image digest is
+`sha256:521705078dcabdc2be9e3b01429ce5a94d2d921b4c1c2a4eb5ca36da23b05bcf`;
+its non-root build import check and a network-disabled `hirz.aws.bootstrap --help`
+container with 0.25 vCPU / 512 MiB both passed. AWS unit tests passed **20/20** in
+2.95 seconds. The replacement cold deployment and actual initialization are still
+pending at this entry; this does not claim an application acceptance gate.

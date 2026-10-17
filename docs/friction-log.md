@@ -973,3 +973,16 @@ completed with zero reported vulnerabilities. The shell initially selected Node
   the user's normal configuration or restarting development containers.
   **Feature request:** identify a pending credential-helper lookup in build progress
   and bound its wait, even when resolving public pinned base images.
+
+- **Tool/service:** CDK asset staging and Docker source permissions (2026-10-17).
+  **Severity:** Minor. **Documentation:** https://docs.docker.com/reference/dockerfile/#copy.
+  The acceptance deployment was launched with a restrictive local umask; the staged
+  `hirz/aws` directory reached the image as root-owned mode `0700`. The ECS setup
+  task exited before initialization with `/app/.venv/bin/python: No module named hirz.aws.bootstrap`.
+  Local reproduction under the image's normal user returned
+  `ls: cannot open directory '/app/hirz/aws': Permission denied`; root inspection
+  confirmed the directory mode. Docker preserved source permissions as documented.
+  **Workaround:** normalize read/traverse permissions for the allowlisted image
+  source and import the AWS entry modules during the build after switching to the
+  runtime user. **Feature request:** warn when staged source directories cannot
+  be traversed by an image's declared runtime user.
