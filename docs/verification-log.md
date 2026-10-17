@@ -14096,3 +14096,146 @@ integration cancellation check before any tick/ingestion reproduced the failure
 Ruff and strict mypy passed. The intermediate live signed export independently
 verified **30 events**. Failed proposed plans remain auditable; no synthetic
 activation or audit records were inserted to work around the failure.
+
+### Corrected live cancellation and repeated deployment — 2026-10-17
+
+Implementation `1806034b45ce50f39c75fff9fc89e91ac1f18e6d` built ARM64 image
+`sha256:3ccc7c7bb9d44427b8a07e89bdb98ceb58e54174c143b329f12f8964f81bcbb8`.
+The update completed in **454.04 seconds** including the single-worker switchover;
+ECS reached steady state, the target was healthy, and the generated HTTPS root
+returned **200**. The identical repeat reported **no changes**, deployment time
+**0 seconds**. The standard live `cancel` runner then passed Pipeline authorization,
+cancellation, scheduler reconciliation and absence of the obsolete schedule after
+another tick. Private results are retained in the retry artifact directory.
+
+The required final-implementation normal [workflow_dispatch latency gate](https://github.com/BashaarJavaid/Hirz/actions/runs/39054697237)
+and [push CI](https://github.com/BashaarJavaid/Hirz/actions/runs/39054688981)
+are running. The preceding cleanup-fix [push CI](https://github.com/BashaarJavaid/Hirz/actions/runs/39052236134)
+passed. The user has been given the new URL and private recovery-file path for the
+physical-passkey check; no completion is inferred from virtual-authenticator tests.
+
+CloudWatch retry NAT bytes before the quiet gate were **3,351,458** from source
+and **1,778,866,159** from destination, retained in `nat-usage-prequiet.json`.
+Combined with the preceding attempt this is **3,558,714,086 bytes**, below the
+original aggregate 20 GB allowance. Metrics are observed usage, not an invoice or
+a guarantee that all delayed charges have posted.
+
+### Physical passkey confirmation — 2026-10-17
+
+The user explicitly confirmed enrollment with a real passkey, saving the
+replacement recovery code privately, signing out and back in, opening the
+authenticated household page, and closing all Hirz tabs. This is user-attested
+physical-authenticator evidence, separately recorded in `real-passkey.json`;
+it is not inferred from the automated virtual authenticator. The temporary
+signer positive-control Lambda was verified absent, with no leftover probe log
+group (`probe-absence.json`). The quiet-window runner was started only after this
+confirmation. Its result remains pending.
+
+### Final-implementation regression CI — 2026-10-17
+
+[Push CI 39054688981](https://github.com/BashaarJavaid/Hirz/actions/runs/39054688981)
+passed on `1806034b45ce50f39c75fff9fc89e91ac1f18e6d`. Private complete logs and
+job metadata are retained as `ci-push-1806034.log` and `.json`. Service-free Python:
+**1,633 passed**, 175.83 seconds; disposable PostgreSQL: **246 passed**, 781.25
+seconds; combined coverage: **89%** (17,234 statements, 1,815 missed), above the
+required 80%. The separate native conformance gate passed **160 tests** in
+180.59 seconds. TypeScript tests passed **5 infrastructure**, **5 MCP-app**, and
+**1 web** checks. Browser checks passed **2 companion**, **1 simulator**, **1
+reference-host**, and **51 card baseline/behavior** tests. Python and TypeScript
+lint/type jobs, scenario/conformance jobs and build/release checks also passed.
+The normal workflow_dispatch latency run remains pending at this point.
+
+### Live quiet-window execution and final idempotency passed — 2026-10-17
+
+The normal acceptance runner completed `quiet` successfully. After deleting the
+derived one-time schedule and forcing replacement of the worker, ECS reached
+steady state with task `b25de20c7b35457383954e657c8ef203` replacing
+`cea2c48c5a6f470ca04f7d2b9a4c74a8`. A read-only AWS check found the schedule enabled
+again with deletion-after-firing; recovery was observed across the restart setup,
+not attributed specifically to the new task (`schedule-recovery.json`).
+
+The quiet interval began **2026-10-17T17:56:12.632363Z**. The real Pipeline action
+`023ccf14fc3844cebff8b3912245adfe` was due **18:30:52Z**, leaving **2,079.367637
+seconds (34 minutes 39.367637 seconds)** of quiet before its due time. The retained
+interval through due + 90 seconds contains **183 requests: 39 tick responses 204,
+144 health checks, zero other requests and zero tick responses 503**. These counts
+were independently read from the locally exported diagnostics, matching the runner.
+
+At execution, the signed Pipeline grant at sequence **289** allowed the action
+through both evaluators (`engine: dogwood-local`). Execution attempt **290** was
+followed by EXECUTED with `source: twin` and VERIFIED at
+**18:31:16.226579Z**, **24.226579 seconds after due**, within the 90-second gate.
+The result was inspected: OBSERVATIONS_RECORDED sequence **295** contains the
+living-room light (`cac78d95-1ad7-5ea1-9d46-7fa092854363`) with **on=true**,
+`source: twin`, at **18:31:16.328909Z**. Two subsequent authenticated ticks left
+the execution-attempt sequence unchanged. `quiet.json` retains the full result.
+
+The exported chain `audit-20261017T183607.json` independently verified **326
+signed events**, sequences 1–326, against the infrastructure audit public key;
+fingerprint `8cdaff1542e9886f1c3b455f9076f5a8762ab66486050c362c134f6034b14b0d`.
+It remains **not anchored: local mode**; no AgentCore policy enforcement,
+real-device verification or truncation/erasure protection is claimed. Inference
+stayed disabled. With the temporary signer probe already absent, the final
+identical deployment again reported **no changes**, deployment time **0 seconds**.
+Cleanup was then started, exporting diagnostics and another signed audit before
+removing resources. Teardown and the remaining Hourly latency job are still pending
+at this point; item 36 is not yet closed.
+
+### Required latency gate passed — 2026-10-17
+
+The normal [workflow_dispatch run 39054697237](https://github.com/BashaarJavaid/Hirz/actions/runs/39054697237)
+passed on implementation `1806034b45ce50f39c75fff9fc89e91ac1f18e6d`, with
+`HIRZ_BUDGET_DIAGNOSTIC=0`. Both scenario suites passed all **54 cases**, with **100
+measured calls per case** after five warmups (**5,400 measured calls per scenario,
+10,800 total**). Highest case p95: **121.081 ms** for Time-of-Day `plan-approval`
+and **175.745 ms** for Hourly `objective-greenest`, both below the **250 ms** gate.
+The Hourly suite passed in **3,170.51 seconds**. Full CI logs/job metadata and the
+derived `latency-summary.json` are retained privately. These are local authenticated
+tool-budget/isolation measurements in CI, not AWS cold-start latency claims.
+
+Cleanup's final pre-deletion export independently verified **334 signed events**.
+Diagnostics retained **1,046 log events across five log groups**. Neither export
+failed on this retry. CloudFormation has entered DELETE_IN_PROGRESS; final removal
+and KMS pending-deletion checks remain necessary before closure.
+
+### Item 36 closure — 2026-10-17
+
+The standard cleanup runner completed successfully. Independent read-only inventory
+at **2026-10-17T18:54:45.390421Z** confirmed both application and dedicated toolkit
+stacks absent, with **zero** NAT gateways, EIPs, Hirz VPCs, RDS instances, retained
+RDS backups, RDS snapshots, ECS clusters, load balancers, log groups, acceptance
+EventBridge rules, Lambda functions, Secrets Manager secrets (including planned
+deletions), S3 buckets, ECR repositories, Cognito pools, AgentCore Runtimes,
+Gateways, Memories, API-key credential providers, workload identities, Policy
+Engines, CloudFront distributions/VPC origins and acceptance schedule groups.
+Thus no owned ECR images, Object Lock versions, Identity backing secrets or final
+RDS snapshot remain. The two command-signing keys from the original attempt and
+retry are **PendingDeletion**, scheduled for **2026-10-24**. Nonbillable operator
+and deployment-access IAM setup remains intentionally available.
+
+The private `post-delete-inventory.json` and `cleanup.json` retain these checks;
+`teardown-verified` stops the local fallback cleanup guard. Removal was verified
+before the **2026-10-17T21:06:14Z** retry target and the unchanged
+**2026-10-18T03:34:11Z** original hard deadline. The original $10 aggregate
+acceptance allowance was not reset or increased. Final observed NAT usage across
+both attempts was **4,804,777,213 bytes** (4.804777213 GB), below the original 20 GB
+allowance (`nat-usage-final.json`). These are observed usage/capacity checks, not
+a finalized invoice; billing-lag limits and the user's tax exception remain as
+recorded in the earlier financial clearance.
+
+**Item 36 is complete.** Required bootstrap passes, repeated/final no-change
+deployments, physical-passkey confirmation, quiet execution within 90 seconds,
+duplicate delivery, worker restart, cancellation, missing-schedule recovery,
+actual IAM denials/signer positive controls, independent signed-audit verification,
+normal final-implementation latency CI and complete teardown all passed. Final
+pre-deletion diagnostics and the **334-event** signed chain were exported without
+failure on this retry. The earlier attempt's export/cleanup failures remain
+recorded above rather than being overwritten.
+
+The acceptance URL is intentionally offline after teardown. Observations remain
+`twin`, the exercised boundary remains `dogwood-local`, and the export remains
+not anchored. AgentCore policy enforcement, real devices, full AWS application
+integrations and audit anchoring are not claimed; later threat-model rows are
+unchanged. Code gates ran on `1806034`; subsequent closure changes are documentation
+only. Evidence is retained under `secrets/item36-aws-2026-10-17-retry/`, with the
+original attempt's evidence in its separate directory.

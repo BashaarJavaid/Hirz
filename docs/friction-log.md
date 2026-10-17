@@ -986,3 +986,28 @@ completed with zero reported vulnerabilities. The shell initially selected Node
   source and import the AWS entry modules during the build after switching to the
   runtime user. **Feature request:** warn when staged source directories cannot
   be traversed by an image's declared runtime user.
+
+## Item 36 — Private-origin ingress and cleanup request options — 2026-10-17
+
+- **Tool / URL:** CloudFront VPC origins;
+  https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-vpc-origins.html.
+  **Severity:** Major. The initial internal ALB security-group rule admitted the
+  VPC CIDR but did not admit the CloudFront origin connection; the generated
+  companion URL returned **HTTP 504** despite healthy application targets.
+  **Workaround:** use the documented AWS-managed CloudFront origin-facing prefix
+  list on ALB port 80, verified for this region, with an infrastructure assertion
+  attaching the rule to the origin security group. HTTPS browser checks then
+  passed. This was a deployment configuration error, not an observed CloudFront
+  service defect. **Suggestion:** surface origin security-group reachability in
+  VPC-origin deployment diagnostics.
+
+- **Tool / URL:** S3 DeleteObjects;
+  https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObjects.html.
+  **Severity:** Minor. The cleanup helper sent the Object Lock governance-bypass
+  header to the ordinary toolkit asset bucket as well as the anchor bucket.
+  **Exact API error:** `x-amz-bypass-governance-retention is only applicable to Object Lock enabled buckets.`
+  **Workaround:** send the header only when emptying the Object Lock anchor bucket;
+  omit it for toolkit assets. Tests cover both modes and per-object failures, and
+  resumed toolkit deletion passed. This was a caller error; no AWS defect is
+  claimed. **Suggestion:** document this header's rejection for ordinary buckets
+  alongside the SDK request option.

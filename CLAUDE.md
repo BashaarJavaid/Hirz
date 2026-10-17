@@ -137,12 +137,11 @@ Item 32 adds `HIRZ_LLM=off uv run --locked python -m scripts.smoke_protect --art
 
 ## Current phase
 
-Phase 6 is complete. Item 36 now has local CDK, AWS tick composition and acceptance
-tooling and verified non-root deployment access; live acceptance is underway
-([procedure](docs/development.md#item-36-aws-acceptance)). Item 36 remains incomplete
-until live acceptance, real-passkey confirmation, latency CI and teardown pass.
-Item 31 still owes email/push acceptance; item 28 owes real Web Push (#7). Ring
-remains twin; Link is item 38a. Development stays on 0005; migrations remain manual.
+Item 36 is complete: AWS bootstrap, real-passkey login, quiet twin execution, IAM,
+CI and teardown passed ([evidence](docs/verification-log.md#item-36-closure--2026-10-17)).
+Item 37's Gateway/Policy integration is next. Item 31 still owes email/push
+acceptance; item 28 owes real Web Push (#7). Ring remains twin; Link is item 38a.
+Development stays on 0005; migrations remain manual.
 
 ---
 

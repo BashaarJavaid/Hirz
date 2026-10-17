@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-10-17: Complete item 36 AWS acceptance and teardown; fix first-poll cancellation setup and restrict governance-bypass cleanup to Object Lock buckets. Physical-passkey, durable twin execution, IAM and CI evidence are retained ([verification](./docs/verification-log.md#item-36-closure--2026-10-17)); full AWS application integration remains later work.
+
 - 2026-10-16: Verify the operator's MFA browser login and temporary `HirzDeploy` credentials through both CLI and Python SDK; direct operator EC2 access is denied ([evidence](./docs/verification-log.md#operator-login-verified--2026-10-16)).
 
 - 2026-10-16: Add IAM-only operator setup, require MFA for the deployment role, and document temporary browser-login profiles; actual human login verification remains pending ([procedure](./docs/development.md#item-36-aws-acceptance), [evidence](./docs/verification-log.md#non-root-deployment-access-setup--2026-10-16)).
