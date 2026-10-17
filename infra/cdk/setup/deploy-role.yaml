@@ -44,6 +44,10 @@ Resources:
                   - ecr:*
                   - logs:*
                   - cloudwatch:*
+                  - xray:GetTraceSegmentDestination
+                  - xray:UpdateTraceSegmentDestination
+                  - xray:GetIndexingRules
+                  - xray:UpdateIndexingRule
                   - ssm:*
                 Resource: '*'
                 Condition: {StringEquals: {aws:RequestedRegion: us-east-1}}

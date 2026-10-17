@@ -845,6 +845,55 @@ companion_drafts = sa.Table(
     ),
 )
 
+policy_engines = sa.Table(
+    "policy_engines",
+    metadata,
+    sa.Column("id", sa.Text, primary_key=True),
+    sa.Column("generation", sa.Integer, nullable=False),
+    sa.Column("ready", sa.Boolean, nullable=False),
+    sa.Column("changed_at", sa.DateTime(timezone=True), nullable=False),
+    sa.Column("publication_id", sa.Text),
+    sa.Column("inventory", JSONB, nullable=False),
+)
+
+policy_publications = sa.Table(
+    "policy_publications",
+    metadata,
+    sa.Column("id", sa.Text, sa.ForeignKey("companion_drafts.id"), primary_key=True),
+    sa.Column("household_id", sa.UUID, sa.ForeignKey("households.id"), nullable=False),
+    sa.Column("engine_id", sa.Text, sa.ForeignKey("policy_engines.id"), nullable=False),
+    sa.Column("status", sa.Text, nullable=False),
+    sa.Column("candidate_hash", sa.Text, nullable=False),
+    sa.Column("base_hash", sa.Text, nullable=False),
+    sa.Column("base_version", sa.Integer, nullable=False),
+    sa.Column("principal", JSONB, nullable=False),
+    sa.Column("decision_seq", sa.BigInteger, nullable=False),
+    sa.Column("session_digest", sa.Text, nullable=False),
+    sa.Column("desired", JSONB, nullable=False),
+    sa.Column("findings", JSONB, nullable=False),
+    sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+    sa.ForeignKeyConstraint(
+        ["household_id", "decision_seq"], ["audit_log.household_id", "audit_log.seq"]
+    ),
+    sa.CheckConstraint(
+        "status IN ('queued', 'publishing', 'applying', 'recovering', 'failed', 'blocked', 'committed')",
+        name="publication_status",
+    ),
+)
+
+gateway_sessions = sa.Table(
+    "gateway_sessions",
+    metadata,
+    sa.Column(
+        "household_id", sa.UUID, sa.ForeignKey("households.id"), primary_key=True
+    ),
+    sa.Column("scope", sa.Text, primary_key=True),
+    sa.Column("engine_id", sa.Text, sa.ForeignKey("policy_engines.id"), nullable=False),
+    sa.Column("generation", sa.Integer, nullable=False),
+    sa.Column("session_id", sa.UUID, nullable=False, unique=True),
+    sa.Column("conflicted", sa.Boolean, nullable=False, server_default=sa.false()),
+)
+
 sa.Index(
     "constitution_one_active",
     constitution_versions.c.household_id,

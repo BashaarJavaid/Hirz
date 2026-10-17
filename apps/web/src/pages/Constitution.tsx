@@ -36,7 +36,8 @@ function RuleReview({ draft, done }: { draft: Review; done: () => void }) {
       <summary>Compiled Cedar</summary>
       <pre>{draft.review.cedar}</pre>
     </details>
-    <p className="muted">dogwood-local · {draft.review.analysis}</p>
+    <p className="muted">{draft.review.engine} · {draft.review.analysis}</p>
+    {draft.review.engine === "agentcore-policy" && <p>Passkey confirmation queues AWS validation. Your current rules remain active until publication succeeds.</p>}
     <AsyncButton
       primary
       disabled={draft.review.lines.length > 3 && !complete}
@@ -63,8 +64,16 @@ export function ConstitutionPage() {
   return <>
     <p className="eyebrow">HOUSE RULES</p>
     <h1>Constitution</h1>
-    <p>Version {data.version} · {data.status} · dogwood-local</p>
-    <p className="muted">not analyzed: local mode</p>
+    <p>Version {data.version} · {data.status} · {data.engine}</p>
+    <p className="muted">{data.analysis}</p>
+    {data.engine_state && <p role="status">AWS policy generation {data.engine_state.generation} · {data.engine_state.ready ? "Ready" : "AWS actions paused"}</p>}
+    {data.publications?.map(p => <section key={p.id} aria-label="Policy publication" className="panel">
+      <p role="status">Publication: {p.status}</p>
+      {["queued", "publishing", "applying", "recovering"].includes(p.status) && <p>Your new rules have not taken effect yet.</p>}
+      {["failed", "blocked"].includes(p.status) && <p>Activation failed. The proposed rules were not activated.</p>}
+      {p.status === "blocked" && <p>AWS actions remain paused until an operator verifies recovery.</p>}
+      {p.findings.length > 0 && <details><summary>AWS analysis findings</summary><pre>{JSON.stringify(p.findings, null, 2)}</pre></details>}
+    </section>)}
     {data.recorded_demo && <p><NavLink to="/simulator">Open local simulator</NavLink></p>}
     {review && <RuleReview
       key={review.id}

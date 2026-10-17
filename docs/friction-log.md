@@ -1011,3 +1011,24 @@ completed with zero reported vulnerabilities. The shell initially selected Node
   resumed toolkit deletion passed. This was a caller error; no AWS defect is
   claimed. **Suggestion:** document this header's rejection for ordinary buckets
   alongside the SDK request option.
+
+## Item 37 — CLI login credentials and the Python SDK — 2026-10-17
+
+- **Tool / task:** Read fresh account-specific billing credits before the approved
+  AgentCore acceptance window, using the existing AWS CLI browser login.
+- **Reference:** [AWS CLI sign-in and SDK credential bridge](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-sign-in.html).
+- **Observed error:** `Missing Dependency: Using the login credential provider requires an additional dependency. You will need to pip install "botocore[crt]" before proceeding.`
+- **Severity:** Minor.
+- **Workaround:** Used the installed AWS CLI for the credit read and the existing
+  credential-process bridge for SDK account reads; added no dependency. The
+  separate expired billing login was refreshed by the owner. This is a credential
+  provider dependency difference, not evidence of a billing-service defect.
+- **Feature request:** Show the optional Python dependency beside the SDK examples
+  that directly consume CLI login sessions.
+
+Item 37 follow-up to the Docker credential-helper entry (2026-10-17): CDK asset
+publication again stalled in `docker-credential-desktop store` during ECR login,
+with no error or prompt. Process inspection showed the helper idle for over two
+minutes. Stopped that deployment child and retried with a private temporary
+Docker configuration and the existing daemon socket; the original credential
+store was preserved. The same approved acceptance budget and start cover retries.

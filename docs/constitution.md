@@ -303,7 +303,7 @@ forbid (
 when { context.input.household == "quinn-home" };
 ```
 
-`ask` (temporal: an approval response must precede the action within the TTL, bound to the same action hash). The temporal permit is **generic**: it does not name the action class. One is emitted per distinct `approval_ttl_minutes` value in the constitution (usually one or two), not one per `ask` class, so the engine's quota of 25 temporal policies is never approached:
+`ask` (temporal: an approval response must precede the action within the TTL, bound to the same action hash). The temporal permit is **generic**: it does not name the action class. One is emitted per distinct `approval_ttl_minutes` value in the constitution (usually one or two), not one per `ask` class, so the engine's quota of 20 temporal policies is never approached:
 
 ```cedar
 permit (
@@ -333,7 +333,7 @@ emits current-condition/hard-bound forbids. The native gate verifies the CLI's
 `callerResource` field spelling and all correlations above within one temporal
 operator. The AgentCore service-schema spelling/comparison remains item 37;
 no AWS conformance is claimed locally. Compilation checks the [temporal quotas](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/policy-temporal.html):
-25 policies, three operators per policy, and a 24-hour maximum window. No matching
+20 policies, three operators per policy, and a 24-hour maximum window. No matching
 field was dropped in favor of a future signer.
 
 Four properties this permit must have, each with a test (`ARCHITECTURE.md` §12):
@@ -352,7 +352,7 @@ Compilation facts the engine relies on:
 - Cedar is default-deny and forbid-wins, so `never` rules cannot be overridden by any `permit`, matching principle 2.
 - **What the boundary is independent about.** The Gateway sees only the request: the action, the resource, and the input fields. Action class, parameter bounds (`target_f` within 66–76), the action hash (recomputed by the Lambda), and the order of approval and action are therefore evaluated independently of Hirz. The requester's role is not: it is an input Hirz supplies, like the context facts. Occupancy, sleeping, quiet-hours, and other context facts are not in the request; the Executor passes them as input fields (`zone_sleeping`, `is_quiet_hours`) computed from the same context snapshot the pipeline used, and the snapshot hash is included in the call so the audit row can prove both engines saw the same facts. The boundary catches a compiler bug, a pipeline bug, or a bypass path; it does not catch a wrong snapshot. `THREAT_MODEL.md` says the same.
 - **A permit is what gets a command signed.** For devices in the home, the Gateway target does not call the device. On a permit, the `hirz-actions` Lambda signs the command with a KMS key only its role can use, and the home-side agent (Hirz Link) executes only commands whose signature verifies ([ADR-009](./adr/ADR-009-signed-commands-home-agent.md)). Hirz's own processes hold no credential that can act on a device, so a path that skips the boundary has nothing to act with. The command is addressed to one home (`home_id`), executed at most once, and for a bounded operation carries its own ending, which the home runs from its own clock (`ARCHITECTURE.md` §5.6).
-- Temporal rules require the policy session header on every Gateway call; the Executor uses the plan session id. Quotas (25 temporal policies per engine, 3 operators per policy, 24-hour window) are still checked at compile time and fail activation with the count if exceeded.
+- Temporal rules require the policy session header on every Gateway call; the Executor uses the plan session id. Quotas (20 temporal policies per engine, 3 operators per policy, 24-hour window) are still checked at compile time and fail activation with the count if exceeded.
 - **One evaluator locally, and it is Dogwood's.** Every Cedar policy is a valid Dogwood policy, so the identical policy text is evaluated locally by the open-source Dogwood CLI (`validate`, `replay`, `lower`, `check-parse`) behind a thin subprocess wrapper, fed the compiled set plus the session's event trace. Hirz does not reimplement temporal semantics. `tests/cedar_conformance` currently compares the pure evaluator and native Dogwood; AgentCore comparison over scenario actions remains item 37. Locally the evaluator runs in the same container as the pipeline, so it is a **second evaluator in the same trust domain**, not a boundary outside Hirz; the audit row's `boundary.engine` reads `dogwood-local` and the Cedar view says so. Only AWS mode has the out-of-process boundary. If the CLI turns out not to be drivable this way (`ROADMAP.md` item 7 verifies it early), the fallback is `cedarpy` for stateless rules plus an in-process record for the single generic temporal rule, and the docs are updated to say so.
 - Changing temporal policies invalidates open policy sessions on the engine (HTTP 409 on reuse). Activation therefore starts a new plan session and re-issues pending approvals under it.
 
@@ -580,3 +580,40 @@ confirmation or one reply; it provides no principal/session in either household.
 All resulting changes retain Pipeline decisions and signed audit evidence. The
 worker consumes the recipient household's receipt without using its identity as a
 requester in the initiating household. [ADR-022](./adr/ADR-022-trusted-checkins.md).
+
+## AgentCore publication and private boundary (item 37)
+
+The same compiler emits individually named statements for native Dogwood and
+AgentCore. Only the documented temporal event field spelling differs:
+`callerPrincipal`/`callerResource` locally and `eventPrincipal`/`eventResource` in
+AWS. The pinned CLI and helper remain the local reference. The shared engine
+budget is 20 temporal statements, including other households and publication
+headroom; each generated statement uses one temporal operator and a TTL of at
+most 24 hours. Decimal inputs retain their exact numeric JSON representation.
+
+The private `HirzActions` Gateway contract is generated from the class catalog and
+compiled fields. Its typed identifiers and approval output are an approved
+private-contract exception; Alexa tool inputs remain unchanged. The target only
+returns an inert evaluation receipt with `executed: false`. Neither a successful
+tool response nor an AWS permit means a device action executed.
+
+For explicitly managed households, the owner's candidate-bound passkey queues a
+publication. The companion reports pending status until the worker verifies the
+exact installed inventory. Each publication transition has a Pipeline decision
+and audit event. Owner authority, credential validity, candidate integrity, base
+version and pending-approval blockers are checked before publication and commit.
+The engine is durably blocked before remote changes. One engine-wide lock
+serializes bounded publication ticks; every create/update requests
+`FAIL_ON_ANY_FINDINGS`, and asynchronous failures retain raw findings associated
+with the candidate. Interrupted or failed publication restores the last committed
+inventory. Unverifiable restoration leaves AWS actions blocked for operator repair.
+
+Sessions persist by household and plan (or standalone action), and every related
+Gateway request carries their UUID. A new engine generation rotates sessions and
+reissues affected approvals with their original deadlines and no inherited votes.
+A conflicting session fails closed; it cannot reuse old approval history. Local
+governance still uses native Dogwood. Only the worker makes Gateway calls, with
+correlated policy evidence in the canonical Decision; public MCP calls never do.
+The hosted demo explicitly routes to Dogwood, and unknown household routes fail
+startup. See [ADR-003](adr/ADR-003-constitution-yaml-to-cedar.md) and the
+[acceptance procedure](development.md#item-37-policy-acceptance) for the live gates.

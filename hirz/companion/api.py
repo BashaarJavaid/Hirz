@@ -15,6 +15,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from hirz import db
+from hirz.aws.routing import Routing
 from hirz.companion import auth, policy, push, twin
 from hirz.constitution.boundary import Dogwood
 from hirz.constitution.schema import loads
@@ -101,6 +102,7 @@ class Companion:
         *,
         demo_world: TwinWorld | None = None,
         demo_worlds: dict[UUID, TwinWorld] | None = None,
+        policy_routes: Routing | None = None,
     ):
         if demo_world is not None and not str(engine.url.database).startswith(
             "hirz_ha_smoke_"
@@ -114,6 +116,7 @@ class Companion:
             {demo_world.household.id: demo_world} if demo_world else {}
         )
         self.demo_lock = asyncio.Lock()
+        self.policy_routes = policy_routes
 
     @asynccontextmanager
     async def pipeline(self, household: UUID) -> AsyncIterator[Pipeline]:
@@ -161,7 +164,15 @@ class Companion:
                 else now
             )
             yield Pipeline(
-                c, bundle, self.boundary, self.audit, clock=clock, require_active=True
+                c,
+                bundle,
+                self.boundary,
+                self.audit,
+                clock=clock,
+                require_active=True,
+                policy_route=self.policy_routes.route(household)
+                if self.policy_routes
+                else None,
             )
 
     def guard(
@@ -431,7 +442,11 @@ def router(service: Companion) -> APIRouter:
                                     binding["candidate_hash"],
                                     current["digest"],
                                 )
-                                result = {"version": str(version)}
+                                result = (
+                                    {"version": str(version)}
+                                    if version is not None
+                                    else {"status": "pending"}
+                                )
                             elif binding["operation"] == "approve":
                                 from hirz.pipeline.models import Action
 
@@ -566,6 +581,42 @@ def router(service: Companion) -> APIRouter:
             )
             from hirz.constitution.schema import Constitution
 
+            publications = []
+            engine_state = None
+            if p.policy_route:
+                engine_row = (
+                    (
+                        await p.connection.execute(
+                            sa.select(
+                                db.policy_engines.c.ready,
+                                db.policy_engines.c.generation,
+                            ).where(db.policy_engines.c.id == p.policy_route.engine_id)
+                        )
+                    )
+                    .mappings()
+                    .one_or_none()
+                )
+                engine_state = (
+                    dict(engine_row)
+                    if engine_row
+                    else {"ready": False, "generation": 0}
+                )
+                publications = [
+                    dict(r)
+                    for r in (
+                        await p.connection.execute(
+                            sa.select(
+                                db.policy_publications.c.id,
+                                db.policy_publications.c.status,
+                                db.policy_publications.c.findings,
+                                db.policy_publications.c.candidate_hash,
+                            )
+                            .where(p.scope(db.policy_publications))
+                            .order_by(db.policy_publications.c.created_at.desc())
+                            .limit(50)
+                        )
+                    ).mappings()
+                ]
             return {
                 "yaml": row["yaml"],
                 "document": loads(row["yaml"]).model_dump(mode="json", by_alias=True),
@@ -580,8 +631,18 @@ def router(service: Companion) -> APIRouter:
                 ],
                 "drafting": os.environ.get("HIRZ_LLM", "off"),
                 "recorded_demo": service.demo_world is not None,
-                "engine": "dogwood-local",
-                "analysis": "not analyzed: local mode",
+                "engine": "agentcore-policy" if p.policy_route else "dogwood-local",
+                "analysis": "AWS validation passed"
+                if p.policy_route
+                and any(
+                    r["status"] == "committed" and r["candidate_hash"] == row["hash"]
+                    for r in publications
+                )
+                else "pending AWS analysis"
+                if p.policy_route
+                else "not analyzed: local mode",
+                "publications": publications,
+                "engine_state": engine_state,
             }
 
     @api.post("/constitution/draft")

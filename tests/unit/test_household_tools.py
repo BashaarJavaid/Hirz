@@ -536,7 +536,9 @@ def test_tools_list_size_and_narrow_output_boundary(capsys, caplog, monkeypatch)
             for name, size in sizes.items():
                 print(f"{name} bytes={size}")
         assert set(sizes) == set(TOOLS) == set(OUTPUTS)
-        assert total < 122_000  # Includes item 33 canonical organization evidence.
+        assert (
+            total < 125_000
+        )  # Includes item 37 correlated canonical boundary evidence.
         assert all(size < 20_000 for size in sizes.values())
         assert next(row for row in rows if row["name"] == "what_can_you_do")[
             "outputSchema"

@@ -70,3 +70,19 @@ Reject caching across CLI validation and helper startup because the helper has
 not prepared those policy/schema pairs and must refuse their replay.
 Reject lazy preparation in replay because the native-helper contract forbids
 compilation during a warm call.
+
+## Queued AWS activation amendment — 2026-10-17
+
+AWS-managed households return pending after a passkey confirms the exact reviewed
+candidate. Migration 0020 stores publication progress, engine readiness/generation,
+and Gateway sessions. Worker ticks recheck the owner's current authority and
+credential, candidate integrity, base version and pending approval blockers before
+publication and commit. Every persisted transition requires a Pipeline grant and
+audit. Native/local activation remains immediate.
+
+The Constitution interface displays actual engine, publication state and raw AWS
+findings associated with that candidate. Publication failures never activate it;
+failed restoration keeps AWS actions blocked. Session replacement invalidates old
+approvals and preserves their original expiry when reissued. Rejected: claiming
+activation on queue acceptance, fabricating a new passkey verification in the worker,
+hard-coded local labels for managed households, and extending consent on restart.

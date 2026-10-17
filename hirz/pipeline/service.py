@@ -17,6 +17,8 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 
 from hirz import db
 from hirz.audit import Verification
+from hirz.aws.gateway import Gateway
+from hirz.aws.routing import Route
 from hirz.constitution.boundary import BoundaryResult, Dogwood, Event
 from hirz.constitution.compiler import Compiled, boundary_input, compile_policy
 from hirz.constitution.conditions import PolicyFacts
@@ -158,6 +160,8 @@ class Pipeline:
         clock: Callable[[], datetime] = now,
         *,
         require_active: bool = False,
+        policy_route: Route | None = None,
+        gateway: Gateway | None = None,
     ):
         self.connection, self.bundle, self.boundary, self.audit, self.clock = (
             connection,
@@ -168,6 +172,8 @@ class Pipeline:
         )
         self.household_id = bundle.household_id
         self.require_active = require_active
+        self.policy_route = policy_route
+        self.gateway = gateway
         self.repo = GraphRepository(connection, self.household_id)
         self._observation_batch: tuple[Any, ...] | None = None
         self._observation_world: Any = None
@@ -715,6 +721,10 @@ class Pipeline:
             except Exception:
                 allowed = False
             results[role] = allowed
+        if self.policy_route and not ev.action.action_class.startswith("governance."):
+            from hirz.aws.boundary import check
+
+            return await check(self, ev, at, approval, voter, results, context_hash)
         ev.decision = ev.decision.model_copy(
             update={
                 "boundary": BoundaryEvidence(

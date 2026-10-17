@@ -8,8 +8,8 @@ from hirz.aws.fixture import load
 from hirz.aws.lambdas.actions import handler
 
 
-def test_closed_gateway_has_no_action_path():
-    with pytest.raises(RuntimeError, match="Action boundary unavailable"):
+def test_inert_gateway_rejects_arbitrary_invocations():
+    with pytest.raises(ValueError, match="Gateway invocation context required"):
         handler({"action": "unlock", "bytes": "sign this"}, None)
 
 
@@ -54,6 +54,8 @@ def test_worker_request_evidence_omits_private_paths(monkeypatch, caplog):
     monkeypatch.setenv("HIRZ_LLM", "off")
     monkeypatch.setenv("HIRZ_COMPANION_ORIGIN", "https://example.cloudfront.net")
     monkeypatch.setenv("HIRZ_COMPANION_RP_ID", "example.cloudfront.net")
+    for field in ("HIRZ_POLICY_ENGINE", "HIRZ_GATEWAY_ARN", "HIRZ_GATEWAY_URL"):
+        monkeypatch.setenv(field, "synthetic")
     monkeypatch.setattr(aws_app.config, "secret", lambda _: secret)
     monkeypatch.setattr(aws_app.config, "database", lambda _: Mock())
     monkeypatch.setattr(

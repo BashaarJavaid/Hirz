@@ -7,6 +7,31 @@ from typing import Any
 from botocore.exceptions import ClientError  # type: ignore[import-untyped]
 
 
+def empty_policy_engine(client: Any, engine: str) -> None:
+    """Remove runtime-created policies before CloudFormation deletes their engine."""
+    deadline = time.monotonic() + 300
+    while time.monotonic() < deadline:
+        policies = []
+        token: dict[str, str] = {}
+        for _ in range(11):
+            page = client.list_policies(policyEngineId=engine, maxResults=100, **token)
+            policies.extend(page.get("policies", []))
+            if not page.get("nextToken"):
+                break
+            token = {"nextToken": page["nextToken"]}
+        else:
+            raise ValueError("Policy cleanup inventory exceeded the engine quota")
+        if not policies:
+            return
+        for policy in policies:
+            if policy["policyEngineId"] != engine:
+                raise ValueError("Policy cleanup crossed the recorded engine")
+            if policy["status"] not in {"CREATING", "UPDATING", "DELETING"}:
+                client.delete_policy(policyEngineId=engine, policyId=policy["policyId"])
+        time.sleep(2)
+    raise ValueError("Policy cleanup exceeded its deadline")
+
+
 def empty_bucket(s3: Any, bucket: str, *, governance_bypass: bool = False) -> None:
     bypass = {"BypassGovernanceRetention": True} if governance_bypass else {}
     for page in s3.get_paginator("list_object_versions").paginate(Bucket=bucket):
@@ -101,6 +126,7 @@ def destroy(acceptance: Any) -> dict[str, Any]:
         "ScheduleGroup": "AWS::Scheduler::ScheduleGroup",
         "AnchorBucket": "AWS::S3::Bucket",
         "CommandKey": "AWS::KMS::Key",
+        "PolicyEngine": "AWS::BedrockAgentCore::PolicyEngine",
     }.items():
         if value := physical(app, kind):
             output.setdefault(key, value)
@@ -204,6 +230,14 @@ def destroy(acceptance: Any) -> dict[str, Any]:
             time.sleep(30)
         raise ValueError("Stack deletion exceeded the cleanup deadline")
 
+    if output.get("PolicyEngine"):
+        try:
+            empty_policy_engine(
+                acceptance.client("bedrock-agentcore-control"), output["PolicyEngine"]
+            )
+        except ClientError as exc:
+            if not absent(exc):
+                raise
     delete_stack("HirzItem36")
     ecr = acceptance.client("ecr")
     for row in toolkit:

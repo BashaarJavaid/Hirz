@@ -9,7 +9,36 @@ from zoneinfo import ZoneInfo
 
 import yaml
 
+from hirz.aws.routing import Route, Routing
+from hirz.graph.seeds import Seed, demo_id, read_seed
 from hirz.twin.scenario import LoadedScenario
+
+
+def policy_seeds() -> list[Seed]:
+    """Approved initial acceptance copies; the hosted quinn-home fixture stays local."""
+    seeds = []
+    for suffix in ("home", "parents"):
+        source = read_seed(Path(f"constitutions/quinn-{suffix}.yaml"))
+        name = "item37-" + suffix
+        source.graph["household"].update(
+            slug=name, name=f"Inert AWS policy acceptance: {suffix}"
+        )
+        for row in source.graph.get("member_accounts", []):
+            row["sub"] += "-item37"
+        source.constitution["household"] = name
+        seeds.append(Seed(source.graph, source.constitution))
+    return seeds
+
+
+def policy_routes(route: Route) -> Routing:
+    return Routing(
+        frozenset(
+            demo_id(name, "households", name)
+            for name in ("item37-home", "item37-parents")
+        ),
+        frozenset({demo_id("quinn-home", "households", "quinn-home")}),
+        route,
+    )
 
 
 def load() -> LoadedScenario:

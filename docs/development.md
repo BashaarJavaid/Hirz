@@ -2189,3 +2189,55 @@ no-billable-resources evidence. Failed or partial cleanup must be reported and
 repaired immediately, never labeled complete. The teardown helper's retry path
 uses retained pre-destruction inventory; keep that private directory until cleanup
 is verified. Item 36 stays open until every live gate and teardown passes.
+
+## Item 37 policy acceptance
+
+Migration `0020_agentcore_policy` creates durable publication, engine-generation
+and Gateway-session state. Apply it only through the disposable test/acceptance
+setup during this item; development upgrades remain explicit and manual.
+
+The item 37 window uses the existing `HirzItem36` application and
+`HirzItem36Toolkit` toolkit names, qualifier and resource sizes. Its separately
+approved $10 incremental limit and 24-hour maximum include failures, asset
+publication, deployment and teardown. Refresh account-specific eligible credit,
+prices and all existing capacity before opening the window. Retain the fresh
+clearance, fixed UTC start, estimate and raw account evidence privately. The
+accepted tax exception does not waive service-charge clearance. Never reset the
+window or its usage across a retry. The accepted estimate allows at most 5,000
+Gateway/Policy calls; stop and tear down before exhausting any allowance.
+
+Use the item 36 bootstrap/deployment commands with the new retained start and
+clearance. The worker configuration explicitly routes `item37-home` and
+`item37-parents` to the shared engine; the hosted `quinn-home` stays local. Inspect
+existing X-Ray transaction-search configuration and `aws/spans` first: the
+acceptance stack must not replace shared tracing resources. Preserve the prior
+configuration for cleanup verification. The dedicated deployment role template
+adds the tracing-management actions needed by CloudFormation; its MFA trust and
+credential/KMS boundaries remain unchanged.
+
+```sh
+uv run --locked python -m scripts.smoke_policy offline
+uv run --locked python -m scripts.smoke_policy live \
+  --artifacts-dir /PRIVATE/ITEM37 --billing-clearance /PRIVATE/ITEM37/clearance.json
+```
+
+Offline mode reports the shared corpus, not an AWS result. Live mode uses a
+uniquely named disposable local PostgreSQL database, real companion passkey
+ceremonies, the real publisher and deployed inert Gateway target. It requires
+actual correlated AWS policy decisions, refuses production validation findings,
+and runs the explicitly isolated faulty-compiler fixture through the same
+publisher. Promotion checks corpus completeness and the exact deployed inventory
+before changing `LOG_ONLY` to `ENFORCE`. Live expiry uses elapsed time; randomized
+and exact synthetic-time endpoints remain native local tests. The resulting
+signed audit exports are verified independently. Local harness credentials do
+not by themselves establish worker-role acceptance; retain worker checks too.
+
+The runner tears down in `finally`, even when acceptance fails. Cleanup removes
+runtime-created policies before deleting the engine, then verifies the existing
+application/toolkit cleanup contract. If the process dies before cleanup, run the
+existing `scripts/smoke_aws.py destroy` command using the same private artifacts.
+Check the retained account tracing configuration after teardown. A blocked
+publication is not an active constitution, and an inert permit is not device
+execution. Signing, Link, physical execution and independent boundary passkey
+verification remain their later roadmap items. Do not close item 37 until all
+live, CI, coverage and latency gates pass on the implementation revision.

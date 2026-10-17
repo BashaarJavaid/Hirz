@@ -14,6 +14,12 @@ async def prepare(p: Pipeline, action: Action, principal: Principal) -> None:
         and action.params.get("operation") in {"draft", "draft_failed"}
         and principal.surface == "scheduler"
     )
+    publishing = (
+        action.action_class == "governance.constitution"
+        and action.params.get("operation") == "publish"
+        and principal.surface == "scheduler"
+        and p.policy_route is not None
+    )
     publishing_run = (
         action.action_class == "governance.twin"
         and action.params.get("operation") == "publish"
@@ -33,6 +39,7 @@ async def prepare(p: Pipeline, action: Action, principal: Principal) -> None:
         and not drafting
         and not publishing_run
         and not contact_worker
+        and not publishing
     ):
         raise ValueError("Companion mutations require an internal command")
     fresh = (
@@ -53,6 +60,7 @@ async def prepare(p: Pipeline, action: Action, principal: Principal) -> None:
         and principal.credential_id is None
         and not drafting
         and not contact_worker
+        and not publishing
     ):
         raise ValueError("Constitution changes require an authenticated credential")
 
@@ -113,7 +121,9 @@ async def household(
 async def constitution(
     p: Pipeline,
     principal: Principal,
-    operation: Literal["draft", "draft_failed", "review", "activate", "dismiss"],
+    operation: Literal[
+        "draft", "draft_failed", "review", "activate", "dismiss", "publish"
+    ],
     reference: str,
 ) -> Decision:
     if (

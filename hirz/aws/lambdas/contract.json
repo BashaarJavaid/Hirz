@@ -1,0 +1,246 @@
+{
+  "inputSchema": {
+    "properties": {
+      "action_class": {
+        "type": "string"
+      },
+      "action_hash": {
+        "type": "string"
+      },
+      "approval_channel": {
+        "type": "string"
+      },
+      "approver_role": {
+        "type": "string"
+      },
+      "f_action_params_ev_soc_floor": {
+        "type": "number"
+      },
+      "f_action_params_member_id": {
+        "type": "string"
+      },
+      "f_action_params_minutes": {
+        "type": "number"
+      },
+      "f_action_params_mode": {
+        "type": "string"
+      },
+      "f_action_params_needed_by": {
+        "type": "string"
+      },
+      "f_action_params_open_minutes": {
+        "type": "number"
+      },
+      "f_action_params_operation": {
+        "type": "string"
+      },
+      "f_action_params_power_kw": {
+        "type": "number"
+      },
+      "f_action_params_soc": {
+        "type": "number"
+      },
+      "f_action_params_target_f": {
+        "type": "number"
+      },
+      "f_action_target_adapter": {
+        "type": "string"
+      },
+      "f_action_target_entity": {
+        "type": "string"
+      },
+      "f_action_target_zone": {
+        "type": "string"
+      },
+      "f_asset_policy_needed_by": {
+        "type": "string"
+      },
+      "f_asset_policy_soc_min": {
+        "type": "number"
+      },
+      "f_asset_state_available": {
+        "type": "boolean"
+      },
+      "f_asset_state_locked": {
+        "type": "boolean"
+      },
+      "f_asset_state_on": {
+        "type": "boolean"
+      },
+      "f_asset_state_plugged_in": {
+        "type": "boolean"
+      },
+      "f_asset_state_power_kw": {
+        "type": "number"
+      },
+      "f_asset_state_present": {
+        "type": "boolean"
+      },
+      "f_asset_state_recovery_score": {
+        "type": "number"
+      },
+      "f_asset_state_sleeping": {
+        "type": "boolean"
+      },
+      "f_asset_state_soc": {
+        "type": "number"
+      },
+      "f_asset_state_target_f": {
+        "type": "number"
+      },
+      "f_asset_state_temp_f": {
+        "type": "number"
+      },
+      "f_asset_state_zone_id": {
+        "type": "string"
+      },
+      "f_context_hour": {
+        "type": "number"
+      },
+      "f_context_is_quiet_hours": {
+        "type": "boolean"
+      },
+      "f_context_price_band": {
+        "type": "string"
+      },
+      "f_context_time": {
+        "type": "integer"
+      },
+      "f_context_unexpected_visitor": {
+        "type": "boolean"
+      },
+      "f_context_weekday": {
+        "type": "string"
+      },
+      "f_household_budget_used_today": {
+        "type": "number"
+      },
+      "f_occupancy_present_members": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "f_occupancy_sleeping_any": {
+        "type": "boolean"
+      },
+      "f_requester_claimed_role": {
+        "type": "string"
+      },
+      "f_requester_member_id": {
+        "type": "string"
+      },
+      "f_requester_surface": {
+        "type": "string"
+      },
+      "f_risk_band": {
+        "type": "string"
+      },
+      "f_risk_factors": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "household": {
+        "type": "string"
+      },
+      "nulls": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "p_8385c73c3fbed9e1": {
+        "type": "boolean"
+      },
+      "quorum_satisfied": {
+        "type": "boolean"
+      },
+      "requester_role": {
+        "type": "string"
+      },
+      "session_id": {
+        "type": "string"
+      },
+      "ttl_minutes": {
+        "type": "integer"
+      }
+    },
+    "required": [
+      "action_class",
+      "action_hash",
+      "approval_channel",
+      "approver_role",
+      "household",
+      "nulls",
+      "quorum_satisfied",
+      "requester_role",
+      "session_id",
+      "ttl_minutes"
+    ],
+    "type": "object"
+  },
+  "names": [
+    "energy_optimize_cost",
+    "energy_hvac_adjust",
+    "energy_ev_charge",
+    "energy_battery_dispatch",
+    "energy_appliance_start",
+    "environment_lights",
+    "environment_comfort_profile",
+    "environment_shades",
+    "health_routine_reminders",
+    "health_comfort_preferences",
+    "health_medical_decisions",
+    "communication_notify_member",
+    "communication_contact_trusted_contact",
+    "communication_contact_emergency_services",
+    "security_door_unlock",
+    "security_camera_disable",
+    "security_access_code_share",
+    "security_arm_disarm",
+    "finance_transfer_money",
+    "finance_change_payee",
+    "finance_verify_request",
+    "governance_pause_automation",
+    "governance_resume_automation",
+    "governance_record_constraint",
+    "governance_withdraw_constraint",
+    "governance_record_plan",
+    "governance_approve_plan",
+    "governance_revise_plan",
+    "governance_cancel_plan",
+    "governance_record_observations",
+    "governance_refresh_plan",
+    "governance_memory",
+    "governance_record_tool_request",
+    "governance_propose_rule",
+    "governance_request_plan",
+    "governance_record_verification",
+    "governance_credentials",
+    "governance_constitution",
+    "governance_contacts",
+    "governance_twin",
+    "governance_approve_action"
+  ],
+  "outputSchema": {
+    "properties": {
+      "approved": {
+        "type": "boolean"
+      },
+      "executed": {
+        "type": "boolean"
+      },
+      "ttl_minutes": {
+        "type": "integer"
+      }
+    },
+    "required": [
+      "approved",
+      "ttl_minutes",
+      "executed"
+    ],
+    "type": "object"
+  }
+}

@@ -5,7 +5,7 @@ import json
 from collections.abc import Mapping
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Any
+from typing import Any, Literal
 
 from hirz.constitution.conditions import (
     ATTRIBUTES,
@@ -25,6 +25,7 @@ from hirz.risk import CLASSES
 REVISION = "996d756de1013b7ae209a14f566a80375a59f2f0"
 APPROVE = 'AgentCore::Action::"HirzActions___governance_approve_action"'
 INPUT = "context.input"
+TEMPORAL_LIMIT = 20
 
 
 def action_name(name: str) -> str:
@@ -174,19 +175,35 @@ def requirements(rule: Rule) -> list[str]:
 
 
 @dataclass(frozen=True)
+class Statement:
+    name: str
+    text: str
+    temporal: bool = False
+
+
+@dataclass(frozen=True)
 class Compiled:
     policy: str
     schema: str
     manifest: dict[str, Any]
     predicates: tuple[Node, ...]
+    statements: tuple[Statement, ...] = ()
 
 
 def compile_policy(
-    policy: Constitution, gateway_resource: str = "hirz-local"
+    policy: Constitution,
+    gateway_resource: str = "hirz-local",
+    *,
+    engine: Literal["dogwood-local", "agentcore-policy"] = "dogwood-local",
 ) -> Compiled:
     resource = f"AgentCore::Gateway::{literal(gateway_resource)}"
     household = f"{INPUT}.household == {literal(policy.household)}"
-    policies: list[str] = []
+    statements: list[Statement] = []
+
+    def emit(name: str, text: str, *, temporal: bool = False) -> None:
+        prefix = hashlib.sha256(policy.household.encode()).hexdigest()[:16]
+        statements.append(Statement(f"h_{prefix}_{name}", text, temporal))
+
     ttls: dict[int, list[str]] = {}
     calls: set[Node] = set()
     for name in CLASSES:
@@ -228,7 +245,10 @@ def compile_policy(
             else "false"
         )
         scope = f"principal, action == {action_name(name)}, resource == {resource}"
-        policies.append(f"forbid ({scope}) when {{ {household} && !{safe} }};")
+        emit(
+            name.replace(".", "_") + "_forbid",
+            f"forbid ({scope}) when {{ {household} && !{safe} }};",
+        )
         if auto_roles:
             autonomous = conjunction(
                 [
@@ -238,7 +258,10 @@ def compile_policy(
                     override_path(common, True),
                 ]
             )
-            policies.append(f"permit ({scope}) when {{ {household} && {autonomous} }};")
+            emit(
+                name.replace(".", "_") + "_auto",
+                f"permit ({scope}) when {{ {household} && {autonomous} }};",
+            )
         if allowed_roles and not name.startswith("governance."):
             ttl = common.approval_ttl_minutes or policy.defaults.approval_ttl_minutes
             ttls.setdefault(ttl, []).append(
@@ -260,18 +283,22 @@ def compile_policy(
                     f"{INPUT}.quorum_satisfied",
                 ]
             )
-            policies.append(
-                f"permit (principal, action == {APPROVE}, resource == {resource}) when {{ {approval} }};"
+            emit(
+                name.replace(".", "_") + "_approve",
+                f"permit (principal, action == {APPROVE}, resource == {resource}) when {{ {approval} }};",
             )
-    if len(ttls) > 25 or any(ttl > 1440 for ttl in ttls):
+    if len(ttls) > TEMPORAL_LIMIT or any(ttl > 1440 for ttl in ttls):
         raise ValueError("Temporal quota exceeded")
+    event_prefix = "event" if engine == "agentcore-policy" else "caller"
     for ttl, classes in sorted(ttls.items()):
         # One formerly operator; field correlations do not consume operator quota.
-        policies.append(f"""permit (principal, action, resource == {resource})
+        emit(
+            f"ttl_{ttl}",
+            f"""permit (principal, action, resource == {resource})
 when {{ {household} && {disjunction(classes)} }}
 when temporal {{ formerly within {ttl}m {APPROVE}::response {{
-  callerResource: resource,
-  callerPrincipal: principal,
+  {event_prefix}Resource: resource,
+  {event_prefix}Principal: principal,
   input.household: {INPUT}.household,
   input.action_class: {INPUT}.action_class,
   input.action_hash: {INPUT}.action_hash,
@@ -279,7 +306,9 @@ when temporal {{ formerly within {ttl}m {APPROVE}::response {{
   input.ttl_minutes: {ttl},
   output.ttl_minutes: {ttl},
   output.approved: true
-}} }};""")
+}} }};""",
+            temporal=True,
+        )
     fields: dict[str, str] = {
         "household": "String",
         "action_class": "String",
@@ -323,12 +352,14 @@ when temporal {{ formerly within {ttl}m {APPROVE}::response {{
         + "\n}"
     )
     manifest = {
-        "engine": "dogwood-local",
+        "engine": engine,
         "revision": REVISION,
         "household": policy.household,
         "version": policy.version,
         "gateway_resource": gateway_resource,
-        "analysis": "not analyzed: local mode",
+        "analysis": "not analyzed: local mode"
+        if engine == "dogwood-local"
+        else "pending AWS analysis",
         "temporal_policies": len(ttls),
         "temporal_operators_per_policy": 1 if ttls else 0,
         "ttl_groups": sorted(ttls),
@@ -342,7 +373,13 @@ when temporal {{ formerly within {ttl}m {APPROVE}::response {{
             "single_use",
         ],
     }
-    return Compiled("\n\n".join(policies), schema, manifest, ordered_calls)
+    return Compiled(
+        "\n\n".join(s.text for s in statements),
+        schema,
+        manifest,
+        ordered_calls,
+        tuple(statements),
+    )
 
 
 def boundary_input(

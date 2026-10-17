@@ -6,7 +6,7 @@
 
 **Why two roles (added 2026-09-16):** a Runtime session is an isolated microVM that exists only while an invocation or its background task runs (15 min idle, 8 h maximum), and only the invocation path is reachable from outside. That fits the MCP server and nothing else in Core: a scheduler sweep, adapter pollers, the long-poll endpoints Hirz Link dials into, a Ring webhook receiver, and a browser-facing companion API all need a process that is always running and an HTTPS endpoint that is not the JWT-guarded invocation path. Putting execution inside a tool call would also route the Gateway and a third-party network call into Alexa's 500 ms budget, which the design forbids. The worker is the one always-on line item besides RDS, accepted explicitly by the author on 2026-09-16 for the judging window.
 
-**Tick-driven worker, machine token, household scoping (added 2026-09-17):** App Runner throttles an instance's CPU while no request is in flight, so a sweep on a background thread is not guaranteed to run on an idle service. All periodic work therefore runs inside a request: an EventBridge rule fires the tick Lambda every minute and the sweep and any due poller run in `/internal/tick`. `ROADMAP.md` item 36 tests a quiet half hour, and Fargate behind an ALB remains the fallback. The worker calls the Gateway with its own Cognito machine token, since a scheduled action comes due long after the member's token expired; the requester's role is therefore an input Hirz supplies, and the docs no longer call it independently evaluated. Every policy is scoped to its household, and hosted-demo households are evaluated by the local Dogwood evaluator only, so throwaway households never touch the engine's 25-temporal-policy quota.
+**Tick-driven worker, machine token, household scoping (added 2026-09-17):** App Runner throttles an instance's CPU while no request is in flight, so a sweep on a background thread is not guaranteed to run on an idle service. All periodic work therefore runs inside a request: an EventBridge rule fires the tick Lambda every minute and the sweep and any due poller run in `/internal/tick`. `ROADMAP.md` item 36 tests a quiet half hour, and Fargate behind an ALB remains the fallback. The worker calls the Gateway with its own Cognito machine token, since a scheduled action comes due long after the member's token expired; the requester's role is therefore an input Hirz supplies, and the docs no longer call it independently evaluated. Every policy is scoped to its household, and hosted-demo households are evaluated by the local Dogwood evaluator only, so throwaway households never touch the engine's 20-temporal-policy quota.
 
 **Reasoning:**
 
@@ -120,3 +120,24 @@ The service-managed CloudFront security group is another supported choice, but
 looking it up after origin creation would add deployment machinery; the managed
 prefix list works on the initial deployment without another resource provider.
 The ALB and application retain private addresses.
+
+## Item 37 acceptance amendment — 2026-10-17
+
+The author approved a fresh $10 incremental / 24-hour maximum acceptance window,
+including failed attempts and teardown. The earlier tax exception persists;
+service-credit eligibility, competing capacity and current prices require fresh
+clearance. Existing application/toolkit/resource names remain unchanged.
+Two explicitly labeled `item37-home`/`item37-parents` seed copies use the shared
+AWS engine. The original `quinn-home` twin fixture remains explicitly local.
+Only initial fixture seeding is exempt from Pipeline authorization.
+
+The worker publishes policies and calls the private Gateway with its existing
+Cognito machine client. Publisher permissions are scoped to the engine and
+Gateway; temporal session token permissions belong to the Gateway role. Device
+credential and KMS restrictions remain unchanged. Traces use CloudWatch delivery
+and Transaction Search; preflight must check existing account configuration before
+creating the disposable tracing resources. No additional compute service is added.
+The target only evaluates inert acceptance requests; it never signs or actuates.
+
+Rejected: reusing item 36's expired financial clearance, a new stack name, separate
+engines, a public MCP network path, and interpreting budget alerts as a cap.

@@ -5,12 +5,15 @@ import os
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
+import sqlalchemy as sa
 from fastapi import FastAPI, Request, Response
 from mcp.server.transport_security import TransportSecuritySettings
 
 from hirz import db
 from hirz.api.app import create_app
 from hirz.aws import config
+from hirz.aws.fixture import policy_routes
+from hirz.aws.routing import Route
 from hirz.aws.tick import router
 from hirz.aws.worker import tick
 from hirz.companion.api import Companion
@@ -29,6 +32,13 @@ def create_worker() -> FastAPI:
             signing_key({"AUDIT_SIGNING_KEY": config.secret("HIRZ_AUDIT_SECRET")})
         ),
         Config(os.environ["HIRZ_COMPANION_ORIGIN"], os.environ["HIRZ_COMPANION_RP_ID"]),
+        policy_routes=policy_routes(
+            Route(
+                os.environ["HIRZ_POLICY_ENGINE"],
+                os.environ["HIRZ_GATEWAY_ARN"],
+                os.environ["HIRZ_GATEWAY_URL"],
+            )
+        ),
     )
     app = create_app(companion=service, engine=service.engine)
 
@@ -51,6 +61,11 @@ def create_worker() -> FastAPI:
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         async with service.engine.connect() as connection:
             await connection.run_sync(db.require_current)
+            assert service.policy_routes is not None
+            for household in (
+                await connection.execute(sa.select(db.households.c.id))
+            ).scalars():
+                service.policy_routes.route(household)
         async with original(app):
             yield
 

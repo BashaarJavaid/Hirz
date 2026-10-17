@@ -2,12 +2,17 @@
 
 import asyncio
 import os
+from decimal import Decimal
 
 import sqlalchemy as sa
 
 from hirz import db
 from hirz.aws.client import client
+from hirz.aws.config import secret
 from hirz.aws.fixture import load
+from hirz.aws.gateway import Gateway
+from hirz.aws.policy import Publisher
+from hirz.aws.publication import advance as publish
 from hirz.aws.schedules import reconcile
 from hirz.companion.api import Companion
 from hirz.companion.drafting import advance as draft
@@ -17,11 +22,13 @@ from hirz.contacts.worker import advance as contacts
 from hirz.executor.local import compose, policy
 from hirz.executor.refresh_worker import RefreshWorker
 from hirz.executor.service import Executor
+from hirz.executor.storage import transition
 from hirz.executor.twin import restore
 from hirz.explainer.core import TemplateExplainer
 from hirz.graph.models import now
 from hirz.mcp.trust import advance as trust
 from hirz.mcp.worker import prepare_plans
+from hirz.pipeline.models import Action, EventType, Principal
 from hirz.pipeline.service import Pipeline, PolicyBundle
 from hirz.protect.worker import advance as protect
 from hirz.twin.clock import SimClock
@@ -41,8 +48,7 @@ async def tick(service: Companion) -> None:
                 rows = (
                     (
                         await connection.execute(
-                            sa.select(db.constitution_versions)
-                            .join(
+                            sa.select(db.constitution_versions).join(
                                 db.households,
                                 sa.and_(
                                     db.households.c.id
@@ -51,14 +57,18 @@ async def tick(service: Companion) -> None:
                                     == db.constitution_versions.c.version,
                                 ),
                             )
-                            .where(db.constitution_versions.c.status == "active")
                         )
                     )
                     .mappings()
                     .all()
                 )
             for row in rows:
-                if row["household_id"] != loaded.world.household.id:
+                route = (
+                    service.policy_routes.route(row["household_id"])
+                    if service.policy_routes
+                    else None
+                )
+                if route is None and row["household_id"] != loaded.world.household.id:
                     raise ValueError(
                         "AWS acceptance only supports its explicit twin household"
                     )
@@ -71,7 +81,64 @@ async def tick(service: Companion) -> None:
                     service.audit,
                     now,
                     require_active=True,
+                    policy_route=route,
                 )
+                if route:
+                    await publish(
+                        p,
+                        Publisher(
+                            client("bedrock-agentcore-control"),
+                            route.engine_id,
+                            gateway_id=route.gateway_arn.rsplit("/", 1)[-1],
+                            target_id=os.environ["HIRZ_GATEWAY_TARGET"],
+                        ),
+                    )
+                    if row["status"] == "active":
+                        p.gateway = Gateway(
+                            route,
+                            os.environ["HIRZ_MACHINE_TOKEN_URL"],
+                            os.environ["HIRZ_MACHINE_CLIENT"],
+                            secret("HIRZ_MACHINE_SECRET"),
+                            client("logs"),
+                        )
+                        async with connection.begin():
+                            queued = (
+                                (
+                                    await connection.execute(
+                                        sa.select(db.actions)
+                                        .where(
+                                            p.scope(db.actions),
+                                            db.actions.c.execution_status
+                                            == "scheduled",
+                                            db.actions.c.due_at <= now(),
+                                        )
+                                        .limit(5)
+                                    )
+                                )
+                                .mappings()
+                                .all()
+                            )
+                        for action in queued:
+                            decision = await p.redeem(
+                                Action.model_validate(action["proposal"]),
+                                Principal.model_validate(action["principal"]),
+                                cost=Decimal(action["cost"])
+                                if action["cost"] is not None
+                                else None,
+                                approval_id=action["lifecycle"].get("approval_id"),
+                            )
+                            async with p.repo.write(p.clock):
+                                await transition(
+                                    p,
+                                    action["action_id"],
+                                    "held",
+                                    EventType.EXECUTION_HELD,
+                                    reason="Inert AWS boundary evaluation; no device execution",
+                                    decision_seq=decision.audit_id,
+                                )
+                    continue
+                if row["status"] != "active":
+                    continue
                 p.bundle = await policy(p)
                 world = loaded.world
                 await restore(p, world)

@@ -1,4 +1,5 @@
 import { fileURLToPath } from 'node:url';
+import { readFileSync } from 'node:fs';
 import {
   Stack, ArnFormat, IgnoreMode, CfnOutput, CfnParameter, Duration, RemovalPolicy, SecretValue, Tags,
   aws_bedrockagentcore as core, aws_cloudfront as cf, aws_cloudfront_origins as origins,
@@ -6,6 +7,7 @@ import {
   aws_elasticloadbalancingv2 as elb, aws_events as events, aws_events_targets as targets,
   aws_iam as iam, aws_kms as kms, aws_lambda as lambda, aws_logs as logs,
   aws_rds as rds, aws_s3 as s3, aws_scheduler as scheduler, aws_secretsmanager as secrets,
+  aws_xray as xray,
 } from 'aws-cdk-lib';
 import type { StackProps } from 'aws-cdk-lib';
 import type { Construct } from 'constructs';
@@ -155,6 +157,7 @@ export class HirzStack extends Stack {
     runtime.node.addDependency(mcp);
     void runtimeLog;
     const engine = new core.CfnPolicyEngine(this, 'PolicyEngine', { name: 'hirz_item36' });
+    worker.addToPolicy(new iam.PolicyStatement({ actions: ['bedrock-agentcore:GetPolicyEngine', 'bedrock-agentcore:ListPolicies', 'bedrock-agentcore:CreatePolicy', 'bedrock-agentcore:GetPolicy', 'bedrock-agentcore:UpdatePolicy', 'bedrock-agentcore:DeletePolicy'], resources: [engine.attrPolicyEngineArn, `${engine.attrPolicyEngineArn}/policy/*`] }));
     new core.CfnMemory(this, 'Memory', { name: 'hirz_item36', eventExpiryDuration: 3, memoryStrategies: [] });
     const code = lambda.Code.fromAsset(fileURLToPath(new URL('../../../hirz/aws/lambdas', import.meta.url)));
     const actionLog = new logs.LogGroup(this, 'ActionLog', { retention: logs.RetentionDays.ONE_WEEK, removalPolicy: RemovalPolicy.DESTROY });
@@ -175,17 +178,33 @@ export class HirzStack extends Stack {
       policyEngineConfiguration: { arn: engine.attrPolicyEngineArn, mode: 'LOG_ONLY' },
     });
     gatewayRole.addToPolicy(new iam.PolicyStatement({ actions: ['bedrock-agentcore:AuthorizeAction', 'bedrock-agentcore:PartiallyAuthorizeActions', 'bedrock-agentcore:GetPolicyEngine'], resources: [engine.attrPolicyEngineArn, this.formatArn({ service: 'bedrock-agentcore', resource: 'gateway', resourceName: 'hirz-item36-*' })] }));
+    gatewayRole.addToPolicy(new iam.PolicyStatement({ actions: ['bedrock-agentcore:GetWorkloadAccessToken'], resources: [this.formatArn({ service: 'bedrock-agentcore', resource: 'workload-identity-directory', resourceName: 'default' }), this.formatArn({ service: 'bedrock-agentcore', resource: 'workload-identity-directory', resourceName: 'default/workload-identity/hirz-item36-*' })] }));
+    worker.addToPolicy(new iam.PolicyStatement({ actions: ['bedrock-agentcore:InvokeGateway', 'bedrock-agentcore:ManageResourceScopedPolicy'], resources: [gateway.attrGatewayArn] }));
     const gatewayLog = new logs.LogGroup(this, 'GatewayLog', { logGroupName: `/aws/bedrock-agentcore/gateways/${gateway.attrGatewayIdentifier}`, retention: logs.RetentionDays.ONE_WEEK, removalPolicy: RemovalPolicy.DESTROY });
     gatewayRole.addToPolicy(new iam.PolicyStatement({ actions: ['logs:CreateLogStream', 'logs:PutLogEvents'], resources: [this.formatArn({ service: 'logs', resource: 'log-group', resourceName: '/aws/bedrock-agentcore/gateways/hirz-item36-*:*', arnFormat: ArnFormat.COLON_RESOURCE_NAME })] }));
     void gatewayLog;
+    const spans = new logs.LogGroup(this, 'PolicySpans', { logGroupName: 'aws/spans', retention: logs.RetentionDays.ONE_WEEK, removalPolicy: RemovalPolicy.DESTROY });
+    const spanPolicy = new logs.ResourcePolicy(this, 'PolicySpanDelivery', { policyStatements: [new iam.PolicyStatement({
+      principals: [new iam.ServicePrincipal('xray.amazonaws.com')], actions: ['logs:PutLogEvents'], resources: [spans.logGroupArn],
+      conditions: { StringEquals: { 'aws:SourceAccount': this.account }, ArnLike: { 'aws:SourceArn': this.formatArn({ service: 'xray', resource: '*' }) } },
+    })] });
+    const tracing = new xray.CfnTransactionSearchConfig(this, 'PolicyTracing', { indexingPercentage: 0 });
+    tracing.node.addDependency(spanPolicy);
+    const traceSource = new logs.CfnDeliverySource(this, 'PolicyTraceSource', { name: 'hirz-item36-policy-traces', logType: 'TRACES', resourceArn: gateway.attrGatewayArn });
+    const traceDestination = new logs.CfnDeliveryDestination(this, 'PolicyTraceDestination', { name: 'hirz-item36-policy-traces', deliveryDestinationType: 'XRAY' });
+    const traceDelivery = new logs.CfnDelivery(this, 'PolicyTraceDelivery', { deliverySourceName: traceSource.name, deliveryDestinationArn: traceDestination.attrArn });
+    traceDelivery.node.addDependency(traceSource, tracing);
+    worker.addToPolicy(new iam.PolicyStatement({ actions: ['logs:FilterLogEvents'], resources: [spans.logGroupArn] }));
     gateway.node.addDependency(gatewayRole);
-    new core.CfnGatewayTarget(this, 'UnavailableTool', {
-      gatewayIdentifier: gateway.attrGatewayIdentifier, name: 'boundary',
+    const contract = JSON.parse(readFileSync(new URL('../../../hirz/aws/lambdas/contract.json', import.meta.url), 'utf8')) as { names: string[]; inputSchema: core.CfnGatewayTarget.SchemaDefinitionProperty; outputSchema: core.CfnGatewayTarget.SchemaDefinitionProperty };
+    const actionTarget = new core.CfnGatewayTarget(this, 'UnavailableTool', {
+      gatewayIdentifier: gateway.attrGatewayIdentifier, name: 'HirzActions',
       credentialProviderConfigurations: [{ credentialProviderType: 'GATEWAY_IAM_ROLE' }],
       targetConfiguration: { mcp: { lambda: { lambdaArn: signer.functionArn, toolSchema: {
-        inlinePayload: [{ name: 'boundary_unavailable', description: 'AWS action enforcement is not connected.', inputSchema: { type: 'object', properties: {}, required: [] } }],
+        inlinePayload: contract.names.map(name => ({ name, description: 'Inert policy acceptance; no device action executes.', inputSchema: contract.inputSchema, outputSchema: contract.outputSchema })),
       } } } },
     });
+    worker.addToPolicy(new iam.PolicyStatement({ actions: ['bedrock-agentcore:GetGatewayTarget', 'bedrock-agentcore:UpdateGatewayTarget'], resources: [gateway.attrGatewayArn, `${gateway.attrGatewayArn}/target/*`] }));
     const alb = new elb.ApplicationLoadBalancer(this, 'Origin', {
       vpc, internetFacing: false, securityGroup: albSg,
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS }, idleTimeout: Duration.seconds(70),
@@ -233,6 +252,10 @@ export class HirzStack extends Stack {
       HIRZ_TICK_ARN: tick.functionArn, HIRZ_SCHEDULE_ROLE: scheduleRole.roleArn,
       HIRZ_COMMAND_KEY: signingKey.keyArn, HIRZ_IDENTITY_ARN: identity.attrCredentialProviderArn,
       HIRZ_IDENTITY_SECRET: backingSecret,
+      HIRZ_POLICY_ENGINE: engine.attrPolicyEngineId, HIRZ_GATEWAY_ARN: gateway.attrGatewayArn,
+      HIRZ_GATEWAY_URL: gateway.attrGatewayUrl, HIRZ_GATEWAY_TARGET: actionTarget.attrTargetId,
+      HIRZ_MACHINE_CLIENT: machine.userPoolClientId, HIRZ_MACHINE_SECRET: machineSecret.secretArn,
+      HIRZ_MACHINE_TOKEN_URL: `https://hirz-item36-661550216013.auth.${this.region}.amazoncognito.com/oauth2/token`,
       AWS_DEFAULT_REGION: this.region, OPENBLAS_NUM_THREADS: '1', OMP_NUM_THREADS: '1',
     };
     const workerLog = new logs.LogGroup(this, 'WorkerLog', { retention: logs.RetentionDays.ONE_WEEK, removalPolicy: RemovalPolicy.DESTROY });
@@ -266,6 +289,8 @@ export class HirzStack extends Stack {
       IdentityProvider: identity.attrCredentialProviderArn, IdentitySecret: backingSecret,
       SignerRole: actions.roleArn, AnchorBucket: anchors.bucketName, Runtime: runtime.attrAgentRuntimeArn,
       Gateway: gateway.attrGatewayUrl, UserPool: pool.userPoolId, HumanClient: human.userPoolClientId,
+      PolicyEngine: engine.attrPolicyEngineId, GatewayArn: gateway.attrGatewayArn, GatewayTarget: actionTarget.attrTargetId,
+      MachineClient: machine.userPoolClientId, MachineSecret: machineSecret.secretArn,
       ActionsLog: actionLog.logGroupName, WorkerLog: workerLog.logGroupName, ImageRepository: image.repository.repositoryName, TickFunction: tick.functionName, ScheduleGroup: group.ref,
     })) new CfnOutput(this, name + 'Output', { value }).overrideLogicalId(name);
   }

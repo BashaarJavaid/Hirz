@@ -39,7 +39,7 @@ backend-path = ["."]
 
 [tool.uv.build-backend]
 module-root = ""
-source-include = ["build_backend.py", "hirz/protect/organizations.yaml", "hirz/mcp/ui/*.html", "hirz/companion/ui/**", "hirz/aws/rds-us-east-1.pem"]
+source-include = ["build_backend.py", "hirz/protect/organizations.yaml", "hirz/mcp/ui/*.html", "hirz/companion/ui/**", "hirz/aws/rds-us-east-1.pem", "hirz/aws/lambdas/contract.json"]
 
 [tool.ruff]
 target-version = "py312"

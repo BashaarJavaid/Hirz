@@ -55,6 +55,28 @@ test("real WebAuthn registration, initial activation, rule review and signed exp
   await page.getByRole("button", { name: "Preview changes" }).click();
   await page.getByRole("button", { name: "Activate with passkey" }).click();
   await expect(page.getByRole("heading", { name: "Version 7 · active", exact: true })).toBeVisible();
+  // Presentation fixtures only; AWS acceptance uses the real publisher separately.
+  let publicationStatus = "queued";
+  await page.route("**/api/constitution", async route => {
+    const response = await route.fetch({ url: backend + "/api/constitution" }).catch(() => { throw new Error("Disposable publication presentation transport failed (request headers omitted)"); });
+    const data = await response.json();
+    await route.fulfill({ response, json: { ...data, engine: "agentcore-policy",
+      engine_state: { ready: publicationStatus === "committed", generation: 2 },
+      analysis: publicationStatus === "committed" ? "AWS validation passed" : "pending AWS analysis",
+      publications: [{ id: "presentation-only", status: publicationStatus, findings: publicationStatus === "failed" ? [{ statusReasons: ["always allow"] }] : [] }],
+    } });
+  });
+  await expect(page.getByText("Your new rules have not taken effect yet.")).toBeVisible();
+  publicationStatus = "failed";
+  await expect(page.getByText("Activation failed. The proposed rules were not activated.")).toBeVisible();
+  await page.getByText("AWS analysis findings").click();
+  await expect(page.getByText(/always allow/)).toBeVisible();
+  publicationStatus = "blocked";
+  await expect(page.getByText("AWS actions remain paused until an operator verifies recovery.")).toBeVisible();
+  publicationStatus = "committed";
+  await expect(page.getByText("AWS validation passed", { exact: true })).toBeVisible();
+  await page.unroute("**/api/constitution");
+  await expect(page.getByText("not analyzed: local mode", { exact: true })).toBeVisible();
   await page.getByRole("link", { name: "Household", exact: true }).click();
   const organizations = page.getByRole("heading", { name: "Organization contacts" }).locator("..");
   await expect(organizations.getByRole("link", { name: "+18003347661", exact: true })).toHaveAttribute("href", "tel:+18003347661");

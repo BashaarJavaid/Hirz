@@ -14239,3 +14239,36 @@ integrations and audit anchoring are not claimed; later threat-model rows are
 unchanged. Code gates ran on `1806034`; subsequent closure changes are documentation
 only. Evidence is retained under `secrets/item36-aws-2026-10-17-retry/`, with the
 original attempt's evidence in its separate directory.
+
+
+## Item 37
+
+### Acceptance window and implementation in progress — 2026-10-17
+
+Item 37 is **incomplete**. This entry opens the separately approved acceptance
+window; it is not a conformance or enforcement claim. The fixed start is
+`2026-10-17T23:32:52.907915+00:00`; the same start and $10 incremental budget
+cover failed attempts, retries and cleanup, for at most 24 hours.
+
+Fresh private evidence is in `secrets/item37-preflight/`: billing credits,
+account/region inventory, RDS/Fargate price catalogs, prior tracing configuration
+and the derived estimate. The enabled account credit explicitly includes Amazon
+Bedrock AgentCore and the other acceptance services, with estimated remaining
+credit of $149.38 at the read. The 24-hour projection is
+$9.570634295833333333333333333, including 5,000 Gateway/Policy requests and
+conservative Lambda timeout, RDS burst, networking and variable-service allowances.
+The user-approved tax exception remains separate. The enabled-region capacity
+scan found no running application capacity; AgentCore is unavailable in
+`ap-northeast-3`, whose read errors are retained rather than counted as successful
+empty responses. Prior X-Ray destination was `XRay`, default indexing 0%, and
+`aws/spans` did not exist. No development migration was applied.
+
+The existing IAM-only `HirzItem36Access` stack was updated with scoped tracing
+management actions, preserving MFA trust. The dedicated `HirzItem36Toolkit` was
+recreated. The first application asset attempt stalled in Docker Desktop's
+credential helper; its child was stopped and the same deployment retried with a
+private temporary Docker config and the existing daemon. See the
+[friction log](friction-log.md#item-37--cli-login-credentials-and-the-python-sdk--2026-10-17).
+No Gateway permit, successful production policy validation, ENFORCE promotion,
+physical execution or item completion is established by this entry. Later runs
+and teardown evidence must be appended here.

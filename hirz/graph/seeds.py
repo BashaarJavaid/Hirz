@@ -62,7 +62,12 @@ class Seed:
                 "Seed household identity/version come from its slug and constitution."
             )
         self.slug = home["slug"]
-        if self.slug not in {"quinn-home", "quinn-parents"}:
+        if self.slug not in {
+            "quinn-home",
+            "quinn-parents",
+            "item37-home",
+            "item37-parents",
+        }:
             raise GraphError(
                 "Only the two synthetic demo households may be bootstrapped."
             )

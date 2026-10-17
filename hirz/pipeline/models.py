@@ -162,6 +162,7 @@ class EventType(StrEnum):
     PLAN_REVISED = "PLAN_REVISED"
     CONSTITUTION_PROPOSED = "CONSTITUTION_PROPOSED"
     CONSTITUTION_ACTIVATED = "CONSTITUTION_ACTIVATED"
+    POLICY_PUBLICATION = "POLICY_PUBLICATION"
     POLICY_ERROR = "POLICY_ERROR"
     ADAPTER_ERROR = "ADAPTER_ERROR"
     LINK_REJECTED = "LINK_REJECTED"
@@ -201,12 +202,24 @@ class ConstitutionEvidence(Model):
     conditions_met: bool
 
 
+class BoundaryRequest(Model):
+    request_id: str
+    trace_id: str
+    session_id: UUID
+    policy_ids: tuple[str, ...]
+    inventory_hash: str
+    generation: int
+    result: Literal["allow", "deny"]
+    mode: Literal["LOG_ONLY", "ENFORCE"]
+
+
 class BoundaryEvidence(Model):
     engine: Literal["dogwood-local", "agentcore-policy"] = "dogwood-local"
     result: Literal["allow", "deny", "not_evaluated"] = "not_evaluated"
     reason: str = "terminal before boundary"
     context_hash: str | None = None
     roles: dict[Role, bool] = Field(default_factory=dict)
+    requests: tuple[BoundaryRequest, ...] = ()
 
 
 class BudgetEvidence(Model):

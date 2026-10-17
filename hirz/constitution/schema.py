@@ -227,8 +227,8 @@ class Constitution(Model):
             return Rule(
                 mode="auto",
                 conditions=(
-                    '(requester.surface == "app" or (requester.surface == "scheduler" and (action.params.operation == "draft" or action.params.operation == "draft_failed")))',
-                    '(action.params.operation == "draft" or action.params.operation == "draft_failed" or action.params.operation == "review" or action.params.operation == "activate" or action.params.operation == "dismiss")',
+                    '((requester.surface == "app" and action.params.operation != "publish") or (requester.surface == "scheduler" and (action.params.operation == "draft" or action.params.operation == "draft_failed" or action.params.operation == "publish")))',
+                    '(action.params.operation == "draft" or action.params.operation == "draft_failed" or action.params.operation == "review" or action.params.operation == "activate" or action.params.operation == "dismiss" or action.params.operation == "publish")',
                     '((action.params.operation != "activate" and action.params.operation != "dismiss") or requester.role == "owner")',
                 ),
             )

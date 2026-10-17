@@ -13,7 +13,7 @@ from hirz.constitution.preview import preview
 from hirz.constitution.schema import Constitution, dump, loads
 from hirz.graph.models import Household
 from hirz.graph.repository import row_model
-from hirz.pipeline.models import ROLES, EventType, Principal
+from hirz.pipeline.models import ROLES, Decision, EventType, Principal
 from hirz.pipeline.service import Pipeline, PolicyBundle
 from hirz.risk import CLASSES
 from hirz.twin.scenario import Patch
@@ -110,8 +110,10 @@ async def draft(
     review |= {
         "changed_classes": sorted(changed),
         "cedar": bundle.compiled.policy,
-        "analysis": "not analyzed: local mode",
-        "engine": "dogwood-local",
+        "analysis": "pending AWS analysis"
+        if p.policy_route
+        else "not analyzed: local mode",
+        "engine": "agentcore-policy" if p.policy_route else "dogwood-local",
         "yaml_diff": "".join(
             unified_diff(
                 dump(old).splitlines(keepends=True),
@@ -186,7 +188,36 @@ async def activate(
     draft_id: str,
     candidate_hash: str,
     session_digest: str,
-) -> int:
+) -> int | None:
+    row, base, bundle, pending = await activation_inputs(
+        p, principal, draft_id, candidate_hash, session_digest
+    )
+    if p.policy_route and await p.connection.scalar(
+        sa.select(db.policy_publications.c.id).where(
+            p.scope(db.policy_publications), db.policy_publications.c.id == draft_id
+        )
+    ):
+        raise ReviewError("This review already has a publication; review a new draft")
+    decision = await constitution(p, principal, "activate", draft_id)
+    if p.policy_route:
+        from hirz.aws.publication import queue
+
+        await queue(p, principal, row, decision, session_digest)
+        return None
+    return await commit(p, principal, row, base, bundle, pending, decision)
+
+
+async def activation_inputs(
+    p: Pipeline,
+    principal: Principal,
+    draft_id: str,
+    candidate_hash: str,
+    session_digest: str,
+) -> tuple[dict[str, Any], dict[str, Any], PolicyBundle, list[dict[str, Any]]]:
+    if (await p.requester(principal)).role != "owner" or not await p.credential_current(
+        principal
+    ):
+        raise ReviewError("Activation requires a current owner credential")
     row = await get(p, draft_id)
     base = await current(p)
     if (
@@ -225,7 +256,20 @@ async def activate(
     blockers = [v["approval_id"] for v in pending if v["proposal"]["class"] in changed]
     if blockers:
         raise ReviewError("Pending approvals block activation: " + ", ".join(blockers))
-    decision = await constitution(p, principal, "activate", draft_id)
+    return row, base, bundle, [dict(v) for v in pending]
+
+
+async def commit(
+    p: Pipeline,
+    principal: Principal,
+    row: dict[str, Any],
+    base: dict[str, Any],
+    bundle: PolicyBundle,
+    pending: list[dict[str, Any]],
+    decision: Decision,
+) -> int:
+    candidate = bundle.policy()
+    candidate_hash, draft_id = row["candidate_hash"], row["id"]
     if base["status"] == "unvalidated":
         if candidate.version != base["version"]:
             raise ValueError("First activation must preserve the seed version")
@@ -285,8 +329,10 @@ async def activate(
             "draft_id": draft_id,
             "credential_id": principal.credential_id,
             "decision_seq": decision.audit_id,
-            "engine": "dogwood-local",
-            "analysis": "not analyzed: local mode",
+            "engine": "agentcore-policy" if p.policy_route else "dogwood-local",
+            "analysis": "AWS validation passed"
+            if p.policy_route
+            else "not analyzed: local mode",
         },
     )
     for prior in pending:

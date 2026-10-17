@@ -211,3 +211,39 @@ MCP startup and constructs fresh replay history for each check. The unmodified
 CLI remains the reference; no temporal shim or cached decisions are introduced.
 Build patch, lifetime, failure semantics and rejected alternatives:
 [ADR-017](./ADR-017-tool-latency-and-isolation.md#native-helper-amendment--2026-09-23).
+
+## Item 37 integration amendment — 2026-10-17
+
+The approved design uses one shared engine. Publication durably pauses managed
+households before remote writes, checks every create/update with
+`FAIL_ON_ANY_FINDINGS`, waits for asynchronous terminal status, and verifies the
+complete installed inventory before committing activation. Interrupted writes
+restore the last committed inventory; unverifiable restoration remains blocked.
+The initiating passkey, reviewed candidate hash and base remain bound to the job.
+Hosted-demo households stay local and never contribute policies to the engine.
+
+The single compiler now exposes named statements and typed private tool fields.
+Only the temporal event field spelling changes between the pinned native schema
+(`callerResource`, `callerPrincipal`) and the
+[AWS event schema](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/policy-temporal-authoring.html)
+(`eventResource`, `eventPrincipal`). The native CLI/helper remain the reference;
+no Python implementation of temporal evaluation is introduced. The corrected
+[quota](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/bedrock-agentcore-limits.html)
+is 20 temporal statements per engine, including both households and publication
+headroom; three operators and 24-hour maximum windows still apply. Numbers retain
+Cedar's four-place decimal range and are emitted without binary float conversion.
+The private `HirzActions` contract may use typed facts and internal identifiers;
+this exception does not change the public Alexa contract.
+
+Gateway calls require durable UUID sessions, original approval deadlines and
+correlated [AWS policy spans](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/observability-policy-metrics.html).
+HTTP/tool success alone is not an authorization decision, including in LOG_ONLY.
+The item 37 target is inert: its receipt explicitly says `executed: false`.
+Signing, Link and independent boundary verification of passkeys remain later work.
+The always-allow acceptance case is an isolated faulty compiler inside the smoke
+runner, not a production compiler option or a fabricated service finding.
+
+Rejected: per-household engines; publishing while managed calls run; replacing the
+native evaluator; accepting semantic findings; replaying approval history into a
+conflicted session; treating a successful inert target call as device execution.
+Live agreement, semantic validation and enforcement remain acceptance gates.

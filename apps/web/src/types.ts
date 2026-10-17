@@ -12,9 +12,13 @@ export type Review = {
   candidate_hash: string;
   sentence: string;
   candidate: string;
-  review: { lines: string[]; yaml_diff: string; cedar: string; analysis: string };
+  review: { lines: string[]; yaml_diff: string; cedar: string; analysis: string; engine: string };
 };
 export type Constitution = {
+  engine: string;
+  engine_state: { ready: boolean; generation: number } | null;
+  analysis: string;
+  publications: { id: string; status: string; findings: Value[] }[];
   recorded_demo: boolean;
   yaml: string;
   document: Value;

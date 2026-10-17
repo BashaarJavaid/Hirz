@@ -14,7 +14,9 @@ from alembic import command
 from hirz import db
 from hirz.aws.client import call, client
 from hirz.aws.config import database, secret
-from hirz.aws.fixture import load
+from hirz.aws.fixture import load, policy_seeds
+from hirz.graph.models import now
+from hirz.graph.seeds import load_seeds
 from hirz.local import signing_key
 from hirz.pipeline.audit import AuditWriter
 from hirz.twin.execution import bootstrap
@@ -151,6 +153,7 @@ async def seed() -> None:
                     signing_key({"AUDIT_SIGNING_KEY": secret("HIRZ_AUDIT_SECRET")})
                 ),
             )
+            await load_seeds(connection, policy_seeds(), now)
     finally:
         await engine.dispose()
 
