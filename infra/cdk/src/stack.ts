@@ -183,7 +183,8 @@ export class HirzStack extends Stack {
     const gatewayLog = new logs.LogGroup(this, 'GatewayLog', { logGroupName: `/aws/bedrock-agentcore/gateways/${gateway.attrGatewayIdentifier}`, retention: logs.RetentionDays.ONE_WEEK, removalPolicy: RemovalPolicy.DESTROY });
     gatewayRole.addToPolicy(new iam.PolicyStatement({ actions: ['logs:CreateLogStream', 'logs:PutLogEvents'], resources: [this.formatArn({ service: 'logs', resource: 'log-group', resourceName: '/aws/bedrock-agentcore/gateways/hirz-item36-*:*', arnFormat: ArnFormat.COLON_RESOURCE_NAME })] }));
     void gatewayLog;
-    const spans = new logs.LogGroup(this, 'PolicySpans', { logGroupName: 'aws/spans', retention: logs.RetentionDays.ONE_WEEK, removalPolicy: RemovalPolicy.DESTROY });
+    // X-Ray creates this reserved group when Transaction Search is enabled.
+    const spans = logs.LogGroup.fromLogGroupName(this, 'PolicySpans', 'aws/spans');
     const spanPolicy = new logs.ResourcePolicy(this, 'PolicySpanDelivery', { policyStatements: [new iam.PolicyStatement({
       principals: [new iam.ServicePrincipal('xray.amazonaws.com')], actions: ['logs:PutLogEvents'], resources: [spans.logGroupArn],
       conditions: { StringEquals: { 'aws:SourceAccount': this.account }, ArnLike: { 'aws:SourceArn': this.formatArn({ service: 'xray', resource: '*' }) } },

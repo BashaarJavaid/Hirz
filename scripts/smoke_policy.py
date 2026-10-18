@@ -17,11 +17,11 @@ from webauthn.helpers import base64url_to_bytes
 from hirz import db
 from hirz.api.app import create_app
 from hirz.audit import export_document, verify_database, verify_file, write_export
-from hirz.aws.cleanup import destroy
+from hirz.aws.cleanup import destroy, policy_tracing
 from hirz.aws.client import call
 from hirz.aws.fixture import policy_routes, policy_seeds
 from hirz.aws.gateway import Gateway, SessionConflict
-from hirz.aws.policy import Publisher, fingerprint, inventory
+from hirz.aws.policy import Publisher, fingerprint, inventory, wire_json
 from hirz.aws.publication import advance
 from hirz.aws.routing import Route
 from hirz.companion import auth
@@ -37,6 +37,7 @@ from hirz.graph.models import now
 from hirz.graph.seeds import Seed, demo_id, load_seeds
 from hirz.local import read_env, signing_key
 from hirz.pipeline.audit import AuditWriter
+from hirz.pipeline.hashing import digest
 from hirz.pipeline.models import (
     ROLES,
     BoundaryEvidence,
@@ -58,8 +59,8 @@ def corpus(
     compiled = compile_policy(policy)
     cases = []
     for name, spec in SITUATIONS.items():
-        situations = [(role, {}) for role in ROLES] + [
-            ("owner", case) for case in spec.get("cases", [])
+        situations = [
+            (role, case) for case in [{}, *spec.get("cases", [])] for role in ROLES
         ]
         for index, (role, case) in enumerate(situations):
             action, facts = situation(policy, name, cast(Any, role), case)
@@ -238,6 +239,7 @@ async def publication(
 ) -> dict[str, Any]:
     for _ in range(1500):
         acceptance.within_window()
+        policy_tracing(acceptance)
         await advance(p, publisher)
         async with p.connection.begin():
             row = dict(
@@ -305,18 +307,45 @@ async def compare(
         expected = await native.authorize(compiled, event, approvals)
         if expected.diagnostic:
             raise ValueError("Native reference failed")
+        approval_records = []
         for prior in approvals:
-            await gateway.invoke(
+            expected_approval = await native.authorize(compiled, prior)
+            observed = await gateway.invoke(
                 "governance.approve_action",
                 prior.inputs,
                 UUID(prior.inputs["session_id"]),
             )
+            approval_records.append(
+                {
+                    "inputs_json": wire_json(prior.inputs),
+                    "local": expected_approval.allowed,
+                    "aws": asdict(observed),
+                }
+            )
+            if (
+                expected_approval.diagnostic
+                or observed.allowed != expected_approval.allowed
+                or observed.mode != mode
+            ):
+                write_export(
+                    folder / (mode + "-approval-disagreement.json"),
+                    {"case": key, "approvals": approval_records},
+                )
+                raise ValueError("AWS/native approval disagreement or missing evidence")
         verdict = await gateway.invoke(event.action_class, event.inputs, session)
+        request = {
+            "class": event.action_class,
+            "inputs_json": wire_json(event.inputs),
+            "approvals": approval_records,
+        }
+        context_hash = "sha256:" + digest(request)
         record = {
             "case": key,
             "local": expected.allowed,
             "aws": asdict(verdict),
             "inventory_hash": fingerprint(expected_inventory),
+            "request": request,
+            "context_hash": context_hash,
         }
         records.append(record)
         write_export(
@@ -353,6 +382,7 @@ async def compare(
                         engine="agentcore-policy",
                         result=evidence.result,
                         reason="Inert acceptance only; no device action executed",
+                        context_hash=context_hash,
                         requests=(evidence,),
                     ),
                 ),
@@ -376,6 +406,11 @@ async def promote(
             r["local"] != r["aws"]["allowed"]
             or r["aws"]["mode"] != "LOG_ONLY"
             or r["inventory_hash"] != fingerprint(desired)
+            or r["context_hash"] != "sha256:" + digest(r["request"])
+            or any(
+                a["local"] != a["aws"]["allowed"] or a["aws"]["mode"] != "LOG_ONLY"
+                for a in r["request"]["approvals"]
+            )
             for r in records
         )
     ):
@@ -388,7 +423,11 @@ async def promote(
     ):
         raise ValueError("Promotion policies differ from the tested inventory")
     policy_ids = {r["policyId"] for r in installed.values()}
-    if any(not set(r["aws"]["policy_ids"]).issubset(policy_ids) for r in records):
+    if any(
+        not set(v["policy_ids"]).issubset(policy_ids)
+        for r in records
+        for v in [r["aws"], *(a["aws"] for a in r["request"]["approvals"])]
+    ):
         raise ValueError(
             "Promotion evidence names policies outside the deployed inventory"
         )

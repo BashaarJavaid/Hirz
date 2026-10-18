@@ -69,7 +69,7 @@ class Seed:
             "item37-parents",
         }:
             raise GraphError(
-                "Only the two synthetic demo households may be bootstrapped."
+                "Only explicitly named synthetic demo and policy acceptance households may be bootstrapped."
             )
         if constitution.get("household") != self.slug:
             raise GraphError("Graph and constitution households differ.")

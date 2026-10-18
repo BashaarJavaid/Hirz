@@ -1032,3 +1032,18 @@ with no error or prompt. Process inspection showed the helper idle for over two
 minutes. Stopped that deployment child and retried with a private temporary
 Docker configuration and the existing daemon socket; the original credential
 store was preserved. The same approved acceptance budget and start cover retries.
+
+## Item 37 — Memory creation blocks CloudFormation rollback — 2026-10-17
+
+- **Tool / task:** CloudFormation rollback of the inert AgentCore acceptance stack.
+- **Reference:** [AgentCore DeleteMemory](https://docs.aws.amazon.com/bedrock-agentcore-control/latest/APIReference/API_DeleteMemory.html).
+- **Severity:** Major.
+- **Observed error:** `Validation failed during DeleteMemory: Memory is in transitional state CREATING. Cannot delete memory. (Service: BedrockAgentCoreControl, Status Code: 400, Request ID: 44d567ef-4ca6-41ee-8e5f-0fa5fe6a86d9) (SDK Attempt Count: 1)`.
+- **Context:** Our explicit creation of the reserved `aws/spans` group caused the
+  deployment failure: `Log groups starting with AWS/ are reserved for AWS.` That
+  was an implementation error; the documented Transaction Search flow delegates
+  group creation to X-Ray. Rollback then failed while Memory was still creating.
+- **Workaround in progress:** Wait for the owned Memory to leave its transitional
+  state, then retry stack deletion within the same acceptance budget/window.
+- **Feature request:** Have the CloudFormation provider wait for a deletable Memory
+  state during rollback, rather than leave cleanup at `DELETE_FAILED`.

@@ -196,3 +196,16 @@ wall time. Existing hidden-tab suspension, one outstanding request, error handli
 and teardown remain in force. Private Check-ins follows the same window; an empty
 recipient inbox retains push and Refresh discovery. Polling never initiates speech.
 Approved wording: [ADR-024](./adr/ADR-024-courier-correlation.md).
+
+
+### Queued policy activation
+
+The Constitution screen identifies its actual engine. Local households retain
+“not analyzed: local mode” and immediate passkey activation. AWS households show
+pending publication after confirmation, then the persisted outcome. The screen
+shows engine readiness/generation, a paused-actions message during publication
+or recovery, and candidate-associated analysis findings. Failure never appears
+as activation; blocked restoration explicitly requires operator repair. The
+review warns that queued AWS rules have not yet taken effect. These states are
+polled through the existing Constitution resource; there is no optimistic
+activation or cloud call in a public Alexa tool.

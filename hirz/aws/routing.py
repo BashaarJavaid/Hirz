@@ -18,6 +18,10 @@ class Routing:
     local: frozenset[UUID]
     aws: Route
 
+    def __post_init__(self) -> None:
+        if self.managed & self.local:
+            raise ValueError("Conflicting household assignments")
+
     @classmethod
     def parse(cls, text: str, route: Route) -> "Routing":
         data = json.loads(text)

@@ -93,7 +93,16 @@ async def tick(service: Companion) -> None:
                             target_id=os.environ["HIRZ_GATEWAY_TARGET"],
                         ),
                     )
+                    async with connection.begin():
+                        ready = await connection.scalar(
+                            sa.select(db.policy_engines.c.ready).where(
+                                db.policy_engines.c.id == route.engine_id
+                            )
+                        )
+                    if not ready:
+                        continue
                     if row["status"] == "active":
+                        p.bundle = await policy(p)
                         p.gateway = Gateway(
                             route,
                             os.environ["HIRZ_MACHINE_TOKEN_URL"],

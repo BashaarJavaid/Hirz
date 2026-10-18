@@ -6,7 +6,7 @@ from uuid import uuid4
 import httpx
 import pytest
 
-from hirz.aws.cleanup import empty_policy_engine
+from hirz.aws.cleanup import empty_policy_engine, policy_tracing
 from hirz.aws.gateway import Gateway, SessionConflict, evidence, receipt
 from hirz.aws.routing import Route
 
@@ -119,6 +119,14 @@ def test_gateway_requires_correlated_evidence_and_inert_receipt(monkeypatch, fai
 def test_denial_evidence_and_receipt_validation():
     trace = "1-12345678-123456789012345678901234"
     assert not evidence(span(trace, "DENY"), trace, ROUTE, "request", None).allowed
+    with pytest.raises(ValueError, match="Enforced denial"):
+        evidence(
+            span(trace, "DENY"),
+            trace,
+            ROUTE,
+            "request",
+            {"structuredContent": {"executed": False}},
+        )
     with pytest.raises(ValueError):
         evidence(span("other"), trace, ROUTE, "request", None)
     value = {"executed": False, "approved": True, "ttl_minutes": 30}
@@ -154,3 +162,43 @@ def test_cleanup_waits_for_owned_policies(monkeypatch):
     }
     with pytest.raises(ValueError, match="crossed"):
         empty_policy_engine(sdk, "engine")
+
+
+def test_tracing_cleanup_refuses_preexisting_group(tmp_path):
+    before = {
+        "groups": [],
+        "destination": {"Destination": "XRay"},
+        "indexing": {
+            "IndexingRules": [
+                {
+                    "Name": "Default",
+                    "Rule": {"Probabilistic": {"DesiredSamplingPercentage": 0.0}},
+                }
+            ]
+        },
+    }
+    (tmp_path / "tracing-before.json").write_text(json.dumps(before))
+    (tmp_path / "clearance.json").write_text(
+        json.dumps({"started_at": "2026-10-17T00:00:00+00:00"})
+    )
+    acceptance = Mock(folder=tmp_path)
+    logs, xray = Mock(), Mock()
+    acceptance.client.side_effect = lambda service: {"logs": logs, "xray": xray}[
+        service
+    ]
+    group = {"logGroupName": "aws/spans", "creationTime": 1}
+    logs.describe_log_groups.return_value = {"logGroups": [group]}
+    with pytest.raises(ValueError, match="pre-existing"):
+        policy_tracing(acceptance, restore=True)
+    logs.delete_log_group.assert_not_called()
+    xray.update_trace_segment_destination.assert_not_called()
+    group["creationTime"] = 1792281600001
+    policy_tracing(acceptance)
+    logs.put_retention_policy.assert_called_once_with(
+        logGroupName="aws/spans", retentionInDays=7
+    )
+    logs.describe_log_groups.side_effect = [{"logGroups": [group]}, {"logGroups": []}]
+    xray.get_trace_segment_destination.return_value = before["destination"]
+    xray.get_indexing_rules.return_value = before["indexing"]
+    policy_tracing(acceptance, restore=True)
+    logs.delete_log_group.assert_called_once_with(logGroupName="aws/spans")

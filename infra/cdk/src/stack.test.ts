@@ -62,6 +62,17 @@ describe('item 36 acceptance infrastructure', () => {
     expect(signingPolicies.map(([id]) => id)).toHaveLength(1);
     expect(signingPolicies[0][0]).toMatch(/^ActionsRole/);
   });
+  it('scopes policy publication to the worker and the shared engine', () => {
+    const publishers = Object.entries(template.findResources('AWS::IAM::Policy')).filter(([, p]) => p.Properties.PolicyDocument.Statement.some((s: { Effect: string; Action: string | string[] }) => s.Effect === 'Allow' && [s.Action].flat().includes('bedrock-agentcore:CreatePolicy')));
+    expect(publishers).toHaveLength(1);
+    expect(publishers[0][0]).toMatch(/^WorkerRole/);
+    const grants = publishers[0][1].Properties.PolicyDocument.Statement.filter((s: { Action: string | string[] }) => [s.Action].flat().includes('bedrock-agentcore:CreatePolicy'));
+    expect(grants[0].Resource).not.toBe('*');
+    expect(JSON.stringify(grants[0].Resource)).toContain('PolicyEngine');
+    template.hasResourceProperties('AWS::XRay::TransactionSearchConfig', { IndexingPercentage: 0 });
+    expect(Object.values(template.findResources('AWS::Logs::LogGroup')).some(g => g.Properties.LogGroupName === 'aws/spans')).toBe(false);
+    template.hasResourceProperties('AWS::Logs::DeliverySource', { LogType: 'TRACES', Name: 'hirz-item36-policy-traces' });
+  });
   it('synthesizes without network lookups and without dependency cycles', () => {
     expect(app.synth().manifest.missing ?? []).toEqual([]);
     const visit = (id: string, trail: string[]) => {

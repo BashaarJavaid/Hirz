@@ -83,6 +83,8 @@ def test_shared_temporal_headroom_and_explicit_routes():
         routing.route(uuid4())
     with pytest.raises(ValueError, match="Conflicting"):
         Routing.parse(json.dumps({"managed": [str(a)], "local": [str(a)]}), route)
+    with pytest.raises(ValueError, match="Conflicting"):
+        Routing(frozenset({a}), frozenset({a}), route)
 
 
 def test_async_validation_exact_inventory_and_recovery():

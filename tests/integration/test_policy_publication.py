@@ -23,7 +23,8 @@ pytestmark = pytest.mark.integration
 
 
 @pytest.mark.parametrize(
-    "failure", [None, "finding", "crash", "revoked", "restore", "audit"]
+    "failure",
+    [None, "finding", "crash", "revoked", "restore", "audit", "sdk", "binding"],
 )
 def test_queued_activation_and_recovery(scratch_database, failure):
     async def run():
@@ -81,6 +82,12 @@ def test_queued_activation_and_recovery(scratch_database, failure):
                     (await c.execute(sa.select(db.policy_engines))).mappings().one()
                 )
                 assert not engine["ready"] and engine["generation"] == 1
+            if failure == "binding":
+                # Deliberate corruption probe: replace the initiating audit reference.
+                async with c.begin():
+                    await c.execute(
+                        db.policy_publications.update().values(decision_seq=1)
+                    )
             if failure in {"finding", "restore"}:
                 publisher.step.side_effect = Findings(
                     {
@@ -88,6 +95,18 @@ def test_queued_activation_and_recovery(scratch_database, failure):
                         "status": "CREATE_FAILED",
                         "statusReasons": ["always allow"],
                     }
+                )
+            if failure == "sdk":
+                from botocore.exceptions import ClientError
+
+                publisher.step.side_effect = ClientError(
+                    {
+                        "Error": {
+                            "Code": "ValidationException",
+                            "Message": "schema finding",
+                        }
+                    },
+                    "CreatePolicy",
                 )
             if failure == "crash":
                 publisher.step.side_effect = asyncio.CancelledError()
@@ -137,6 +156,10 @@ def test_queued_activation_and_recovery(scratch_database, failure):
                 )
                 if failure == "finding":
                     assert job["findings"][0]["statusReasons"] == ["always allow"]
+                if failure == "sdk":
+                    assert job["findings"][0]["Error"]["Message"] == "schema finding"
+                if failure == "binding":
+                    assert "signed initiating binding" in str(job["findings"])
 
     asyncio.run(run())
 
@@ -170,13 +193,19 @@ def test_gateway_sessions_persist_and_conflicts_fail_closed(scratch_database):
             publisher = AsyncMock()
             publisher.step.return_value = True
             await advance(p, publisher)
-            await advance(p, publisher)
-            p.bundle = await reload_policy(p)
             p.gateway = AsyncMock()
             p.gateway.invoke.return_value = Verdict(
                 True, "request", "trace", ("policy",), "ENFORCE", {"executed": False}
             )
             a = action()
+            paused = await p.redeem(a, PRINCIPAL)
+            assert (
+                paused.event_type == "DENY_BOUNDARY"
+                and "paused" in paused.boundary.reason
+            )
+            p.gateway.invoke.assert_not_awaited()
+            await advance(p, publisher)
+            p.bundle = await reload_policy(p)
             decision = await p.redeem(a, PRINCIPAL)
             assert decision.event_type == "DENY_BOUNDARY", decision
             assert decision.boundary.result == "allow", decision
@@ -195,6 +224,37 @@ def test_gateway_sessions_persist_and_conflicts_fail_closed(scratch_database):
                     (await c.execute(sa.select(db.gateway_sessions))).mappings().one()
                 )
                 assert session["conflicted"] and session["session_id"] == first
+            pending = await p.propose(
+                action("security.door_unlock"),
+                PRINCIPAL.model_copy(update={"requester_confirmed": True}),
+            )
+            assert pending.approval is not None
+            deadline = pending.approval.expires_at
+            async with p.repo.write(p.clock):
+                draft = await policy.draft(p, owner, dump(POLICY))
+                await policy.activate(
+                    p, owner, draft["id"], draft["candidate_hash"], member["digest"]
+                )
+            await advance(p, publisher)
+            await advance(p, publisher)
+            p.bundle = await reload_policy(p)
+            p.gateway.invoke.side_effect = None
+            rotated = await p.redeem(a, PRINCIPAL)
+            assert rotated.boundary.requests[0].session_id != first
+            async with c.begin():
+                replacement = (
+                    (
+                        await c.execute(
+                            sa.select(db.approvals).where(
+                                db.approvals.c.status == "pending"
+                            )
+                        )
+                    )
+                    .mappings()
+                    .one()
+                )
+                assert replacement["expires_at"] == deadline
+                assert replacement["approval_id"] != pending.approval.approval_id
 
     asyncio.run(run())
 

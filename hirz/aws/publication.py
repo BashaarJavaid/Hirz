@@ -4,16 +4,37 @@ import json
 from typing import Any
 
 import sqlalchemy as sa
+from botocore.exceptions import ClientError  # type: ignore[import-untyped]
 from sqlalchemy.dialects.postgresql import insert
 
 from hirz import db
+from hirz.audit import Verification
 from hirz.aws.policy import Findings, Publisher, inventory, quota
 from hirz.companion import policy
 from hirz.companion.governance import constitution
 from hirz.constitution.compiler import compile_policy
 from hirz.constitution.schema import loads
+from hirz.pipeline.hashing import digest
 from hirz.pipeline.models import Decision, EventType, Principal
 from hirz.pipeline.service import Pipeline
+
+
+def binding(job: dict[str, Any]) -> str:
+    return digest(
+        {
+            key: job[key]
+            for key in (
+                "id",
+                "engine_id",
+                "candidate_hash",
+                "base_hash",
+                "base_version",
+                "principal",
+                "decision_seq",
+                "session_digest",
+            )
+        }
+    )
 
 
 async def queue(
@@ -37,22 +58,34 @@ async def queue(
         )
         .on_conflict_do_nothing()
     )
-    await p.connection.execute(
-        db.policy_publications.insert().values(
-            id=draft["id"],
-            household_id=p.household_id,
-            engine_id=p.policy_route.engine_id,
-            status="queued",
-            candidate_hash=draft["candidate_hash"],
-            base_hash=draft["base_hash"],
-            base_version=draft["base_version"],
-            principal=principal.model_dump(mode="json"),
-            decision_seq=decision.audit_id,
-            session_digest=session_digest,
-            desired={},
-            findings=[],
-            created_at=p.clock(),
-        )
+    job = dict(
+        id=draft["id"],
+        household_id=p.household_id,
+        engine_id=p.policy_route.engine_id,
+        status="queued",
+        candidate_hash=draft["candidate_hash"],
+        base_hash=draft["base_hash"],
+        base_version=draft["base_version"],
+        principal=principal.model_dump(mode="json"),
+        decision_seq=decision.audit_id,
+        session_digest=session_digest,
+        desired={},
+        findings=[],
+        created_at=p.clock(),
+    )
+    await p.connection.execute(db.policy_publications.insert().values(**job))
+    await p.audit.append(
+        p.connection,
+        p.household_id,
+        p.clock(),
+        EventType.POLICY_PUBLICATION,
+        {
+            "publication_id": job["id"],
+            "candidate_hash": job["candidate_hash"],
+            "status": "queued",
+            "decision_seq": decision.audit_id,
+            "binding_hash": binding(job),
+        },
     )
 
 
@@ -93,6 +126,23 @@ async def transition(
 
 
 async def checked(p: Pipeline, job: dict[str, Any]) -> tuple[Any, ...]:
+    queued = (
+        (
+            await p.connection.execute(
+                sa.select(db.audit_log).where(
+                    p.scope(db.audit_log),
+                    db.audit_log.c.event_type == EventType.POLICY_PUBLICATION,
+                    db.audit_log.c.payload["publication_id"].astext == job["id"],
+                    db.audit_log.c.payload["status"].astext == "queued",
+                )
+            )
+        )
+        .mappings()
+        .one()
+    )
+    signed = Verification(p.household_id, p.audit.key.public_key()).feed(dict(queued))
+    if signed.payload["binding_hash"] != binding(job):
+        raise ValueError("Queued activation differs from its signed initiating binding")
     principal = Principal.model_validate(job["principal"])
     if not principal.credential_id or not principal.passkey_verified:
         raise ValueError("Missing queued passkey binding")
@@ -276,6 +326,8 @@ async def _advance(p: Pipeline, publisher: Publisher) -> None:
         findings = (
             json.loads(json.dumps(exc.policy, default=str))
             if isinstance(exc, Findings)
+            else json.loads(json.dumps(exc.response, default=str))
+            if isinstance(exc, ClientError)
             else {"error": type(exc).__name__, "message": str(exc)}
         )
         async with p.repo.write(p.clock):

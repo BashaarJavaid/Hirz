@@ -15,8 +15,9 @@ from webauthn.helpers import base64url_to_bytes
 from hirz import db
 from hirz.api.app import create_app
 from hirz.audit import verify_database
-from hirz.aws.fixture import load
+from hirz.aws.fixture import load, policy_routes
 from hirz.aws.probe import PRINCIPAL
+from hirz.aws.routing import Route as PolicyRoute
 from hirz.aws.worker import tick
 from hirz.companion.api import Companion
 from hirz.companion.auth import initial_invitation
@@ -42,6 +43,9 @@ def test_aws_tick_activation_cancellation_duplicate_and_restart(
         for field in ("HIRZ_SCHEDULE_GROUP", "HIRZ_SCHEDULE_ROLE", "HIRZ_TICK_ARN"):
             monkeypatch.setenv(field, "test")
         monkeypatch.setattr("hirz.aws.worker.client", lambda _: Mock())
+        policy_publisher, gateway = Mock(), Mock()
+        monkeypatch.setattr("hirz.aws.worker.Publisher", policy_publisher)
+        monkeypatch.setattr("hirz.aws.worker.Gateway", gateway)
         scheduled = {}
 
         async def sdk_call(sdk, method, **args):
@@ -72,7 +76,18 @@ def test_aws_tick_activation_cancellation_duplicate_and_restart(
             await migrate(c)
             p = await bootstrap(loaded, c, audit=audit)
             p.clock = now
-            service = Companion(c.engine, audit, CONFIG)
+            service = Companion(
+                c.engine,
+                audit,
+                CONFIG,
+                policy_routes=policy_routes(
+                    PolicyRoute(
+                        "engine",
+                        "arn:acceptance:gateway/test",
+                        "https://gateway.test/mcp",
+                    )
+                ),
+            )
             app = create_app(companion=service)
             key = Authenticator()
             invitation = await initial_invitation(p, loaded.ref("members", "malik"))
@@ -215,6 +230,8 @@ def test_aws_tick_activation_cancellation_duplicate_and_restart(
                 )
                 assert summary["status"] == "valid"
                 assert calls.await_count >= 2
+                policy_publisher.assert_not_called()
+                gateway.assert_not_called()
 
     asyncio.run(run())
 

@@ -2235,8 +2235,12 @@ not by themselves establish worker-role acceptance; retain worker checks too.
 The runner tears down in `finally`, even when acceptance fails. Cleanup removes
 runtime-created policies before deleting the engine, then verifies the existing
 application/toolkit cleanup contract. If the process dies before cleanup, run the
-existing `scripts/smoke_aws.py destroy` command using the same private artifacts.
-Check the retained account tracing configuration after teardown. A blocked
+existing `scripts/smoke_aws.py cleanup` command using the same private artifacts.
+Retain `tracing-before.json` with the prior destination, indexing rules and empty
+`aws/spans` inventory. X-Ray creates that reserved log group; CloudFormation must
+not create it explicitly. The runner sets seven-day retention and cleanup restores
+the recorded tracing configuration, deleting the group only after verifying it
+was absent before and created within this acceptance window. A blocked
 publication is not an active constitution, and an inert permit is not device
 execution. Signing, Link, physical execution and independent boundary passkey
 verification remain their later roadmap items. Do not close item 37 until all

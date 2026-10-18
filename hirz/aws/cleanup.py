@@ -2,9 +2,54 @@
 
 import json
 import time
+from datetime import datetime
 from typing import Any
 
 from botocore.exceptions import ClientError  # type: ignore[import-untyped]
+
+
+def policy_tracing(acceptance: Any, *, restore: bool = False) -> None:
+    """Bound retention and restore the recorded, previously unused tracing setup."""
+    path = acceptance.folder / "tracing-before.json"
+    if not path.exists():
+        return
+    before = json.loads(path.read_text())
+    if before["groups"] or before["destination"]["Destination"] != "XRay":
+        raise ValueError("Acceptance cannot replace shared transaction tracing")
+    logs = acceptance.client("logs")
+    groups = logs.describe_log_groups(logGroupNamePrefix="aws/spans")["logGroups"]
+    group = next((g for g in groups if g["logGroupName"] == "aws/spans"), None)
+    if group:
+        clearance = json.loads((acceptance.folder / "clearance.json").read_text())
+        start = datetime.fromisoformat(clearance["started_at"]).timestamp() * 1000
+        if group["creationTime"] < start:
+            raise ValueError("Refusing to change a pre-existing span log group")
+    if restore:
+        xray = acceptance.client("xray")
+        xray.update_trace_segment_destination(Destination="XRay")
+        for rule in before["indexing"]["IndexingRules"]:
+            xray.update_indexing_rule(Name=rule["Name"], Rule=rule["Rule"])
+        if group:
+            logs.delete_log_group(logGroupName="aws/spans")
+        if xray.get_trace_segment_destination()["Destination"] != "XRay":
+            raise ValueError("Prior tracing destination was not restored")
+        expected = {r["Name"]: r["Rule"] for r in before["indexing"]["IndexingRules"]}
+        actual = {
+            r["Name"]: r["Rule"] for r in xray.get_indexing_rules()["IndexingRules"]
+        }
+        if actual != expected:
+            raise ValueError("Prior tracing indexing was not restored")
+        if any(
+            g["logGroupName"] == "aws/spans"
+            for g in logs.describe_log_groups(logGroupNamePrefix="aws/spans")[
+                "logGroups"
+            ]
+        ):
+            raise ValueError("Acceptance span log group remains")
+    elif group:
+        logs.put_retention_policy(logGroupName="aws/spans", retentionInDays=7)
+    else:
+        raise ValueError("AWS has not created the transaction span log group")
 
 
 def empty_policy_engine(client: Any, engine: str) -> None:
@@ -308,6 +353,7 @@ def destroy(acceptance: Any) -> dict[str, Any]:
             except ClientError as exc:
                 if exc.response["Error"]["Code"] != "ResourceNotFoundException":
                     raise
+    policy_tracing(acceptance, restore=True)
     records["status"] = "destroyed"
     records["item36"] = "requires live evidence review and post-deletion inventory"
     return records

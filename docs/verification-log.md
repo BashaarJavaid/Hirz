@@ -14272,3 +14272,10 @@ private temporary Docker config and the existing daemon. See the
 No Gateway permit, successful production policy validation, ENFORCE promotion,
 physical execution or item completion is established by this entry. Later runs
 and teardown evidence must be appended here.
+
+Inventory clarification: the `ap-northeast-3` AgentCore entries record failed
+reads, not proof of service availability or absent resources. The no-running-
+capacity observation applies to successful inventory reads; deployment remains
+confined to `us-east-1`. The later retained NAT, public IPv4 and ALB SKU reads
+confirmed the estimate's $0.045/hour and per GB, $0.005/address-hour,
+$0.0225/ALB-hour and $0.008/LCU-hour rates respectively.

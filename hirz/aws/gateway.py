@@ -123,6 +123,7 @@ class Gateway:
                 self.logs,
                 "filter_log_events",
                 logGroupName="aws/spans",
+                startTime=(int(trace.split("-")[1], 16) - 5) * 1000,
                 filterPattern='"' + trace.rsplit("-", 1)[-1] + '"',
                 limit=100,
             )
@@ -184,6 +185,13 @@ def evidence(
         not policies or target is None or target.get("isError") is True
     ):
         raise ValueError("AWS permit lacks successful target evidence")
+    if (
+        decision == "DENY"
+        and a["aws.agentcore.gateway.policy.mode"] == "ENFORCE"
+        and target is not None
+        and target.get("isError") is not True
+    ):
+        raise ValueError("Enforced denial returned a successful target response")
     return Verdict(
         decision == "ALLOW",
         request_id,
