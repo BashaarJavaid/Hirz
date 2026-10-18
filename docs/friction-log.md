@@ -1231,3 +1231,23 @@ original tracing was restored. Final evidence is appended to the
 - **Feature request:** Offer a validation mode that accepts explicitly intentional
   all-deny policies while retaining other semantic checks; currently the only
   alternative skips all semantic checks for the submitted statement.
+
+### 2026-10-18 — Full-inventory analysis outlasts a fixed polling allowance
+
+- **Tool:** Amazon Bedrock AgentCore Policy asynchronous semantic analysis.
+- **Severity:** Major.
+- **Docs:** [Per-policy engine validation](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/policy-create-update-validation.html).
+- **What happened:** The full publication reached 49 ACTIVE statements and one
+  CREATING without AWS findings before the acceptance runner exhausted 1,500 polls
+  after about 44 minutes. Its exact error was
+  `Publication did not finish within the bounded acceptance attempts`;
+  this was a **local runner timeout, not an AWS rejection**. Retained AWS timestamps
+  show the first ten completed statements averaging 16.65 seconds and statements
+  41–49 averaging 85.91 seconds. The documented engine-wide analysis is asynchronous;
+  no service failure or violated duration guarantee is inferred.
+- **Response:** Verified audit export and automatic teardown, then replaced the
+  poll-count bound with the already approved fixed global work cutoff and cleanup
+  reserve. No semantic finding is bypassed and no approval deadline is extended.
+- **Feature request:** Expose analysis progress and expected completion time, and
+  provide an atomic full-inventory validation operation to reduce repeated
+  engine-wide analysis during household publication.

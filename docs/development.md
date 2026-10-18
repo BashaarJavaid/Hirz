@@ -2262,9 +2262,9 @@ The runner tears down in `finally`, even when acceptance fails. Cleanup removes
 runtime-created policies before deleting the engine, then verifies the existing
 application/toolkit cleanup contract. If the process dies before cleanup, run the
 existing `scripts/smoke_aws.py cleanup` command using the same private artifacts.
-Each publication has a two-hour elapsed limit; every tick also checks the global
-work cutoff. This accommodates asynchronous full-inventory analysis without
-extending the approved window or its cleanup reserve.
+Every publication tick checks the fixed global work cutoff, including while AWS
+analysis is pending. No separate poll-count or per-publication timeout can end
+acceptance early; the approved window and its cleanup reserve remain mandatory.
 A private `clearance.json` may set an earlier financial expiry than the approved
 maximum. The runner reserves its final hour for cleanup and cannot use that file
 to extend the original fixture window. Retry estimates include rounded partial

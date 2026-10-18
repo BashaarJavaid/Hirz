@@ -15365,3 +15365,34 @@ terminal outcomes, the elapsed limit and the global cutoff; strict mypy passes
 226 files. Private evidence is in `secrets/item37-hard-deny-full/`. A read-only AWS
 CloudWatch filter test also confirmed the existing trace filter matches both
 documented trace-ID representations; this is not a real Gateway trace result.
+
+### Timeout cleanup and fixed global publication deadline — 2026-10-18
+
+Attempt twelve's automatic teardown completed with `status=destroyed`. Independent
+inventory at **10:42:36.508026 UTC** found all **24 resource categories empty** and
+all **12 recorded signing keys PendingDeletion**. The cloud bootstrap household
+audit export was correctly empty; the separately verified 6,003-row local
+publication export remains the relevant evidence. Tracing was restored and the
+temporary Docker configuration removed. Aggregate NAT telemetry is
+**9.068343586 decimal GB** from the original start, against the same 20 GB allowance;
+the metric may lag and is not an invoice. Development remains on
+`0005_execution_attempt`. The final exception was the runner's own
+`ValueError: Publication did not finish within the bounded acceptance attempts`.
+
+Before another deployment, review of the retained AWS timestamps showed analysis
+growth: the first ten ACTIVE statements averaged **16.65 seconds**, while
+statements 41–49 averaged **85.91 seconds**. The proposed two-hour per-publication
+limit in commit `85677d3` was therefore removed **before deployment**. Publication
+now uses the existing fixed global cutoff directly, checked before every tick;
+the last hour remains reserved for cleanup. The **37 focused tests pass** with
+both initial and mid-publication cutoff checks and completion beyond 1,500 polls.
+No validation checks or policy semantics changed. The replacement revision still
+requires its complete CI gates; superseded runs are not counted as passes.
+
+Fresh account-owner billing clearance again reports **$149.38** enabled eligible
+credit and unchanged rates for **14 products**. The aggregate forecast now reserves
+rounding/minimum charges through attempt thirteen and totals
+**$9.420634295833333333333333333**, under the original $10 ceiling. No usage or time
+counter is reset. The original work cutoff remains **22:32:52.907915 UTC**, with
+cleanup by **23:32:52.907915 UTC**, on 2026-10-18. New private evidence is in
+`secrets/item37-elapsed-acceptance/`; no further AWS success is claimed here.

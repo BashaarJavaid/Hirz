@@ -508,13 +508,11 @@ def test_faulty_compiler_requires_its_own_actual_always_allow_finding(
         ("committed", 1501, None),
         ("failed", 1, None),
         ("blocked", 1, None),
-        ("publishing", 1, "two-hour"),
+        ("publishing", 1, "work cutoff"),
         ("publishing", 0, "work cutoff"),
     ],
 )
-def test_acceptance_publication_obeys_elapsed_and_global_limits(
-    monkeypatch, status, polls, error
-):
+def test_acceptance_publication_obeys_global_limit(monkeypatch, status, polls, error):
     from scripts import smoke_policy
 
     connection = Mock()
@@ -527,14 +525,7 @@ def test_acceptance_publication_obeys_elapsed_and_global_limits(
     advance, sleep, acceptance = AsyncMock(), AsyncMock(), Mock()
     monkeypatch.setattr(smoke_policy, "advance", advance)
     monkeypatch.setattr(smoke_policy.asyncio, "sleep", sleep)
-    monkeypatch.setattr(
-        smoke_policy,
-        "time",
-        SimpleNamespace(monotonic=Mock(side_effect=[0] * (polls + 1) + [7200])),
-    )
-    if polls == 0:
-        smoke_policy.time.monotonic.side_effect = [0, 0]
-        acceptance.within_window.side_effect = ValueError("work cutoff")
+    acceptance.within_window.side_effect = [None] * polls + [ValueError("work cutoff")]
     run = smoke_policy.publication(
         SimpleNamespace(connection=connection), Mock(), str(uuid4()), acceptance
     )
@@ -544,4 +535,4 @@ def test_acceptance_publication_obeys_elapsed_and_global_limits(
     else:
         assert asyncio.run(run) == {"status": status}
     assert advance.await_count == polls
-    assert acceptance.within_window.call_count == max(1, polls)
+    assert acceptance.within_window.call_count == polls + (error is not None)

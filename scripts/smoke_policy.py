@@ -266,9 +266,8 @@ async def activate(http: httpx.AsyncClient, key: Authenticator, candidate: str) 
 async def publication(
     p: Pipeline, publisher: Publisher, reference: str, acceptance: Acceptance
 ) -> dict[str, Any]:
-    # Full-inventory semantic analysis takes longer than a fixed polling count.
-    deadline = time.monotonic() + 2 * 60 * 60
-    while time.monotonic() < deadline:
+    # The fixed global work cutoff also bounds slow full-inventory analysis.
+    while True:
         acceptance.within_window()
         await advance(p, publisher)
         async with p.connection.begin():
@@ -286,7 +285,6 @@ async def publication(
         if row["status"] in {"failed", "blocked", "committed"}:
             return row
         await asyncio.sleep(1)
-    raise ValueError("Publication did not finish within the two-hour acceptance limit")
 
 
 def always_allow(findings: list[dict[str, Any]]) -> bool:
