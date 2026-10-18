@@ -210,3 +210,64 @@ def test_tracing_cleanup_refuses_preexisting_group(tmp_path, monkeypatch):
     logs.delete_log_group.assert_called_once_with(logGroupName="aws/spans")
     xray.update_trace_segment_destination.assert_not_called()
     pause.assert_called_once_with(5)
+
+
+def test_approval_expiring_during_gateway_call_records_denial(monkeypatch):
+    from datetime import timedelta
+    from unittest.mock import AsyncMock
+
+    from hirz.aws.boundary import check
+    from hirz.aws.gateway import Verdict
+    from tests.unit.test_pipeline import AT, PRINCIPAL, action, pipeline
+
+    async def run():
+        p = await pipeline()
+        ev = await p.assess(action(), PRINCIPAL, None, (), AT)
+        p.policy_route = ROUTE
+        engine = {
+            "id": ROUTE.engine_id,
+            "ready": True,
+            "generation": 1,
+            "inventory": {},
+            "changed_at": AT - timedelta(seconds=2),
+        }
+        session = {
+            "engine_id": ROUTE.engine_id,
+            "generation": 1,
+            "session_id": uuid4(),
+            "conflicted": False,
+        }
+        rows = []
+        for value in (engine, session):
+            row = Mock()
+            row.mappings.return_value.one_or_none.return_value = value
+            rows.append(row)
+        p.connection.execute.side_effect = rows
+        monkeypatch.setattr(
+            "hirz.aws.boundary.account", AsyncMock(return_value=PRINCIPAL)
+        )
+        monkeypatch.setattr("hirz.aws.boundary.reissue", AsyncMock())
+        deadline = AT + timedelta(seconds=1)
+
+        async def invoke(name, inputs, session_id):
+            if name == ev.action.action_class:
+                p.clock = lambda: deadline
+            return Verdict(True, "request", "trace", ("policy",), "ENFORCE", None)
+
+        p.gateway = Mock(invoke=AsyncMock(side_effect=invoke))
+        checked = await check(
+            p,
+            ev,
+            AT,
+            {"created_at": AT, "expires_at": deadline},
+            PRINCIPAL,
+            {"owner": True},
+            "context",
+        )
+        assert checked.decision.event_type == "DENY_BOUNDARY"
+        assert checked.decision.boundary.result == "deny"
+        assert checked.decision.boundary.reason == "Original approval deadline passed"
+        assert len(checked.decision.boundary.requests) == 2
+        assert all(r.result == "allow" for r in checked.decision.boundary.requests)
+
+    asyncio.run(run())

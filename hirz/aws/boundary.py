@@ -71,6 +71,7 @@ async def check(
 
     evidence: list[BoundaryRequest] = []
     results: dict[Role, bool] = {}
+    completed = False
     reason = "AWS boundary unavailable; no execution"
     try:
         if p.gateway is None or p.policy_route is None:
@@ -201,6 +202,7 @@ async def check(
                 raise ValueError("Local and AWS policy decisions disagree")
         if approval and p.clock() >= approval["expires_at"]:
             raise ValueError("Original approval deadline passed")
+        completed = True
         reason = "Inert AWS policy evaluation only; device execution is unavailable"
     except SessionConflict:
         await constitution(p, actor, "publish", scope)
@@ -218,7 +220,10 @@ async def check(
             "boundary": BoundaryEvidence(
                 engine="agentcore-policy",
                 result="allow"
-                if results and all(results.values()) and len(results) == len(local)
+                if completed
+                and results
+                and all(results.values())
+                and len(results) == len(local)
                 else "deny",
                 reason=reason,
                 context_hash=context_hash,

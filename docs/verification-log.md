@@ -14488,3 +14488,18 @@ the final hour of whichever deadline is earlier, so work stops by
 Current [Cognito pricing](https://aws.amazon.com/cognito/pricing/) charges successful
 M2M token responses, with no app-client count fee; the existing aggregate variable
 reserve remains. No new spending allowance or infrastructure size was requested.
+
+### Deadline evidence and second teardown — 2026-10-17
+
+The second live harness's automatic cleanup completed and retained a serializable
+`policy-cleanup.json` with status `destroyed`; its command key is pending deletion.
+Only after that report and independent stack-absence checks did the third
+application deployment start. The original acceptance start is unchanged.
+
+Review found that consent expiring during the final Gateway request could leave
+an aggregate boundary `allow` summary even though the overall decision remained
+`DENY_BOUNDARY`. The summary now requires successful completion of the final
+deadline check. A regression preserves the two actual AWS permit records while
+requiring aggregate denial for the expired consent. The Gateway unit suite passed
+**10 tests in 6.17 seconds**; strict mypy passed for the boundary module. This is a
+reporting correction, not authority to execute an inert target receipt.
