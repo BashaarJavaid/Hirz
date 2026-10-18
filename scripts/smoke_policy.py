@@ -544,13 +544,10 @@ async def invalidation(
         raise ValueError("Invalidation needs an allowed approval control")
     if not (await gateway.invoke(action.action_class, inputs, session)).allowed:
         raise ValueError("Invalidation needs an allowed action control")
-    candidate = original.model_copy(
-        update={
-            "defaults": original.defaults.model_copy(
-                update={"approval_ttl_minutes": ttl + 1}
-            )
-        }
-    )
+    candidate = original.model_copy(deep=True)
+    candidate.autonomy["security"]["door_unlock"] = original.rule(
+        action.action_class, "owner"
+    ).model_copy(update={"approval_ttl_minutes": ttl + 1})
     reference = await activate(*phone, dump(candidate))
     job = await publication(p, publisher, reference, acceptance)
     write_export(

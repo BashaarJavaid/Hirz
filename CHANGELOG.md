@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-10-18: Scope the live session-invalidation fixture to one class's TTL while retaining conflict, fresh-session denial and full restoration checks; avoid republishing unrelated rules.
+
 - 2026-10-18: Bound full policy acceptance publication by elapsed time while preserving the original global cutoff; the previous polling count expired during successful AWS analysis ([evidence](docs/verification-log.md#full-inventory-exceeded-the-acceptance-polling-bound--2026-10-18)).
 
 - 2026-10-18: Require the faulty-compiler rejection proof to name its failed policy and recognize AWS’s documented “Overly Permissive” category; strict publisher validation is unchanged.

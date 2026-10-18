@@ -15396,3 +15396,22 @@ rounding/minimum charges through attempt thirteen and totals
 counter is reset. The original work cutoff remains **22:32:52.907915 UTC**, with
 cleanup by **23:32:52.907915 UTC**, on 2026-10-18. New private evidence is in
 `secrets/item37-elapsed-acceptance/`; no further AWS success is claimed here.
+
+### Invalidation fixture scoped before live invocation — 2026-10-18
+
+While attempt thirteen's infrastructure was being created, before the live
+acceptance subprocess started, the session-invalidation fixture was narrowed to
+the `security.door_unlock` rule's approval TTL. It previously changed the default
+TTL, republishing **24 statements** in each direction. The class-specific fixture
+changes exactly **two statements** in both native and AWS compiler representations,
+preserves the default and every other rule, and still requires the original
+session's actual 409, refusal to reuse consent in a replacement session, and
+restoration of the complete original inventory. No expiry test is shortened.
+
+This is a local acceptance-harness change, not a compiler, worker, target, schema,
+validation-mode or infrastructure change. The deployment began on `b913b3e`; the
+separate harness revision and source hashes are retained in
+`secrets/item37-elapsed-acceptance/harness-implementation.json`. Production sources
+are byte-identical across that amendment. **38 focused tests** and strict mypy
+over **226 files** pass. New CI targets the final harness revision; no superseded
+run is substituted for its required gates. No additional deployment is introduced.

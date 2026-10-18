@@ -2257,6 +2257,9 @@ before changing `LOG_ONLY` to `ENFORCE`. Live expiry uses elapsed time; randomiz
 and exact synthetic-time endpoints remain native local tests. The resulting
 signed audit exports are verified independently. Local harness credentials do
 not by themselves establish worker-role acceptance; retain worker checks too.
+The invalidation fixture changes only the door-unlock approval TTL, then restores
+the original inventory; it requires a real 409 and fresh-session denial without
+republishing unrelated approval rules.
 
 The runner tears down in `finally`, even when acceptance fails. Cleanup removes
 runtime-created policies before deleting the engine, then verifies the existing

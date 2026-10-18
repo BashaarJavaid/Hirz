@@ -536,3 +536,37 @@ def test_acceptance_publication_obeys_global_limit(monkeypatch, status, polls, e
         assert asyncio.run(run) == {"status": status}
     assert advance.await_count == polls
     assert acceptance.within_window.call_count == polls + (error is not None)
+
+
+def test_invalidation_fixture_changes_only_the_tested_class(monkeypatch):
+    from hirz.aws.fixture import policy_seeds
+    from hirz.constitution.compiler import statement_name
+    from hirz.constitution.schema import loads
+    from scripts import smoke_policy
+
+    seed = policy_seeds()[0]
+    original = loads(seed.yaml)
+    activate = AsyncMock(side_effect=ValueError("candidate captured"))
+    monkeypatch.setattr(smoke_policy, "activate", activate)
+    gateway = Mock(invoke=AsyncMock(return_value=SimpleNamespace(allowed=True)))
+    with pytest.raises(ValueError, match="candidate captured"):
+        asyncio.run(
+            smoke_policy.invalidation(
+                Mock(), (Mock(), Mock()), seed, gateway, Mock(), Mock()
+            )
+        )
+    candidate = loads(activate.await_args.args[-1])
+    assert candidate.defaults == original.defaults
+    for engine in ("dogwood-local", "agentcore-policy"):
+        before = {
+            s.name: s.text for s in compile_policy(original, engine=engine).statements
+        }
+        after = {
+            s.name: s.text for s in compile_policy(candidate, engine=engine).statements
+        }
+        assert before.keys() == after.keys()
+        assert {name for name in before if before[name] != after[name]} == {
+            statement_name(original.household, "security_door_unlock_approve"),
+            statement_name(original.household, "temporal_security_door_unlock"),
+        }
+    assert loads(seed.yaml) == original
