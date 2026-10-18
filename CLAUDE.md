@@ -139,11 +139,12 @@ Item 32 adds `HIRZ_LLM=off uv run --locked python -m scripts.smoke_protect --art
 ## Current phase
 
 Item 36 is complete ([evidence](docs/verification-log.md#item-36-closure--2026-10-17)).
-Item 37's queued AgentCore integration is implemented and under verification;
-its new acceptance window is [recorded](docs/verification-log.md#item-37).
-Live conformance, enforcement, CI gates and verified teardown still determine
-completion. Item 31 owes email/push acceptance; item 28 owes real Web Push (#7).
-Ring remains twin; Link is item 38a. Development stays on 0005; migrations remain manual.
+Item 37's integration is implemented, but repeated AWS temporal-policy creation
+errors block live acceptance ([evidence](docs/verification-log.md#item-37));
+two scoped diagnostic probes are approved. Conformance, faulty-compiler refusal
+and ENFORCE remain owed. Ordinary CI and teardown passed; evening latency is pending.
+Item 31 owes email/push; item 28 owes real Web Push (#7).
+Ring remains twin; Link is item 38a. Development stays on 0005; migrations are manual.
 
 ---
 

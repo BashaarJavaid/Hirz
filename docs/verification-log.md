@@ -14566,3 +14566,153 @@ Disposable queued-publication and local-companion integration passed **16 tests
 in 44.35 seconds**, including explicit assertions for both displayed dialects.
 Ruff and strict mypy passed. This display correction does not change the compiler's
 published statements or the unchanged retry's validation settings.
+
+### Repeated service failure and diagnostic decision pending — 2026-10-17
+
+The third live attempt's teardown completed before another deployment: its
+`policy-cleanup.json` records `destroyed`, application/toolkit stacks absent,
+prior tracing restored and its command key pending deletion. The original
+acceptance start was retained. CloudTrail independently records its CreatePolicy
+request `3be2b40b-d995-4bcd-b471-148980f724d5`; the retained asynchronous result,
+not that successful request submission, establishes the creation failure.
+
+The fourth live attempt used implementation
+`abfe4455da233c47faf5385694ffad26de6131ef`, with final worker image
+`sha256:d8fce89da522f9ae56703841812e1df5ece4f138ca591e6fe14c087539d86017`.
+Initial application deployment took 989.14 seconds and the worker rollout took
+207.81 seconds. Disposable initialization/migration/seeding, one stable worker,
+authenticated tick and the fixed-noncommand signer positive control passed;
+worker KMS signing, direct credential-secret reads and AgentCore credential
+retrieval were denied. An identical deployment reported no changes in 4.61 seconds.
+
+The unchanged candidate hash was
+`c95a6d8deeb1e08ff94fb1068c73f037c976cfec67002306613dc179c0bac36c`.
+Policy `h_554d8977a5e79b92_ttl_30-1m2u1082l3` remained `CREATING` from
+2026-10-18 03:01:35.965685Z until 03:07:00.695918Z, then returned `CREATE_FAILED`
+with the same sole reason: `An internal error occurred during creation`.
+CloudTrail request `bd18166b-f9ff-4afe-b874-dec04736802a` correlates the submission.
+No schema/semantic validation success is inferred. Independent signed-export
+verification passed for **805 home rows**; the parents chain is empty. A read of
+the retained disposable database confirmed engine generation 1, `ready=true`,
+no publication owner and the committed empty inventory. No Gateway calls were
+reserved. Private evidence is in `secrets/item37-acceptance-retry3/`; automatic
+teardown is still in progress at this entry.
+
+The deployed worker readiness/IAM probes are separate from policy activation:
+the live publication harness uses the actual companion/passkey/Pipeline/publisher
+against a local disposable PostgreSQL database and the deployed AWS engine,
+under the deployment identity. It does not prove publication through the deployed
+worker's RDS connection. Signed exports are independently verified, not anchored.
+
+Account-region NAT telemetry through approximately 02:58Z covered six NAT
+identities and **3.735164792 decimal GB**, counting both incoming byte directions,
+against the existing 20 GB allowance. These lagging service metrics and the
+$7.885134535833333333333333333 projection are not an actual invoice. Six application
+creates, including the two early infrastructure rollbacks, have used the reserve
+for at most ten sequential attempts.
+
+No further unchanged retry is planned. Two exact diagnostic fixtures and their
+warning-free native validation are prepared privately in
+`secrets/item37-diagnostic-review/`: factoring the common TTL comparison and
+narrowing only the temporal action head to one action. They are not production
+compiler changes or live results. A revised decision was requested for at most
+one additional, two-hour deployment within the existing budget/deadlines, using
+the real audited publisher and strict validation, no Gateway calls, and mandatory
+teardown. Live diagnostics await that decision. The late approval of tracing IAM
+prerequisites adds no work: the existing CloudFormation execution role already
+completed tracing setup, so those obsolete proposed grants were never applied.
+
+Item 37 remains incomplete: real always-allow rejection, shared-corpus agreement,
+elapsed-time expiry, policy-update invalidation and ENFORCE target-entry exclusion
+have not been reached. Current ordinary CI and required non-diagnostic latency
+checks are still running for the implementation revision.
+
+### Diagnostic fixture comparison, local only — 2026-10-17
+
+Before any diagnostic deployment, the unmodified pinned Dogwood CLI evaluated
+all **780 home corpus cases** against the original and both prepared temporal
+fixtures. Factoring the repeated TTL comparison produced **zero disagreements**.
+The single-action scope produced no broader permits, retained the HVAC decisions,
+and denied 22 cases that the original allowed. Both complete policy sets validated
+without warnings. The private comparison report is
+`secrets/item37-diagnostic-review/native-comparison.json`; no AWS calls were made
+and diagnostic deployment still awaits the revised decision.
+
+### Ordinary implementation CI passes — 2026-10-17
+
+[Ordinary CI 39091157244](https://github.com/BashaarJavaid/Hirz/actions/runs/39091157244)
+passed for implementation `abfe4455da233c47faf5385694ffad26de6131ef`.
+Native conformance/compiler checks passed **162 tests in 188.73 seconds**;
+companion browser checks passed **2 tests in 2.3 minutes**, including explicitly
+synthetic publication-presentation states. TypeScript suites passed 1 web, 5 card
+and 6 CDK tests; CDK synthesis, workspace lint/types, Python lint/strict types,
+packaging, scenarios and conformance jobs passed.
+
+The same revision's dispatched run
+[39091168782](https://github.com/BashaarJavaid/Hirz/actions/runs/39091168782) has a
+passing Python job: **1,666 service-free tests in 220.35 seconds**, **257 disposable
+PostgreSQL tests in 937.07 seconds**, and **89% combined coverage** (17,895 statements,
+1,932 missed), with the explicit 80% gate passed. Its subsequent browser checks
+passed 1 + 1 + 51 tests. Both non-diagnostic latency scenarios are still running;
+this entry does not claim their acceptance or AWS cold-start measurements.
+
+### Fourth teardown and independent inventory — 2026-10-17
+
+The fourth live harness exited with the expected production-policy rejection
+only after its `finally` cleanup completed. Its retained `policy-cleanup.json`
+records `destroyed`, restored tracing, and the command key in `PendingDeletion`
+with deletion scheduled for 2026-10-25 03:11:36.418Z. At
+**2026-10-18 03:24:57.908460Z**, independent service API inventory found all **24
+checked resource categories empty**: NAT gateways, EIPs, Hirz VPCs, RDS instances,
+retained backups/snapshots, ECS clusters, load balancers, log groups, event rules,
+Lambdas, secrets including scheduled deletion, buckets, repositories, Cognito pools,
+AgentCore runtimes/Gateways/memories/credential providers/workload identities/policy
+engines, CloudFront distributions/VPC origins and dedicated schedule groups.
+All **six recorded command keys** from item 36 and the four item 37 live attempts
+remain pending deletion. The nonbillable IAM setup is intentionally retained.
+The private `post-delete-inventory.json` contains the counts and key states.
+Temporary deployment Docker credentials/configuration were removed.
+
+The final sampled NAT telemetry at 03:17:50.836424Z reports **4.265111255 decimal
+GB** across six NAT identities against the reserved 20 GB; metrics may lag and
+this is not a final bill. The acceptance window's start and financial limits were
+never reset. No diagnostics were deployed while the revised decision is pending.
+
+Ordinary CI's own Python job passed **1,666 service-free tests in 280.61 seconds**
+and **257 PostgreSQL tests in 1,082.95 seconds**, with **89% combined coverage**
+(17,895 statements; 1,917 missed), followed by 1 + 1 + 51 browser checks. The
+non-diagnostic Hourly latency job passed in **2,137.44 seconds**; evening is still
+running at this entry. These local tool timings do not measure AWS cold starts.
+
+A separate account-region KMS metadata scan also covered the two early rolled-back
+stack creations whose output files were never produced: **all eight customer keys
+are PendingDeletion**, with no active customer key left. Private metadata is in
+`secrets/item37-acceptance-retry3/customer-key-inventory.json`; key material was
+neither read nor changed. The six-key count above refers only to recorded outputs.
+
+The completed Hourly latency summary contains **54 cases / 5,400 measured calls**
+and all twelve tools. Maximum case p95 was **129.739 ms** (`verify-start-no_answer`);
+maximum pooled tool p95 was **101.794 ms** (`verify_trusted_identity`), under the
+250 ms gate. The run used five warmups, 100 measured calls per case, no discarded
+samples, and `HIRZ_BUDGET_DIAGNOSTIC=0`.
+
+### Scoped diagnostics approved — 2026-10-17
+
+The author approved the two prepared probes and one additional deployment, with
+at most two hours including teardown inside the existing budget/window. The
+diagnostic clearance starts **2026-10-18T03:44:15.047391Z**, stops work by
+**04:44:15.047391Z**, and requires cleanup by **05:44:15.047391Z**. The original
+acceptance start remains 2026-10-17T23:32:52.907915Z. Fresh account billing data
+still shows enabled eligible estimated credit of **$149.38**, with the same
+eligible-product set. The existing estimate and aggregate allowances remain;
+this will be application attempt seven of the ten-attempt reserve.
+
+The private runner in `secrets/item37-diagnostics/runner.py` uses the existing
+companion ceremonies, Pipeline publication/recovery and signed exports. It stops
+on ACTIVE of the diagnostic temporal statement before publishing the rest of
+the candidate or committing activation; an explicit local diagnostic-stop reason
+distinguishes that abort from an AWS finding. It verifies remote empty inventory,
+durable readiness and zero activation events before the next probe. Its local
+checks passed for ACTIVE evidence/abort, recovery delegation and pending-state
+delegation. Native fixture validation/comparison is recorded above. No production
+compiler change, Gateway call or device execution is authorized by this probe.

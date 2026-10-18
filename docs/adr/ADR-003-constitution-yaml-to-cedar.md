@@ -256,3 +256,23 @@ Rejected: per-household engines; publishing while managed calls run; replacing t
 native evaluator; accepting semantic findings; replaying approval history into a
 conflicted session; treating a successful inert target call as device execution.
 Live agreement, semantic validation and enforcement remain acceptance gates.
+
+### Approved temporal diagnostics — 2026-10-17
+
+After two identical asynchronous internal creation failures, the author approved
+one additional deployment for two isolated compiler fixtures: factor the repeated
+TTL comparison, then narrow the temporal action head to `energy.hvac_adjust`.
+Both retain the temporal event correlations and strict AWS validation. The native
+comparison and exact fixture hashes are retained with the [item 37 evidence](../verification-log.md#item-37).
+Neither fixture changes the production compiler. Each runs through the real
+passkey-queued, audited publisher in a separate disposable database. An ACTIVE
+temporal statement causes an explicitly labeled local diagnostic stop before
+candidate publication/activation; recovery must verify the committed empty
+inventory before the next probe. A local stop is never an AWS finding.
+
+There are no Gateway tool calls or enforcement promotion in these diagnostics.
+The existing stack sizes, original $10 window and financial allowances remain;
+this single deployment has a stricter two-hour maximum including teardown.
+Rejected another identical retry, relaxing validation, and treating success of
+a restricted fixture as production conformance. Any production correction still
+owes semantic equivalence and every original live acceptance gate.

@@ -1114,3 +1114,10 @@ three-operator and 24-hour limits remain unchanged. See
 - **Feature request:** Return a diagnostic identifier and distinguish a retryable
   service failure from an unsupported construct or analysis timeout in asynchronous
   policy status reasons.
+
+Follow-up (2026-10-17): the unchanged retry reproduced the same exact error,
+`An internal error occurred during creation`, from creation at
+2026-10-18 03:01:35.965685Z to failure at 03:07:00.695918Z. CloudTrail supplied
+request IDs for both submissions, but no cause for the later asynchronous failure.
+Both activations were refused and their committed empty inventories restored.
+A revised diagnostic decision is pending; strict validation has not been relaxed.
