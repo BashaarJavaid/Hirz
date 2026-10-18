@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-10-18: Record rejected conditional policy controls, verified cleanup, and the newly approved target-group probe; correct deployment versus billing login instructions ([evidence](docs/verification-log.md#item-37), [decision](docs/adr/ADR-003-constitution-yaml-to-cedar.md#conditional-target-group-scope--2026-10-18)).
+
 - 2026-10-17: Add item 37's shared AgentCore publisher, queued passkey activation, durable
   sessions, generated inert Gateway contract and companion publication status.
   Live acceptance is blocked by repeated AWS temporal-policy creation errors; see [the evidence](docs/verification-log.md#item-37)

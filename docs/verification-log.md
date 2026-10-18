@@ -14818,3 +14818,109 @@ application attempt eight of the ten-attempt reserve, with no new resources.
 Original start remains 2026-10-17T23:32:52.907915Z; work stops by **10:32:52.907915Z**
 and cleanup must finish by **11:32:52.907915Z** under the stricter financial
 clearance. Evidence is private in `secrets/item37-conditional-repair/`.
+
+### Conditional repair controls rejected — 2026-10-18
+
+Application attempt eight created successfully in **900.04 seconds**, completed
+database bootstrap and started the single worker. The worker image remained
+`sha256:d8fce89da522f9ae56703841812e1df5ece4f138ca591e6fe14c087539d86017`.
+Private artifacts are in `secrets/item37-conditional-repair/`.
+
+The one-element action-list control, policy
+`h_554d8977a5e79b92_ttl_30-d446837_1l`, went from creation at
+**04:54:06.706740Z** to `CREATE_FAILED` at **04:59:22.162560Z** with
+`An internal error occurred during creation` (**315.45582 seconds**). The full
+simplified-group control, policy `h_554d8977a5e79b92_ttl_30-tyoyivjhor`, failed
+with the same reason from **04:59:32.465084Z** to **05:04:58.684764Z**
+(**326.21968 seconds**). The conditional criterion requiring both to pass failed;
+**no production compiler patch was applied**, and full acceptance was not entered.
+
+Independent verification passed **729 and 717 signed home audit rows**, respectively,
+with empty parents chains. Independent database reads confirmed both engines
+ready with empty inventories, no publication owner and zero activation events;
+the publisher also verified the remote empty inventory after each probe.
+There were **zero Gateway calls and no device execution**.
+
+The final cleanup wrapper could not load a new deployment session because the
+source login expired: `aws: [ERROR]: Your session has expired. Please reauthenticate
+using 'aws login'.` A login refresh was requested. A still-valid, existing CLI
+cache entry for the same HirzDeploy role expires at **05:26:48Z**; its identity
+was verified and the existing cleanup helper started with those credentials in
+memory only. No credentials were printed or copied, and no IAM permission changed.
+Teardown is in progress; completion and independent inventory remain to be recorded.
+
+### Separate target-group candidate, local only — 2026-10-18
+
+The [AWS scope documentation](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/policy-scope.html)
+documents a Gateway target as an action group. A separate candidate uses
+`action in AgentCore::Action::"HirzActions"` and declares that same group and tool
+membership in the native schema. The original exact action/class disjunction,
+household/TTL checks and all temporal correlations remain byte-identical, as do
+all non-temporal statements, manifests and generated field definitions. This
+candidate is private in `secrets/item37-target-group-review/` and is **not applied
+or authorized for a live probe**. Exact compiler-patch SHA-256:
+`b667e2b06a2fcaaf3d8458c3d24085611b29b57911a5633d20c7b8d0af3de06a`.
+
+The pinned native CLI compared **1,560 cases with zero disagreements**, plus **34
+forced-response wrong-class denials**. The isolated native/compiler/policy suite
+passed **180 tests in 238.13 seconds**, including scope isolation and exact-action
+regressions for both households. Ruff check/format and strict mypy passed for the
+candidate. AWS compatibility and all original live acceptance gates remain owed.
+The earlier simplified-guard candidate also passed 178 existing tests plus two
+prepared regressions locally; those results did not predict AWS compatibility.
+
+### Conditional-control request correlation and login profiles — 2026-10-18
+
+CloudTrail independently confirms `FAIL_ON_ANY_FINDINGS` for both rejected
+controls. The one-element-list request ID is
+`ba901309-8f21-40ab-8d88-175b7298106f`; the simplified-group request ID is
+`0864cd1b-f47a-477d-acde-26b08ccedbd4`. Raw records are retained privately in
+`secrets/item37-conditional-repair/create-policy-cloudtrail.json`.
+
+The requested `hirz-login` refresh succeeded for billing/setup reads, including
+those CloudTrail records. Deployment instead uses the distinct
+`hirz-operator-login` source, which remained expired; the initial refresh request
+named the wrong profile. A corrected operator-login refresh was requested, and
+two stale development-procedure references were replaced with links to the
+current operator procedure. Teardown continued with the existing valid role
+session; no profile, IAM trust or MFA condition was changed.
+
+The documentation revision `dafdb32a9a25baa8efedec2d2449029e282c3c62`
+passed [ordinary CI](https://github.com/BashaarJavaid/Hirz/actions/runs/39097434578).
+This does not add live boundary evidence or change the implementation revision.
+
+
+### Target-group conditional repair authorized — 2026-10-18
+
+The author explicitly approved “Approve group-scope repair and acceptance” for
+`secrets/item37-target-group-review/README.txt`. This authorizes one further
+deployment, first the single strict target-group fixture, and only after ACTIVE
+without findings, verified restoration and independent signed-audit verification,
+the exact reviewed compiler patch and full original acceptance. No budget or clock
+resets. Fresh credit, price and capacity clearance and completion of the previous
+teardown remain prerequisites. The implementation is still unchanged.
+
+
+### Conditional-repair teardown follow-up — 2026-10-18
+
+The separate operator login was refreshed and STS verified the expected HirzDeploy
+role. The existing cached-session cleanup completed application and toolkit deletion.
+Independent inventory at **05:24:25.795921Z** initially found one empty `aws/spans`
+log group; every other service category was empty and all eight recorded output
+keys were PendingDeletion. The conditional-control wrapper had omitted its own
+`tracing-before.json`, so the cleanup helper had no baseline to restore.
+
+The earlier diagnostic baseline and its immediately preceding zero-log-group
+inventory establish that tracing was unused before this attempt. Their provenance
+was retained with a recovered baseline; the existing tracing helper restored the
+original XRay destination/indexing and removed the owned empty group. The initial
+inventory is retained as `post-delete-inventory-before-span-cleanup.json`, alongside
+`tracing-restoration.json`. The new deployment wrapper captures and checks its own
+tracing baseline before creating resources. Final independent inventory follows.
+
+
+Final independent inventory at **05:25:39.169805Z** found zero resources across
+all **24 checked service categories** and all eight recorded output command keys
+PendingDeletion. The nonbillable IAM setup remains. Broader customer-key and NAT
+usage reads await the billing identity correction; no further deployment has begun.
+The temporary Docker configuration remains only for the newly authorized attempt.

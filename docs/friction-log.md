@@ -1131,3 +1131,20 @@ before activation and verified restoration to its committed empty inventory.
 This distinguishes the tested statements; it does not establish whether list
 syntax, action-set size, or analysis of the combined conditions caused the error.
 No Gateway calls occurred, and the production compiler remains unchanged.
+
+Follow-up (2026-10-18): the subsequently approved one-element action-list control
+also failed with `An internal error occurred during creation`, from
+04:54:06.706740Z to 04:59:22.162560Z (315.46 seconds). This control changed only
+the previously accepted equality head to a one-element `action in [...]` head;
+the original condition body and event correlations remained. The publisher
+refused activation and restored its committed empty inventory. This controlled
+contrast does not identify the service's internal cause. The second approved
+simplified-group control is still pending; the condition requiring both controls
+to pass before applying the production patch has not been met.
+
+The full-group simplified guard also failed with the same internal creation error,
+from 04:59:32.465084Z to 05:04:58.684764Z (326.22 seconds). Neither conditional
+control passed, so the production patch was not applied. Both inventories were
+restored with zero activation events. The documented Gateway target action-group
+scope is being evaluated locally as a separate candidate; no further live probe
+is authorized by the failed conditional approval.

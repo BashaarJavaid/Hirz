@@ -296,3 +296,28 @@ cleanup requirements. Rejected accepting a restricted fixture as full conformanc
 using the hierarchy-aware action head alone, and applying the candidate before
 both controls pass. A new finding or incompatibility still blocks completion;
 no service validation is bypassed or simulated.
+
+
+### Conditional target-group scope — 2026-10-18
+
+Both controls required by the previous conditional approval failed with AWS's
+internal creation error. That simplification was not applied. The author approved
+one further deployment to test the documented
+[Gateway target action group](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/policy-scope.html)
+as the temporal head: `action in AgentCore::Action::"HirzActions"`. The native
+schema represents the same group and tool membership. The existing exact
+action/class disjunction, household and TTL guards, and every temporal correlation
+remain unchanged; the hierarchy-aware head alone grants nothing.
+
+Only if this single strict fixture reaches ACTIVE without findings, stops before
+activation and restores the committed inventory with independently verified signed
+audits may the exact reviewed compiler patch and supporting regressions be applied.
+Full original acceptance remains required. The original $10 ceiling and acceptance
+start remain; work stops by 2026-10-18T10:32:52.907915Z and cleanup finishes by
+11:32:52.907915Z. This is application attempt nine of the existing ten-attempt reserve.
+Exact hashes and local comparisons are in the [item 37 evidence](../verification-log.md#item-37).
+
+Rejected treating the earlier single-action success as group conformance, using
+a different compiler per evaluator, dropping exact action checks, relaxing strict
+validation, or applying the patch before the candidate probe passes. The service
+errors do not establish their root cause; another failure blocks advancement.

@@ -1619,8 +1619,8 @@ themes and narrow layout. Real Mac Chrome microphone/speaker and physical-passke
 rule/unlock/relock acceptance remain separate human checks. Evidence and all open
 matrix/gate results belong in [item 29](./verification-log.md#item-29).
 
-The configured AWS process profile refreshes through `aws login --profile hirz-login`;
-verify it with `aws sts get-caller-identity --profile hirz --no-cli-pager`.
+Refresh and verify the deployment profile using the
+[item 36 operator login procedure](#item-36-aws-acceptance).
 The verified Nova Lite endpoint rejects CountTokens; the approved context-ceiling
 reservation exception is documented in ADR-020. See the item 29 friction entry.
 Playback pauses again if execution needs a new action approval: read the current
@@ -1892,9 +1892,8 @@ AWS_PROFILE=hirz HIRZ_PROTECT_BUDGET_LEDGER="$PWD/secrets/item32-protect-budget.
 An explicit `--warmup` on the live harness permits a 180-second read timeout for
 the fixed schema, charged against that same ledger; runtime never warms or retries
 automatically. Recheck published pricing before paid verification. The latest price check and retained ledger history are in the
-[item 32 evidence](./verification-log.md#item-32--2026-10-11). `hirz` uses the `hirz-login` source
-profile; refresh it with `aws login --profile hirz-login` and verify with
-`aws sts get-caller-identity --profile hirz --no-cli-pager`.
+[item 32 evidence](./verification-log.md#item-32--2026-10-11). Refresh and verify
+`hirz` using the [item 36 operator login procedure](#item-36-aws-acceptance).
 The private artifact directory retains `routing.json` for selection evidence and
 `failure.txt` when acceptance raises; these can contain the reported fixture text
 and must not be published as public CI artifacts.
@@ -2056,7 +2055,12 @@ region = us-east-1
 Verify `aws sts get-caller-identity --profile hirz` returns
 `arn:aws:sts::661550216013:assumed-role/HirzDeploy/hirz-item36` before deploying.
 The existing root login is preserved only as the explicit `hirz-bootstrap` setup
-profile; normal `hirz` commands cannot fall back to it. Do not remove the MFA
+profile, refreshed with `aws login --profile hirz-login --region us-east-1` for
+billing/setup reads. Refreshing it does not refresh the separate operator login;
+the profile name does not select the browser identity. If the browser selects the
+wrong account, use `--remote` and open its URL in a separate browser session, then
+paste the authorization code into the invoking terminal only. Verify each identity
+with STS before use. Normal `hirz` commands cannot fall back to it. Do not remove the MFA
 condition to work around a failed login. The role permits deployment
 and cleanup of the approved services; it is not a spending cap. Its IAM role-writing
 permissions are limited to the dedicated toolkit, application roles and signer.
