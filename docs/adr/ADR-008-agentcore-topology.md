@@ -154,3 +154,32 @@ Fresh credits, prices, existing capacity and a recalculated aggregate forecast
 covering attempts beyond ten are required before deployment. No resource-size
 increase or additional always-on service is authorized. The narrow analysis
 exception is specified in ADR-003; broader validation bypasses remain rejected.
+
+## Conditional additional item 37 acceptance window — 2026-10-18
+
+The author approved **one further full acceptance run** if slow AWS analysis
+prevents completion in the current window. This adds at most **$10 service charges
+and 24 hours including teardown**, for a **$20 combined service-charge ceiling**;
+the tax exception persists. The current run's original deadlines and allowances
+are unchanged. The additional deployment may start only after independently
+verified teardown and fresh account-specific credit, pricing, capacity and cost
+clearance. Its final hour is reserved for cleanup. No third window is authorized.
+
+The reviewed proposal is retained privately in
+`secrets/item37-continuation-review/README.txt`. It conservatively repeats all
+original per-window resource allowances, including the entire retry reserve for
+the single additional deployment. Existing stack names and resource sizes remain.
+The original usage and call records are retained; a separately identified window
+allows at most 5,000 additional Gateway calls, with an aggregate reconciliation
+and at most 10,000 across both windows. No counter is silently reset.
+
+The full acceptance corpus, strict validation with only the approved exact
+hard-deny exception, real elapsed expiry, signed audit verification and inert
+target scope remain required. Necessary compatibility fixes must pass local and
+CI gates before deployment. This grants no broader compiler semantics, validation
+bypass, signing, Link or device execution. If the current run succeeds, the
+conditional authorization is unused.
+
+Rejected: extending or patching the running process to evade its deadline,
+overlapping stacks, shortening acceptance, treating the extra window as unlimited
+retries, and spending without fresh financial clearance.

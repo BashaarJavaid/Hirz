@@ -138,11 +138,12 @@ Item 32 adds `HIRZ_LLM=off uv run --locked python -m scripts.smoke_protect --art
 
 ## Current phase
 
-Item 36 is complete. Item 37's minimal ordered AWS publication and hard-deny
-exception pass with verified restoration and cleanup; full conformance and
-ENFORCE acceptance remain pending
-([evidence](docs/verification-log.md#minimal-ordered-publication-and-hard-deny-exception-verified--2026-10-18)).
-The original aggregate $10/24-hour ceiling remains; live completion is unearned.
+Item 36 is complete. Item 37's home publication committed; credential expiry
+interrupted parents publication. Cleanup and signed exports are verified;
+full live conformance and ENFORCE remain pending
+([evidence](docs/verification-log.md#credential-interruption-and-verified-recovery-cleanup--2026-10-18)).
+One additional window is approved, pending fresh financial clearance
+([ADR-008](docs/adr/ADR-008-agentcore-topology.md#conditional-additional-item-37-acceptance-window--2026-10-18)).
 Item 31 owes email/push; item 28 owes real Web Push (#7). Ring remains twin;
 Link is item 38a. Development stays on 0005; migrations are manual.
 

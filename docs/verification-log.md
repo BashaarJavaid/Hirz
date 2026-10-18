@@ -15444,3 +15444,126 @@ records successful results before raising a failed probe; no next batch starts
 on failure. Publication remains serialized, and the corpus and aggregate call
 allowance are unchanged. **57 focused tests** and strict mypy over **226 files**
 pass; final revision CI and live acceptance remain required.
+
+### Pagination revision repository gates and prior cleanup — 2026-10-18
+
+Attempt thirteen finished automatic teardown. Independent inventory at
+**11:33:19.251835 UTC** found all **24 resource categories empty**, all **13 recorded
+command keys PendingDeletion**, and a separate account-wide check found all
+**15 customer-managed keys PendingDeletion**. Original X-Ray tracing was restored,
+`aws/spans` was absent, and the temporary Docker configuration was removed.
+The 959-row local signed export remains valid. Its three metadata Gateway calls
+were copied with provenance into the next aggregate ledger; no counter reset.
+Private cleanup evidence remains in `secrets/item37-elapsed-acceptance/`.
+
+Implementation revision **`31db48577f6fee919536e0ab26822d5c8fa71e2a`** passes
+[ordinary CI](https://github.com/BashaarJavaid/Hirz/actions/runs/39123517456):
+**1,703 service-free tests**, **261 disposable PostgreSQL tests**, **168 native
+conformance/constitution tests**, and **89.29% combined Python coverage**
+(17,952 statements, 1,922 missed; the coverage CLI displays 89%). Lint, strict
+types, workspace, companion browser, CDK, independent add-on conformance and
+packaging jobs pass. Local AWS/native regression passes **172 tests**; the focused
+pagination/batching set passes 57, strict mypy checks 226 files, Ruff checks 356
+formatted files, and the wheel contains the exact checked production sources.
+
+The [non-diagnostic latency dispatch](https://github.com/BashaarJavaid/Hirz/actions/runs/39123517295)
+also passes on that revision. Both scenarios cover **54 cases, 5,400 calls and
+12 tools**; worst case warm p95 is **168.965 ms** for `demo-evening` and
+**115.976 ms** for `demo-evening-hourly`, below 250 ms. Raw logs, final job metadata,
+parsed results and deployed worker-image/source hashes are retained in
+`secrets/item37-pagination-acceptance/`. These are repository gates, not live
+AgentCore agreement or an enforcement result.
+
+Fresh account-owner clearance reported **$147.93** enabled eligible credit and
+unchanged rates for **14 products** before attempt fourteen. Its aggregate
+forecast is **$9.520634295833333333333333333**, retaining every prior attempt and
+the original work/cleanup deadlines. Cumulative NAT telemetry at
+**12:26:38.784910 UTC** is **11.019131253 decimal GB** against the same 20 GB
+allowance; telemetry can lag and is not an invoice. The stack, bootstrap,
+single-worker update and actual IAM denial checks passed. Full shared-engine
+publication is still running; no activation, conformance or ENFORCE success is
+claimed by this entry. Development remains on `0005_execution_attempt`.
+
+### First household activation during full acceptance — 2026-10-18
+
+Attempt fourteen committed the home fixture at **14:21:52.957313 UTC**, after
+installing and verifying its **96 ACTIVE statements**. Four exact all-roles
+hard-deny policies required the approved exception: `health.medical_decisions`,
+`security.access_code_share`, `finance.change_payee`, and `finance.transfer_money`.
+Each first received an actual strict AWS rejection with the two expected
+Overly Restrictive findings; each exception's signature, candidate association
+and exact compiler whitelist were independently checked before this record.
+The activation event at sequence **20,424** also verifies against the retained
+trusted public key. Private evidence is `home-activation-progress.json` and
+`hard-deny-progress.json` in `secrets/item37-pagination-acceptance/`.
+
+These are individual event-signature checks; final signed export and full-chain
+verification remain required. Parents publication started at **14:21:54.173856
+UTC**, with AWS-bound work blocked during the shared-engine change. The aggregate
+Gateway ledger still contains only the three prior metadata requests: no action
+or target invocation, conformance result, ENFORCE result or device execution is
+claimed. NAT telemetry at **14:27:36.898547 UTC** is **11.026118554 decimal GB**,
+within the unchanged allowance. The original work and cleanup deadlines remain
+in force.
+
+### Conditional continuation authorization during publication — 2026-10-18
+
+The author approved the [conditional additional acceptance window](adr/ADR-008-agentcore-topology.md#conditional-additional-item-37-acceptance-window--2026-10-18)
+while attempt fourteen remained running. The reviewed private proposal and its
+derived budget are in `secrets/item37-continuation-review/`. Reusing the entire
+original conservative allowance produces a combined forecast of
+**$19.04126859166666666666666667**; this is a proposal, not fresh financial
+clearance. No additional deployment or window has started, and the current
+process retains its original deadlines.
+
+At **15:38:27.051860 UTC**, the last ten completed policy analyses averaged
+**211.1022702 seconds**, derived from AWS creation/update timestamps in
+`analysis-timing-153827.json`. This is an observed duration, not a completion
+prediction. The parents publication reached **38 ACTIVE statements** in the
+**16:39 UTC** inventory snapshot; the latest preceding journal check retained
+zero parents findings. Cumulative NAT telemetry at **16:25:26.959691 UTC** is
+**11.033371886 decimal GB**. These artifacts remain in
+`secrets/item37-pagination-acceptance/`. Full conformance and enforcement are
+still unverified.
+
+### Credential interruption and verified recovery cleanup — 2026-10-18
+
+Attempt fourteen stopped during parents publication when its deployment login
+expired. The retained parents findings are two `CredentialRetrievalError`
+records containing `Your session has expired. Please reauthenticate using 'aws login'.`
+They are credential failures, not a new AWS semantic-analysis rejection.
+The final authenticated inventory showed **150 ACTIVE statements** (96 home,
+54 parents), with no installed-policy status reasons; parents activation did
+not commit. The aggregate ledger retains three metadata requests and no action
+calls. Full live conformance, faulty-compiler refusal/restoration, session
+invalidation, ENFORCE and real elapsed expiry remain unverified.
+
+After the author refreshed the operator login, independent CLI verification
+passed both local signed exports: **20,424 home rows** and **29,341 parents rows**,
+**49,765 total**, against the retained trusted public key. These local chains
+do not establish anchoring or completeness. Recovery cleanup completed; the
+independent inventory at **18:49:58.069635 UTC** found all **24 resource categories
+empty** and all **14 recorded command keys PendingDeletion**. Both stacks are
+absent, X-Ray is restored to `XRay` / `ACTIVE`, no log groups remain, and the
+temporary Docker configuration is removed. Private artifacts are retained in
+`secrets/item37-pagination-acceptance/`, including `policy-cleanup.json`,
+`post-delete-inventory.json`, the signed exports and publication findings.
+
+The separate billing login expired before the final account-wide usage/key
+query. Its refresh and fresh financial clearance remain required before the
+approved conditional continuation; no second window has started.
+
+### Final first-window usage and refreshed billing reads — 2026-10-18
+
+The author's refreshed billing login verified as the approved account-owner
+identity. At **18:57:41.424260 UTC**, cumulative first-window NAT telemetry was
+**11.218546719 decimal GB** across 26 series; the separate account-wide inventory
+found all **16 customer-managed keys PendingDeletion**. A subsequent read-only
+preflight reported **$147.93** enabled credit and unchanged pricing for all
+**14 products**, retained under
+`secrets/item37-continuation-review/preflight-20261018/`.
+These reads do not start the second window or constitute a new deployment.
+Final capacity/budget reconciliation and dated clearance remain required.
+A private continuation handoff is retained in that review folder because this
+chat repeatedly produced malformed tool requests rejected before execution;
+no additional resources were created.

@@ -6,6 +6,10 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-10-18: Record credential-interrupted publication, independently verified signed exports and recovered teardown; retain the pending live acceptance gate ([evidence](docs/verification-log.md#credential-interruption-and-verified-recovery-cleanup--2026-10-18)).
+
+- 2026-10-18: Record the first household's verified AWS activation and passing repository gates; retain incomplete live acceptance and the approved conditional continuation after teardown ([evidence](docs/verification-log.md#first-household-activation-during-full-acceptance--2026-10-18), [decision](docs/adr/ADR-008-agentcore-topology.md#conditional-additional-item-37-acceptance-window--2026-10-18)).
+
 - 2026-10-18: Follow bounded CloudWatch trace pagination and allow measured delivery delay; batch independent acceptance sessions while retaining sequential publication, audit and aggregate limits ([evidence](docs/verification-log.md#trace-pagination-preflight-and-controlled-interruption--2026-10-18)).
 
 - 2026-10-18: Scope the live session-invalidation fixture to one class's TTL while retaining conflict, fresh-session denial and full restoration checks; avoid republishing unrelated rules.

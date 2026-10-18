@@ -1271,3 +1271,13 @@ original tracing was restored. Final evidence is appended to the
   no target was invoked. Full authorization conformance remains pending.
 - **Feature request:** Include an example showing asynchronous policy trace
   arrival and terminal empty-page handling in the Gateway observability guide.
+
+## Item 37 — Login expiry interrupted long policy analysis — 2026-10-18
+
+- **Tool / task:** AWS CLI credential-process bridge during full AgentCore policy publication and teardown.
+- **Reference:** [AWS CLI sign-in](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-sign-in.html).
+- **Observed error:** `aws: [ERROR]: Your session has expired. Please reauthenticate using 'aws login'.`
+- **Severity:** Major.
+- **Impact:** Parents publication became blocked after 54 installed statements; the same expired login prevented automatic teardown. The authenticated final inventory contained 150 ACTIVE statements across both households. This was credential expiry, not a semantic-analysis rejection or an AWS service defect.
+- **Workaround:** The owner refreshed the operator login; recovery teardown and independent inventory verification passed. The separate billing identity subsequently required its own refresh before financial clearance. No additional deployment started.
+- **Feature request:** Expose a clear credential-expiry warning for long-running SDK workflows using the CLI bridge, so operators can refresh before publication or cleanup is interrupted.
