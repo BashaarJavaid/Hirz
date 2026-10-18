@@ -176,16 +176,17 @@ def corpus(
     )
     from hirz.constitution.compiler import field as boundary_field
 
+    limit = policy.rule(action.action_class, "owner").max_open_minutes
+    if limit is None:
+        raise ValueError(
+            "Acceptance fixture requires an explicit unlock duration bound"
+        )
     changed = dict(inputs)
-    changed[boundary_field("context.unexpected_visitor")] = True
+    changed[boundary_field("action.params.open_minutes")] = limit + 1
     changed_action, changed_facts = situation(
         policy,
         action.action_class,
-        case={
-            "values": {
-                "context": {**dict(facts.values["context"]), "unexpected_visitor": True}
-            }
-        },
+        case={"params": {**action.params, "open_minutes": int(limit) + 1}},
     )
     changed_outcome = resolve(policy, changed_action, changed_facts)
     cases.append(

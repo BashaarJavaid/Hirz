@@ -21,6 +21,22 @@ COMPILED = compile_policy(HOME)
 ENGINE = Dogwood()
 
 
+def test_live_acceptance_changed_conditions_reject_an_existing_approval():
+    from hirz.aws.fixture import policy_seeds
+    from hirz.constitution.schema import loads
+    from scripts.smoke_policy import corpus
+
+    for seed in policy_seeds():
+        compiled = compile_policy(loads(seed.yaml))
+        _, changed, approvals, details = next(
+            case for case in corpus(seed) if case[0].endswith(":changed_conditions")
+        )
+        original = replace(changed, inputs=approvals[0].inputs)
+        assert allowed(compiled, original, approvals)
+        assert not allowed(compiled, changed, approvals)
+        assert details.mode == "never"
+
+
 def events(
     policy=HOME, compiled=COMPILED, name="security.door_unlock", role="owner", case=None
 ):

@@ -14423,3 +14423,12 @@ report after the original report serialization failed. The original failed-run
 artifacts remain intact; the retry directory carries the identical clearance
 start and zero prior Gateway reservations. The guarded retry verifies both stacks
 absent before recreating the original names and allocation.
+
+Pre-publication harness review added promotion integrity tests: altered/missing
+cases, decisions, modes, inventory/request hashes, determining policy IDs,
+installed statements, or Gateway engine association are refused before the
+ENFORCE update. The focused policy tests passed 13 checks in 2.15 seconds. The
+changed-conditions corpus case now exceeds each seed's explicit unlock-duration
+bound while retaining the prior approval, rather than changing an unreferenced
+visitor fact. A native Dogwood test confirms the original request is allowed and
+the changed request denied for both managed seeds (one test, 2.31 seconds).
