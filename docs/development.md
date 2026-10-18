@@ -2203,6 +2203,14 @@ Migration `0020_agentcore_policy` creates durable publication, engine-generation
 and Gateway-session state. Apply it only through the disposable test/acceptance
 setup during this item; development upgrades remain explicit and manual.
 
+The approved exact-action compiler uses one temporal policy per approval-capable
+class, omitting only redundant history checks for unconditional auto classes.
+The home/parents acceptance pair uses fourteen of twenty shared slots. Adding ask
+roles, conditions or overrides may consume more slots; an oversized activation
+fails before publication. Household/class names remain stable when TTLs change.
+Keep committed and desired inventories when checking publication headroom; never
+remove a rule to fit. See [ADR-003](./adr/ADR-003-constitution-yaml-to-cedar.md#approved-exact-action-repair--2026-10-18).
+
 The item 37 window uses the existing `HirzItem36` application and
 `HirzItem36Toolkit` toolkit names, qualifier and resource sizes. Its separately
 approved $10 incremental limit and 24-hour maximum include failures, asset

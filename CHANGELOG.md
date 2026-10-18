@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-10-18: Apply the approved exact-action temporal compiler repair, omitting redundant unconditional-auto history permits while preserving all guards and correlations; full AWS acceptance remains pending ([decision](docs/adr/ADR-003-constitution-yaml-to-cedar.md#approved-exact-action-repair--2026-10-18)).
+
 - 2026-10-18: Record the strict target-group rejection, native reproduction of its AWS context mismatch, and verified cleanup; keep the compiler unchanged and item 37 incomplete ([evidence](docs/verification-log.md#target-group-probe-rejected--2026-10-18)).
 
 - 2026-10-18: Record rejected conditional policy controls, verified cleanup, and the newly approved target-group probe; correct deployment versus billing login instructions ([evidence](docs/verification-log.md#item-37), [decision](docs/adr/ADR-003-constitution-yaml-to-cedar.md#conditional-target-group-scope--2026-10-18)).

@@ -1172,3 +1172,9 @@ is authorized by the failed conditional approval.
 - **Feature request:** Document the group action's own context and temporal
   validation constraints alongside target-group scope examples. The separate
   action-list internal-creation error remains unexplained; no validation is bypassed.
+
+Follow-up (2026-10-18): an offline investigation prepared an exact-action candidate
+that removes only redundant temporal permits while retaining all approval
+correlations and forbids. Its native evidence and quota tradeoff are recorded in
+the [local candidate review](./verification-log.md#exact-action-compatibility-candidate-local-review-only--2026-10-18).
+It is not applied or AWS-verified; no further deployment occurred in this investigation.

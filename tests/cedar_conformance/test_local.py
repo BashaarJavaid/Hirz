@@ -56,7 +56,13 @@ action "Http" appliesTo {
     assert allowed(compiled, action, (approval,))
     assert not allowed(compiled, action)
     unscoped = replace(
-        compiled, policy=re.sub(r"action in \[[^\]]+\]", "action", compiled.policy)
+        compiled,
+        policy="\n\n".join(
+            re.sub(r'action == AgentCore::Action::"[^"\n]+"', "action", s.text, count=1)
+            if s.temporal
+            else s.text
+            for s in compiled.statements
+        ),
     )
     assert asyncio.run(ENGINE.validate(replace(COMPILED, policy=unscoped.policy)))[
         "passed_without_warnings"
@@ -350,8 +356,8 @@ def test_property_approval_traces(age, mutation, role):
 
 def test_native_operator_count_and_predicate_compilation():
     report = asyncio.run(ENGINE.run(COMPILED, "check-parse"))
-    assert report["policy_count"] == 90
-    assert sum(p["temporal_count"] > 0 for p in report["policies"]) == 1
+    assert report["policy_count"] == 96
+    assert sum(p["temporal_count"] > 0 for p in report["policies"]) == 7
     assert max(p["temporal_count"] for p in report["policies"]) == 1
     data = HOME.model_dump()
     data["autonomy"]["environment"]["lights"]["conditions"] = [

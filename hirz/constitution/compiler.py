@@ -264,13 +264,15 @@ def compile_policy(
             )
         if allowed_roles and not name.startswith("governance."):
             ttl = common.approval_ttl_minutes or policy.defaults.approval_ttl_minutes
-            ttls.setdefault(ttl, {})[name] = conjunction(
-                [
-                    f"action == {action_name(name)}",
-                    agreement,
-                    f"{INPUT}.ttl_minutes == {ttl}",
-                ]
-            )
+            # Unconditional auto permits make history redundant; forbids still win.
+            if allowed_roles != auto_roles or common.conditions or common.overrides:
+                ttls.setdefault(ttl, {})[name] = conjunction(
+                    [
+                        f"action == {action_name(name)}",
+                        agreement,
+                        f"{INPUT}.ttl_minutes == {ttl}",
+                    ]
+                )
             approval = conjunction(
                 [
                     household,
@@ -285,16 +287,17 @@ def compile_policy(
                 name.replace(".", "_") + "_approve",
                 f"permit (principal, action == {APPROVE}, resource == {resource}) when {{ {approval} }};",
             )
-    if len(ttls) > TEMPORAL_LIMIT or any(ttl > 1440 for ttl in ttls):
+    temporal_count = sum(len(classes) for classes in ttls.values())
+    if temporal_count > TEMPORAL_LIMIT or any(ttl > 1440 for ttl in ttls):
         raise ValueError("Temporal quota exceeded")
     event_prefix = "event" if engine == "agentcore-policy" else "caller"
     for ttl, classes in sorted(ttls.items()):
-        # One formerly operator; field correlations do not consume operator quota.
-        actions = ", ".join(action_name(name) for name in classes)
-        emit(
-            f"ttl_{ttl}",
-            f"""permit (principal, action in [{actions}], resource == {resource})
-when {{ {household} && {disjunction(list(classes.values()))} }}
+        for name, guard in classes.items():
+            # One formerly operator; field correlations do not consume operator quota.
+            emit(
+                "temporal_" + name.replace(".", "_"),
+                f"""permit (principal, action == {action_name(name)}, resource == {resource})
+when {{ {household} && {guard} }}
 when temporal {{ formerly within {ttl}m {APPROVE}::response {{
   {event_prefix}Resource: resource,
   {event_prefix}Principal: principal,
@@ -306,8 +309,8 @@ when temporal {{ formerly within {ttl}m {APPROVE}::response {{
   output.ttl_minutes: {ttl},
   output.approved: true
 }} }};""",
-            temporal=True,
-        )
+                temporal=True,
+            )
     fields: dict[str, str] = {
         "household": "String",
         "action_class": "String",
@@ -359,7 +362,7 @@ when temporal {{ formerly within {ttl}m {APPROVE}::response {{
         "analysis": "not analyzed: local mode"
         if engine == "dogwood-local"
         else "pending AWS analysis",
-        "temporal_policies": len(ttls),
+        "temporal_policies": temporal_count,
         "temporal_operators_per_policy": 1 if ttls else 0,
         "ttl_groups": sorted(ttls),
         "actions": {n: action_name(n) for n in CLASSES},

@@ -329,3 +329,51 @@ reproduces the rejection; an ordinary input-presence guard does not resolve the
 temporal errors. The production patch was not applied. This outcome leaves the
 original action-list incompatibility and all live conformance gates open; another
 representation or service fix requires a new reviewed decision.
+
+### Exact-action candidate under review — 2026-10-18
+
+**Proposed only; not approved or applied.** Local investigation found that the
+generic temporal permit is redundant for a class when all its allowed roles are
+auto and it has no conditions or overrides: the auto permit already covers the
+safe predicate, and the forbid wins when that predicate fails. Omitting only
+these redundant permits permits exact-action temporal statements for the remaining
+classes within the shared engine's quota. Tool names, schemas, per-class forbids,
+approval permits and all event correlations remain unchanged in the candidate.
+Native equivalence and the exact review patch are recorded in the
+[local candidate evidence](../verification-log.md#exact-action-compatibility-candidate-local-review-only--2026-10-18).
+
+This proposal replaces the generic-per-TTL count strategy with a count of
+approval-capable classes; future household changes may exhaust the shared quota
+sooner and must fail before publication. It does not split engines, merge household
+policies, rename tools or weaken validation. Statement names remain stable across
+TTL changes. The prior exact-action AWS probe is evidence for trying this form,
+not proof that the full candidate passes strict service analysis.
+
+Considered and not pursued: naive per-class emission without removing redundant
+permits (exceeds the shared quota for both seeds), merging household temporal
+policies (changes publication ownership/recovery), and one generic dispatch tool
+(changes the private action contract). Conditional temporal bindings and temporal
+presence guards do not parse under the pinned native evaluator. The production
+design remains unchanged until a new explicit decision; all live gates remain owed.
+
+### Approved exact-action repair — 2026-10-18
+
+The author approved the exact reviewed patch and one further full acceptance
+deployment. The candidate above is now the compiler design: an exact-action
+temporal permit for each approval-capable class, with only provably redundant
+unconditional-auto history permits omitted. Existing per-class forbids, auto and
+approval permits, schemas, tools and correlations are unchanged. The shared
+20-policy quota now bounds approval-capable classes across households, including
+publication headroom; an oversized activation fails before publication. Stable
+household/class names allow TTL changes without adding a policy name.
+
+This supersedes the generic-per-TTL strategy and both failed conditional repairs.
+It retains one compiler and the pinned native evaluator. Rejected alternatives
+and the proof for redundant-permit removal are recorded above. The approval does
+not waive strict AWS findings, full conformance, rejected faulty-compiler activation,
+ENFORCE verification or cleanup. No live compatibility claim is earned yet.
+
+Application attempt ten remains within the original aggregate $10 ceiling and
+requires fresh financial clearance; work ends by 2026-10-18T10:32:52.907915Z and
+cleanup by 11:32:52.907915Z. The window, usage counters and reserved capacities
+are not reset. Another incompatibility requires restoration and teardown.

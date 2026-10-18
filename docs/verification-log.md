@@ -15014,3 +15014,76 @@ extended. No production source or test differs from the verified implementation
 revision. **Item 37 remains incomplete:** native/AWS corpus agreement, the real
 faulty-compiler always-allow refusal and restoration, ENFORCE promotion and denied
 target proof have not been reached. No threat-model claim is promoted.
+
+
+### Exact-action compatibility candidate, local review only — 2026-10-18
+
+After the author requested further investigation, an isolated checkout of
+`5351787` was used to prepare a new compiler candidate. No AWS account operations,
+production source changes or development migrations occurred. Private review
+material is in `secrets/item37-compatibility-review/README.txt`, with exact source,
+patch, native traces/results and test logs retained beside it. The candidate patch
+SHA256 is `2d04ef841bde3dc606c1efcc4c8e04aa2c528fc9c91317937bef393756522af0`;
+compiler source SHA256 is
+`37ec95a5014174308939ddf1e35f936ad0834ac98bb688983d3ea94919505338`.
+
+The candidate emits one exact-action temporal statement per approval-capable class.
+It omits a temporal permit only when every allowed role is already auto and the
+rule has neither conditions nor overrides. In that case the unchanged auto permit
+already covers the safe predicate, and the unchanged forbid defeats every permit
+when the predicate fails; approval history cannot change the outcome. This
+conservative test does not attempt to simplify condition expressions. All existing
+non-temporal statements, tool schemas and temporal event correlations remain
+byte-identical. Stable household/class statement names allow TTL changes to update
+an existing policy. The manifest reports the new temporal count.
+
+Both acceptance seeds compile to **7 temporal policies**, **14 aggregate**, with
+**16 at the old-to-new inventory union peak**. Existing shared-engine quota checks
+remain unchanged. Capacity now depends on approval-capable classes rather than
+distinct TTLs; future changes can exhaust the remaining six slots and must then
+be refused before publication. This changes ADR-003's approved strategy and is a
+proposal requiring a new decision, not an applied repair.
+
+Local verification used the pinned, unmodified Dogwood CLI:
+
+- `/tmp/hirz-item37-exact-compare.py`, retained as `compare.py`, compared both
+  acceptance seeds across **1,560 corpus cases with zero disagreements**, plus
+  **34 forced-response wrong-class denials**. It verifies unchanged schemas,
+  non-temporal statements and temporal correlations, and checks aggregate
+  publication headroom. These are synthetic-time local checks, not AWS expiry.
+- In the isolated checkout, `pytest tests/cedar_conformance
+  tests/unit/test_constitution.py tests/unit/aws/test_policy.py --no-cov -q`
+  produced **183 passed, 1 failed in 194.24 seconds**. The new quota test had
+  tightened the lights base mode while retaining an incompatible guest auto mode;
+  the validator correctly rejected the test fixture. Tightening that guest fixture
+  consistently required no compiler change. All **6 new regressions then passed
+  in 2.92 seconds**, covering all **184 distinct tests** across the initial run and
+  corrected recheck. The added checks cover newly required approvals, hard bounds
+  after pruning, stable TTL-update names, 20/21-policy limits and action descendants.
+- `pytest tests/integration/test_policy_publication.py
+  tests/integration/test_companion_policy.py -m integration --no-cov -q` produced
+  **15 passed, 1 failed in 53.57 seconds**. The isolated checkout lacked built
+  companion assets: `Build the companion first: pnpm --filter web build`.
+  Supplying the unchanged existing build allowed that one test to pass in
+  **8.22 seconds**. All **16 disposable PostgreSQL tests** are covered, including
+  queued activation, findings, crash/recovery, revoked credentials, audit/SDK
+  failures, binding integrity, concurrency and session conflicts. The temporary
+  credential copy was removed after the tests; development stayed unmigrated.
+- Ruff check/format, strict mypy for the compiler and `git apply --check` passed.
+  The full repository coverage and exact implementation CI/latency gates are
+  still required after any approved application.
+
+Two smaller group-scope ideas were rejected locally before this candidate: an
+`if` expression in a temporal event binding produces
+``unexpected token `if`, expected aggregation``, and a temporal presence guard
+produces ``unexpected token `has`, expected comparison operator``. Raw native
+outputs and source are retained. These are unsupported local syntax experiments,
+not AWS findings and not an explanation of the service's internal creation error.
+
+The review requests approval to apply the exact patch and perform one further
+full acceptance deployment, subject to fresh financial clearance and the original
+aggregate $10 ceiling and deadlines. No approval is inferred from preparing it.
+The previously successful single-action probe supports testing this representation
+but does not establish that the complete candidate passes AWS analysis. All
+original live conformance, faulty-compiler refusal/restoration, ENFORCE and cleanup
+gates remain required. Item 37 and the threat-model claims remain unchanged.

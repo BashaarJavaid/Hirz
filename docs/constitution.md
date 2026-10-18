@@ -303,12 +303,12 @@ forbid (
 when { context.input.household == "quinn-home" };
 ```
 
-`ask` (temporal: an approval response must precede the action within the TTL, bound to the same action hash). One temporal permit covers the explicit list of eligible actions sharing an `approval_ttl_minutes` value. It matches the current class to the approval's class. The shared engine's 20-policy limit includes all households and publication headroom. An illustrative two-action group is:
+`ask` (temporal: an approval response must precede the action within the TTL, bound to the same action hash). One exact-action temporal permit covers each class that can require approval. A class needs no temporal permit when every allowed role is auto and it has no conditions or overrides: its auto permit already covers safe requests, and its forbid defeats every permit for unsafe requests. The shared engine's 20-policy limit includes all households and publication headroom; an oversized candidate is refused. The two acceptance households use fourteen temporal policies. For example:
 
 ```cedar
 permit (
   principal,
-  action in [AgentCore::Action::"HirzActions___security_door_unlock", AgentCore::Action::"HirzActions___security_camera_disable"],
+  action == AgentCore::Action::"HirzActions___security_door_unlock",
   resource == AgentCore::Gateway::"arn:aws:bedrock-agentcore:us-east-1:123456789012:gateway/hirz"
 )
 when temporal {
@@ -350,7 +350,7 @@ Four properties of the intended execution boundary (`ARCHITECTURE.md` §12):
 
 What this permit does **not** establish is that a person approved. The `approve_action` call reaches the Gateway through the worker, so a fully compromised worker could claim an approval that never happened. `ROADMAP.md` item 38d closes that for `security.*` classes by verifying the member's passkey assertion, over the action hash, inside the Lambda ([ADR-010](./adr/ADR-010-passkey-verified-approvals.md)); until it is built, `THREAT_MODEL.md` says No.
 
-*Who* may approve *what* is enforced on the stateless permit for `approve_action` itself: one `permit` per approvable class (including auto classes with known-false conditions) on `HirzActions___governance_approve_action` with `context.input.action_class == "..."`, the rule's TTL group (`context.input.ttl_minutes == 30`), the rule's `allowed_requesters` as a condition on `requester_role`, and its quorum inputs. An approval that was not permitted is recorded as an `error` event, and the generic temporal permit matches only `response` events, so it can never be satisfied by a refused approval. `never` classes carry a `forbid`, which wins over the generic permit.
+*Who* may approve *what* is enforced on the stateless permit for `approve_action` itself: one `permit` per approvable class (including auto classes with known-false conditions) on `HirzActions___governance_approve_action` with `context.input.action_class == "..."`, the rule's TTL group (`context.input.ttl_minutes == 30`), the rule's `allowed_requesters` as a condition on `requester_role`, and its quorum inputs. An approval that was not permitted is recorded as an `error` event, and the temporal permit matches only `response` events, so it can never be satisfied by a refused approval. `never` classes carry a `forbid`, which wins over the temporal permit.
 
 Compilation facts the engine relies on:
 
