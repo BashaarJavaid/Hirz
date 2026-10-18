@@ -4,6 +4,7 @@ import argparse
 import asyncio
 import json
 import os
+import re
 import time
 from dataclasses import asdict, replace
 from pathlib import Path
@@ -751,8 +752,7 @@ async def live(acceptance: Acceptance) -> None:
             findings = json.dumps(rejected["findings"]).lower()
             if (
                 rejected["status"] != "failed"
-                or "always" not in findings
-                or "allow" not in findings
+                or re.search(r"always[\s_-]*allow", findings) is None
                 or not await publisher.step(desired)
             ):
                 raise ValueError(

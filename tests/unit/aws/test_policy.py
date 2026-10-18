@@ -118,5 +118,16 @@ def test_async_validation_exact_inventory_and_recovery():
             sdk.update_policy.call_args.kwargs["validationMode"]
             == "FAIL_ON_ANY_FINDINGS"
         )
+        from botocore.exceptions import ClientError
+
+        response = {"Error": {"Code": "ValidationException", "Message": "finding"}}
+        sdk.update_policy.side_effect = ClientError(response, "UpdatePolicy")
+        with pytest.raises(Findings) as failed:
+            await publisher.step({"p": "changed;"})
+        assert failed.value.policy == {
+            "name": "p",
+            "definition": {"policy": {"statement": "changed;"}},
+            "aws_response": response,
+        }
 
     asyncio.run(run())

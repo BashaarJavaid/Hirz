@@ -14361,3 +14361,19 @@ and the 23-hour work cutoff. No Gateway call has yet consumed this allowance.
 Historical quota correction: item 7's recorded 25-policy temporal limit was
 incorrect for the current service. Item 37 uses 20 per engine, including aggregate
 household usage and publication headroom; ADR-003 records the amendment.
+
+### Successful infrastructure and bootstrap — 2026-10-17
+
+The corrected stack creation completed in 989.2 seconds. Actual X-Ray destination
+is `CloudWatchLogs` / `ACTIVE`; the Gateway target is `READY` with **41 tools**,
+and every returned input/output schema exactly matches the generated private
+contract (`deployed-target.json`). Span retention was set to seven days. These
+are schema/deployment observations, not semantic policy acceptance. Explicit
+`python -m scripts.smoke_aws bootstrap` completed initialize, migrate and seed
+successfully; `bootstrap.json` is private (`0600`). The one-worker update uses
+the same fixed start and approved allocation. The prior successful image digest
+was `sha256:b92b0f55add169168fb8840ad4cc2b09d8448f3c6dbcbc833a45115740754106`;
+the worker update includes the tested association of synchronous AWS validation
+errors with the attempted policy name/definition while preserving the raw response.
+The isolated faulty-compiler gate requires an actual contiguous always-allow
+finding, rather than unrelated occurrences of the words “always” and “allow”.

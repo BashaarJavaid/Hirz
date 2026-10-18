@@ -8,6 +8,8 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
+from botocore.exceptions import ClientError  # type: ignore[import-untyped]
+
 from hirz.aws.client import call
 from hirz.constitution.compiler import TEMPORAL_LIMIT, Compiled
 from hirz.constitution.conditions import number
@@ -227,12 +229,21 @@ class Publisher:
                 validationMode="FAIL_ON_ANY_FINDINGS",
                 enforcementMode="ACTIVE",
             )
-            if existing:
-                await call(
-                    self.sdk, "update_policy", policyId=existing["policyId"], **args
-                )
-            else:
-                await call(self.sdk, "create_policy", name=name, **args)
+            try:
+                if existing:
+                    await call(
+                        self.sdk, "update_policy", policyId=existing["policyId"], **args
+                    )
+                else:
+                    await call(self.sdk, "create_policy", name=name, **args)
+            except ClientError as exc:
+                raise Findings(
+                    {
+                        "name": name,
+                        "definition": args["definition"],
+                        "aws_response": exc.response,
+                    }
+                ) from exc
             return False
         for name, row in rows.items():
             if name not in desired:
