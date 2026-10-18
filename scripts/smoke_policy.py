@@ -583,8 +583,13 @@ async def invalidation(
 async def target_evidence(
     acceptance: Acceptance, records: list[dict[str, Any]]
 ) -> None:
-    allowed = {r["aws"]["request_id"] for r in records if r["aws"]["allowed"]}
-    denied = {r["aws"]["request_id"] for r in records if not r["aws"]["allowed"]}
+    verdicts = [
+        v
+        for r in records
+        for v in [r["aws"], *(a["aws"] for a in r["request"]["approvals"])]
+    ]
+    allowed = {v["request_id"] for v in verdicts if v["allowed"]}
+    denied = {v["request_id"] for v in verdicts if not v["allowed"]}
     if not allowed or not denied:
         raise ValueError(
             "Enforcement requires both positive and negative target controls"

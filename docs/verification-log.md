@@ -14503,3 +14503,13 @@ deadline check. A regression preserves the two actual AWS permit records while
 requiring aggregate denial for the expired consent. The Gateway unit suite passed
 **10 tests in 6.17 seconds**; strict mypy passed for the boundary module. This is a
 reporting correction, not authority to execute an inert target receipt.
+
+### Current implementation regression and target evidence — 2026-10-17
+
+The full service-free regression command with the pinned Dogwood binary passed
+**1,663 tests, 259 deselected, two existing warnings, in 220.55 seconds** at
+`67d9332`. The subsequent full disposable PostgreSQL run is still in progress.
+The enforcement target-log gate now includes approval requests as well as action
+requests. Its regression requires rejection when a denied approval appears in
+the target log; the focused policy suite passed **15 tests in 2.52 seconds**.
+This strengthens acceptance evidence and does not claim live enforcement passed.

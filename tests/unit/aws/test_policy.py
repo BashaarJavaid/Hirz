@@ -224,3 +224,44 @@ def test_async_validation_exact_inventory_and_recovery():
         }
 
     asyncio.run(run())
+
+
+@pytest.mark.parametrize("denied_approval_reached_target", [False, True])
+def test_enforcement_target_evidence_includes_approval_calls(
+    tmp_path, denied_approval_reached_target
+):
+    from scripts.smoke_policy import target_evidence
+
+    records = [
+        {
+            "aws": {"request_id": "action", "allowed": True},
+            "request": {
+                "approvals": [
+                    {"aws": {"request_id": "approval", "allowed": True}},
+                    {"aws": {"request_id": "denied-approval", "allowed": False}},
+                ]
+            },
+        }
+    ]
+    logs = Mock()
+    seen = ["action", "approval"]
+    if denied_approval_reached_target:
+        seen.append("denied-approval")
+    logs.filter_log_events.return_value = {
+        "events": [
+            {"message": json.dumps({"request_id": request, "executed": False})}
+            for request in seen
+        ]
+    }
+    acceptance = SimpleNamespace(
+        folder=tmp_path, outputs={"ActionsLog": "log"}, client=lambda _: logs
+    )
+    if denied_approval_reached_target:
+        with pytest.raises(ValueError, match="denied ENFORCE call reached"):
+            asyncio.run(target_evidence(acceptance, records))
+        assert not (tmp_path / "target-enforcement.json").exists()
+    else:
+        asyncio.run(target_evidence(acceptance, records))
+        result = json.loads((tmp_path / "target-enforcement.json").read_text())
+        assert result["allowed_requests_seen"] == ["action", "approval"]
+        assert result["denied_requests_absent"] == ["denied-approval"]
