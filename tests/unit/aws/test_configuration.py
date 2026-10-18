@@ -228,3 +228,41 @@ def test_explicit_initialization_copies_machine_secret_and_refuses_replacement(
     with pytest.raises(ValueError, match="differs"):
         asyncio.run(bootstrap.initialize())
     assert calls.await_count == 3  # No overwrite on the failed second initialization.
+
+
+@pytest.mark.parametrize("failure", [False, True])
+def test_policy_acceptance_always_retains_cleanup_timestamps(
+    tmp_path, monkeypatch, failure
+):
+    import json
+    from datetime import UTC, datetime
+    from unittest.mock import AsyncMock
+
+    from scripts import smoke_policy
+
+    acceptance = Mock(folder=tmp_path)
+    monkeypatch.setattr(
+        "sys.argv", ["smoke_policy", "live", "--artifacts-dir", str(tmp_path)]
+    )
+    monkeypatch.setattr(smoke_policy, "Acceptance", lambda _: acceptance)
+    monkeypatch.setattr(smoke_policy, "clearance", lambda _: None)
+    monkeypatch.setattr(smoke_policy, "policy_tracing", Mock())
+    monkeypatch.setattr(
+        smoke_policy,
+        "live",
+        AsyncMock(side_effect=ValueError("acceptance failed") if failure else None),
+    )
+    cleanup = Mock(
+        return_value={"status": "destroyed", "at": datetime(2026, 10, 17, tzinfo=UTC)}
+    )
+    monkeypatch.setattr(smoke_policy, "destroy", cleanup)
+    if failure:
+        with pytest.raises(ValueError, match="acceptance failed"):
+            smoke_policy.main()
+    else:
+        smoke_policy.main()
+    cleanup.assert_called_once_with(acceptance)
+    assert json.loads((tmp_path / "policy-cleanup.json").read_text()) == {
+        "status": "destroyed",
+        "at": "2026-10-17 00:00:00+00:00",
+    }

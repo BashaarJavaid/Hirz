@@ -104,12 +104,25 @@ def test_cleanup_retry_stops_tasks_when_service_and_repository_are_gone(tmp_path
 
     clients = {
         name: Mock()
-        for name in ("cloudformation", "ecs", "lambda", "scheduler", "s3", "ecr")
+        for name in (
+            "cloudformation",
+            "ecs",
+            "lambda",
+            "scheduler",
+            "s3",
+            "ecr",
+            "bedrock-agentcore-control",
+        )
     }
     cfn = clients["cloudformation"]
     cfn.get_paginator.return_value.paginate.side_effect = lambda **kw: [
         {
-            "StackResourceSummaries": []
+            "StackResourceSummaries": [
+                {
+                    "ResourceType": "AWS::BedrockAgentCore::PolicyEngine",
+                    "PhysicalResourceId": "arn:aws:bedrock-agentcore:us-east-1:123456789012:policy-engine/owned-engine",
+                }
+            ]
             if kw["StackName"] == "HirzItem36"
             else [
                 {
@@ -128,6 +141,8 @@ def test_cleanup_retry_stops_tasks_when_service_and_repository_are_gone(tmp_path
         "RepositoryNotFoundException"
     )
     ecr.delete_repository.side_effect = missing("RepositoryNotFoundException")
+    policies = clients["bedrock-agentcore-control"]
+    policies.list_policies.side_effect = missing("ResourceNotFoundException")
     acceptance = Mock(
         folder=tmp_path, outputs={"Cluster": "owned", "WorkerService": "gone"}
     )
@@ -141,6 +156,9 @@ def test_cleanup_retry_stops_tasks_when_service_and_repository_are_gone(tmp_path
         cluster="owned", task="one-off", reason="End item 36 acceptance window"
     )
     assert cfn.delete_stack.call_count == 2
+    policies.list_policies.assert_called_once_with(
+        policyEngineId="owned-engine", maxResults=100
+    )
 
 
 def test_diagnostics_retains_paginated_logs_privately(tmp_path):

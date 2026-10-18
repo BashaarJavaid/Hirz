@@ -840,7 +840,10 @@ def main() -> None:
         policy_tracing(acceptance)
         asyncio.run(live(acceptance))
     finally:
-        write_export(acceptance.folder / "policy-cleanup.json", destroy(acceptance))
+        write_export(
+            acceptance.folder / "policy-cleanup.json",
+            json.loads(json.dumps(destroy(acceptance), default=str)),
+        )
 
 
 if __name__ == "__main__":

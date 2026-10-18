@@ -14404,3 +14404,22 @@ export failure; it now retains that result accurately, with a real-key empty
 export regression test. It does not label an empty chain as signed activity.
 The retry retains the original acceptance start, credit clearance and aggregate
 Gateway-call allowance; no new budget or lifetime is assumed.
+
+The complete publication/recovery integration file subsequently passed **11 tests
+in 44.36 seconds**; combined coverage is **88%** (17,888 statements, 2,095 missed).
+After actual resource deletion, cleanup-report serialization exposed another
+harness defect: CloudFormation resource timestamps require the same `default=str`
+conversion already used by `smoke_aws`. The success/failure main-path regression
+now covers those timestamps. An independent cleanup retry also found that
+CloudFormation records the Policy Engine ARN whereas `ListPolicies` requires its
+ID; recovery now extracts the ID, with an absent-engine regression check. These
+are caller defects, not bypassed AWS validation findings. The combined focused
+cleanup/configuration tests passed **20 tests in 2.65 seconds**.
+
+The independent cleanup retry verified the application and dedicated toolkit
+absent, tracing restored, the acceptance span group absent, and command key
+PendingDeletion. Its actual `cleanup.json` was retained as the policy cleanup
+report after the original report serialization failed. The original failed-run
+artifacts remain intact; the retry directory carries the identical clearance
+start and zero prior Gateway reservations. The guarded retry verifies both stacks
+absent before recreating the original names and allocation.

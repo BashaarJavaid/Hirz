@@ -180,7 +180,9 @@ def destroy(acceptance: Any) -> dict[str, Any]:
         "PolicyEngine": "AWS::BedrockAgentCore::PolicyEngine",
     }.items():
         if value := physical(app, kind):
-            output.setdefault(key, value)
+            output.setdefault(
+                key, value.rsplit("/", 1)[-1] if key == "PolicyEngine" else value
+            )
 
     def absent(exc: ClientError) -> bool:
         return exc.response["Error"]["Code"] in {
