@@ -1178,3 +1178,36 @@ that removes only redundant temporal permits while retaining all approval
 correlations and forbids. Its native evidence and quota tradeoff are recorded in
 the [local candidate review](./verification-log.md#exact-action-compatibility-candidate-local-review-only--2026-10-18).
 It is not applied or AWS-verified; no further deployment occurred in this investigation.
+
+### 2026-10-18 — Strict engine-wide analysis rejects a partial publication
+
+- **Tool:** Amazon Bedrock AgentCore Policy, `FAIL_ON_ANY_FINDINGS`.
+- **Severity:** Blocker.
+- **Docs:** [Per-policy engine validation](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/policy-create-update-validation.html).
+- **What happened:** In the approved full acceptance attempt, the twenty-first
+  statement, `security_arm_disarm_forbid`, reached `CREATE_FAILED` after
+  34.041699 seconds. Its two findings began `Overly Restrictive: Policy Engine
+  will deny every request for the specified principal` and named
+  `AgentCore::IamEntity` and `AgentCore::OAuthUser` for
+  `HirzActions___security_arm_disarm`. The complete, unmodified findings and
+  candidate association are retained in
+  `secrets/item37-exact-acceptance/item37-home-publication.json`.
+- **Diagnosis:** The documented analysis considers the existing engine, not the
+  desired future inventory. The persisted publication order reaches this forbid
+  before its temporal permit. The native CLI allows an approved arm/disarm case
+  with the complete policy and denies it with that 21-statement prefix. This
+  supports an ordering explanation; it does not prove a reordered inventory will
+  pass AWS analysis. Four deliberately never-allowed classes also need explicit
+  analysis in any revised design.
+- **Response:** Strict publication refused activation and verified restoration
+  to the committed empty inventory. Independent verification passed 1,169 home
+  audit rows; parents activation never started, and no Gateway call occurred.
+  Automatic teardown began. No finding was bypassed and no further deployment
+  was started; item 37 remains incomplete.
+- **Feature request:** Provide an atomic full-inventory validation/publication
+  operation, or document a strict incremental publication strategy for dependent
+  permit/forbid policies and intentionally denied actions.
+
+Follow-up: teardown and the independent 24-category empty inventory passed;
+original tracing was restored. Final evidence is appended to the
+[attempt record](./verification-log.md#exact-action-acceptance-rejected-after-passing-repository-gates--2026-10-18).

@@ -385,3 +385,20 @@ to a stable 29-character suffix. This corrects metadata only: the approved polic
 text, schemas, manifests and temporal semantics remain byte-identical in both
 dialects. An installed-SDK contract regression checks every generated request and
 unique household-scoped identifiers. No AWS finding is ignored or bypassed.
+
+### Strict publication rejected; revised decision required — 2026-10-18
+
+The approved full attempt rejected a conditional arm/disarm forbid as overly
+restrictive before its temporal permit was installed. The publisher refused
+activation and verified restoration. All repository gates passed, but the live
+acceptance gates remain unearned; see the
+[attempt evidence](../verification-log.md#exact-action-acceptance-rejected-after-passing-repository-gates--2026-10-18).
+
+AWS documents semantic analysis against the existing engine, so an incomplete
+publication inventory matters. The native complete-versus-prefix comparison
+supports this explanation without establishing an AWS-compatible repair.
+Deterministic dependency ordering and the four intentionally never-allowed
+classes require review together. No reordered publication, omitted forbid,
+broader permit, reduced validation mode, or additional deployment is approved
+by this finding. The existing compiler remains applied; another repair needs
+a revised decision and financial clearance, without resetting aggregate usage.

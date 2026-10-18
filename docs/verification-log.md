@@ -15114,3 +15114,118 @@ scope tests passed **23 checks in 3.38 seconds**. This is a local contract fix,
 not a new live finding or a semantic-policy exception. Full implementation
 verification and all original live acceptance gates are still in progress;
 no new acceptance deployment has started at this point.
+
+### Exact-action acceptance rejected after passing repository gates — 2026-10-18
+
+Implementation revision `62f8b188db4f64d9ffc75bd2e5789cf93cb1a0a9` includes the
+approved exact-action repair and the SDK policy-name correction above. The
+working tree was clean when the approved tenth application attempt started.
+Private evidence is in `secrets/item37-exact-acceptance/`.
+
+Repository gates passed before deployment:
+
+- Service-free tests: **1,673 passed**, 259 deselected, two warnings, 246.01 seconds.
+  Disposable PostgreSQL integration tests: **257 passed**, 1,675 deselected, two
+  warnings, 1,195.44 seconds. Combined coverage: **89%** (17,899 statements,
+  1,924 missed), above the required 80%. Logs are `service-free-final.log`,
+  `integration-final.log`, and `coverage-final.log`.
+- The earlier service-free invocation on `d1baa24` reported 1,669 passed and three
+  failures because the filesystem sandbox denied local socket operations in the
+  port and WebSocket-token tests. The complete final invocation with local
+  networking available passed; the earlier output remains in `service-free.log`.
+- Ruff check and format passed (356 files), strict mypy passed 226 source files,
+  and Node 24 workspace lint/type checks passed. TypeScript tests passed five
+  card, one web, and six CDK tests; CDK synthesis passed. The local companion
+  browser smoke passed two checks with two intentionally skipped fixtures.
+  Both Python packages built, and the wheel contains the final compiler hash
+  recorded above without secret files.
+- [Ordinary CI 39104946747](https://github.com/BashaarJavaid/Hirz/actions/runs/39104946747)
+  passed on the same revision: 1,673 service-free and 257 PostgreSQL tests,
+  89% coverage, native conformance, companion/scenarios, lint/types, workspaces
+  and build. Its native gate passed **168 tests**.
+- [Non-diagnostic dispatch 39104946579](https://github.com/BashaarJavaid/Hirz/actions/runs/39104946579)
+  passed both latency scenarios, each with **54 cases and 5,400 measured calls**.
+  Maximum case p95 was **117.588 ms** for evening and **186.149 ms** for hourly,
+  below 250 ms. `HIRZ_BUDGET_DIAGNOSTIC=0` is recorded in both jobs. Raw timing
+  summaries are retained in `ci-latency.log`; `latency-summary.json` checks their
+  counts and maxima. These are local twin latency gates, not AWS cold-start data.
+
+Fresh root billing verification found **$149.38** enabled eligible credits;
+14 selected Pricing API rates were unchanged. The existing aggregate forecast
+remained **$7.885134535833333333333333333**, including the tenth-attempt reserve,
+within the original $10 ceiling. Before deployment, all 24 capacity categories
+were empty, all 11 customer KMS keys were pending deletion, and observed NAT
+traffic across earlier attempts was **6.93306582 GB**. No earlier attempt made
+a Gateway call. The original start, work cutoff and cleanup deadline were
+preserved; metrics can lag and are not an invoice. No capacity or usage allowance
+was increased.
+
+The existing `HirzItem36Toolkit` and `HirzItem36` resources were deployed with the
+original fixture start, initially zero workers, disposable database bootstrap,
+then one worker. Published image digest:
+`sha256:51d7350354204efd04dcf20617a6874c234de57f0c429997fd8ce8c79e9684e6`.
+Database bootstrap and the worker's negative signing/device-credential IAM
+checks passed. The acceptance publisher ran locally with the deployment
+identity against AWS, as in the harness; this does not claim remote worker
+publication acceptance. Development PostgreSQL remained at
+`0005_execution_attempt`; only disposable databases received migration 0020.
+
+The home passkey activation queued successfully. Twenty statements reached
+`ACTIVE`, but statement 21, `security_arm_disarm_forbid`, reached `CREATE_FAILED`
+at 07:39:40.480291 UTC, **34.041699 seconds** after creation. AWS returned two
+**Overly Restrictive** findings for `AgentCore::IamEntity` and
+`AgentCore::OAuthUser`, stating that the engine would deny every request for the
+action/resource combination. The original definition, candidate association,
+AWS identifiers and complete findings are preserved in
+`item37-home-publication.json`. Strict validation was never changed or bypassed.
+
+The real publisher entered recovery and verified the last committed empty
+inventory before marking the job `failed`. `restored-engine.json` records
+`ready=true`, generation 1, no current publication, and an empty inventory.
+Independent `hirz verify-audit --file ... --public-key ...` processes verified
+**1,169 home rows**; the parents export was empty because that activation never
+started. The home rows comprise 586 internal governance `EXECUTE` decisions and
+583 `POLICY_PUBLICATION` events, **zero `CONSTITUTION_ACTIVATED` events**, and no
+device execution. There were **zero Gateway calls**. The failed disposable local
+database is retained for investigation. Automatic AWS teardown began; its final
+inventory and financial checks are appended below when complete.
+
+The documented [engine-wide validation contract](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/policy-create-update-validation.html)
+analyzes each addition against already installed policies. The persisted order
+reaches this forbid before its temporal permit. A native CLI probe permits
+`item37-home:security.arm_disarm:0:approval` under all 96 statements and denies it
+under the 21-statement prefix (`partial-inventory-native.json`). This supports
+an ordering explanation, **not** a verified AWS repair. Separate local inspection
+found four deliberately never-allowed classes in each household: medical
+decisions, access-code sharing, money transfers and payee changes. Their strict
+analysis must also be addressed; simply reordering cannot be assumed sufficient.
+
+The complete home inventory, parents publication, isolated faulty-compiler
+always-allow refusal, LOG_ONLY corpus, ENFORCE promotion/denied-target checks and
+real elapsed-time expiry were **not reached**. No zero-disagreement claim or
+threat-model promotion is earned. The new finding requires a revised decision;
+no further deployment or compiler/publisher semantic change was attempted.
+Item 37 remains incomplete despite passing repository gates. The corresponding
+third-party friction is recorded in `docs/friction-log.md`.
+
+Cleanup completed in the same attempt. The independent inventory at
+**08:00:27 UTC** confirmed both stacks absent and **all 24 capacity categories
+empty**, including databases/backups/snapshots, workers, NAT/public IPs, load
+balancers, CloudFront/origins, AgentCore resources, logs, secrets, buckets and
+repositories. All ten recorded acceptance signing keys, and all **12 customer
+KMS keys account-wide**, were `PendingDeletion`; the configured nonbillable IAM
+setup remains intentionally retained. Aggregate observed NAT traffic was
+**7.999510141 GB**, below the unchanged 20 GB reserve. `policy-cleanup.json`
+reports `destroyed`; the independent evidence is `post-delete-inventory.json`,
+`customer-key-inventory.json` and `nat-usage.json`. The temporary Docker config
+was removed. Original `XRay`/`ACTIVE` tracing, the prior indexing rule and no
+`aws/spans` group were independently verified in `tracing-after.json`; the
+initial comparison included `ModifiedAt`, which appropriately changed when
+restoration updated the rule, so the final comparison checks rule names and
+configuration. No configuration repair was needed.
+
+Cleanup and verification finished before the original work/cleanup deadlines.
+The wrapper exits nonzero for the real publication rejection, after successful
+teardown. No acceptance resources remain running, no additional attempt was
+started, and the $10 forecast/counters were not reset. The new semantic finding
+still blocks item 37; the passing local/CI gates do not close it.

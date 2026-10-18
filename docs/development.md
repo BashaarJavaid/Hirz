@@ -2199,6 +2199,14 @@ is verified. Item 36 stays open until every live gate and teardown passes.
 
 ## Item 37 policy acceptance
 
+**Blocked after the 2026-10-18 exact-action attempt:** strict AWS analysis rejected
+a conditional forbid in the partially published inventory. Restoration passed;
+the full corpus and enforcement gates were not reached. Do not repeat the
+deployment or weaken validation using the prior attempt's approval. The
+[ADR-003 follow-up](./adr/ADR-003-constitution-yaml-to-cedar.md#strict-publication-rejected-revised-decision-required--2026-10-18)
+records the revised decision needed; repository gates and the failed attempt
+are in the [evidence log](./verification-log.md#exact-action-acceptance-rejected-after-passing-repository-gates--2026-10-18).
+
 Migration `0020_agentcore_policy` creates durable publication, engine-generation
 and Gateway-session state. Apply it only through the disposable test/acceptance
 setup during this item; development upgrades remain explicit and manual.

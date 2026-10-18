@@ -139,11 +139,12 @@ Item 32 adds `HIRZ_LLM=off uv run --locked python -m scripts.smoke_protect --art
 ## Current phase
 
 Item 36 is complete ([evidence](docs/verification-log.md#item-36-closure--2026-10-17)).
-Item 37's approved exact-action compiler repair is applied after AWS compatibility
-failures ([decision](docs/adr/ADR-003-constitution-yaml-to-cedar.md#approved-exact-action-repair--2026-10-18)).
-Full live conformance, faulty-compiler refusal, ENFORCE and the revised implementation
-checks remain pending. Earlier acceptance resources are torn down. Item 31 owes
-email/push; item 28 owes real Web Push (#7). Ring remains twin; Link is item 38a.
+Item 37's repaired implementation passes repository and normal latency gates, but
+strict AWS analysis rejects partial publication; a revised decision is required
+([evidence](docs/verification-log.md#exact-action-acceptance-rejected-after-passing-repository-gates--2026-10-18)).
+Restoration and teardown passed; live conformance, faulty-compiler refusal and
+ENFORCE remain pending. Item 31 owes email/push; item 28 owes real Web Push (#7).
+Ring remains twin; Link is item 38a.
 Development stays on 0005; migrations are manual.
 
 
