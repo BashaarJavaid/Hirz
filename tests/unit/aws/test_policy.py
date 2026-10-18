@@ -3,7 +3,7 @@ import json
 from decimal import Decimal
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
 
 import pytest
@@ -17,6 +17,99 @@ from hirz.constitution.preview import situation
 from hirz.constitution.schema import load
 
 HOME = load(Path("constitutions/quinn-home.yaml"))
+
+
+@pytest.mark.parametrize(
+    "defect",
+    [
+        None,
+        "case",
+        "decision",
+        "mode",
+        "inventory",
+        "request",
+        "policy_id",
+        "installed",
+        "engine",
+    ],
+)
+def test_promotion_requires_complete_evidence_for_exact_deployment(monkeypatch, defect):
+    from hirz.aws.policy import fingerprint
+    from hirz.pipeline.hashing import digest
+    from scripts import smoke_policy
+
+    route = Route(
+        "engine",
+        "arn:aws:bedrock-agentcore:us-east-1:123456789012:gateway/test",
+        "https://example.test/mcp",
+    )
+    desired = {"p": "permit;"}
+    request = {"approvals": []}
+    record = {
+        "case": "case",
+        "local": True,
+        "aws": {"allowed": True, "mode": "LOG_ONLY", "policy_ids": ["p-id"]},
+        "inventory_hash": fingerprint(desired),
+        "context_hash": "sha256:" + digest(request),
+        "request": request,
+    }
+    installed = {
+        "p": {
+            "definition": {"policy": {"statement": "permit;"}},
+            "status": "ACTIVE",
+            "policyId": "p-id",
+        }
+    }
+    current = {
+        "gatewayArn": route.gateway_arn,
+        "name": "gateway",
+        "roleArn": "role",
+        "protocolType": "MCP",
+        "authorizerType": "CUSTOM_JWT",
+        "authorizerConfiguration": {},
+        "policyEngineConfiguration": {
+            "arn": "arn:aws:bedrock-agentcore:us-east-1:123456789012:policy-engine/engine",
+            "mode": "LOG_ONLY",
+        },
+        "status": "READY",
+    }
+    if defect == "case":
+        record["case"] = "missing"
+    if defect == "decision":
+        record["aws"]["allowed"] = False
+    if defect == "mode":
+        record["aws"]["mode"] = "ENFORCE"
+    if defect == "inventory":
+        record["inventory_hash"] = "different"
+    if defect == "request":
+        record["request"] = {"approvals": [], "changed": True}
+    if defect == "policy_id":
+        record["aws"]["policy_ids"] = ["other"]
+    if defect == "installed":
+        installed["p"]["definition"]["policy"]["statement"] = "different"
+    if defect == "engine":
+        current["policyEngineConfiguration"]["arn"] += "-other"
+    publisher = Mock(gateway_id="test", installed=AsyncMock(return_value=installed))
+    sdk = Mock()
+    sdk.get_gateway.side_effect = lambda **_: current
+    sdk.update_gateway.side_effect = lambda **kw: current.update(
+        policyEngineConfiguration=kw["policyEngineConfiguration"]
+    )
+    monkeypatch.setattr(smoke_policy, "corpus", lambda _: [("case", None, None, None)])
+    if defect:
+        with pytest.raises(ValueError):
+            asyncio.run(
+                smoke_policy.promote(publisher, sdk, route, desired, [record], [None])
+            )
+        sdk.update_gateway.assert_not_called()
+    else:
+        asyncio.run(
+            smoke_policy.promote(publisher, sdk, route, desired, [record], [None])
+        )
+        assert (
+            sdk.update_gateway.call_args.kwargs["policyEngineConfiguration"]["mode"]
+            == "ENFORCE"
+        )
 
 
 def test_one_compiler_two_event_dialects_and_generated_contract():

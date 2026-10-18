@@ -461,8 +461,15 @@ async def promote(
             "Promotion evidence names policies outside the deployed inventory"
         )
     current = await call(sdk, "get_gateway", gatewayIdentifier=publisher.gateway_id)
-    if current["policyEngineConfiguration"]["mode"] != "LOG_ONLY":
-        raise ValueError("Acceptance must begin in LOG_ONLY")
+    engine_arn = (
+        route.gateway_arn.rsplit(":gateway/", 1)[0]
+        + ":policy-engine/"
+        + route.engine_id
+    )
+    if current["gatewayArn"] != route.gateway_arn or current[
+        "policyEngineConfiguration"
+    ] != {"arn": engine_arn, "mode": "LOG_ONLY"}:
+        raise ValueError("Promotion requires the tested Gateway and engine in LOG_ONLY")
     args = {
         k: current[k]
         for k in (
@@ -487,7 +494,9 @@ async def promote(
         current = await call(sdk, "get_gateway", gatewayIdentifier=publisher.gateway_id)
         if (
             current["status"] == "READY"
-            and current["policyEngineConfiguration"]["mode"] == "ENFORCE"
+            and current["gatewayArn"] == route.gateway_arn
+            and current["policyEngineConfiguration"]
+            == {"arn": engine_arn, "mode": "ENFORCE"}
         ):
             return
         await asyncio.sleep(1)
