@@ -190,6 +190,14 @@ class Compiled:
     statements: tuple[Statement, ...] = ()
 
 
+def statement_name(household: str, label: str) -> str:
+    prefix = hashlib.sha256(household.encode()).hexdigest()[:16]
+    # AWS names stop at 48 characters; retain the household replacement prefix.
+    if len(label) > 29:
+        label = hashlib.sha256(label.encode()).hexdigest()[:29]
+    return f"h_{prefix}_{label}"
+
+
 def compile_policy(
     policy: Constitution,
     gateway_resource: str = "hirz-local",
@@ -201,11 +209,9 @@ def compile_policy(
     statements: list[Statement] = []
 
     def emit(name: str, text: str, *, temporal: bool = False) -> None:
-        prefix = hashlib.sha256(policy.household.encode()).hexdigest()[:16]
-        # AWS names stop at 48 characters; retain the household replacement prefix.
-        if len(name) > 29:
-            name = hashlib.sha256(name.encode()).hexdigest()[:29]
-        statements.append(Statement(f"h_{prefix}_{name}", text, temporal))
+        statements.append(
+            Statement(statement_name(policy.household, name), text, temporal)
+        )
 
     ttls: dict[int, dict[str, str]] = {}
     calls: set[Node] = set()

@@ -7,6 +7,7 @@ from uuid import UUID, uuid4
 import sqlalchemy as sa
 
 from hirz import db
+from hirz.aws.policy import AWS_ANALYSIS
 from hirz.companion.auth import digest
 from hirz.companion.governance import constitution
 from hirz.constitution.compiler import compile_policy
@@ -335,9 +336,7 @@ async def commit(
             "credential_id": principal.credential_id,
             "decision_seq": decision.audit_id,
             "engine": "agentcore-policy" if p.policy_route else "dogwood-local",
-            "analysis": "AWS validation passed"
-            if p.policy_route
-            else "not analyzed: local mode",
+            "analysis": AWS_ANALYSIS if p.policy_route else "not analyzed: local mode",
         },
     )
     for prior in pending:

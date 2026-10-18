@@ -2281,3 +2281,14 @@ Item 37 Gateway calls reserve exclusive, fsynced `gateway-call-*.json` records
 before network access, including failed attempts. Keep those files across retries;
 removing them to reset the 5,000-call allowance is prohibited. The budget reserves
 one GB of Transaction Search spans separately from ordinary logs, with 0% indexing.
+
+### Approved remaining-window repair — 2026-10-18
+
+The subsequent author approval permits the ordering repair and narrow hard-deny
+exception in [ADR-003](adr/ADR-003-constitution-yaml-to-cedar.md#approved-publication-ordering-and-narrow-hard-deny-exception--2026-10-18).
+Use the original aggregate usage ledger and refreshed financial clearance under
+[ADR-008](adr/ADR-008-agentcore-topology.md#remaining-item-37-acceptance-window--2026-10-18).
+A smaller isolated probe must establish strict conditional-policy acceptance,
+record any actual expected hard-deny rejection before its exception, and verify
+restoration before full acceptance. Preserve existing stack/resource names. No
+completion is earned until every original acceptance gate and teardown passes.

@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-10-18: Order policy publication deterministically and require signed, exact AWS rejection evidence before the approved all-roles hard-deny exception; disclose schema-only validation and retain strict checks for every permit and conditional forbid ([decision](docs/adr/ADR-003-constitution-yaml-to-cedar.md#approved-publication-ordering-and-narrow-hard-deny-exception--2026-10-18)).
+
 - 2026-10-18: Record passing item 37 repository/latency gates, strict AWS rejection of partial publication, verified restoration and complete teardown; keep live acceptance blocked pending a revised decision ([evidence](docs/verification-log.md#exact-action-acceptance-rejected-after-passing-repository-gates--2026-10-18)).
 
 - 2026-10-18: Apply the approved exact-action temporal compiler repair, omitting redundant unconditional-auto history permits while preserving all guards and correlations; full AWS acceptance remains pending ([decision](docs/adr/ADR-003-constitution-yaml-to-cedar.md#approved-exact-action-repair--2026-10-18)).

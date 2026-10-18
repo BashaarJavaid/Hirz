@@ -86,3 +86,13 @@ failed restoration keeps AWS actions blocked. Session replacement invalidates ol
 approvals and preserves their original expiry when reissued. Rejected: claiming
 activation on queue acceptance, fabricating a new passkey verification in the worker,
 hard-coded local labels for managed households, and extending consent on restart.
+
+## Approved hard-deny analysis disclosure — 2026-10-18
+
+For the narrow exception approved in ADR-003, the Constitution response and
+activation audit describe strict validation for permits and conditional forbids,
+and schema-only validation for approved hard-deny exceptions. This disclosure
+persists across later publications that retain existing rules; raw AWS findings
+remain in publication history. Pending and
+failed publication behavior and local activation remain unchanged. Rejected:
+showing an unqualified AWS validation success after skipping semantic analysis.

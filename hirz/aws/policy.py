@@ -11,7 +11,7 @@ from typing import Any
 from botocore.exceptions import ClientError  # type: ignore[import-untyped]
 
 from hirz.aws.client import call
-from hirz.constitution.compiler import TEMPORAL_LIMIT, Compiled
+from hirz.constitution.compiler import TEMPORAL_LIMIT, Compiled, statement_name
 from hirz.constitution.conditions import number
 from hirz.risk import CLASSES
 
@@ -108,6 +108,51 @@ class Findings(ValueError):
         super().__init__("AWS policy validation or reconciliation failed")
 
 
+class HardDenyFinding(Findings):
+    """An expected rejection that must be signed before the narrow exception is used."""
+
+
+def hard_deny_finding(row: dict[str, Any], desired: dict[str, str]) -> bool:
+    name = row.get("name", "")
+    text = desired.get(name, "")
+    if row.get("status") not in {"CREATE_FAILED", "UPDATE_FAILED"} or row.get(
+        "definition"
+    ) != {"policy": {"statement": text}}:
+        return False
+    match = re.fullmatch(
+        r'forbid \(principal, action == AgentCore::Action::"HirzActions___([a-z_]+)", '
+        r'resource == AgentCore::Gateway::("[^"\\]+")\) when \{ '
+        r'context.input.household == ("[^"\\]+") && !false \};',
+        text,
+    )
+    if match is None:
+        return False
+    action, resource, household = match.groups()
+    if action not in {c.replace(".", "_") for c in CLASSES} or name != statement_name(
+        json.loads(household), action + "_forbid"
+    ):
+        return False
+    expected = {
+        "Overly Restrictive: Policy Engine will deny every request for the specified "
+        f"principal (AgentCore::{principal}), action (HirzActions___{action}) and "
+        f"resource ({json.loads(resource)}) combination if the policy is added or updated"
+        for principal in ("IamEntity", "OAuthUser")
+    }
+    reasons = row.get("statusReasons", [])
+    return (
+        isinstance(reasons, list)
+        and all(isinstance(reason, str) for reason in reasons)
+        and len(reasons) == 2
+        and set(reasons) == expected
+    )
+
+
+AWS_ANALYSIS = (
+    "AWS inventory verified; permits and conditional forbids passed strict validation. "
+    "Approved hard-deny exceptions use schema validation only; see publication history."
+)
+
+
 class Publisher:
     def __init__(
         self,
@@ -191,7 +236,13 @@ class Publisher:
             seen.add(token)
         raise ValueError("Incomplete policy inventory")
 
-    async def step(self, desired: dict[str, str], *, recovering: bool = False) -> bool:
+    async def step(
+        self,
+        desired: dict[str, str],
+        *,
+        recovering: bool = False,
+        exceptions: list[dict[str, Any]] | None = None,
+    ) -> bool:
         """One mutation per tick. True only for the exact, fully active inventory."""
         rows = await self.installed()
         current = {
@@ -201,11 +252,29 @@ class Publisher:
             for name, row in rows.items()
         }
         quota(desired, current)
+        approved = {
+            r["name"]: r
+            for r in exceptions or []
+            if r.get("policyEngineId") == self.engine_id
+            and hard_deny_finding(r, desired)
+        }
         for name, row in rows.items():
             status = row["status"]
             if status in {"CREATING", "UPDATING", "DELETING"}:
                 return False
             if status != "ACTIVE" or row.get("statusReasons"):
+                if hard_deny_finding(row, desired):
+                    if name not in approved:
+                        raise HardDenyFinding(row)
+                    if approved[name]["policyId"] != row["policyId"]:
+                        raise Findings(row)
+                    await call(
+                        self.sdk,
+                        "delete_policy",
+                        policyEngineId=self.engine_id,
+                        policyId=row["policyId"],
+                    )
+                    return False
                 if not recovering or status not in {"CREATE_FAILED", "UPDATE_FAILED"}:
                     raise Findings(row)
                 await call(
@@ -215,7 +284,22 @@ class Publisher:
                     policyId=row["policyId"],
                 )
                 return False
-        for name, statement in desired.items():
+        # Remove obsolete rules and old forbids before adding permits while calls are blocked.
+        for name, row in sorted(rows.items()):
+            if name not in desired or (
+                current[name].startswith("forbid (") and current[name] != desired[name]
+            ):
+                await call(
+                    self.sdk,
+                    "delete_policy",
+                    policyEngineId=self.engine_id,
+                    policyId=row["policyId"],
+                )
+                return False
+        # JSONB does not preserve compiler order; every permit must precede its forbid.
+        for name, statement in sorted(
+            desired.items(), key=lambda item: (item[1].startswith("forbid ("), item[0])
+        ):
             existing = rows.get(name)
             if (
                 existing
@@ -226,7 +310,9 @@ class Publisher:
             args = dict(
                 policyEngineId=self.engine_id,
                 definition={"policy": {"statement": statement}},
-                validationMode="FAIL_ON_ANY_FINDINGS",
+                validationMode="IGNORE_ALL_FINDINGS"
+                if name in approved
+                else "FAIL_ON_ANY_FINDINGS",
                 enforcementMode="ACTIVE",
             )
             try:
@@ -245,13 +331,4 @@ class Publisher:
                     }
                 ) from exc
             return False
-        for name, row in rows.items():
-            if name not in desired:
-                await call(
-                    self.sdk,
-                    "delete_policy",
-                    policyEngineId=self.engine_id,
-                    policyId=row["policyId"],
-                )
-                return False
         return True

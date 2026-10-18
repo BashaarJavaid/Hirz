@@ -15229,3 +15229,38 @@ The wrapper exits nonzero for the real publication rejection, after successful
 teardown. No acceptance resources remain running, no additional attempt was
 started, and the $10 forecast/counters were not reset. The new semantic finding
 still blocks item 37; the passing local/CI gates do not close it.
+
+### Approved narrow hard-deny repair in progress — 2026-10-18
+
+The author approved deterministic publication ordering, a narrow hard-deny
+exception if needed, and use of the remainder of the original 24-hour window.
+The decisions and rejected alternatives are in the new ADR-003/008/019 amendments.
+This entry records intermediate checks, not item closure.
+
+- Focused publisher unit tests: **26 passed**. Disposable PostgreSQL publication
+  tests: **15 passed**. These cover strict-first behavior, exact rejection matching,
+  wrong-engine proof refusal, bounded exception retry, persisted signed evidence,
+  a fresh worker, forged evidence, audit failure and recovery.
+- Compiler refactoring preserves byte-identical statement names/text, schemas and
+  manifests for both seeds in both dialects against HEAD `dbd33c7`.
+- Service-free regression: **1,682 passed**, 263 deselected, two warnings in
+  266.09 seconds. Full PostgreSQL coverage and final revision gates are running.
+- Full Ruff checks, mypy (**226 files**), Node 24 workspace lint/types/tests,
+  CDK synthesis and Python packaging passed before the final analysis-label edit.
+  Those affected checks will be rerun. The first new browser assertion failed
+  because the findings disclosure was closed; the test now opens it explicitly.
+- Fresh account-owner billing lookup reports **$149.38** estimated eligible credit,
+  ENABLED, and all **14** selected price products unchanged. Independent capacity
+  inventory found all **24** categories empty before this attempt. The revised
+  aggregate forecast is **$9.320634295833333333333333333**, including 24-hour occupancy
+  and rounding/minimum reserves through twelve attempts. Previous usage and the
+  $10 ceiling remain unchanged. Private evidence: `secrets/item37-hard-deny-acceptance/`.
+- A dependency-only subset of the existing synthesized stack contains **16**
+  pay-per-use/control-plane resources and no RDS, NAT, ECS, ALB, Runtime or
+  CloudFront. Its three-statement fixture passed native validation. Attempt eleven
+  is running the real passkey/Pipeline publisher, with automatic teardown and no
+  Gateway invocations. AWS compatibility and restoration are not yet claimed.
+
+Work stops at 2026-10-18T22:32:52.907915Z; cleanup must finish by
+2026-10-18T23:32:52.907915Z. Full conformance, actual faulty-compiler rejection,
+ENFORCE, signed exports and final cleanup remain owed. No device execution occurs.

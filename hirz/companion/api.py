@@ -15,6 +15,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from hirz import db
+from hirz.aws.policy import AWS_ANALYSIS
 from hirz.aws.routing import Routing
 from hirz.companion import auth, policy, push, twin
 from hirz.constitution.boundary import Dogwood
@@ -632,7 +633,7 @@ def router(service: Companion) -> APIRouter:
                 "drafting": os.environ.get("HIRZ_LLM", "off"),
                 "recorded_demo": service.demo_world is not None,
                 "engine": "agentcore-policy" if p.policy_route else "dogwood-local",
-                "analysis": "AWS validation passed"
+                "analysis": AWS_ANALYSIS
                 if p.policy_route
                 and any(
                     r["status"] == "committed" and r["candidate_hash"] == row["hash"]

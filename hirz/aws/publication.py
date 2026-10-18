@@ -9,7 +9,14 @@ from sqlalchemy.dialects.postgresql import insert
 
 from hirz import db
 from hirz.audit import Verification
-from hirz.aws.policy import Findings, Publisher, fingerprint, inventory, quota
+from hirz.aws.policy import (
+    Findings,
+    HardDenyFinding,
+    Publisher,
+    fingerprint,
+    inventory,
+    quota,
+)
 from hirz.companion import policy
 from hirz.companion.governance import constitution
 from hirz.constitution.compiler import compile_policy
@@ -90,7 +97,12 @@ async def queue(
 
 
 async def transition(
-    p: Pipeline, job: dict[str, Any], status: str, **values: Any
+    p: Pipeline,
+    job: dict[str, Any],
+    status: str,
+    *,
+    hard_deny_exception: bool = False,
+    **values: Any,
 ) -> Decision:
     principal = Principal.model_validate(job["principal"]).model_copy(
         update={
@@ -122,6 +134,7 @@ async def transition(
             "initiating_decision": job["decision_seq"],
             "status": status,
             "decision_seq": decision.audit_id,
+            "hard_deny_exception": hard_deny_exception,
             **evidence,
         },
     )
@@ -174,6 +187,40 @@ def desired_inventory(
     } | candidate_inventory
     quota(desired, committed)
     return desired
+
+
+async def exceptions(p: Pipeline, job: dict[str, Any]) -> list[dict[str, Any]]:
+    accepted = [
+        finding["accepted_hard_deny"]
+        for finding in job["findings"]
+        if "accepted_hard_deny" in finding
+    ]
+    for finding in accepted:
+        row = (
+            (
+                await p.connection.execute(
+                    sa.select(db.audit_log)
+                    .where(
+                        p.scope(db.audit_log),
+                        db.audit_log.c.event_type == EventType.POLICY_PUBLICATION,
+                        db.audit_log.c.payload["publication_id"].astext == job["id"],
+                        db.audit_log.c.payload["hard_deny_exception"].as_boolean()
+                        == sa.true(),
+                        db.audit_log.c.payload["findings"].contains(
+                            [{"accepted_hard_deny": finding}]
+                        ),
+                    )
+                    .order_by(db.audit_log.c.seq.desc())
+                    .limit(1)
+                )
+            )
+            .mappings()
+            .one()
+        )
+        signed = Verification(p.household_id, p.audit.key.public_key()).feed(dict(row))
+        if signed.payload["candidate_hash"] != job["candidate_hash"]:
+            raise ValueError("Hard-deny exception differs from its signed candidate")
+    return accepted
 
 
 async def advance(p: Pipeline, publisher: Publisher) -> None:
@@ -287,10 +334,14 @@ async def _advance(p: Pipeline, publisher: Publisher) -> None:
         desired = (
             job["desired"] if job["status"] == "publishing" else engine["inventory"]
         )
+        async with p.repo.write(p.clock):
+            accepted = await exceptions(p, job)
         # Keep both schemas until restoration/removal finishes; optional fields grant no authority.
         contract_ready = await publisher.contract(engine["inventory"] | job["desired"])
         done = contract_ready and await publisher.step(
-            desired, recovering=job["status"] == "recovering"
+            desired,
+            recovering=job["status"] == "recovering",
+            **({"exceptions": accepted} if accepted else {}),
         )
         if not done:
             if job["status"] == "publishing":
@@ -322,6 +373,24 @@ async def _advance(p: Pipeline, publisher: Publisher) -> None:
                 db.policy_engines.update()
                 .where(db.policy_engines.c.id == engine["id"])
                 .values(ready=True, publication_id=None, inventory=installed)
+            )
+    except HardDenyFinding as exc:
+        if p.connection.in_transaction():
+            await p.connection.rollback()
+        async with p.repo.write(p.clock):
+            await transition(
+                p,
+                job,
+                job["status"],
+                hard_deny_exception=True,
+                findings=[
+                    *job["findings"],
+                    {
+                        "accepted_hard_deny": json.loads(
+                            json.dumps(exc.policy, default=str)
+                        )
+                    },
+                ],
             )
     except Exception as exc:
         if p.connection.in_transaction():

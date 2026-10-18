@@ -402,3 +402,35 @@ classes require review together. No reordered publication, omitted forbid,
 broader permit, reduced validation mode, or additional deployment is approved
 by this finding. The existing compiler remains applied; another repair needs
 a revised decision and financial clearance, without resetting aggregate usage.
+
+### Approved publication ordering and narrow hard-deny exception — 2026-10-18
+
+The author approved deterministic permit-before-forbid publication and, only if
+needed, a narrow exception for an exact compiler-generated household/class forbid
+whose roles are all `never`. The engine remains blocked throughout reconciliation.
+Obsolete statements and changed forbids are removed before new permits, then all
+permits precede forbids regardless of JSONB ordering. This changes installation
+order, not the compiled policy or forbid precedence.
+
+Every statement first requests `FAIL_ON_ANY_FINDINGS`. Only an actual asynchronous
+AWS rejection with exactly the expected `Overly Restrictive` findings for both
+AgentCore principal types can qualify. The statement must match the compiler's
+household-scoped `!false` forbid and stable name. Pipeline authorization and a
+signed publication event bind the raw finding to the candidate and engine before
+a later tick may recreate that exact forbid with `IGNORE_ALL_FINDINGS`. A fresh
+worker verifies that signature; a second failed creation remains a blocker.
+Permits, conditional forbids, mixed findings and unknown findings never qualify.
+Recovery obeys the same rule and remains blocked until its inventory is verified.
+
+The exception retains schema validation but skips semantic analysis for those
+forbids, as the [AWS validation overview](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/policy-validation-overview.html)
+explains. The companion and activation audit explicitly disclose this limitation;
+they do not claim every statement passed semantic analysis. Full conformance,
+actual always-allow faulty-compiler rejection, enforcement and cleanup remain
+mandatory. The implementation is not evidence that these live gates passed.
+
+Rejected: omitting the explicit `never` forbid (weakens defense against a future
+permit), broad `IGNORE_ALL_FINDINGS` (would hide unsafe permits), interpreting
+unknown findings as expected, and relying on installation order without verifying
+the final inventory. This supersedes the preceding requirement for a revised
+decision; the financial limits are amended in ADR-008.

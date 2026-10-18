@@ -337,3 +337,123 @@ def test_publication_audit_does_not_disclose_other_household_rules(monkeypatch):
     assert "desired" not in payload
     assert "private foreign rule" not in json.dumps(payload)
     assert payload["candidate_hash"] == job["candidate_hash"]
+
+
+def hard_deny_row():
+    compiled = compile_policy(HOME, "test-gateway", engine="agentcore-policy")
+    statement = next(
+        s
+        for s in compiled.statements
+        if "HirzActions___finance_transfer_money" in s.text and "!false" in s.text
+    )
+    return {
+        "name": statement.name,
+        "policyId": "failed-id",
+        "policyEngineId": "engine",
+        "status": "CREATE_FAILED",
+        "definition": {"policy": {"statement": statement.text}},
+        "statusReasons": [
+            "Overly Restrictive: Policy Engine will deny every request for the specified "
+            f"principal (AgentCore::{principal}), action (HirzActions___finance_transfer_money) "
+            "and resource (test-gateway) combination if the policy is added or updated"
+            for principal in ("IamEntity", "OAuthUser")
+        ],
+    }
+
+
+@pytest.mark.parametrize(
+    "defect", [None, "permit", "conditional", "name", "reason", "extra", "status"]
+)
+def test_hard_deny_exception_matches_only_exact_compiler_shape_and_findings(defect):
+    from hirz.aws.policy import hard_deny_finding
+
+    row = hard_deny_row()
+    if defect in {"permit", "conditional"}:
+        row["definition"]["policy"]["statement"] = row["definition"]["policy"][
+            "statement"
+        ].replace(
+            "forbid" if defect == "permit" else "!false",
+            "permit"
+            if defect == "permit"
+            else '!context.input.requester_role.contains("owner")',
+        )
+    elif defect == "name":
+        row["name"] = "arbitrary"
+    elif defect == "reason":
+        row["statusReasons"][0] = "Overly Permissive"
+    elif defect == "extra":
+        row["statusReasons"].append("Unknown finding")
+    elif defect == "status":
+        row["status"] = "ACTIVE"
+    desired = {row["name"]: row["definition"]["policy"]["statement"]}
+    assert hard_deny_finding(row, desired) is (defect is None)
+
+
+def test_hard_deny_requires_strict_rejection_then_bound_exception_and_stops_on_retry_failure():
+    from hirz.aws.policy import HardDenyFinding
+
+    async def run():
+        row = hard_deny_row()
+        desired = {row["name"]: row["definition"]["policy"]["statement"]}
+        sdk = Mock()
+        publisher = Publisher(sdk, "engine")
+        sdk.list_policies.return_value = {"policies": []}
+        assert not await publisher.step(desired)
+        assert (
+            sdk.create_policy.call_args.kwargs["validationMode"]
+            == "FAIL_ON_ANY_FINDINGS"
+        )
+        sdk.list_policies.return_value = {"policies": [row]}
+        with pytest.raises(HardDenyFinding):
+            await publisher.step(desired)
+        sdk.delete_policy.assert_not_called()
+        with pytest.raises(HardDenyFinding):
+            await publisher.step(
+                desired, exceptions=[dict(row, policyEngineId="other")]
+            )
+        assert not await publisher.step(desired, exceptions=[row])
+        sdk.delete_policy.assert_called_once()
+        sdk.list_policies.return_value = {"policies": []}
+        assert not await publisher.step(desired, exceptions=[row])
+        assert (
+            sdk.create_policy.call_args.kwargs["validationMode"]
+            == "IGNORE_ALL_FINDINGS"
+        )
+        sdk.list_policies.return_value = {"policies": [dict(row, policyId="retry-id")]}
+        with pytest.raises(Findings) as failure:
+            await publisher.step(desired, exceptions=[row])
+        assert type(failure.value) is Findings
+        assert sdk.delete_policy.call_count == 1
+        sdk.list_policies.return_value = {
+            "policies": [dict(row, status="ACTIVE", statusReasons=[])]
+        }
+        assert await publisher.step(desired, exceptions=[row])
+
+    asyncio.run(run())
+
+
+def test_permits_precede_forbids_independent_of_storage_order():
+    async def run():
+        sdk = Mock()
+        publisher = Publisher(sdk, "engine")
+        desired = {"a_forbid": "forbid (new);", "z_permit": "permit (new);"}
+        row = {
+            "name": "a_forbid",
+            "policyId": "old",
+            "policyEngineId": "engine",
+            "status": "ACTIVE",
+            "definition": {"policy": {"statement": "forbid (old);"}},
+        }
+        sdk.list_policies.return_value = {"policies": [row]}
+        assert not await publisher.step(desired)
+        sdk.delete_policy.assert_called_once()
+        sdk.create_policy.assert_not_called()
+        sdk.list_policies.return_value = {"policies": []}
+        assert not await publisher.step(desired)
+        assert sdk.create_policy.call_args.kwargs["name"] == "z_permit"
+        assert (
+            sdk.create_policy.call_args.kwargs["validationMode"]
+            == "FAIL_ON_ANY_FINDINGS"
+        )
+
+    asyncio.run(run())

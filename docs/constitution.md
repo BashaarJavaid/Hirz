@@ -610,9 +610,13 @@ the full inventory stays in worker publication state to avoid exposing another
 household's rules. Owner authority, credential validity, candidate integrity, base
 version and pending-approval blockers are checked before publication and commit.
 The engine is durably blocked before remote changes. One engine-wide lock
-serializes bounded publication ticks; every create/update requests
-`FAIL_ON_ANY_FINDINGS`, and asynchronous failures retain raw findings associated
-with the candidate. Interrupted or failed publication restores the last committed
+serializes bounded publication ticks, installing permits before forbids. Every
+statement first requests `FAIL_ON_ANY_FINDINGS`; asynchronous failures retain raw
+findings associated with the candidate. The approved narrow exception in ADR-003
+allows only an exact all-roles `never` forbid with the expected actual AWS
+overly-restrictive rejection to be recreated using schema-only validation after
+Pipeline authorization and signed evidence. All permits and conditional forbids
+retain strict validation. The companion and activation audit disclose exceptions. Interrupted or failed publication restores the last committed
 inventory. Unverifiable restoration leaves AWS actions blocked for operator repair.
 
 Sessions persist by household and plan (or standalone action), and every related

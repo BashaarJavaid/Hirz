@@ -141,3 +141,16 @@ The target only evaluates inert acceptance requests; it never signs or actuates.
 
 Rejected: reusing item 36's expired financial clearance, a new stack name, separate
 engines, a public MCP network path, and interpreting budget alerts as a cap.
+
+## Remaining item 37 acceptance window — 2026-10-18
+
+The author approved using the remainder of the original 24-hour window, including
+a smaller isolated compatibility probe before full acceptance and the next
+compatible approach if needed. The aggregate $10 ceiling, prior usage and tax
+exception remain unchanged. The original start is 2026-10-17T23:32:52.907915Z;
+work ends at 2026-10-18T22:32:52.907915Z and cleanup must finish by
+2026-10-18T23:32:52.907915Z. These replace the earlier stricter 12-hour deadlines.
+Fresh credits, prices, existing capacity and a recalculated aggregate forecast
+covering attempts beyond ten are required before deployment. No resource-size
+increase or additional always-on service is authorized. The narrow analysis
+exception is specified in ADR-003; broader validation bypasses remain rejected.

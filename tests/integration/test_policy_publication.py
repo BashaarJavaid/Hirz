@@ -364,3 +364,104 @@ def test_queued_reviews_serialize_and_recheck_the_base(scratch_database):
                 assert await c.scalar(sa.select(db.policy_engines.c.ready))
 
     asyncio.run(run())
+
+
+@pytest.mark.parametrize("defect", [None, "forged", "audit", "recovery"])
+def test_hard_deny_exception_is_durable_and_requires_signed_evidence(
+    scratch_database, defect
+):
+    from hirz.aws.policy import HardDenyFinding
+    from hirz.aws.publication import exceptions
+    from tests.unit.aws.test_policy import hard_deny_row
+
+    async def run():
+        async with connect(scratch_database) as c:
+            p = await setup(c, native=True)
+            login = await enroll(
+                p,
+                await auth.initial_invitation(p, ident("members", "malik")),
+                Authenticator(),
+            )
+            async with c.begin():
+                member = await auth.session(c, login["session"], p.clock())
+            principal = member["principal"].model_copy(
+                update={"passkey_verified": True}
+            )
+            p.policy_route = Route("engine", "test-gateway", "https://example.test/mcp")
+            async with p.repo.write(p.clock):
+                draft = await policy.draft(p, principal, dump(POLICY))
+                await policy.activate(
+                    p, principal, draft["id"], draft["candidate_hash"], member["digest"]
+                )
+            publisher = AsyncMock()
+            await advance(p, publisher)
+            rejected = hard_deny_row()
+            publisher.step.side_effect = HardDenyFinding(rejected)
+            if defect == "forged":
+                async with c.begin():
+                    await c.execute(
+                        db.policy_publications.update().values(
+                            findings=[{"accepted_hard_deny": rejected}]
+                        )
+                    )
+            if defect == "audit":
+                append = p.audit.append
+
+                async def failing_append(*args, **kwargs):
+                    if isinstance(args[-1], dict) and args[-1].get(
+                        "hard_deny_exception"
+                    ):
+                        raise RuntimeError("exception audit unavailable")
+                    return await append(*args, **kwargs)
+
+                p.audit.append = failing_append
+                with pytest.raises(RuntimeError, match="exception audit"):
+                    await advance(p, publisher)
+                p.audit.append = append
+            else:
+                await advance(p, publisher)
+            async with c.begin():
+                job = dict(
+                    (await c.execute(sa.select(db.policy_publications)))
+                    .mappings()
+                    .one()
+                )
+                assert not await c.scalar(sa.select(db.policy_engines.c.ready))
+                if defect == "forged":
+                    publisher.step.assert_not_called()
+                    with pytest.raises(sa.exc.NoResultFound):
+                        await exceptions(p, job)
+                elif defect == "audit":
+                    assert job["findings"] == [] and job["status"] == "applying"
+                else:
+                    assert job["status"] == "publishing"
+                    assert await exceptions(p, job) == [rejected]
+            if defect in {"forged", "audit"}:
+                return
+            publisher = AsyncMock()  # A fresh worker has no in-memory exception state.
+            publisher.step.return_value = True
+            if defect == "recovery":
+                publisher.step.side_effect = Findings({"statusReasons": ["unexpected"]})
+                await advance(p, publisher)
+                publisher.step.side_effect = None
+            await advance(p, publisher)
+            assert publisher.step.call_args.kwargs["exceptions"] == [rejected]
+            async with c.begin():
+                job = dict(
+                    (await c.execute(sa.select(db.policy_publications)))
+                    .mappings()
+                    .one()
+                )
+                assert job["status"] == (
+                    "failed" if defect == "recovery" else "committed"
+                )
+                assert await c.scalar(sa.select(db.policy_engines.c.ready))
+                if defect is None:
+                    activated = await c.scalar(
+                        sa.select(db.audit_log.c.payload).where(
+                            db.audit_log.c.event_type == "CONSTITUTION_ACTIVATED"
+                        )
+                    )
+                    assert "hard-deny exceptions" in activated["analysis"]
+
+    asyncio.run(run())

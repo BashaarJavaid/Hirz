@@ -57,13 +57,14 @@ test("real WebAuthn registration, initial activation, rule review and signed exp
   await expect(page.getByRole("heading", { name: "Version 7 · active", exact: true })).toBeVisible();
   // Presentation fixtures only; AWS acceptance uses the real publisher separately.
   let publicationStatus = "queued";
+  const awsAnalysis = "AWS inventory verified; permits and conditional forbids passed strict validation. Approved hard-deny exceptions use schema validation only; see publication history.";
   await page.route("**/api/constitution", async route => {
     const response = await route.fetch({ url: backend + "/api/constitution" }).catch(() => { throw new Error("Disposable publication presentation transport failed (request headers omitted)"); });
     const data = await response.json();
     await route.fulfill({ response, json: { ...data, engine: "agentcore-policy",
       engine_state: { ready: publicationStatus === "committed", generation: 2 },
-      analysis: publicationStatus === "committed" ? "AWS validation passed" : "pending AWS analysis",
-      publications: [{ id: "presentation-only", status: publicationStatus, findings: publicationStatus === "failed" ? [{ statusReasons: ["always allow"] }] : [] }],
+      analysis: publicationStatus === "committed" ? awsAnalysis : "pending AWS analysis",
+      publications: [{ id: "presentation-only", status: publicationStatus, findings: publicationStatus === "failed" ? [{ statusReasons: ["always allow"] }] : publicationStatus === "committed" ? [{ accepted_hard_deny: { statusReasons: ["Overly Restrictive: intentional hard deny"] } }] : [] }],
     } });
   });
   await expect(page.getByText("Your new rules have not taken effect yet.")).toBeVisible();
@@ -74,7 +75,9 @@ test("real WebAuthn registration, initial activation, rule review and signed exp
   publicationStatus = "blocked";
   await expect(page.getByText("AWS actions remain paused until an operator verifies recovery.")).toBeVisible();
   publicationStatus = "committed";
-  await expect(page.getByText("AWS validation passed", { exact: true })).toBeVisible();
+  await expect(page.getByText(awsAnalysis, { exact: true })).toBeVisible();
+  await page.getByText("AWS analysis findings").click();
+  await expect(page.getByText(/intentional hard deny/)).toBeVisible();
   await page.unroute("**/api/constitution");
   await expect(page.getByText("not analyzed: local mode", { exact: true })).toBeVisible();
   await page.getByRole("link", { name: "Household", exact: true }).click();
