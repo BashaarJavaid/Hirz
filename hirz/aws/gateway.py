@@ -118,26 +118,41 @@ class Gateway:
         aws_request = response.headers.get("x-amzn-requestid")
         if not aws_request:
             raise ValueError("Gateway request evidence missing")
-        for _ in range(5):
-            page = await call(
-                self.logs,
-                "filter_log_events",
-                logGroupName="aws/spans",
-                startTime=(int(trace.split("-")[1], 16) - 5) * 1000,
-                filterPattern='"' + trace.rsplit("-", 1)[-1] + '"',
-                limit=100,
-            )
+        for _ in range(10):
             verdicts = []
-            for event in page.get("events", []):
-                span = json.loads(event["message"])
-                attributes = span.get("attributes", {})
-                if (
-                    attributes.get("aws.agentcore.policy.authorization_decision")
-                    is None
-                ):
-                    continue
-                verdicts.append(evidence(span, trace, self.route, aws_request, target))
-            if len(verdicts) == 1 and not page.get("nextToken"):
+            pagination: dict[str, str] = {}
+            seen: set[str] = set()
+            # CloudWatch can return a continuation even for a partially empty page.
+            for _ in range(10):
+                page = await call(
+                    self.logs,
+                    "filter_log_events",
+                    logGroupName="aws/spans",
+                    startTime=(int(trace.split("-")[1], 16) - 5) * 1000,
+                    filterPattern='"' + trace.rsplit("-", 1)[-1] + '"',
+                    limit=100,
+                    **pagination,
+                )
+                for event in page.get("events", []):
+                    span = json.loads(event["message"])
+                    attributes = span.get("attributes", {})
+                    if (
+                        attributes.get("aws.agentcore.policy.authorization_decision")
+                        is not None
+                    ):
+                        verdicts.append(
+                            evidence(span, trace, self.route, aws_request, target)
+                        )
+                following = page.get("nextToken")
+                if following is None:
+                    break
+                if not isinstance(following, str) or not following or following in seen:
+                    raise ValueError("Incomplete AWS policy evidence")
+                seen.add(following)
+                pagination = {"nextToken": following}
+            else:
+                raise ValueError("Incomplete AWS policy evidence")
+            if len(verdicts) == 1:
                 verdict = verdicts[0]
                 if verdict.allowed:
                     output = receipt(target)

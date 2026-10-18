@@ -1251,3 +1251,23 @@ original tracing was restored. Final evidence is appended to the
 - **Feature request:** Expose analysis progress and expected completion time, and
   provide an atomic full-inventory validation operation to reduce repeated
   engine-wide analysis during household publication.
+
+### 2026-10-18 — Policy traces require complete CloudWatch pagination
+
+- **Tool:** CloudWatch Logs `FilterLogEvents` and AgentCore Gateway tracing.
+- **Severity:** Major.
+- **Docs:** [Pagination contract](https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_FilterLogEvents.html).
+- **What happened:** A sampled `tools/list` preflight produced five trace events
+  on a page with `nextToken`, followed by an empty terminal page. The policy
+  metadata span arrived about six seconds after the request record. The client
+  incorrectly treated a continuation token as ambiguous evidence; the API
+  explicitly allows partially filled and empty pages. This was a local
+  compatibility defect, not an AWS policy rejection. The live authorization path
+  had not yet reached that check, so no runtime error is claimed.
+- **Response:** Gracefully interrupted publication, independently verified its
+  959-row audit export and started automatic teardown. Added bounded pagination
+  and ten evidence polls, retaining failure on incomplete, ambiguous or mismatched
+  evidence. The three metadata calls remain charged to the aggregate call ledger;
+  no target was invoked. Full authorization conformance remains pending.
+- **Feature request:** Include an example showing asynchronous policy trace
+  arrival and terminal empty-page handling in the Gateway observability guide.

@@ -2260,6 +2260,11 @@ not by themselves establish worker-role acceptance; retain worker checks too.
 The invalidation fixture changes only the door-unlock approval TTL, then restores
 the original inventory; it requires a real 409 and fresh-session denial without
 republishing unrelated approval rules.
+Conformance uses batches of eight independent sessions; approval calls within a
+case stay ordered, and Pipeline/audit writes remain sequential. A failed batch
+drains before cleanup and prevents another batch. The Gateway follows bounded
+CloudWatch pagination, including empty intermediate pages, before accepting one
+correlated decision; missing or ambiguous evidence still fails closed.
 
 The runner tears down in `finally`, even when acceptance fails. Cleanup removes
 runtime-created policies before deleting the engine, then verifies the existing

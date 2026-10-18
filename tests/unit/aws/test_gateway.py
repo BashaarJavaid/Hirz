@@ -1,6 +1,6 @@
 import asyncio
 import json
-from unittest.mock import Mock
+from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
 
 import httpx
@@ -34,9 +34,24 @@ def span(trace, decision="ALLOW"):
 
 @pytest.mark.parametrize(
     "failure",
-    [None, "no_evidence", "wrong_engine", "conflict", "executed", "ambiguous"],
+    [
+        None,
+        "no_evidence",
+        "wrong_engine",
+        "conflict",
+        "executed",
+        "ambiguous",
+        "paged",
+        "empty_first",
+        "late_evidence",
+        "split_ambiguous",
+        "repeated_token",
+        "invalid_token",
+        "page_bound",
+    ],
 )
 def test_gateway_requires_correlated_evidence_and_inert_receipt(monkeypatch, failure):
+    monkeypatch.setattr("hirz.aws.gateway.asyncio.sleep", AsyncMock())
     session = uuid4()
     logs = Mock()
     calls = []
@@ -62,6 +77,27 @@ def test_gateway_requires_correlated_evidence_and_inert_receipt(monkeypatch, fai
         logs.filter_log_events.return_value = {
             "events": [] if failure == "no_evidence" else events
         }
+        pages = {
+            "paged": [{"events": events, "nextToken": "next"}, {"events": []}],
+            "empty_first": [{"events": [], "nextToken": "next"}, {"events": events}],
+            "late_evidence": [{"events": []} for _ in range(5)]
+            + [{"events": events, "nextToken": "next"}, {"events": []}],
+            "split_ambiguous": [
+                {"events": events, "nextToken": "next"},
+                {"events": events},
+            ],
+            "repeated_token": [
+                {"events": events, "nextToken": "next"},
+                {"events": [], "nextToken": "next"},
+            ],
+            "invalid_token": [{"events": events, "nextToken": ""}],
+            "page_bound": [
+                {"events": events if i == 0 else [], "nextToken": str(i)}
+                for i in range(10)
+            ],
+        }
+        if failure in pages:
+            logs.filter_log_events.side_effect = pages[failure]
         return httpx.Response(
             409 if failure == "conflict" else 200,
             headers={"x-amzn-requestid": "request"},
@@ -86,7 +122,7 @@ def test_gateway_requires_correlated_evidence_and_inert_receipt(monkeypatch, fai
 
     async def run():
         client = Gateway(ROUTE, "https://token.test/token", "client", "secret", logs)
-        if failure:
+        if failure not in {None, "paged", "empty_first", "late_evidence"}:
             with pytest.raises(
                 SessionConflict if failure == "conflict" else ValueError
             ):
@@ -108,6 +144,16 @@ def test_gateway_requires_correlated_evidence_and_inert_receipt(monkeypatch, fai
                 session,
             )
             assert sum(r.url.host == "token.test" for r in calls) == 1
+            if failure in {"paged", "empty_first"}:
+                assert [
+                    c.kwargs.get("nextToken")
+                    for c in logs.filter_log_events.call_args_list
+                ] == [None, "next"] * 2
+            if failure == "late_evidence":
+                assert [
+                    c.kwargs.get("nextToken")
+                    for c in logs.filter_log_events.call_args_list
+                ] == ([None] * 6 + ["next"]) * 2
         with pytest.raises(ValueError, match="session binding"):
             await client.invoke(
                 "environment.lights", {"session_id": str(uuid4())}, session

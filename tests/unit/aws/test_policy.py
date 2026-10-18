@@ -570,3 +570,74 @@ def test_invalidation_fixture_changes_only_the_tested_class(monkeypatch):
             statement_name(original.household, "temporal_security_door_unlock"),
         }
     assert loads(seed.yaml) == original
+
+
+@pytest.mark.parametrize("failure", [False, True])
+def test_conformance_batches_keep_sessions_isolated_and_drain_before_failure(
+    monkeypatch, tmp_path, failure
+):
+    from hirz.aws.fixture import policy_seeds
+    from hirz.aws.gateway import Verdict
+    from scripts import smoke_policy
+
+    seed = policy_seeds()[0]
+    _, event, approvals, details = smoke_policy.corpus(seed)[0]
+    assert not approvals
+    cases = [(str(i), event, (), details) for i in range(10)]
+    monkeypatch.setattr(smoke_policy, "corpus", lambda _: cases)
+    native = Mock(
+        validate=AsyncMock(),
+        authorize=AsyncMock(
+            return_value=SimpleNamespace(allowed=True, diagnostic=None)
+        ),
+    )
+    monkeypatch.setattr(smoke_policy, "Dogwood", lambda: native)
+    monkeypatch.setattr(smoke_policy.auth, "account", AsyncMock(return_value=Mock()))
+    monkeypatch.setattr(smoke_policy, "constitution", AsyncMock())
+    p = Mock()
+    p.connection.begin.return_value = AsyncMock()
+    p.connection.scalar = AsyncMock(return_value=1)
+    p.repo.write.return_value = AsyncMock()
+    p.audit.append = AsyncMock()
+    p.bundle.policy.return_value.version = 1
+    p.clock = smoke_policy.now
+    p.household_id = seed.household_id
+    active = peak = 0
+    sessions = []
+
+    async def invoke(name, inputs, session):
+        nonlocal active, peak
+        assert inputs["session_id"] == str(session)
+        sessions.append(session)
+        ordinal = len(sessions)
+        active += 1
+        peak = max(peak, active)
+        try:
+            await asyncio.sleep(0)
+            if failure and ordinal == 3:
+                raise ValueError("boundary probe failed")
+            return Verdict(
+                True, str(session), str(session), ("policy",), "LOG_ONLY", None
+            )
+        finally:
+            active -= 1
+
+    run = smoke_policy.compare(
+        p,
+        seed,
+        Mock(invoke=invoke),
+        {"policy": "permit;"},
+        SimpleNamespace(folder=tmp_path, within_window=Mock()),
+        "LOG_ONLY",
+    )
+    if failure:
+        with pytest.raises(ValueError, match="boundary probe failed"):
+            asyncio.run(run)
+        assert len(sessions) == 8
+        assert p.audit.append.await_count == 7
+    else:
+        records = asyncio.run(run)
+        assert [r["case"] for r in records] == [str(i) for i in range(10)]
+        assert p.audit.append.await_count == len(sessions) == 10
+    assert len(set(sessions)) == len(sessions)
+    assert peak == 8 and active == 0

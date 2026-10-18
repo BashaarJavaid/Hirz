@@ -15415,3 +15415,32 @@ separate harness revision and source hashes are retained in
 are byte-identical across that amendment. **38 focused tests** and strict mypy
 over **226 files** pass. New CI targets the final harness revision; no superseded
 run is substituted for its required gates. No additional deployment is introduced.
+
+### Trace pagination preflight and controlled interruption — 2026-10-18
+
+Attempt thirteen deployed the inert stack and verified the worker's credential
+and signing denials. The final harness revision was `260a53b`; the initial and
+updated production images had the same digest, retained in
+`secrets/item37-elapsed-acceptance/deployment-image-proof.json`. A read-only
+Gateway preflight discovered **41 tools across two pages**. Three `tools/list`
+requests were reserved before network access in the aggregate call ledger;
+**zero target calls or device executions** occurred.
+
+The sampled metadata trace contained five events followed by an empty terminal
+CloudWatch page. Initial spans arrived after **2,723.151 ms**, with the policy
+metadata span after **6,007.151 ms**. The client did not follow continuation
+pages, so the acceptance child was gracefully interrupted before authorization
+conformance. Independent CLI verification passed the **959-row** signed home
+export; parents had no rows. No activation or semantic-analysis success is
+claimed. Automatic teardown began; final cleanup is recorded separately.
+
+The shared Gateway client now traverses at most ten pages per poll and polls at
+most ten times. Missing, repeated or malformed cursors, page exhaustion,
+ambiguous decisions and correlation failures remain closed. Tests cover empty
+intermediate pages, delayed evidence, split-page ambiguity and cursor failures.
+The harness runs eight independent sessions concurrently, keeping each approval
+chain ordered and all Pipeline/audit writes sequential. It drains a batch and
+records successful results before raising a failed probe; no next batch starts
+on failure. Publication remains serialized, and the corpus and aggregate call
+allowance are unchanged. **57 focused tests** and strict mypy over **226 files**
+pass; final revision CI and live acceptance remain required.

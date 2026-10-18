@@ -7,6 +7,7 @@ import os
 import re
 import time
 from dataclasses import asdict, replace
+from itertools import batched
 from pathlib import Path
 from typing import Any, cast
 from unittest.mock import patch
@@ -330,7 +331,12 @@ async def compare(
                 p.connection, p.household_id, demo_id(seed.slug, "members", owner)
             )
         ).model_copy(update={"surface": "scheduler"})
-    for key, event, approvals, details in corpus(seed):
+
+    async def evaluate(
+        index: int,
+        case: tuple[str, Event, tuple[Event, ...], ConstitutionEvidence],
+    ) -> tuple[dict[str, Any], UUID, Verdict, ConstitutionEvidence]:
+        key, event, approvals, details = case
         acceptance.within_window()
         # Every test gets a new real UUID; altered session inputs retain their mismatch.
         session = uuid4()
@@ -372,7 +378,8 @@ async def compare(
                 or observed.mode != mode
             ):
                 write_export(
-                    folder / (mode + "-approval-disagreement.json"),
+                    folder
+                    / f"{mode}-{seed.slug}-{index + 1}-approval-disagreement.json",
                     {"case": key, "approvals": approval_records},
                 )
                 raise ValueError("AWS/native approval disagreement or missing evidence")
@@ -391,46 +398,61 @@ async def compare(
             "request": request,
             "context_hash": context_hash,
         }
-        records.append(record)
         write_export(
-            folder / (mode + "-" + seed.slug + "-" + str(len(records)) + ".json"),
+            folder / f"{mode}-{seed.slug}-{index + 1}.json",
             record,
         )
         if verdict.allowed != expected.allowed or verdict.mode != mode:
             raise ValueError("AWS/native disagreement or unexpected enforcement mode")
-        evidence = BoundaryRequest(
-            request_id=verdict.request_id,
-            trace_id=verdict.trace_id,
-            session_id=session,
-            policy_ids=verdict.policy_ids,
-            inventory_hash=fingerprint(expected_inventory),
-            generation=generation,
-            result="allow" if verdict.allowed else "deny",
-            mode=cast(Any, mode),
+        return record, session, verdict, details
+
+    # Sessions are independent; drain each bounded batch before auditing or failing.
+    for batch in batched(enumerate(corpus(seed)), 8):
+        outcomes = await asyncio.gather(
+            *(evaluate(index, case) for index, case in batch), return_exceptions=True
         )
-        async with p.repo.write(p.clock):
-            await constitution(p, actor, "publish", key)
-            await p.audit.append(
-                p.connection,
-                p.household_id,
-                p.clock(),
-                EventType.DRY_RUN,
-                Decision(
-                    decision="execute" if verdict.allowed else "deny",
-                    event_type=EventType.DRY_RUN,
-                    action_id=key,
-                    constitution=details.model_copy(
-                        update={"version": p.bundle.policy().version}
-                    ),
-                    boundary=BoundaryEvidence(
-                        engine="agentcore-policy",
-                        result=evidence.result,
-                        reason="Inert acceptance only; no device action executed",
-                        context_hash=context_hash,
-                        requests=(evidence,),
-                    ),
-                ),
+        failure = None
+        for outcome in outcomes:
+            if isinstance(outcome, BaseException):
+                failure = failure or outcome
+                continue
+            record, session, verdict, details = outcome
+            records.append(record)
+            evidence = BoundaryRequest(
+                request_id=verdict.request_id,
+                trace_id=verdict.trace_id,
+                session_id=session,
+                policy_ids=verdict.policy_ids,
+                inventory_hash=fingerprint(expected_inventory),
+                generation=generation,
+                result="allow" if verdict.allowed else "deny",
+                mode=cast(Any, mode),
             )
+            async with p.repo.write(p.clock):
+                await constitution(p, actor, "publish", record["case"])
+                await p.audit.append(
+                    p.connection,
+                    p.household_id,
+                    p.clock(),
+                    EventType.DRY_RUN,
+                    Decision(
+                        decision="execute" if verdict.allowed else "deny",
+                        event_type=EventType.DRY_RUN,
+                        action_id=record["case"],
+                        constitution=details.model_copy(
+                            update={"version": p.bundle.policy().version}
+                        ),
+                        boundary=BoundaryEvidence(
+                            engine="agentcore-policy",
+                            result=evidence.result,
+                            reason="Inert acceptance only; no device action executed",
+                            context_hash=record["context_hash"],
+                            requests=(evidence,),
+                        ),
+                    ),
+                )
+        if failure is not None:
+            raise failure
     return records
 
 
