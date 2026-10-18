@@ -1121,3 +1121,13 @@ Follow-up (2026-10-17): the unchanged retry reproduced the same exact error,
 request IDs for both submissions, but no cause for the later asynchronous failure.
 Both activations were refused and their committed empty inventories restored.
 A revised diagnostic decision is pending; strict validation has not been relaxed.
+
+Follow-up (2026-10-18): the two subsequently approved probes isolated a difference.
+Factoring the common TTL test retained the internal creation error after 331.38
+seconds. Narrowing only the temporal action head to `energy.hvac_adjust` reached
+`ACTIVE` without findings in 9.17 seconds, with the original condition body and
+all event correlations retained. The real publisher then deliberately aborted
+before activation and verified restoration to its committed empty inventory.
+This distinguishes the tested statements; it does not establish whether list
+syntax, action-set size, or analysis of the combined conditions caused the error.
+No Gateway calls occurred, and the production compiler remains unchanged.

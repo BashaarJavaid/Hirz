@@ -14716,3 +14716,105 @@ durable readiness and zero activation events before the next probe. Its local
 checks passed for ACTIVE evidence/abort, recovery delegation and pending-state
 delegation. Native fixture validation/comparison is recorded above. No production
 compiler change, Gateway call or device execution is authorized by this probe.
+
+### Required implementation latency gates pass — 2026-10-17
+
+The full non-diagnostic [dispatch 39091168782](https://github.com/BashaarJavaid/Hirz/actions/runs/39091168782)
+passed for `abfe4455da233c47faf5385694ffad26de6131ef`. Both scenarios passed all
+**54 cases and twelve tools**, with **5,400 measured calls per scenario / 10,800
+total**. Evening passed in **3,241.92 seconds**, with maximum case p95 **171.108 ms**
+(`objective-greenest`) and maximum pooled tool p95 **160.096 ms**
+(`get_household_plan`). Hourly's maximum case p95 was **129.739 ms** and pooled
+tool p95 **101.794 ms**. Every case passed the **250 ms** gate with five warmups,
+100 measured calls per case and no discarded samples. Full job logs, revision
+metadata and derived timing summary are retained in `secrets/item37-ci-abfe445/`.
+These are local authenticated tool-budget/isolation results, not AWS latency or
+policy-conformance claims. Ordinary CI for the same implementation also passed.
+
+### Approved diagnostic outcomes — 2026-10-18
+
+The diagnostic deployment used the unchanged worker image
+`sha256:d8fce89da522f9ae56703841812e1df5ece4f138ca591e6fe14c087539d86017`.
+Application creation took **925.78 seconds**, bootstrap completed, and the worker
+rollout took **134.67 seconds**. Private artifacts are in
+`secrets/item37-diagnostics/`; all operations retain the original acceptance
+start and the diagnostic's 05:44:15.047391Z cleanup deadline.
+
+The factored-TTL fixture, policy `h_554d8977a5e79b92_ttl_30-beffl9u4zj`, was
+created at **04:07:37.059251Z** and reached `CREATE_FAILED` at **04:13:08.435536Z**
+with `An internal error occurred during creation`. CloudTrail request ID:
+`3ce2944c-824b-4d6b-9e42-836408a2496a`. The publisher refused activation and
+verified restoration; independent signed-export verification passed **725 home
+rows**, with an empty parents chain.
+
+The single-action fixture, policy `h_554d8977a5e79b92_ttl_30-40sq966pjj`, was
+created at **04:13:26.259862Z** and reached **ACTIVE without findings** at
+**04:13:35.425133Z**. CloudTrail request ID:
+`b655ed01-23b4-43fe-99c9-f414adb56bd6`. This is actual AWS strict validation of
+that restricted temporal statement, not production-candidate validation or
+runtime conformance. The runner deliberately stopped before publishing the rest
+of the candidate or committing activation, with the explicit local diagnostic
+reason rather than an invented AWS finding. Recovery verified the empty remote
+inventory. Independent signed-export verification passed **33 home rows**, with
+an empty parents chain.
+
+Independent reads of both retained disposable databases found `ready=true`,
+empty committed inventories, no publication owner, and **zero activation events**.
+Both probes made **zero Gateway calls** and executed no device action. Automatic
+application/toolkit teardown is in progress. These two results narrow the next
+diagnostic choice, but do not establish the cause of the multi-action failure or
+authorize a production compiler change. The required always-allow fixture,
+full shared-corpus agreement and ENFORCE acceptance remain unverified.
+
+### Local candidate after diagnostic results — 2026-10-18
+
+A proposed simplification is prepared privately in
+`secrets/item37-candidate-review/compiler.patch`; **it is not applied**. It removes
+repeated temporal-permit class branches, keeping exact action-set membership and
+one TTL comparison. The existing per-class forbids retain action/class agreement
+and current-condition checks. The action head, temporal correlations, schemas,
+manifests and every non-temporal statement are unchanged. Exact set membership
+also excludes hierarchy descendants that an action-head list alone could admit.
+
+The pinned native CLI compared the current and proposed compilers over **1,560
+cases across both acceptance seeds with zero disagreements**. An additional **34
+forced-response wrong-class cases** were denied by both, as was an explicitly
+declared child action with injected approved history. Ruff and strict mypy passed
+for the proposed source. These are local checks, not AWS compatibility evidence.
+Patch SHA-256: `fccc39ff64b37db512872cbd7fdf9bfcfe345b6d13841694c601cc65a71c6fe5`.
+
+The private review note proposes two further strict-validation controls: a
+one-element action list around the previously accepted action, and the full
+production action group with the simplified guard. Authorization is pending;
+the previous two-probe approval is exhausted. Only an explicit conditional
+approval would permit applying the reviewed patch after both probes pass, then
+resuming all original live acceptance gates within the existing financial window.
+No acceptance deadline, budget, resource count or validation requirement changes.
+
+The documentation-only revision `ef820fddeaaa6af61b142099e860804d9915c446` also
+passed [ordinary CI 39094735773](https://github.com/BashaarJavaid/Hirz/actions/runs/39094735773).
+The required implementation latency results remain those recorded for `abfe4455`.
+
+### Diagnostic cleanup and conditional repair approval — 2026-10-18
+
+The diagnostic application and toolkit were destroyed. Independent inventory at
+**04:30:55.046552Z** found zero resources in all **24 checked service categories**,
+with all seven recorded output command keys pending deletion. The broader KMS
+scan includes the two early rollbacks: **all nine customer keys are PendingDeletion**.
+The nonbillable IAM setup remains. NAT telemetry sampled at **04:28:36.233157Z**
+reports **5.154048058 decimal GB** across seven NAT identities against the reserved
+20 GB; it may lag and is not a final bill. Cleanup finished within the approved
+two-hour diagnostic limit. The private Docker configuration is retained solely
+for the newly authorized deployment and must be removed after its final cleanup.
+
+The author then explicitly approved the conditional repair in
+`secrets/item37-candidate-review/README.txt`: one further deployment, first the
+two strict-validation controls, and only if both pass, application of the exact
+reviewed patch and full original acceptance. Fresh billing data still reports
+**$149.38 enabled estimated eligible credit**, with the eligible-product set
+unchanged. Fresh Pricing API reads matched all **14 selected product rates**;
+the aggregate **$7.885134535833333333333333333** projection remains. This is
+application attempt eight of the ten-attempt reserve, with no new resources.
+Original start remains 2026-10-17T23:32:52.907915Z; work stops by **10:32:52.907915Z**
+and cleanup must finish by **11:32:52.907915Z** under the stricter financial
+clearance. Evidence is private in `secrets/item37-conditional-repair/`.

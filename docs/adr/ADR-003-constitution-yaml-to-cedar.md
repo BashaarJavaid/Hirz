@@ -276,3 +276,23 @@ this single deployment has a stricter two-hour maximum including teardown.
 Rejected another identical retry, relaxing validation, and treating success of
 a restricted fixture as production conformance. Any production correction still
 owes semantic equivalence and every original live acceptance gate.
+
+### Conditional temporal simplification — 2026-10-18
+
+The factored-TTL diagnostic reproduced the internal creation failure; the
+single-action head reached ACTIVE without findings. The author approved one
+further deployment to test a one-element action-list control and the full action
+group with a simplified guard. Both must pass strict AWS validation before the
+reviewed production change may be applied. The proposed guard uses exact set
+membership plus one TTL comparison; existing per-class forbids retain the
+class agreement and current-condition requirements. Exact membership preserves
+rejection of hierarchy descendants. The temporal event correlations and head,
+all other statements and generated schemas remain unchanged in both dialects.
+Native equivalence and the exact patch/fixture hashes are recorded in the
+[item 37 evidence](../verification-log.md#item-37).
+
+The conditional approval retains all original live gates, financial limits and
+cleanup requirements. Rejected accepting a restricted fixture as full conformance,
+using the hierarchy-aware action head alone, and applying the candidate before
+both controls pass. A new finding or incompatibility still blocks completion;
+no service validation is bypassed or simulated.

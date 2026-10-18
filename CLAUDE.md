@@ -141,8 +141,9 @@ Item 32 adds `HIRZ_LLM=off uv run --locked python -m scripts.smoke_protect --art
 Item 36 is complete ([evidence](docs/verification-log.md#item-36-closure--2026-10-17)).
 Item 37's integration is implemented, but repeated AWS temporal-policy creation
 errors block live acceptance ([evidence](docs/verification-log.md#item-37));
-two scoped diagnostic probes are approved. Conformance, faulty-compiler refusal
-and ENFORCE remain owed. Ordinary CI and teardown passed; evening latency is pending.
+the first diagnostic deployment is cleaned up. A conditional compiler repair is
+approved after two further strict AWS controls pass. Conformance, faulty-compiler
+refusal and ENFORCE remain owed. Ordinary CI and both latency gates passed.
 Item 31 owes email/push; item 28 owes real Web Push (#7).
 Ring remains twin; Link is item 38a. Development stays on 0005; migrations are manual.
 
