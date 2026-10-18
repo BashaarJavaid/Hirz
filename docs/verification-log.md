@@ -14432,3 +14432,41 @@ changed-conditions corpus case now exceeds each seed's explicit unlock-duration
 bound while retaining the prior approval, rather than changing an unreferenced
 visitor fact. A native Dogwood test confirms the original request is allowed and
 the changed request denied for both managed seeds (one test, 2.31 seconds).
+
+### First AWS policy finding — 2026-10-17
+
+The retry stack deployed in 982.45 seconds, explicit initialize/migrate/seed
+passed, the one-worker update completed in 221.93 seconds, and an identical deploy
+reported `HirzItem36 (no changes)` (5.21 seconds total). The actual image digest
+was `sha256:ce8e3edfdf819b8184a870e1202d9cd322cef0c7bddd3239caef27cecd870462`.
+One running worker and its authenticated tick were verified, as were the fresh
+stack's signer control and three worker credential/KMS denials. All 48 focused
+service-free AWS tests passed in 7.76 seconds before the next live invocation.
+
+Real passkey activation reached AWS publication. The home temporal statement
+`h_554d8977a5e79b92_ttl_30` entered `CREATE_FAILED` with schema findings concerning
+built-in `InvokeLLM`, `Http`, `CallTool`, `InvokeAgent`, `UnknownTool`, `HirzActions`
+and `Mcp` action contexts. The complete response as returned by AWS (including
+AWS's own error-text truncation) is retained with its policy/candidate association
+in the private `item37-home-publication.json`. No semantic finding was ignored.
+The publisher restored the last committed empty inventory and marked the job
+failed; activation was not committed. Independent verification of retained
+exports passed for **21 home audit rows**; the parents chain is empty because its
+activation was not reached. No Gateway evaluation, faulty-compiler test or
+ENFORCE promotion occurred. Automatic teardown started.
+
+The approved narrow schema correction scopes both compiler representations to
+the same explicit TTL-group action list already enforced by their condition.
+The pinned CLI and helper are unchanged. ADR-003 and the friction log record the
+observed difference and documented action-scope syntax; reacceptance is required.
+A subsequent retry retains the original start/clearance and zero consumed Gateway
+reservations, and waits for verified teardown plus committed tested code.
+
+The compiler/native/AWS-contract test command passed 174 checks; its sole failure
+was the new regression test expecting a narrower exception message than the CLI
+wrapper emits. After correcting that assertion and also proving the unscoped
+form validates against the original schema, the targeted regression passed in
+1.07 seconds. The scoped form validates against both schemas and retains native
+allow/deny behavior. Ruff and strict mypy pass for the changed compiler. The
+constitution spec now labels hash recomputation/signing/Link as item 38 and
+removes its obsolete Python-temporal-fallback suggestion.

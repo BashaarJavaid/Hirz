@@ -204,7 +204,7 @@ def compile_policy(
         prefix = hashlib.sha256(policy.household.encode()).hexdigest()[:16]
         statements.append(Statement(f"h_{prefix}_{name}", text, temporal))
 
-    ttls: dict[int, list[str]] = {}
+    ttls: dict[int, dict[str, str]] = {}
     calls: set[Node] = set()
     for name in CLASSES:
         common = policy.rule(name, "owner")
@@ -264,14 +264,12 @@ def compile_policy(
             )
         if allowed_roles and not name.startswith("governance."):
             ttl = common.approval_ttl_minutes or policy.defaults.approval_ttl_minutes
-            ttls.setdefault(ttl, []).append(
-                conjunction(
-                    [
-                        f"action == {action_name(name)}",
-                        agreement,
-                        f"{INPUT}.ttl_minutes == {ttl}",
-                    ]
-                )
+            ttls.setdefault(ttl, {})[name] = conjunction(
+                [
+                    f"action == {action_name(name)}",
+                    agreement,
+                    f"{INPUT}.ttl_minutes == {ttl}",
+                ]
             )
             approval = conjunction(
                 [
@@ -292,10 +290,11 @@ def compile_policy(
     event_prefix = "event" if engine == "agentcore-policy" else "caller"
     for ttl, classes in sorted(ttls.items()):
         # One formerly operator; field correlations do not consume operator quota.
+        actions = ", ".join(action_name(name) for name in classes)
         emit(
             f"ttl_{ttl}",
-            f"""permit (principal, action, resource == {resource})
-when {{ {household} && {disjunction(classes)} }}
+            f"""permit (principal, action in [{actions}], resource == {resource})
+when {{ {household} && {disjunction(list(classes.values()))} }}
 when temporal {{ formerly within {ttl}m {APPROVE}::response {{
   {event_prefix}Resource: resource,
   {event_prefix}Principal: principal,

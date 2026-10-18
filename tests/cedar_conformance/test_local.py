@@ -1,6 +1,7 @@
 """Required native Dogwood/compiler checks; missing tooling is a failure, never a skip."""
 
 import asyncio
+import re
 from dataclasses import replace
 from pathlib import Path
 
@@ -8,7 +9,7 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from hirz.constitution.boundary import Dogwood, Event
+from hirz.constitution.boundary import BoundaryError, Dogwood, Event
 from hirz.constitution.compiler import boundary_input, compile_policy
 from hirz.constitution.evaluator import resolve
 from hirz.constitution.preview import SITUATIONS, situation
@@ -35,6 +36,33 @@ def test_live_acceptance_changed_conditions_reject_an_existing_approval():
         assert allowed(compiled, original, approvals)
         assert not allowed(compiled, changed, approvals)
         assert details.mode == "never"
+
+
+def test_temporal_scope_excludes_builtin_actions_without_hirz_inputs():
+    schema = (
+        COMPILED.schema[:-1]
+        + """
+action "InvokeLLM" appliesTo {
+  principal: [Worker], resource: [Gateway], context: { input?: { unrelated: String } }
+};
+action "Http" appliesTo {
+  principal: [Worker], resource: [Gateway], context: {}
+};
+}"""
+    )
+    compiled = replace(COMPILED, schema=schema)
+    assert asyncio.run(ENGINE.validate(compiled))["passed_without_warnings"]
+    action, approval, _ = events(compiled=compiled)
+    assert allowed(compiled, action, (approval,))
+    assert not allowed(compiled, action)
+    unscoped = replace(
+        compiled, policy=re.sub(r"action in \[[^\]]+\]", "action", compiled.policy)
+    )
+    assert asyncio.run(ENGINE.validate(replace(COMPILED, policy=unscoped.policy)))[
+        "passed_without_warnings"
+    ]
+    with pytest.raises(BoundaryError):
+        asyncio.run(ENGINE.validate(unscoped))
 
 
 def events(

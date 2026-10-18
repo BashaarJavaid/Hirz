@@ -235,6 +235,15 @@ Cedar's four-place decimal range and are emitted without binary float conversion
 The private `HirzActions` contract may use typed facts and internal identifiers;
 this exception does not change the public Alexa contract.
 
+Live schema validation also exposed AWS's built-in action contexts (`InvokeLLM`,
+`Http`, and others) when the temporal policy left its action head unrestricted.
+Both compiler representations now use the documented
+[explicit action list](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/policy-scope.html)
+for the same TTL-group actions already required by the `when` disjunction.
+The disjunction and all correlation fields remain; no approval or household rule
+is weakened. Native validation includes representative built-in actions without
+Hirz inputs. AWS reacceptance remains required; ignoring findings is rejected.
+
 Gateway calls require durable UUID sessions, original approval deadlines and
 correlated [AWS policy spans](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/observability-policy-metrics.html).
 HTTP/tool success alone is not an authorization decision, including in LOG_ONLY.

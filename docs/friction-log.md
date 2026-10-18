@@ -1074,3 +1074,23 @@ engine limit is **20** temporal policies, not the previously recorded 25. Item 3
 checks aggregate household usage and publication headroom against 20; the
 three-operator and 24-hour limits remain unchanged. See
 [AgentCore quotas](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/bedrock-agentcore-limits.html).
+
+### 2026-10-17 — Generated Policy schema includes non-tool action contexts
+
+- **Tool / URL:** AgentCore Policy action scope;
+  https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/policy-scope.html.
+- **Severity:** Major.
+- **What happened:** The first real item 37 publication rejected the generic
+  temporal statement, although its `when` expression enumerated only Hirz tools.
+  The service also validated its unrestricted action head against built-in actions
+  absent from our local tool schema. The returned `CREATE_FAILED` reasons included
+  ``unable to guarantee safety of access to optional attribute `input` in context for AgentCore::Action::"InvokeLLM"``
+  and ``attribute `input` in context for AgentCore::Action::"Http" not found``.
+  This exposed a Hirz compiler scope assumption, not a bypassable semantic finding.
+- **Correction under verification:** Enumerate the same existing TTL-group actions
+  in the documented `action in [...]` policy head, retaining all household,
+  action/class, hash, session and TTL conditions. Native validation with additional
+  built-in action schemas passes; AWS reacceptance is still owed. The publisher
+  refused activation, restored the empty committed inventory, and teardown ran.
+- **Feature request:** Include the applicable generated action/context schemas,
+  and an action-scope suggestion, alongside these temporal validation errors.

@@ -303,12 +303,12 @@ forbid (
 when { context.input.household == "quinn-home" };
 ```
 
-`ask` (temporal: an approval response must precede the action within the TTL, bound to the same action hash). The temporal permit is **generic**: it does not name the action class. One is emitted per distinct `approval_ttl_minutes` value in the constitution (usually one or two), not one per `ask` class, so the engine's quota of 20 temporal policies is never approached:
+`ask` (temporal: an approval response must precede the action within the TTL, bound to the same action hash). One temporal permit covers the explicit list of eligible actions sharing an `approval_ttl_minutes` value. It matches the current class to the approval's class. The shared engine's 20-policy limit includes all households and publication headroom. An illustrative two-action group is:
 
 ```cedar
 permit (
   principal,
-  action,
+  action in [AgentCore::Action::"HirzActions___security_door_unlock", AgentCore::Action::"HirzActions___security_camera_disable"],
   resource == AgentCore::Gateway::"arn:aws:bedrock-agentcore:us-east-1:123456789012:gateway/hirz"
 )
 when temporal {
@@ -336,12 +336,17 @@ no AWS conformance is claimed locally. Compilation checks the [temporal quotas](
 20 policies, three operators per policy, and a 24-hour maximum window. No matching
 field was dropped in favor of a future signer.
 
-Four properties this permit must have, each with a test (`ARCHITECTURE.md` §12):
+Item 37 evaluates supplied facts against an inert target and claims no device
+execution. Hash recomputation, signing and Link's single-use enforcement below
+describe the intended execution boundary in item 38. Rejected-approval history
+is verified natively; its AWS behavior remains a live conformance gate.
+
+Four properties of the intended execution boundary (`ARCHITECTURE.md` §12):
 
 1. **An approval for one class cannot authorize another.** The approval event and the action must name the same class, and the hash covers the class.
 2. **A short approval cannot ride a longer permit.** Cedar permits are alternatives, so the thirty-minute permit would happily match an approval given under a ten-minute rule. Each temporal permit matches only approvals whose `ttl_minutes` equals its own, and the per-class stateless permit on `approve_action` pins the class to its TTL group.
 3. **The hash is recomputed, never trusted.** `action_hash` arrives from the worker. The `hirz-actions` Lambda recomputes it from the class, target, params, and scheduled time on both calls (`approve_action` and the action) and refuses on a mismatch, so a worker bug cannot present an unlock under the hash of an approved lights action.
-4. **One approval, one operation.** "Approved within thirty minutes" is not "approved once", and a temporal policy cannot count. Consumption is enforced where the action lands: Hirz Link refuses a `content_hash` it has already executed (`ARCHITECTURE.md` §5.17), and the in-process pipeline marks the approval redeemed.
+4. **One approval, one operation.** "Approved within thirty minutes" is not "approved once", and this generated temporal rule does not consume approvals. Consumption is enforced where the action lands: Hirz Link refuses a `content_hash` it has already executed (`ARCHITECTURE.md` §5.17), and the in-process pipeline marks the approval redeemed.
 
 What this permit does **not** establish is that a person approved. The `approve_action` call reaches the Gateway through the worker, so a fully compromised worker could claim an approval that never happened. `ROADMAP.md` item 38d closes that for `security.*` classes by verifying the member's passkey assertion, over the action hash, inside the Lambda ([ADR-010](./adr/ADR-010-passkey-verified-approvals.md)); until it is built, `THREAT_MODEL.md` says No.
 
@@ -353,7 +358,7 @@ Compilation facts the engine relies on:
 - **What the boundary is independent about.** The Gateway sees only the request: the action, the resource, and the input fields. Action class, parameter bounds (`target_f` within 66–76), the action hash (recomputed by the Lambda), and the order of approval and action are therefore evaluated independently of Hirz. The requester's role is not: it is an input Hirz supplies, like the context facts. Occupancy, sleeping, quiet-hours, and other context facts are not in the request; the Executor passes them as input fields (`zone_sleeping`, `is_quiet_hours`) computed from the same context snapshot the pipeline used, and the snapshot hash is included in the call so the audit row can prove both engines saw the same facts. The boundary catches a compiler bug, a pipeline bug, or a bypass path; it does not catch a wrong snapshot. `THREAT_MODEL.md` says the same.
 - **A permit is what gets a command signed.** For devices in the home, the Gateway target does not call the device. On a permit, the `hirz-actions` Lambda signs the command with a KMS key only its role can use, and the home-side agent (Hirz Link) executes only commands whose signature verifies ([ADR-009](./adr/ADR-009-signed-commands-home-agent.md)). Hirz's own processes hold no credential that can act on a device, so a path that skips the boundary has nothing to act with. The command is addressed to one home (`home_id`), executed at most once, and for a bounded operation carries its own ending, which the home runs from its own clock (`ARCHITECTURE.md` §5.6).
 - Temporal rules require the policy session header on every Gateway call; the Executor uses the plan session id. Quotas (20 temporal policies per engine, 3 operators per policy, 24-hour window) are still checked at compile time and fail activation with the count if exceeded.
-- **One evaluator locally, and it is Dogwood's.** Every Cedar policy is a valid Dogwood policy, so the identical policy text is evaluated locally by the open-source Dogwood CLI (`validate`, `replay`, `lower`, `check-parse`) behind a thin subprocess wrapper, fed the compiled set plus the session's event trace. Hirz does not reimplement temporal semantics. `tests/cedar_conformance` currently compares the pure evaluator and native Dogwood; AgentCore comparison over scenario actions remains item 37. Locally the evaluator runs in the same container as the pipeline, so it is a **second evaluator in the same trust domain**, not a boundary outside Hirz; the audit row's `boundary.engine` reads `dogwood-local` and the Cedar view says so. Only AWS mode has the out-of-process boundary. If the CLI turns out not to be drivable this way (`ROADMAP.md` item 7 verifies it early), the fallback is `cedarpy` for stateless rules plus an in-process record for the single generic temporal rule, and the docs are updated to say so.
+- **One evaluator locally, and it is Dogwood's.** Every Cedar policy is a valid Dogwood policy, so the same compiled rules, with the documented event-schema translation, are evaluated locally by the open-source Dogwood CLI (`validate`, `replay`, `lower`, `check-parse`) behind a thin subprocess wrapper, fed the compiled set plus the session's event trace. Hirz does not reimplement temporal semantics. `tests/cedar_conformance` currently compares the pure evaluator and native Dogwood; AgentCore comparison over scenario actions remains item 37. Locally the evaluator runs in the same container as the pipeline, so it is a **second evaluator in the same trust domain**, not a boundary outside Hirz; the audit row's `boundary.engine` reads `dogwood-local` and the Cedar view says so. Only AWS mode has the out-of-process boundary. The pinned native CLI/helper are required; there is no Python temporal fallback.
 - Changing temporal policies invalidates open policy sessions on the engine (HTTP 409 on reuse). Activation therefore starts a new plan session and re-issues pending approvals under it.
 
 ---
