@@ -14470,3 +14470,21 @@ form validates against the original schema, the targeted regression passed in
 allow/deny behavior. Ruff and strict mypy pass for the changed compiler. The
 constitution spec now labels hash recomputation/signing/Link as item 38 and
 removes its obsolete Python-temporal-fallback suggestion.
+
+### Retry cost reserve and earlier operational cutoff — 2026-10-17
+
+Rechecking [NAT pricing](https://aws.amazon.com/vpc/pricing/) confirmed that partial
+NAT hours round up. The original 24-hour estimate did not explicitly reserve that
+per-retry increment. The private `retry-cost-amendment.json` now projects
+**$7.885134535833333333333333333** for at most 12 hours of aggregate sequential
+resource occupancy, retaining every original variable/call/byte allowance and
+adding $1 for rounding/minimums across at most ten application attempts. This is
+a projection, not a statement of billed charges. The user-approved $10/24-hour
+maximum and original start remain unchanged; the stricter financial clearance
+expires **2026-10-18T11:32:52.907915Z**, including cleanup. `within_window` reserves
+the final hour of whichever deadline is earlier, so work stops by
+**2026-10-18T10:32:52.907915Z**. The focused budget/cleanup tests passed 20 checks in
+2.53 seconds, including that a later clearance cannot extend the original limit.
+Current [Cognito pricing](https://aws.amazon.com/cognito/pricing/) charges successful
+M2M token responses, with no app-client count fee; the existing aggregate variable
+reserve remains. No new spending allowance or infrastructure size was requested.

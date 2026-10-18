@@ -2242,6 +2242,11 @@ The runner tears down in `finally`, even when acceptance fails. Cleanup removes
 runtime-created policies before deleting the engine, then verifies the existing
 application/toolkit cleanup contract. If the process dies before cleanup, run the
 existing `scripts/smoke_aws.py cleanup` command using the same private artifacts.
+A private `clearance.json` may set an earlier financial expiry than the approved
+maximum. The runner reserves its final hour for cleanup and cannot use that file
+to extend the original fixture window. Retry estimates include rounded partial
+resource hours; all call and byte allowances remain aggregate across failures.
+
 Retain `tracing-before.json` with the prior destination, indexing rules and empty
 `aws/spans` inventory. X-Ray creates that reserved log group; CloudFormation must
 not create it explicitly. The runner sets seven-day retention and cleanup restores

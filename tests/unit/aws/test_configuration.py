@@ -8,15 +8,31 @@ from hirz.aws.fixture import load
 from hirz.aws.lambdas.actions import handler
 
 
-def test_acceptance_reserves_cleanup_time_without_resetting_start():
+def test_acceptance_reserves_cleanup_time_without_resetting_start(tmp_path):
+    import json
+
     from scripts.smoke_aws import Acceptance
 
     acceptance = object.__new__(Acceptance)
+    acceptance.folder = tmp_path
     acceptance.stack = {"CreationTime": datetime.now(UTC)}
     acceptance.parameters = {
         "FixtureStart": (datetime.now(UTC) - timedelta(hours=22)).isoformat()
     }
     acceptance.within_window()
+    clearance = tmp_path / "clearance.json"
+    clearance.write_text(
+        json.dumps(
+            {"expires_at": (datetime.now(UTC) + timedelta(minutes=30)).isoformat()}
+        )
+    )
+    with pytest.raises(ValueError, match="work window ended"):
+        acceptance.within_window()
+    clearance.write_text(
+        json.dumps(
+            {"expires_at": (datetime.now(UTC) + timedelta(hours=100)).isoformat()}
+        )
+    )
     acceptance.parameters["FixtureStart"] = (
         datetime.now(UTC) - timedelta(hours=23)
     ).isoformat()

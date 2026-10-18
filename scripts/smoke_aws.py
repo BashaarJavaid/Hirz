@@ -126,8 +126,17 @@ class Acceptance:
             self.stack["CreationTime"],
             datetime.fromisoformat(self.parameters["FixtureStart"]),
         )
-        # Reserve the final hour of the approved lifetime for export and deletion.
-        if datetime.now(UTC) >= start + timedelta(hours=23):
+        end = start + timedelta(hours=24)
+        clearance_path = self.folder / "clearance.json"
+        if clearance_path.exists():
+            end = min(
+                end,
+                datetime.fromisoformat(
+                    json.loads(clearance_path.read_text())["expires_at"]
+                ),
+            )
+        # Reserve the final hour of the approved or financially cleared lifetime.
+        if datetime.now(UTC) >= end - timedelta(hours=1):
             raise ValueError(
                 "Acceptance work window ended; export and destroy immediately"
             )
