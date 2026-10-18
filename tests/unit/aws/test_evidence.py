@@ -1,16 +1,41 @@
 import asyncio
 import threading
 from unittest.mock import AsyncMock, Mock
+from uuid import uuid4
 
 import pytest
 from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives.asymmetric import ec, rsa
 
 from hirz.aws.cleanup import destroy, empty_bucket
 from hirz.aws.client import call
 from hirz.aws.evidence import seal, unseal
 from scripts.smoke_aws import Acceptance, clearance
+
+
+def test_cleanup_can_export_a_household_with_no_runtime_mutations(tmp_path):
+    from hirz.audit import export_document
+
+    key = ec.generate_private_key(ec.SECP256R1())
+    sdk = Mock()
+    sdk.get_secret_value.return_value = {
+        "SecretString": key.private_bytes(
+            serialization.Encoding.PEM,
+            serialization.PrivateFormat.PKCS8,
+            serialization.NoEncryption(),
+        ).decode()
+    }
+    acceptance = Acceptance.__new__(Acceptance)
+    acceptance.folder = tmp_path
+    acceptance.outputs = {"AuditSecret": "test"}
+    acceptance.task = Mock(
+        return_value={"audit": export_document(uuid4(), key.public_key(), [])}
+    )
+    acceptance.client = Mock(return_value=sdk)
+    result = acceptance.export()
+    assert result["status"] == "empty" and result["checked_count"] == 0
+    assert len(list(tmp_path.glob("*.verification.json"))) == 1
 
 
 def test_evidence_is_authenticated_and_recipient_bound():

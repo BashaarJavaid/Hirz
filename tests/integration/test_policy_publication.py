@@ -1,12 +1,15 @@
 """Publication uses real Pipeline grants and disposable PostgreSQL transactions."""
 
 import asyncio
-from unittest.mock import AsyncMock
+import json
+from contextlib import asynccontextmanager
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 import sqlalchemy as sa
 from test_companion_auth_database import enroll
-from test_database import connect
+from test_database import connect, migrate
 from test_database import scratch_database as scratch_database
 from test_pipeline_database import setup
 
@@ -20,6 +23,52 @@ from tests.unit.test_companion_auth import Authenticator
 from tests.unit.test_pipeline import POLICY, ident
 
 pytestmark = pytest.mark.integration
+
+
+def test_acceptance_phone_publication_failure_exports_audit(
+    scratch_database, tmp_path, monkeypatch
+):
+    from scripts import smoke_policy
+
+    @asynccontextmanager
+    async def database(_):
+        async with connect(scratch_database) as connection:
+            await migrate(connection)
+            yield connection
+
+    publisher = AsyncMock()
+
+    async def step(desired, *, recovering=False):
+        if not recovering:
+            raise Findings({"test_fixture": "publication refused"})
+        assert desired == {}
+        return True
+
+    publisher.step.side_effect = step
+    sdk = Mock()
+    sdk.get_secret_value.return_value = {"SecretString": "test-only"}
+    acceptance = SimpleNamespace(
+        folder=tmp_path,
+        outputs={
+            "PolicyEngine": "engine",
+            "GatewayArn": "arn:aws:bedrock-agentcore:us-east-1:123456789012:gateway/test",
+            "Gateway": "https://example.test/mcp",
+            "GatewayTarget": "target",
+            "MachineClient": "client",
+            "MachineSecret": "secret",
+        },
+        client=lambda _: sdk,
+        within_window=lambda: None,
+    )
+    monkeypatch.setattr(smoke_policy, "disposable", database)
+    monkeypatch.setattr(smoke_policy, "Publisher", lambda *a, **kw: publisher)
+    with pytest.raises(ValueError, match="AWS rejected the production compiler"):
+        asyncio.run(smoke_policy.live(acceptance))
+    job = json.loads((tmp_path / "item37-home-publication.json").read_text())
+    assert job["status"] == "failed"
+    assert job["findings"] == [{"test_fixture": "publication refused"}]
+    assert len(list(tmp_path.glob("*-audit.json"))) == 2
+    assert publisher.step.call_count == 2
 
 
 @pytest.mark.parametrize(

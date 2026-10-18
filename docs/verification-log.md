@@ -14377,3 +14377,30 @@ the worker update includes the tested association of synchronous AWS validation
 errors with the attempted policy name/definition while preserving the raw response.
 The isolated faulty-compiler gate requires an actual contiguous always-allow
 finding, rather than unrelated occurrences of the words “always” and “allow”.
+
+### First harness attempt and regression fixes — 2026-10-17
+
+The worker update completed in 258.59 seconds with image
+`sha256:d89f41e484001e2dab46d91dc9ffac571d7b9a17e2007ae0578081d5ef65c36b`.
+ECS reported one desired/running worker, zero pending tasks, and the authenticated
+tick succeeded. The live IAM probe verified the signer positive control and
+worker denials for `kms:Sign`, backing-secret reads and Identity API-key reads.
+The current service-free AWS tests passed 36 checks in 7.60 seconds.
+
+The first `smoke_policy live` attempt failed before publication because its
+pending-response assertion omitted the companion API's existing `ok: true` field.
+Its `finally` audit export also incorrectly wrapped `verify_database` in another
+transaction. Both harness defects were corrected, with a disposable PostgreSQL
+integration test using real companion enrollment/review/passkey activation,
+mocked publisher refusal, recovery and independently verified exports (one test
+passed in 7.45 seconds). No AWS policy or Gateway call was made by this attempt.
+The retained disposable database's five home audit rows were exported and
+independently verified separately; the parents chain is explicitly empty.
+
+Automatic teardown proceeded. Its remote hosted-demo export contained an empty
+chain because this acceptance had performed no hosted-demo mutations. The
+existing item 36 runner incorrectly treated the verifier's `empty` result as an
+export failure; it now retains that result accurately, with a real-key empty
+export regression test. It does not label an empty chain as signed activity.
+The retry retains the original acceptance start, credit clearance and aggregate
+Gateway-call allowance; no new budget or lifetime is assumed.

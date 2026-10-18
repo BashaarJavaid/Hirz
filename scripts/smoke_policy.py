@@ -257,7 +257,7 @@ async def activate(http: httpx.AsyncClient, key: Authenticator, candidate: str) 
             "candidate_hash": draft["candidate_hash"],
         },
     )
-    if answer != {"status": "pending"}:
+    if answer != {"ok": True, "status": "pending"}:
         raise ValueError("AWS activation must return pending")
     return str(draft["id"])
 
@@ -799,13 +799,12 @@ async def live(acceptance: Acceptance) -> None:
             for http, _ in phones:
                 await http.aclose()
             for seed in seeds:
-                async with connection.begin():
-                    _, rows = await verify_database(
-                        connection,
-                        seed.household_id,
-                        writer.key.public_key(),
-                        collect=True,
-                    )
+                _, rows = await verify_database(
+                    connection,
+                    seed.household_id,
+                    writer.key.public_key(),
+                    collect=True,
+                )
                 path = acceptance.folder / (seed.slug + "-audit.json")
                 write_export(
                     path,

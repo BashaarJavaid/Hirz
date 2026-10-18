@@ -278,7 +278,7 @@ class Acceptance:
         )["SecretString"]
         key = signing_key({"AUDIT_SIGNING_KEY": pem}).public_key()
         verification = verify_file(path, UUID(result["audit"]["household_id"]), key=key)
-        if verification["status"] != "valid":
+        if verification["status"] not in {"valid", "empty"}:
             raise ValueError("Independent signed audit verification failed")
         write_export(path.with_suffix(".verification.json"), verification)
         return verification
