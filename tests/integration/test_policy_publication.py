@@ -111,6 +111,10 @@ def test_queued_activation_and_recovery(scratch_database, failure):
             )
             async with p.repo.write(p.clock):
                 draft = await policy.draft(p, principal, dump(POLICY))
+                assert draft["review"]["engine"] == "agentcore-policy"
+                assert p.policy_route.gateway_arn in draft["review"]["cedar"]
+                assert "eventResource: resource" in draft["review"]["cedar"]
+                assert "callerResource:" not in draft["review"]["cedar"]
                 assert (
                     await policy.activate(
                         p,

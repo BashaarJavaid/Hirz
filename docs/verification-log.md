@@ -14554,3 +14554,15 @@ passed **16 tests in 2.28 seconds**, and disposable publication/recovery integra
 passed **11 tests in 30.41 seconds**. Strict mypy passed for the publication module.
 The unchanged AWS retry will include this audit-only correction; compiled policy
 statements and strict validation settings remain unchanged.
+
+### Managed review displays the deployed dialect — 2026-10-17
+
+The companion's managed review had labeled its engine as AgentCore while showing
+native Cedar compiled against the local resource. It now uses the same compiler's
+AWS representation and configured Gateway ARN for that review. Native validation
+still runs, the passkey still binds the reviewed candidate, and AWS analysis stays
+pending until publication succeeds. Local reviews retain the native dialect.
+Disposable queued-publication and local-companion integration passed **16 tests
+in 44.35 seconds**, including explicit assertions for both displayed dialects.
+Ruff and strict mypy passed. This display correction does not change the compiler's
+published statements or the unchanged retry's validation settings.

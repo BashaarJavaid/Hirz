@@ -76,6 +76,10 @@ def test_running_mcp_proposal_and_policy_reload(scratch_database):
                                 )
                             else:
                                 draft = await policy.draft(p, phone, dump(candidate))
+                            assert draft["review"]["engine"] == "dogwood-local"
+                            assert (
+                                "callerResource: resource" in draft["review"]["cedar"]
+                            )
                             await policy.review_complete(
                                 p, phone, draft["id"], owner["digest"]
                             )

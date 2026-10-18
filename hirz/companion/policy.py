@@ -9,6 +9,7 @@ import sqlalchemy as sa
 from hirz import db
 from hirz.companion.auth import digest
 from hirz.companion.governance import constitution
+from hirz.constitution.compiler import compile_policy
 from hirz.constitution.preview import preview
 from hirz.constitution.schema import Constitution, dump, loads
 from hirz.graph.models import Household
@@ -109,7 +110,11 @@ async def draft(
     )
     review |= {
         "changed_classes": sorted(changed),
-        "cedar": bundle.compiled.policy,
+        "cedar": compile_policy(
+            new, p.policy_route.gateway_arn, engine="agentcore-policy"
+        ).policy
+        if p.policy_route
+        else bundle.compiled.policy,
         "analysis": "pending AWS analysis"
         if p.policy_route
         else "not analyzed: local mode",
