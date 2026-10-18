@@ -14540,3 +14540,17 @@ the committed empty inventory. Independent signed-export verification passed for
 reserved. The faulty-compiler gate, conformance corpus and ENFORCE promotion were
 not reached. Automatic teardown is in progress; one unchanged retry may run only
 after verified cleanup, with the original start and earlier financial cutoff.
+
+### Shared-inventory audit isolation — 2026-10-17
+
+Review found that a publication transition copied the shared engine inventory
+into its initiating household's audit payload. Because companion audit exports
+are household-readable, this could disclose another household's compiled rules.
+The transition now persists the full inventory only in private worker publication
+state and audits its hash alongside the existing candidate/decision association.
+The unit regression proves the durable reconciliation state is retained while
+foreign rule text is absent from the exported payload. The focused policy suite
+passed **16 tests in 2.28 seconds**, and disposable publication/recovery integration
+passed **11 tests in 30.41 seconds**. Strict mypy passed for the publication module.
+The unchanged AWS retry will include this audit-only correction; compiled policy
+statements and strict validation settings remain unchanged.

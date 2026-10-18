@@ -265,3 +265,39 @@ def test_enforcement_target_evidence_includes_approval_calls(
         result = json.loads((tmp_path / "target-enforcement.json").read_text())
         assert result["allowed_requests_seen"] == ["action", "approval"]
         assert result["denied_requests_absent"] == ["denied-approval"]
+
+
+def test_publication_audit_does_not_disclose_other_household_rules(monkeypatch):
+    from hirz.aws.policy import fingerprint
+    from hirz.aws.publication import transition
+    from tests.unit.test_pipeline import AT, HOME, PRINCIPAL
+
+    decision = SimpleNamespace(audit_id=7)
+    monkeypatch.setattr(
+        "hirz.aws.publication.constitution", AsyncMock(return_value=decision)
+    )
+    p = SimpleNamespace(
+        connection=AsyncMock(),
+        audit=SimpleNamespace(append=AsyncMock()),
+        household_id=HOME,
+        clock=lambda: AT,
+        scope=lambda _: True,
+    )
+    job = {
+        "id": "draft",
+        "candidate_hash": "candidate",
+        "decision_seq": 3,
+        "principal": PRINCIPAL.model_dump(mode="json"),
+    }
+    desired = {
+        "own_policy": "own household rule",
+        "other_policy": "private foreign rule",
+    }
+    asyncio.run(transition(p, job, "publishing", desired=desired))
+    persisted = p.connection.execute.call_args.args[0].compile().params
+    assert persisted["desired"] == desired
+    payload = p.audit.append.call_args.args[4]
+    assert payload["desired_inventory_hash"] == fingerprint(desired)
+    assert "desired" not in payload
+    assert "private foreign rule" not in json.dumps(payload)
+    assert payload["candidate_hash"] == job["candidate_hash"]

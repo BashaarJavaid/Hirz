@@ -9,7 +9,7 @@ from sqlalchemy.dialects.postgresql import insert
 
 from hirz import db
 from hirz.audit import Verification
-from hirz.aws.policy import Findings, Publisher, inventory, quota
+from hirz.aws.policy import Findings, Publisher, fingerprint, inventory, quota
 from hirz.companion import policy
 from hirz.companion.governance import constitution
 from hirz.constitution.compiler import compile_policy
@@ -108,6 +108,9 @@ async def transition(
         )
         .values(status=status, **values)
     )
+    evidence = dict(values)
+    if "desired" in evidence:
+        evidence["desired_inventory_hash"] = fingerprint(evidence.pop("desired"))
     await p.audit.append(
         p.connection,
         p.household_id,
@@ -119,7 +122,7 @@ async def transition(
             "initiating_decision": job["decision_seq"],
             "status": status,
             "decision_seq": decision.audit_id,
-            **values,
+            **evidence,
         },
     )
     return decision

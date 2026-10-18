@@ -605,7 +605,9 @@ tool response nor an AWS permit means a device action executed.
 For explicitly managed households, the owner's candidate-bound passkey queues a
 publication. The companion reports pending status until the worker verifies the
 exact installed inventory. Each publication transition has a Pipeline decision
-and audit event. Owner authority, credential validity, candidate integrity, base
+and audit event. Household audit exports record the shared inventory's hash;
+the full inventory stays in worker publication state to avoid exposing another
+household's rules. Owner authority, credential validity, candidate integrity, base
 version and pending-approval blockers are checked before publication and commit.
 The engine is durably blocked before remote changes. One engine-wide lock
 serializes bounded publication ticks; every create/update requests
