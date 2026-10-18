@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-10-18: Bound full policy acceptance publication by elapsed time while preserving the original global cutoff; the previous polling count expired during successful AWS analysis ([evidence](docs/verification-log.md#full-inventory-exceeded-the-acceptance-polling-bound--2026-10-18)).
+
 - 2026-10-18: Require the faulty-compiler rejection proof to name its failed policy and recognize AWS’s documented “Overly Permissive” category; strict publisher validation is unchanged.
 
 - 2026-10-18: Verify the minimal ordered AWS publication, signed hard-deny exception and restoration; retain the full live acceptance gate and narrow the documented analysis claim ([evidence](docs/verification-log.md#minimal-ordered-publication-and-hard-deny-exception-verified--2026-10-18)).

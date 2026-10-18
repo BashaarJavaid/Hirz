@@ -15332,3 +15332,36 @@ not evidence that the live faulty-compiler fixture has yet been rejected.
 The next full acceptance runs the exact committed source while CI finishes in
 parallel. Final ordinary CI and non-diagnostic latency gates remain mandatory
 before item closure; no running or superseded CI run is counted as a pass.
+
+### Full inventory exceeded the acceptance polling bound — 2026-10-18
+
+Attempt twelve deployed `3242435a8187dc71767310036b4d58e79fd0448d` with the
+unchanged approved compiler and validation rules. Ordinary
+[CI 39114628988](https://github.com/BashaarJavaid/Hirz/actions/runs/39114628988)
+passed: **1,688 service-free**, **261 PostgreSQL**, and **168 native conformance**
+tests; combined coverage was **89%** (17,942 statements, 1,936 missed).
+The required non-diagnostic
+[latency dispatch 39114628685](https://github.com/BashaarJavaid/Hirz/actions/runs/39114628685)
+also passed both scenarios: **54 cases and 5,400 measured calls each**, with worst
+case p95 **178.409 ms** and **190.396 ms**, respectively, below 250 ms. These gates
+apply to that exact revision; the subsequent runner correction requires new CI.
+
+The full passkey publication exhausted its **1,500 polling attempts** while AWS
+was still analyzing the home inventory. The last retained snapshot before cleanup
+contained **49 ACTIVE statements and one CREATING**, with no findings. The
+disposable journal remained `publishing`, engine `ready=false`, and **zero
+constitution activations**. There were **zero Gateway calls and device actions**;
+no conformance or enforcement result was earned. Independent CLI verification
+with the previously trusted public key passed **6,003/6,003 audit rows**, spanning
+09:40:50.561252 through 10:25:05.466419 UTC. The untouched parents export was empty.
+The disposable database is retained; development remains unchanged. Automatic
+cloud export and teardown started; their final inventory is recorded separately.
+
+The acceptance runner now bounds each publication by **two elapsed hours** rather
+than a poll count, while checking the original global work cutoff before every
+tick. No compiler, publisher validation, resource size or aggregate allowance
+changes. **37 focused tests pass**, including completion after 1,500 polls, all
+terminal outcomes, the elapsed limit and the global cutoff; strict mypy passes
+226 files. Private evidence is in `secrets/item37-hard-deny-full/`. A read-only AWS
+CloudWatch filter test also confirmed the existing trace filter matches both
+documented trace-ID representations; this is not a real Gateway trace result.
