@@ -14513,3 +14513,30 @@ The enforcement target-log gate now includes approval requests as well as action
 requests. Its regression requires rejection when a denied approval appears in
 the target log; the focused policy suite passed **15 tests in 2.52 seconds**.
 This strengthens acceptance evidence and does not claim live enforcement passed.
+
+### Full local regression and third live attempt — 2026-10-17
+
+The final disposable PostgreSQL regression run passed **257 tests, 1,665
+deselected, two existing warnings, in 1,133.66 seconds**. Appended combined Python
+coverage is **88%** (17,891 statements; 2,058 missed), and the explicit 80% check
+passed. Development migrations were not applied.
+
+The third application deployment created in 930.74 seconds (989.59 seconds total),
+bootstrapped its disposable database, and rolled out one worker. Its final image
+is `sha256:1a893089a1ae70deb778291b41b5109de8e2efde1a92e9f72d36a00a3dd4b38c`.
+The authenticated tick passed; an identical deployment reported no changes in
+5.37 seconds. The signer-role fixed-noncommand positive control passed and the
+worker was denied KMS signing, direct credential-secret reads, and AgentCore
+credential retrieval. Private artifacts are in `secrets/item37-acceptance-retry2`.
+
+Real queued activation submitted candidate
+`c95a6d8deeb1e08ff94fb1068c73f037c976cfec67002306613dc179c0bac36c`.
+AWS policy `h_554d8977a5e79b92_ttl_30-m53s12c93k` was created at
+2026-10-18 02:14:23.340221Z and changed to `CREATE_FAILED` at 02:19:45.773454Z,
+with `An internal error occurred during creation`. This is not a successful
+schema/semantic validation result. The publisher refused activation and restored
+the committed empty inventory. Independent signed-export verification passed for
+**813 home rows**; the parents chain remains empty. Zero Gateway calls were
+reserved. The faulty-compiler gate, conformance corpus and ENFORCE promotion were
+not reached. Automatic teardown is in progress; one unchanged retry may run only
+after verified cleanup, with the original start and earlier financial cutoff.

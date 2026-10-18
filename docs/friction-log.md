@@ -1094,3 +1094,23 @@ three-operator and 24-hour limits remain unchanged. See
   refused activation, restored the empty committed inventory, and teardown ran.
 - **Feature request:** Include the applicable generated action/context schemas,
   and an action-scope suggestion, alongside these temporal validation errors.
+
+### 2026-10-17 — Temporal policy creation returns an internal service error
+
+- **Tool / URL:** AgentCore Policy asynchronous creation and strict validation;
+  https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/policy-create-update-validation.html.
+- **Severity:** Blocker.
+- **What happened:** The corrected, explicitly action-scoped temporal statement
+  remained `CREATING` from 2026-10-18 02:14:23.340221Z until 02:19:45.773454Z,
+  then returned `CREATE_FAILED` with the sole reason
+  `An internal error occurred during creation`. No schema or semantic finding,
+  failing subexpression, or service diagnostic identifier was supplied in the
+  retained policy result. Native validation and conformance pass; AWS compatibility
+  remains unverified.
+- **Response:** The real activation publisher refused activation, restored and
+  verified the committed empty inventory, and retained the raw policy/candidate
+  association. The harness started teardown. One unchanged retry after verified
+  cleanup will distinguish a transient failure without relaxing validation.
+- **Feature request:** Return a diagnostic identifier and distinguish a retryable
+  service failure from an unsupported construct or analysis timeout in asynchronous
+  policy status reasons.
