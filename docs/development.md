@@ -2109,8 +2109,9 @@ secret is refused instead of replaced.
 Initialization refuses existing audit history or malformed keys. Seeding refuses
 an existing household rather than rewriting it. No development database is copied,
 no startup migration occurs, and no activation audit event is fabricated. The
-fixture includes one explicit synthetic home for cloud acceptance; all adapters
-are twin and the boundary remains `dogwood-local`. A first deployment has no
+item 36 fixture includes one explicit synthetic home with a `dogwood-local`
+boundary. Item 37 adds separately labeled managed home/parents copies; the hosted
+home remains local and all acceptance adapters remain twin. A first deployment has no
 worker until this bootstrap succeeds. If the task exceeds 512 MiB, stop and ask
 before increasing its allocation.
 
@@ -2118,8 +2119,10 @@ Repeat the final `cdk deploy` command identically, retain its output, and retain
 `cdk diff HirzItem36 --profile hirz --fail` plus the synthesized template hash.
 Idempotency requires an actual unchanged deployment result, not only equal local
 syntheses. Provisioned Runtime/Gateway/Identity/Memory do not connect later household
-integrations. The Runtime has only generic onboarding. The Gateway's no-input
-`boundary_unavailable` target always fails; its LOG_ONLY policy is not enforcement.
+integrations. The Runtime has only generic onboarding. Item 36 used the no-input
+`boundary_unavailable` target; item 37 replaces it with typed inert `HirzActions`
+tools. LOG_ONLY evaluation is not enforcement, and target success is never device
+execution.
 Cognito accepts S256 PKCE but does not require all authorization requests to use it.
 Native `hirz/...` scopes do not replace local `hirz:...` scopes.
 
@@ -2248,3 +2251,8 @@ publication is not an active constitution, and an inert permit is not device
 execution. Signing, Link, physical execution and independent boundary passkey
 verification remain their later roadmap items. Do not close item 37 until all
 live, CI, coverage and latency gates pass on the implementation revision.
+
+Item 37 Gateway calls reserve exclusive, fsynced `gateway-call-*.json` records
+before network access, including failed attempts. Keep those files across retries;
+removing them to reset the 5,000-call allowance is prohibited. The budget reserves
+one GB of Transaction Search spans separately from ordinary logs, with 0% indexing.

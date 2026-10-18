@@ -164,10 +164,10 @@ def test_cleanup_waits_for_owned_policies(monkeypatch):
         empty_policy_engine(sdk, "engine")
 
 
-def test_tracing_cleanup_refuses_preexisting_group(tmp_path):
+def test_tracing_cleanup_refuses_preexisting_group(tmp_path, monkeypatch):
     before = {
         "groups": [],
-        "destination": {"Destination": "XRay"},
+        "destination": {"Destination": "XRay", "Status": "ACTIVE"},
         "indexing": {
             "IndexingRules": [
                 {
@@ -198,8 +198,15 @@ def test_tracing_cleanup_refuses_preexisting_group(tmp_path):
         logGroupName="aws/spans", retentionInDays=7
     )
     logs.describe_log_groups.side_effect = [{"logGroups": [group]}, {"logGroups": []}]
-    xray.get_trace_segment_destination.return_value = before["destination"]
+    xray.get_trace_segment_destination.side_effect = [
+        {"Destination": "XRay", "Status": "PENDING"},
+        {"Destination": "XRay", "Status": "PENDING"},
+        before["destination"],
+    ]
+    pause = Mock()
+    monkeypatch.setattr("hirz.aws.cleanup.time.sleep", pause)
     xray.get_indexing_rules.return_value = before["indexing"]
     policy_tracing(acceptance, restore=True)
     logs.delete_log_group.assert_called_once_with(logGroupName="aws/spans")
     xray.update_trace_segment_destination.assert_not_called()
+    pause.assert_called_once_with(5)

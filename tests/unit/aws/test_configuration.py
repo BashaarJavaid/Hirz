@@ -24,6 +24,19 @@ def test_acceptance_reserves_cleanup_time_without_resetting_start():
         acceptance.within_window()
 
 
+def test_gateway_call_allowance_retains_failures_and_refuses_overrun(
+    tmp_path, monkeypatch
+):
+    from scripts.smoke_policy import reserve_gateway_call
+
+    reserve_gateway_call(tmp_path)
+    reserve_gateway_call(tmp_path)
+    assert len(list(tmp_path.glob("gateway-call-*.json"))) == 2
+    monkeypatch.setattr(type(tmp_path), "glob", lambda *_: range(5000))
+    with pytest.raises(ValueError, match="allowance exhausted"):
+        reserve_gateway_call(tmp_path)
+
+
 def test_inert_gateway_rejects_arbitrary_invocations():
     with pytest.raises(ValueError, match="Gateway invocation context required"):
         handler({"action": "unlock", "bytes": "sign this"}, None)

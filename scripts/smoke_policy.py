@@ -3,6 +3,7 @@
 import argparse
 import asyncio
 import json
+import os
 import time
 from dataclasses import asdict, replace
 from pathlib import Path
@@ -20,7 +21,7 @@ from hirz.audit import export_document, verify_database, verify_file, write_expo
 from hirz.aws.cleanup import destroy, policy_tracing
 from hirz.aws.client import call
 from hirz.aws.fixture import policy_routes, policy_seeds
-from hirz.aws.gateway import Gateway, SessionConflict
+from hirz.aws.gateway import Gateway, SessionConflict, Verdict
 from hirz.aws.policy import Publisher, fingerprint, inventory, wire_json
 from hirz.aws.publication import advance
 from hirz.aws.routing import Route
@@ -50,6 +51,32 @@ from hirz.pipeline.service import Pipeline, PolicyBundle
 from hirz.twin.authenticator import CONFIG, Authenticator
 from hirz.twin.disposable import disposable
 from scripts.smoke_aws import Acceptance, clearance
+
+
+class AcceptanceGateway(Gateway):
+    acceptance: Acceptance
+
+    async def invoke(
+        self, name: str, inputs: dict[str, Any], session_id: UUID
+    ) -> Verdict:
+        self.acceptance.within_window()
+        reserve_gateway_call(self.acceptance.folder)
+        return await super().invoke(name, inputs, session_id)
+
+
+def reserve_gateway_call(folder: Path) -> None:
+    count = len(list(folder.glob("gateway-call-*.json"))) + 1
+    if count > 5000:
+        raise ValueError("Acceptance Gateway allowance exhausted; tear down")
+    path = folder / f"gateway-call-{count:04d}.json"
+    write_export(path, {"reserved_call": count, "failures_count": True})
+    with path.open("rb") as handle:
+        os.fsync(handle.fileno())
+    descriptor = os.open(folder, os.O_RDONLY)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
 
 
 def corpus(
@@ -646,13 +673,14 @@ async def live(acceptance: Acceptance) -> None:
         "get_secret_value",
         SecretId=acceptance.outputs["MachineSecret"],
     )
-    gateway = Gateway(
+    gateway = AcceptanceGateway(
         route,
         "https://hirz-item36-661550216013.auth.us-east-1.amazoncognito.com/oauth2/token",
         acceptance.outputs["MachineClient"],
         secret["SecretString"],
         acceptance.client("logs"),
     )
+    gateway.acceptance = acceptance
     writer = AuditWriter(signing_key(read_env(Path(".env"))))
     seeds = policy_seeds()
     desired = inventory(

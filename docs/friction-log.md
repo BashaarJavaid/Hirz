@@ -1061,3 +1061,16 @@ application-signals:StartDiscovery action` (request
 `aa17bbfa-89d7-4180-b927-0edba49e85f9`). The IAM change remains subject to the
 requested approval. The temporary probe policy was removed; no policy-validation
 finding was suppressed.
+
+Resolution of the IAM diagnostic: the direct probe ran under HirzDeploy; actual
+CloudFormation provisioning uses the existing dedicated execution role, which
+already had the needed authority. No additional HirzDeploy grants were needed
+or applied. Removed the proposed expansion and retried the original deployment
+with both documented log-group resources in the X-Ray resource policy. The
+second failed stack was verified deleted before retrying.
+
+Quota correction for the historical item 7 temporal note: the current documented
+engine limit is **20** temporal policies, not the previously recorded 25. Item 37
+checks aggregate household usage and publication headroom against 20; the
+three-operator and 24-hour limits remain unchanged. See
+[AgentCore quotas](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/bedrock-agentcore-limits.html).

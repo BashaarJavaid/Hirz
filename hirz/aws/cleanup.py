@@ -32,7 +32,12 @@ def policy_tracing(acceptance: Any, *, restore: bool = False) -> None:
             xray.update_indexing_rule(Name=rule["Name"], Rule=rule["Rule"])
         if group:
             logs.delete_log_group(logGroupName="aws/spans")
-        if xray.get_trace_segment_destination()["Destination"] != "XRay":
+        for _ in range(60):
+            state = xray.get_trace_segment_destination()
+            if state["Destination"] == "XRay" and state["Status"] == "ACTIVE":
+                break
+            time.sleep(5)
+        else:
             raise ValueError("Prior tracing destination was not restored")
         expected = {r["Name"]: r["Rule"] for r in before["indexing"]["IndexingRules"]}
         actual = {

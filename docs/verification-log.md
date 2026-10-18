@@ -14339,3 +14339,25 @@ its exact creation timestamp matched and it was deleted. The next template owns
 that ordinary log group with seven-day retention and deletion, while X-Ray still
 owns creation of reserved `aws/spans`. The second failed Memory became ACTIVE
 and deletion of its exact stack was submitted. Final cleanup remains to be verified.
+
+IAM clarification and safer resolution: read-only inspection confirmed the
+already approved dedicated toolkit's CloudFormation execution role has its
+existing `AdministratorAccess` attachment; it does not use the restricted
+HirzDeploy policy for resource provisioning. The direct diagnostic denial did
+not establish a need to expand HirzDeploy. The proposed Application Signals,
+CloudTrail and service-linked-role additions were removed without being applied,
+and the permission question was withdrawn. The second failed stack's deletion
+was verified by `DescribeStacks` returning `does not exist`. The corrected
+application deployment was retried through the original CloudFormation path,
+with the same budget/start and no access-stack update.
+
+The acceptance harness now reserves each Gateway call in an exclusive, fsynced
+private artifact before network access, retaining failed attempts across retries
+and refusing call 5,001. The current corpus derives 4,700 calls across both modes,
+with ten reserved auxiliary calls and 290 remaining under the accepted ceiling.
+The focused configuration tests passed nine checks, including that call ceiling
+and the 23-hour work cutoff. No Gateway call has yet consumed this allowance.
+
+Historical quota correction: item 7's recorded 25-policy temporal limit was
+incorrect for the current service. Item 37 uses 20 per engine, including aggregate
+household usage and publication headroom; ADR-003 records the amendment.

@@ -48,7 +48,6 @@ Resources:
                   - xray:UpdateTraceSegmentDestination
                   - xray:GetIndexingRules
                   - xray:UpdateIndexingRule
-                  - application-signals:StartDiscovery
                   - ssm:*
                 Resource: '*'
                 Condition: {StringEquals: {aws:RequestedRegion: us-east-1}}
@@ -65,9 +64,6 @@ Resources:
                   - arn:aws:iam::661550216013:role/HirzItem36-*
                   - arn:aws:iam::661550216013:role/hirz-actions
               - Effect: Allow
-                Action: cloudtrail:CreateServiceLinkedChannel
-                Resource: arn:aws:cloudtrail:us-east-1:661550216013:channel/aws-service-channel/application-signals/*
-              - Effect: Allow
                 Action: iam:CreateServiceLinkedRole
                 Resource: '*'
                 Condition:
@@ -79,7 +75,6 @@ Resources:
                       - cloudfront.amazonaws.com
                       - bedrock-agentcore.amazonaws.com
                       - identity-network.bedrock-agentcore.amazonaws.com
-                      - application-signals.cloudwatch.amazonaws.com
 Outputs:
   RoleArn:
     Value: !GetAtt HirzDeploy.Arn
