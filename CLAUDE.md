@@ -139,14 +139,13 @@ Item 32 adds `HIRZ_LLM=off uv run --locked python -m scripts.smoke_protect --art
 ## Current phase
 
 Item 36 is complete ([evidence](docs/verification-log.md#item-36-closure--2026-10-17)).
-Item 37's integration is implemented; AWS temporal list scopes still fail creation
-([evidence](docs/verification-log.md#item-37)). Both conditional controls failed;
-the compiler is unchanged and teardown is verified. A target-group repair is
-conditionally approved after a strict AWS probe. Ordinary CI and both latency
-gates passed; live conformance,
-faulty-compiler refusal and ENFORCE remain owed. Item 31 owes email/push; item 28
-owes real Web Push (#7). Ring remains twin; Link is item 38a. Development stays on
-0005; migrations are manual.
+Item 37 is implemented but blocked by AWS policy compatibility
+([evidence](docs/verification-log.md#item-37)); the target-group probe also failed.
+The compiler is unchanged; teardown is verified. Ordinary CI and both latency
+gates passed. A reviewed compatibility fix, live conformance, faulty-compiler
+refusal and ENFORCE remain owed. Item 31 owes email/push; item 28 owes real
+Web Push (#7). Ring remains twin; Link is item 38a. Development stays on 0005;
+migrations are manual.
 
 ---
 

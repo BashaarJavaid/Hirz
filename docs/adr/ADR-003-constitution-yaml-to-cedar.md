@@ -321,3 +321,11 @@ Rejected treating the earlier single-action success as group conformance, using
 a different compiler per evaluator, dropping exact action checks, relaxing strict
 validation, or applying the patch before the candidate probe passes. The service
 errors do not establish their root cause; another failure blocks advancement.
+
+
+The target-group condition was not met: AWS rejected input bindings on the group
+itself, whose context is empty. A native schema representing that callable group
+reproduces the rejection; an ordinary input-presence guard does not resolve the
+temporal errors. The production patch was not applied. This outcome leaves the
+original action-list incompatibility and all live conformance gates open; another
+representation or service fix requires a new reviewed decision.

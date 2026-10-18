@@ -1148,3 +1148,27 @@ control passed, so the production patch was not applied. Both inventories were
 restored with zero activation events. The documented Gateway target action-group
 scope is being evaluated locally as a separate candidate; no further live probe
 is authorized by the failed conditional approval.
+
+
+### 2026-10-18 — Gateway target-group scope cannot bind this temporal input
+
+- **Tool:** Amazon Bedrock AgentCore Policy, strict temporal-policy creation.
+- **Severity:** Blocker.
+- **Docs:** [Policy scope](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/policy-scope.html), [temporal authoring](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/policy-temporal-authoring.html).
+- **What happened:** The separately approved target-group fixture reached
+  `CREATE_FAILED` in 3.857262 seconds. AWS reported
+  ``attribute `input` in context for AgentCore::Action::"HirzActions" not found``
+  and four temporal errors of the form
+  ``action `AgentCore::<gateway-arn>___HirzActions` has no context field `input` for `context.input` ``.
+  The documented target-group head also covers the group action itself, whose
+  AWS context has no input. The prior local candidate declared a non-callable
+  group; its successful tool-case comparison did not establish that schema match.
+- **Response:** Strict publication refused activation and verified the committed
+  empty inventory. Independent audit verification passed 25 rows, with no
+  activation or Gateway calls; teardown began. Modeling the group as callable
+  with an empty native context reproduces the rejection. An ordinary
+  `context has input` guard removes the ordinary Cedar error but leaves all four
+  temporal-extension errors. Neither candidate is applied to production.
+- **Feature request:** Document the group action's own context and temporal
+  validation constraints alongside target-group scope examples. The separate
+  action-list internal-creation error remains unexplained; no validation is bypassed.

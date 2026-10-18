@@ -14924,3 +14924,93 @@ all **24 checked service categories** and all eight recorded output command keys
 PendingDeletion. The nonbillable IAM setup remains. Broader customer-key and NAT
 usage reads await the billing identity correction; no further deployment has begun.
 The temporary Docker configuration remains only for the newly authorized attempt.
+
+
+### Target-group probe rejected — 2026-10-18
+
+The billing login finally verified as account root. Fresh billing data reported
+**$149.38 enabled estimated eligible credit** and all **14 checked product rates**
+were unchanged; the aggregate **$7.885134535833333333333333333** projection and
+original deadlines remained. At **05:29:14.528587Z**, aggregate NAT telemetry
+reported **6.045532677 decimal GB** across eight NAT identities, below the reserved
+20 GB; all **10 customer keys** from prior attempts were PendingDeletion.
+Telemetry may lag and is not a bill. Evidence is private in
+`secrets/item37-conditional-repair/` and `secrets/item37-target-group-acceptance/`.
+
+Application attempt nine deployed from `22eb1794c5391f507e880505d1d7c87d1ee16f5f`,
+with unchanged worker image
+`sha256:d8fce89da522f9ae56703841812e1df5ece4f138ca591e6fe14c087539d86017`.
+Application creation took **897.51 seconds** (**924.81 seconds** including
+synthesis/assets); all three disposable database bootstrap steps passed, and the
+single-worker update took **108.4 seconds**. The diagnostic CDK launcher used the
+shell's Node 23.11.0; it is not a Node 24 verification gate. The installed required
+Node 24.21.0 remains available; the unchanged implementation's required CI gates
+are recorded above. This deployment captured its own tracing baseline before
+creating resources.
+
+Policy `h_554d8977a5e79b92_ttl_30-zcmd3v1o8t` was created at
+**05:52:05.079537Z** and reached `CREATE_FAILED` at **05:52:08.936799Z**
+(**3.857262 seconds**). Its findings identify missing `context.input` on the
+`HirzActions` target-group action, including four temporal-extension errors.
+Raw findings and the candidate association are retained in
+`target_group-publication.json`. Strict validation was unchanged.
+
+The publisher refused activation and verified remote restoration to the empty
+committed inventory. Independent verification passed **25 signed home audit rows**
+and an empty parents chain. Direct reads of retained disposable database
+`hirz_ha_smoke_8a6a5cd1289a432b9861fa7a2f71020f` confirmed readiness, empty inventory,
+no publication owner and zero activation events. There were **zero Gateway calls**
+and no device execution. Neither `controls-passed.json` nor the continuation
+signal was written; **the production compiler and tests remain unchanged**.
+Unconditional teardown is running; final inventory remains to be recorded.
+
+An offline diagnostic represents the AWS group as callable with an empty context,
+rather than the non-callable group in the reviewed native candidate. Native
+validation then reproduces the ordinary Cedar error and four temporal errors.
+Adding `context has input` to the ordinary guard still leaves the four temporal
+errors. Raw native results are retained in `native-group-schema-diagnosis.json`
+and the accompanying validation files. This explains the group fixture's schema
+mismatch; it does not explain the earlier action-list internal failures. No
+further production repair or AWS deployment is authorized by the failed condition.
+
+
+CloudTrail correlation arrived after ingestion delay: request ID
+`fff2a7ab-3323-42ec-8583-28b1e78a1130`, event ID
+`96b4e089-f06c-405b-84c4-cac983dea56b`, with
+`validationMode: FAIL_ON_ANY_FINDINGS`. The raw event is retained privately in
+`secrets/item37-target-group-acceptance/create-policy-cloudtrail.json`.
+
+
+The pre-probe documentation revision `22eb1794c5391f507e880505d1d7c87d1ee16f5f`
+passed [ordinary CI](https://github.com/BashaarJavaid/Hirz/actions/runs/39100526102).
+No production source or test change followed; the implementation and non-diagnostic
+latency evidence for `abfe4455da233c47faf5385694ffad26de6131ef` remains applicable.
+This does not satisfy the still-unreached live policy conformance gates.
+
+
+At **2026-10-18T06:04:54.823050+00:00**, aggregate NAT telemetry reported
+**6.93306582 decimal GB** across nine NAT identities against the reserved
+20 GB. All **11 customer keys** were PendingDeletion. These readings
+may lag and are not a final bill; the original conservative cost projection was
+not reset. No further deployment is planned under the failed conditional approval.
+
+
+### Target-group attempt cleanup verified — 2026-10-18
+
+The application and dedicated toolkit were deleted. Independent inventory at
+**2026-10-18T06:15:51.079883+00:00** found zero resources across all **24 checked
+service categories**, with all **9 recorded output command keys**
+PendingDeletion; the broader customer-key scan above covers all 11 keys including
+the early rollbacks. Tracing returned to its recorded baseline with no span log
+group left behind. Nonbillable IAM setup remains intentionally installed.
+The owned temporary Docker configuration was removed; the original Docker Desktop
+configuration was unchanged. Private deployment logs and native diagnosis source
+were retained with the other artifacts.
+
+The wrapper exited nonzero because the strict fixture failed, after its `finally`
+block completed cleanup; `policy-cleanup.json` records `status: destroyed`, and
+the separate inventory verifies it. The original deadline and budget were not
+extended. No production source or test differs from the verified implementation
+revision. **Item 37 remains incomplete:** native/AWS corpus agreement, the real
+faulty-compiler always-allow refusal and restoration, ENFORCE promotion and denied
+target proof have not been reached. No threat-model claim is promoted.
