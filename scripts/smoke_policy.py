@@ -289,6 +289,22 @@ async def publication(
     )
 
 
+def always_allow(findings: list[dict[str, Any]]) -> bool:
+    # AWS calls an always-allow semantic finding "Overly Permissive".
+    # https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/policy-validation-overview.html
+    return any(
+        finding.get("name") == "isolated_faulty_compiler"
+        and finding.get("status") in {"CREATE_FAILED", "UPDATE_FAILED"}
+        and isinstance(finding.get("statusReasons"), list)
+        and any(
+            isinstance(reason, str)
+            and re.match(r"(?:Overly Permissive:|always[\s_-]*allow\b)", reason, re.I)
+            for reason in finding["statusReasons"]
+        )
+        for finding in findings
+    )
+
+
 async def compare(
     p: Pipeline,
     seed: Seed,
@@ -764,10 +780,9 @@ async def live(acceptance: Acceptance) -> None:
                 acceptance.folder / "faulty-compiler.json",
                 json.loads(json.dumps(rejected, default=str)),
             )
-            findings = json.dumps(rejected["findings"]).lower()
             if (
                 rejected["status"] != "failed"
-                or re.search(r"always[\s_-]*allow", findings) is None
+                or not always_allow(rejected["findings"])
                 or not await publisher.step(desired)
             ):
                 raise ValueError(

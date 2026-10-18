@@ -15308,3 +15308,27 @@ and non-diagnostic latency dispatch is
 [39113451659](https://github.com/BashaarJavaid/Hirz/actions/runs/39113451659), both on
 `6980e2c`. Full shared-corpus conformance, faulty-compiler rejection, enforcement,
 real expiry and final acceptance teardown remain owed.
+
+### Local regression gates and finding terminology — 2026-10-18
+
+The full disposable PostgreSQL run completed: **261 passed**, 1,684 deselected,
+two warnings in 1,228.80 seconds. Together with the preceding 1,682 service-free
+tests, the combined coverage command reports **89%** (17,942 statements, 1,989
+missed), exceeding 80%. The service-free run preceded the final analysis-label
+simplification; the current source subsequently passed the full integration run,
+focused publisher tests, strict typing, browser acceptance and packaging checks.
+
+A preflight review found the faulty-compiler acceptance harness recognized only
+the literal words `always allow`. AWS documents this category as
+[Overly permissive](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/policy-validation-overview.html).
+The harness now accepts that documented category only in raw `statusReasons` for
+the failed `isolated_faulty_compiler` policy; another policy, an ACTIVE policy,
+schema errors and overly-restrictive findings do not qualify. It still requires
+refused activation and exact inventory restoration. The publisher's validation
+modes are unchanged. **32 focused tests pass**, including six new attribution and
+terminology checks; Ruff and mypy (226 files) pass. This is a recognition fix,
+not evidence that the live faulty-compiler fixture has yet been rejected.
+
+The next full acceptance runs the exact committed source while CI finishes in
+parallel. Final ordinary CI and non-diagnostic latency gates remain mandatory
+before item closure; no running or superseded CI run is counted as a pass.

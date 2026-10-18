@@ -457,3 +457,46 @@ def test_permits_precede_forbids_independent_of_storage_order():
         )
 
     asyncio.run(run())
+
+
+@pytest.mark.parametrize(
+    ("reason", "name", "status", "expected"),
+    [
+        (
+            "Overly Permissive: Policy Engine will allow every request",
+            "isolated_faulty_compiler",
+            "CREATE_FAILED",
+            True,
+        ),
+        ("always-allow", "isolated_faulty_compiler", "UPDATE_FAILED", True),
+        (
+            "Overly Restrictive: Policy Engine will deny every request",
+            "isolated_faulty_compiler",
+            "CREATE_FAILED",
+            False,
+        ),
+        (
+            "Overly Permissive: Policy Engine will allow every request",
+            "different_policy",
+            "CREATE_FAILED",
+            False,
+        ),
+        (
+            "Overly Permissive: Policy Engine will allow every request",
+            "isolated_faulty_compiler",
+            "ACTIVE",
+            False,
+        ),
+        ("schema error", "isolated_faulty_compiler", "CREATE_FAILED", False),
+    ],
+)
+def test_faulty_compiler_requires_its_own_actual_always_allow_finding(
+    reason, name, status, expected
+):
+    from scripts.smoke_policy import always_allow
+
+    assert (
+        always_allow([{"name": name, "status": status, "statusReasons": [reason]}])
+        is expected
+    )
+    assert not always_allow([{"error": reason}])
