@@ -1,5 +1,6 @@
 import asyncio
 import json
+import re
 from decimal import Decimal
 from pathlib import Path
 from types import SimpleNamespace
@@ -17,6 +18,41 @@ from hirz.constitution.preview import situation
 from hirz.constitution.schema import load
 
 HOME = load(Path("constitutions/quinn-home.yaml"))
+
+
+def test_generated_policy_names_and_requests_fit_the_installed_aws_contract():
+    from botocore.session import Session
+    from botocore.validate import validate_parameters
+
+    shape = (
+        Session()
+        .get_service_model("bedrock-agentcore-control")
+        .operation_model("CreatePolicy")
+        .input_shape
+    )
+    limits = shape.members["name"].metadata
+    compiled = [
+        compile_policy(
+            load(Path(f"constitutions/quinn-{seed}.yaml")), engine="agentcore-policy"
+        )
+        for seed in ("home", "parents")
+    ]
+    statements = inventory(compiled)
+    assert len(statements) == sum(len(c.statements) for c in compiled)
+    for name, statement in statements.items():
+        assert limits["min"] <= len(name) <= limits["max"]
+        assert re.fullmatch(limits["pattern"], name)
+        assert len(name.split("_", 2)[1]) == 16
+        validate_parameters(
+            {
+                "policyEngineId": "engine-0123456789",
+                "name": name,
+                "definition": {"policy": {"statement": statement}},
+                "validationMode": "FAIL_ON_ANY_FINDINGS",
+                "enforcementMode": "ACTIVE",
+            },
+            shape,
+        )
 
 
 @pytest.mark.parametrize(

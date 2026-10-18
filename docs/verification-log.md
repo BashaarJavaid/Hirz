@@ -15087,3 +15087,30 @@ The previously successful single-action probe supports testing this representati
 but does not establish that the complete candidate passes AWS analysis. All
 original live conformance, faulty-compiler refusal/restoration, ENFORCE and cleanup
 gates remain required. Item 37 and the threat-model claims remain unchanged.
+
+
+### Approved repair applied and SDK name contract corrected — 2026-10-18
+
+The author approved the exact-action repair and one further full acceptance
+deployment. The reviewed patch was applied unchanged as `d1baa24`, with revised
+architecture/spec/procedure records. Initial ordinary CI and non-diagnostic
+latency runs were started; their revision will be superseded by the metadata
+correction below, so they cannot close the final implementation gate.
+
+Before any deployment, the installed AgentCore `CreatePolicy` model and its
+[official API contract](https://docs.aws.amazon.com/bedrock-agentcore-control/latest/APIReference/API_CreatePolicy.html)
+exposed a pre-existing generated-name bug: policy names permit at most 48
+characters, but the candidate's names reached 68. The compiler now hashes only
+overlong labels to 29 hexadecimal characters, preserving the existing 19-character
+household prefix used for inventory replacement. Names remain stable across TTL
+changes. Across both acceptance households, 92 statement identifiers are shortened;
+all policy text, schemas and manifests remain byte-identical to the approved
+candidate in both native and AWS representations. The proof is retained in
+`secrets/item37-exact-acceptance/name-contract-proof.json`; corrected compiler
+SHA256 is `9a3398302b65d0f9265ead034769497a8513c75ddb20b5860a9f5a49087ab583`.
+
+The installed-SDK request/name regression plus existing policy and new native
+scope tests passed **23 checks in 3.38 seconds**. This is a local contract fix,
+not a new live finding or a semantic-policy exception. Full implementation
+verification and all original live acceptance gates are still in progress;
+no new acceptance deployment has started at this point.

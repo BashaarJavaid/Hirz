@@ -202,6 +202,9 @@ def compile_policy(
 
     def emit(name: str, text: str, *, temporal: bool = False) -> None:
         prefix = hashlib.sha256(policy.household.encode()).hexdigest()[:16]
+        # AWS names stop at 48 characters; retain the household replacement prefix.
+        if len(name) > 29:
+            name = hashlib.sha256(name.encode()).hexdigest()[:29]
         statements.append(Statement(f"h_{prefix}_{name}", text, temporal))
 
     ttls: dict[int, dict[str, str]] = {}

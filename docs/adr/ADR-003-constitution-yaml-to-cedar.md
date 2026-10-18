@@ -377,3 +377,11 @@ Application attempt ten remains within the original aggregate $10 ceiling and
 requires fresh financial clearance; work ends by 2026-10-18T10:32:52.907915Z and
 cleanup by 11:32:52.907915Z. The window, usage counters and reserved capacities
 are not reset. Another incompatibility requires restoration and teardown.
+
+Pre-deployment SDK contract verification also found generated statement names
+longer than [CreatePolicy's 48-character limit](https://docs.aws.amazon.com/bedrock-agentcore-control/latest/APIReference/API_CreatePolicy.html).
+The shared compiler retains the household prefix and hashes only overlong labels
+to a stable 29-character suffix. This corrects metadata only: the approved policy
+text, schemas, manifests and temporal semantics remain byte-identical in both
+dialects. An installed-SDK contract regression checks every generated request and
+unique household-scoped identifiers. No AWS finding is ignored or bypassed.
