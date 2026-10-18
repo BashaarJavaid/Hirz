@@ -138,13 +138,15 @@ Item 32 adds `HIRZ_LLM=off uv run --locked python -m scripts.smoke_protect --art
 
 ## Current phase
 
-Item 36 is complete. Item 37's approved ordering/hard-deny repair is under test;
-a minimal AWS probe precedes full conformance and ENFORCE acceptance
-([evidence](docs/verification-log.md#approved-narrow-hard-deny-repair-in-progress--2026-10-18)).
+Item 36 is complete. Item 37's minimal ordered AWS publication and hard-deny
+exception pass with verified restoration and cleanup; full conformance and
+ENFORCE acceptance remain pending
+([evidence](docs/verification-log.md#minimal-ordered-publication-and-hard-deny-exception-verified--2026-10-18)).
 The original aggregate $10/24-hour ceiling remains; live completion is unearned.
 Item 31 owes email/push; item 28 owes real Web Push (#7). Ring remains twin;
 Link is item 38a. Development stays on 0005; migrations are manual.
 
+---
 
 ## 1. Ask before deciding
 

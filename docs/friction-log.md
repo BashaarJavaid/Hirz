@@ -1211,3 +1211,23 @@ It is not applied or AWS-verified; no further deployment occurred in this invest
 Follow-up: teardown and the independent 24-category empty inventory passed;
 original tracing was restored. Final evidence is appended to the
 [attempt record](./verification-log.md#exact-action-acceptance-rejected-after-passing-repository-gates--2026-10-18).
+
+### 2026-10-18 — Intentional hard denial needs a scoped validation exception
+
+- **Tool:** Amazon Bedrock AgentCore Policy, strict semantic validation.
+- **Severity:** Major.
+- **Docs:** [Validation modes](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/policy-validation-overview.html).
+- **What happened:** The minimal ordered probe accepted the arm/disarm temporal
+  permit and its conditional forbid under strict validation. The explicit
+  household-scoped money-transfer prohibition received `CREATE_FAILED` with:
+  `Overly Restrictive: Policy Engine will deny every request for the specified principal (AgentCore::IamEntity), action (HirzActions___finance_transfer_money) and resource (arn:aws:bedrock-agentcore:us-east-1:661550216013:gateway/hirz-item36-ujfckfhqbo) combination if the policy is added or updated`
+  and the corresponding `AgentCore::OAuthUser` finding.
+- **Response:** The author-approved exception recorded the actual finding through
+  Pipeline authorization and signed audit before recreating only that exact
+  hard-deny statement with schema-only validation. All three statements became
+  ACTIVE; the publisher restored the empty committed inventory without activating
+  any constitution. Independent verification passed all 145 audit rows, with zero
+  Gateway calls. Full acceptance remains separate.
+- **Feature request:** Offer a validation mode that accepts explicitly intentional
+  all-deny policies while retaining other semantic checks; currently the only
+  alternative skips all semantic checks for the submitted statement.

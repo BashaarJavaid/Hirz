@@ -369,7 +369,7 @@ Compilation facts the engine relies on:
 [proposed by voice: sentence recorded, CONSTITUTION_PROPOSED]  →
 draft (form | yaml | english)  →  validate (schema, class list, tighten-only, security-never-by-voice, grammar)
   →  compile (Cedar + Dogwood)  →  dogwood validate (syntax + schema; everywhere)
-  →  [AWS mode] AgentCore Policy automated reasoning on create/update (no always-allow, no never-satisfiable)
+  →  [AWS mode] AgentCore Policy validation on create/update (strict, with the scoped hard-deny exception below)
   →  preview (diff + sentences + derived situation lines + analysis where available)  →  activate (journaled: write version, audit CONSTITUTION_ACTIVATED, swap)
   →  rollback (same path to a prior version)
 ```

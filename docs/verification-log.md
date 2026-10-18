@@ -15264,3 +15264,47 @@ This entry records intermediate checks, not item closure.
 Work stops at 2026-10-18T22:32:52.907915Z; cleanup must finish by
 2026-10-18T23:32:52.907915Z. Full conformance, actual faulty-compiler rejection,
 ENFORCE, signed exports and final cleanup remain owed. No device execution occurs.
+
+### Minimal ordered publication and hard-deny exception verified — 2026-10-18
+
+Application attempt eleven used only the sixteen-resource dependency subset
+recorded above, starting at 08:53:10.306781 UTC. The real companion passkey flow
+queued an isolated three-statement candidate through the production publisher in
+a disposable database. The exact implementation is commit
+`6980e2c2039def5cc9f29b18450e2475a5d7b4ba`; its source hashes are retained in
+`secrets/item37-hard-deny-acceptance/minimal-implementation.json`.
+
+The exact-action `security.arm_disarm` temporal permit and its conditional forbid
+both became ACTIVE with strict validation. `finance.transfer_money` received the
+actual expected two-principal `Overly Restrictive` rejection. The publisher signed
+that finding before recreating only the exact hard-deny statement using the
+approved schema-only exception. All **three** statements became ACTIVE. The
+isolated wrapper then deliberately refused commitment and used the real recovery
+path to verify the empty last-committed inventory, ready engine and no active job.
+There were **zero constitution activations, zero Gateway calls and zero device
+executions**. This proves only the minimal compatibility/recovery control.
+
+Independent `hirz verify-audit` with the previously trusted public key verified
+**145/145 rows** from 08:56:00.969400 through 08:57:20.594658 UTC. The disposable
+database was dropped; development remained unchanged. Application and toolkit
+teardown completed. An independent inventory again found all **24 categories
+empty**, with eleven recorded acceptance signing keys PendingDeletion. The shared
+cleanup helper's cloud evidence export was unavailable because this minimal
+stack intentionally had no worker/anchor bucket; its warning is retained. The
+local signed publisher export was independently verified and no full acceptance
+success is inferred from this diagnostic.
+
+The refreshed aggregate NAT metric remains **7.999510141 decimal GB** against the
+20 GB allowance, with the original start and all previous failures retained;
+this is a delayed usage metric, not an invoice. The $9.320634295833333333333333333
+forecast and $10 ceiling remain unchanged.
+
+The corrected browser run passed **2 tests**, skipped the separate AWS/simulator
+fixtures, and independently verified its signed local exports. It exercised real
+browser passkeys, activation and a running worker; AWS status/findings presentation
+uses explicitly labeled fixtures. Full local PostgreSQL and CI gates are still
+running. Ordinary CI is [39113451670](https://github.com/BashaarJavaid/Hirz/actions/runs/39113451670)
+and non-diagnostic latency dispatch is
+[39113451659](https://github.com/BashaarJavaid/Hirz/actions/runs/39113451659), both on
+`6980e2c`. Full shared-corpus conformance, faulty-compiler rejection, enforcement,
+real expiry and final acceptance teardown remain owed.
