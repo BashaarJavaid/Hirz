@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from unittest.mock import Mock
 
 import pytest
@@ -6,6 +6,22 @@ import pytest
 from hirz.aws import config
 from hirz.aws.fixture import load
 from hirz.aws.lambdas.actions import handler
+
+
+def test_acceptance_reserves_cleanup_time_without_resetting_start():
+    from scripts.smoke_aws import Acceptance
+
+    acceptance = object.__new__(Acceptance)
+    acceptance.stack = {"CreationTime": datetime.now(UTC)}
+    acceptance.parameters = {
+        "FixtureStart": (datetime.now(UTC) - timedelta(hours=22)).isoformat()
+    }
+    acceptance.within_window()
+    acceptance.parameters["FixtureStart"] = (
+        datetime.now(UTC) - timedelta(hours=23)
+    ).isoformat()
+    with pytest.raises(ValueError, match="work window ended"):
+        acceptance.within_window()
 
 
 def test_inert_gateway_rejects_arbitrary_invocations():

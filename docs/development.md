@@ -2205,11 +2205,14 @@ clearance, fixed UTC start, estimate and raw account evidence privately. The
 accepted tax exception does not waive service-charge clearance. Never reset the
 window or its usage across a retry. The accepted estimate allows at most 5,000
 Gateway/Policy calls; stop and tear down before exhausting any allowance.
+Acceptance work stops after 23 hours from the retained start, reserving the final
+hour for export and teardown; retries never reset that start.
 
 Use the item 36 bootstrap/deployment commands with the new retained start and
 clearance. The worker configuration explicitly routes `item37-home` and
 `item37-parents` to the shared engine; the hosted `quinn-home` stays local. Inspect
-existing X-Ray transaction-search configuration and `aws/spans` first: the
+existing X-Ray transaction-search configuration, `aws/spans` and
+`/aws/application-signals/data` first: the
 acceptance stack must not replace shared tracing resources. Preserve the prior
 configuration for cleanup verification. The dedicated deployment role template
 adds the tracing-management actions needed by CloudFormation; its MFA trust and

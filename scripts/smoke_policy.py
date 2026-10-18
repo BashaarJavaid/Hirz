@@ -239,7 +239,6 @@ async def publication(
 ) -> dict[str, Any]:
     for _ in range(1500):
         acceptance.within_window()
-        policy_tracing(acceptance)
         await advance(p, publisher)
         async with p.connection.begin():
             row = dict(
@@ -266,9 +265,10 @@ async def compare(
     seed: Seed,
     gateway: Gateway,
     expected_inventory: dict[str, str],
-    folder: Path,
+    acceptance: Acceptance,
     mode: str,
 ) -> list[dict[str, Any]]:
+    folder = acceptance.folder
     compiled = compile_policy(loads(seed.yaml))
     native = Dogwood()
     await native.validate(compiled)
@@ -288,6 +288,7 @@ async def compare(
             )
         ).model_copy(update={"surface": "scheduler"})
     for key, event, approvals, details in corpus(seed):
+        acceptance.within_window()
         # Every test gets a new real UUID; altered session inputs retain their mismatch.
         session = uuid4()
         original = event.inputs["session_id"]
@@ -588,7 +589,9 @@ async def target_evidence(
     raise ValueError("Target positive controls were not observed")
 
 
-async def expiry(seed: Seed, gateway: Gateway) -> dict[str, Any]:
+async def expiry(
+    seed: Seed, gateway: Gateway, acceptance: Acceptance
+) -> dict[str, Any]:
     policy = loads(seed.yaml)
     compiled = compile_policy(policy)
     action, facts = situation(policy, "security.door_unlock")
@@ -609,6 +612,7 @@ async def expiry(seed: Seed, gateway: Gateway) -> dict[str, Any]:
         raise ValueError("Live expiry requires an allowed approval")
     start = time.monotonic()
     while time.monotonic() - start <= ttl * 60 + 1:
+        acceptance.within_window()
         await asyncio.sleep(
             min(30, max(0.1, ttl * 60 + 2 - (time.monotonic() - start)))
         )
@@ -736,9 +740,7 @@ async def live(acceptance: Acceptance) -> None:
             records = []
             for p, seed in zip(pipelines, seeds, strict=True):
                 records.extend(
-                    await compare(
-                        p, seed, gateway, desired, acceptance.folder, "LOG_ONLY"
-                    )
+                    await compare(p, seed, gateway, desired, acceptance, "LOG_ONLY")
                 )
             write_export(
                 acceptance.folder / "log-only.json",
@@ -748,13 +750,12 @@ async def live(acceptance: Acceptance) -> None:
             enforced = []
             for p, seed in zip(pipelines, seeds, strict=True):
                 enforced.extend(
-                    await compare(
-                        p, seed, gateway, desired, acceptance.folder, "ENFORCE"
-                    )
+                    await compare(p, seed, gateway, desired, acceptance, "ENFORCE")
                 )
             await target_evidence(acceptance, enforced)
             write_export(
-                acceptance.folder / "expiry.json", await expiry(seeds[0], gateway)
+                acceptance.folder / "expiry.json",
+                await expiry(seeds[0], gateway, acceptance),
             )
             write_export(
                 acceptance.folder / "policy-result.json",
@@ -809,6 +810,7 @@ def main() -> None:
     acceptance = Acceptance(args.artifacts_dir)
     try:
         acceptance.within_window()
+        policy_tracing(acceptance)
         asyncio.run(live(acceptance))
     finally:
         write_export(acceptance.folder / "policy-cleanup.json", destroy(acceptance))

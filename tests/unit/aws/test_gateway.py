@@ -202,3 +202,4 @@ def test_tracing_cleanup_refuses_preexisting_group(tmp_path):
     xray.get_indexing_rules.return_value = before["indexing"]
     policy_tracing(acceptance, restore=True)
     logs.delete_log_group.assert_called_once_with(logGroupName="aws/spans")
+    xray.update_trace_segment_destination.assert_not_called()

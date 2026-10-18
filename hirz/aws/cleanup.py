@@ -26,7 +26,8 @@ def policy_tracing(acceptance: Any, *, restore: bool = False) -> None:
             raise ValueError("Refusing to change a pre-existing span log group")
     if restore:
         xray = acceptance.client("xray")
-        xray.update_trace_segment_destination(Destination="XRay")
+        if xray.get_trace_segment_destination()["Destination"] != "XRay":
+            xray.update_trace_segment_destination(Destination="XRay")
         for rule in before["indexing"]["IndexingRules"]:
             xray.update_indexing_rule(Name=rule["Name"], Rule=rule["Rule"])
         if group:

@@ -126,9 +126,10 @@ class Acceptance:
             self.stack["CreationTime"],
             datetime.fromisoformat(self.parameters["FixtureStart"]),
         )
-        if datetime.now(UTC) >= start + timedelta(hours=24):
+        # Reserve the final hour of the approved lifetime for export and deletion.
+        if datetime.now(UTC) >= start + timedelta(hours=23):
             raise ValueError(
-                "Acceptance window expired; export and destroy immediately"
+                "Acceptance work window ended; export and destroy immediately"
             )
 
     def task(

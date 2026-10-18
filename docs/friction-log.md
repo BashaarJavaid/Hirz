@@ -1047,3 +1047,17 @@ store was preserved. The same approved acceptance budget and start cover retries
   state, then retry stack deletion within the same acceptance budget/window.
 - **Feature request:** Have the CloudFormation provider wait for a deletable Memory
   state during rollback, rather than leave cleanup at `DELETE_FAILED`.
+
+Follow-up: the first failed Memory eventually became ACTIVE and the exact failed
+stack was deleted. The next tracing attempt again left a CREATING Memory during
+rollback. Its CloudFormation error was `XRay does not have permission to call
+PutLogEvents on the aws/spans Log Group. Please verify that your CloudWatch Logs
+Resource Policies are configured correctly` (request
+`c7acda41-510b-4882-af55-753d47b5289b`). A direct probe using the complete
+[CloudWatch resource policy](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/Enable-TransactionSearch.html)
+reported the additional prerequisite explicitly: `is not authorized to perform:
+application-signals:StartDiscovery because no identity-based policy allows the
+application-signals:StartDiscovery action` (request
+`aa17bbfa-89d7-4180-b927-0edba49e85f9`). The IAM change remains subject to the
+requested approval. The temporary probe policy was removed; no policy-validation
+finding was suppressed.

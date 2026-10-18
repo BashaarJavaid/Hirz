@@ -71,6 +71,8 @@ describe('item 36 acceptance infrastructure', () => {
     expect(JSON.stringify(grants[0].Resource)).toContain('PolicyEngine');
     template.hasResourceProperties('AWS::XRay::TransactionSearchConfig', { IndexingPercentage: 0 });
     expect(Object.values(template.findResources('AWS::Logs::LogGroup')).some(g => g.Properties.LogGroupName === 'aws/spans')).toBe(false);
+    template.hasResourceProperties('AWS::Logs::LogGroup', { LogGroupName: '/aws/application-signals/data', RetentionInDays: 7 });
+    expect(JSON.stringify(template.findResources('AWS::Logs::ResourcePolicy'))).toContain('PolicySignals');
     template.hasResourceProperties('AWS::Logs::DeliverySource', { LogType: 'TRACES', Name: 'hirz-item36-policy-traces' });
   });
   it('synthesizes without network lookups and without dependency cycles', () => {

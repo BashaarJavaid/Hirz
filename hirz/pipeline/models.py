@@ -219,7 +219,9 @@ class BoundaryEvidence(Model):
     reason: str = "terminal before boundary"
     context_hash: str | None = None
     roles: dict[Role, bool] = Field(default_factory=dict)
-    requests: tuple[BoundaryRequest, ...] = ()
+    requests: tuple[BoundaryRequest, ...] = Field(
+        default=(), exclude_if=lambda v: not v
+    )
 
 
 class BudgetEvidence(Model):

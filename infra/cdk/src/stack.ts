@@ -185,8 +185,9 @@ export class HirzStack extends Stack {
     void gatewayLog;
     // X-Ray creates this reserved group when Transaction Search is enabled.
     const spans = logs.LogGroup.fromLogGroupName(this, 'PolicySpans', 'aws/spans');
+    const signals = new logs.LogGroup(this, 'PolicySignals', { logGroupName: '/aws/application-signals/data', retention: logs.RetentionDays.ONE_WEEK, removalPolicy: RemovalPolicy.DESTROY });
     const spanPolicy = new logs.ResourcePolicy(this, 'PolicySpanDelivery', { policyStatements: [new iam.PolicyStatement({
-      principals: [new iam.ServicePrincipal('xray.amazonaws.com')], actions: ['logs:PutLogEvents'], resources: [spans.logGroupArn],
+      sid: 'TransactionSearchXRayAccess', principals: [new iam.ServicePrincipal('xray.amazonaws.com')], actions: ['logs:PutLogEvents'], resources: [spans.logGroupArn, signals.logGroupArn],
       conditions: { StringEquals: { 'aws:SourceAccount': this.account }, ArnLike: { 'aws:SourceArn': this.formatArn({ service: 'xray', resource: '*' }) } },
     })] });
     const tracing = new xray.CfnTransactionSearchConfig(this, 'PolicyTracing', { indexingPercentage: 0 });

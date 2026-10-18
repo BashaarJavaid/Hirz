@@ -14279,3 +14279,63 @@ capacity observation applies to successful inventory reads; deployment remains
 confined to `us-east-1`. The later retained NAT, public IPv4 and ALB SKU reads
 confirmed the estimate's $0.045/hour and per GB, $0.005/address-hour,
 $0.0225/ALB-hour and $0.008/LCU-hour rates respectively.
+
+### Local regression and deployment attempts — 2026-10-17
+
+The service-free run completed with **1,637 passed**, 254 deselected and two
+upstream deprecation warnings (263.44 seconds). The first full disposable
+PostgreSQL run completed with **251 passed, one failed**, 1,639 deselected and
+those same warnings (2,187.85 seconds). Its only failure was
+`test_worker_matches_complete_prechange_rows`: adding an empty `requests` list
+to local boundary evidence changed the retained scheduling row. The canonical
+field now uses the existing `exclude_if` convention when empty; the unchanged
+snapshot and all scheduling/publication checks then passed (**17 passed**,
+56.11 seconds). Combined coverage after that run is **88%** (17,879 statements,
+2,148 missed). Development databases were not migrated.
+
+Final focused publication/worker checks at `c06c298` passed **13 tests**
+(71.71 seconds), including hosted-demo isolation, signed initiating binding,
+partial publication/recovery, SDK findings, audit failure, credential revocation,
+serialization, session conflict and generation rotation. The reissued approval
+kept its original deadline. Gateway/routing checks passed **13 tests**, and CDK
+passed **6 tests** with synthesis/typechecking. Strict mypy passed 226 files.
+Earlier native constitution/conformance checks passed 160 tests. These local
+results do not substitute for the required final-revision CI/latency gates.
+
+Intermediate CI runs for `7543861` were superseded; companion/browser, release,
+conformance and lint/type jobs passed, but the runs were cancelled before all
+Python/latency jobs completed. Runs
+[39081372583](https://github.com/BashaarJavaid/Hirz/actions/runs/39081372583)
+and [39081392870](https://github.com/BashaarJavaid/Hirz/actions/runs/39081392870)
+were started for `c06c298`; later source fixes require their own final gates.
+The local browser rerun passed the added publication-state presentation checks
+but later timed out in the existing long check-in flow under concurrent build/test
+load; that local run is not recorded as passing.
+
+The first CloudFormation create rejected our explicit `aws/spans` LogGroup,
+which is reserved for AWS. Rollback left only its newly created Memory; after
+it became ACTIVE, deletion of the exact stack completed. The second create,
+with AWS-managed span-group creation, failed with `XRay does not have permission
+to call PutLogEvents on the aws/spans Log Group` (request
+`c7acda41-510b-4882-af55-753d47b5289b`). A direct probe using the complete documented
+resource policy exposed the missing `application-signals:StartDiscovery`
+permission (request `aa17bbfa-89d7-4180-b927-0edba49e85f9`). The probe policy was
+removed and the destination remained `XRay`. The additional scoped deployment
+permissions were prepared but automatic approval review rejected applying them;
+user approval was requested. No production policy publication or Gateway
+conformance claim has yet been earned. Both failed stacks and all retries remain
+inside the original acceptance budget and fixed start. The work cutoff now
+reserves the final hour for export/deletion, and corpus/expiry loops recheck it.
+
+The full documented Transaction Search setup includes Application Signals.
+Fresh official CloudWatch pricing gives $0.35/GB for span ingestion; the private
+`tracing-price-amendment.json` conservatively adds one GB to the prior estimate,
+raising the maximum projection to **$9.920634295833333333333333333**, still within
+the same $10 limit, with 0% indexing and no added instrumentation or SLOs.
+This is financial preparation, not approval to apply the rejected IAM change.
+CloudTrail retained in `tracing-group-creators.json` attributes the empty Signals
+log group to this run's dedicated CloudFormation role at `2026-10-18T00:06:38Z`;
+its exact creation timestamp matched and it was deleted. The next template owns
+that ordinary log group with seven-day retention and deletion, while X-Ray still
+owns creation of reserved `aws/spans`. The second failed Memory became ACTIVE
+and deletion of its exact stack was submitted. Final cleanup remains to be verified.
