@@ -152,3 +152,13 @@ and `prompt=login`; the latter requires managed login and is not relied on as an
 authorization guarantee. Token validation and the member's fresh passkey remain
 mandatory. Local tests cover the browser protocol and virtual passkeys; actual
 Cognito UI/CORS, hosted redirect, physical phone and live acceptance remain owed.
+
+### Drafting cancellation retains ownership — 2026-10-19
+
+The drafting worker now uses the existing bounded SDK-call helper, as plan
+narration does. Cancellation waits for the already-started provider thread before
+releasing the drafting advisory lock. The cancelled task does not publish its
+result; the proposal remains queued for a later attempt. Rejected: releasing the
+lock while a non-cancellable thread can still consume model service, or treating
+that unfinished call as a completed draft. Model output validation, human review
+and passkey activation remain unchanged.

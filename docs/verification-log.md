@@ -16214,3 +16214,24 @@ also run under the offline companion's existing CSP. Production permits only the
 configured HTTPS issuer, checked separately in the API/configuration tests. Real
 Cognito CORS remains a live gate. Only the test fixture changed after the previous
 browser-flow commit; the application flow was unchanged.
+
+### Drafting cancellation ownership — 2026-10-19
+
+Local inspection found the drafting worker awaited `asyncio.to_thread` directly,
+so cancelling its task released its PostgreSQL advisory lock while the provider
+thread still ran. A new disposable-database regression reproduced this before
+the repair: the task raised `CancelledError` immediately instead of waiting for
+the blocked synthetic provider. No paid model call was made.
+
+Reused `hirz.aws.client.call` to settle the bounded provider call before releasing
+ownership. The regression then passed **1 check in 3.50 seconds**: a second
+connection cannot take the lock while the cancelled call is in flight, the lock
+is released after it settles, no draft is published by the cancelled task, a later
+attempt produces a reviewable draft, the seed constitution stays unvalidated,
+and the signed audit chain verifies. The initial test assertion called that seed
+state `draft`; it was corrected to its actual `unvalidated` state.
+
+Recorded drafting/provider and AWS-call unit suites passed **10 checks in 1.51
+seconds**. Ruff and strict mypy passed. The active item 37 code and inference-off
+AWS deployment remain unchanged; this local fix does not enable paid inference
+or replace the outstanding durable-budget and live-model gates.

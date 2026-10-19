@@ -1,6 +1,5 @@
 """Worker-only English -> validated complete-rule replacements. Never activation."""
 
-import asyncio
 import json
 import os
 from typing import Any
@@ -8,6 +7,7 @@ from typing import Any
 import sqlalchemy as sa
 
 from hirz import db
+from hirz.aws.client import call
 from hirz.companion import policy
 from hirz.companion.auth import account
 from hirz.companion.governance import constitution
@@ -139,8 +139,8 @@ async def _advance(p: Pipeline) -> None:
             return
         base = await policy.current(p)
     try:
-        patch = await asyncio.to_thread(
-            provider.converse, row["text"], loads(base["yaml"])
+        patch = await call(
+            provider, "converse", sentence=row["text"], base=loads(base["yaml"])
         )
         candidate = policy.patched(loads(base["yaml"]), patch)
         failure = None

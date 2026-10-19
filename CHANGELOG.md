@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-10-19: Keep drafting ownership until an in-flight model call settles on cancellation, preserving the queued proposal for safe retry ([evidence](docs/verification-log.md#drafting-cancellation-ownership--2026-10-19)).
+
 - 2026-10-19: Connect Household's login button to session-bound browser PKCE and fresh passkey confirmation, with explicit callback configuration; live Cognito acceptance remains pending ([decision](docs/adr/ADR-019-companion.md#browser-self-link-flow-locally-verified--2026-10-19)).
 
 - 2026-10-19: Add the approved self-link backend with exact Cognito proof/passkey binding and atomic, non-reassignable account mapping; browser flow and live acceptance remain pending ([decision](docs/adr/ADR-019-companion.md#item-38-self-linked-cognito-login--2026-10-19)).
