@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-10-19: Record the approved final policy retry and review remaining submission gates, current rules, source claims and human-test instructions ([readiness](docs/submission.md#readiness-review--2026-10-19)).
+
 - 2026-10-19: Bound retries for the observed operator sign-in connection failure, retain fail-closed authentication, and pace throttled policy cleanup; document the recovered teardown and awake-run procedure ([evidence](docs/verification-log.md#sleep-correlated-credential-failure-and-recovered-teardown--2026-10-19)).
 
 - 2026-10-19: Record passing repair CI/latency and the approved third, bounded item 37 acceptance window ([decision](docs/adr/ADR-008-agentcore-topology.md#additional-item-37-run-after-session-repair--2026-10-19)).

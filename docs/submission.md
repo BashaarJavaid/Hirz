@@ -65,6 +65,36 @@ an explicit scope decision rather than silently cutting or claiming success.
 
 ---
 
+## Checked sources and repository access — 2026-10-19
+
+Both [Hirz](https://github.com/BashaarJavaid/Hirz) and the additional
+[addon-check project](https://github.com/BashaarJavaid/addon-check) are public and
+GitHub detects Apache-2.0 licenses. Both default to `main`; final submission must
+link the actual reviewed release revision after the local item 38 work is
+integrated. Public visibility alone does not certify that unreleased local code
+is available to judges. The retained [companion smoke shutdown issue #7](https://github.com/BashaarJavaid/Hirz/issues/7)
+is still open; do not describe it as fixed.
+
+The README's impact figures were rechecked against primary sources: the
+[FTC imposter-scam report](https://www.ftc.gov/news-events/news/press-releases/2026/06/ftc-data-show-people-reported-losing-3-point-5-billion-imposter-scams-2025)
+supports the reported 2025 losses; its
+[older-adult report](https://www.ftc.gov/news-events/news/press-releases/2025/12/ftc-issues-annual-report-congress-agencys-actions-protect-older-adults)
+supports the 2020–2024 comparison. The
+[National Alliance for Caregiving/AARP report](https://www.caregiving.org/research/caregiving-in-the-us/)
+supports the caregiver prevalence. These are population context, not a measured
+Hirz impact or evidence that Hirz prevents losses. The original AARP `.html` URL
+returned HTTP 403 to the review fetch; the co-publisher provides the same report.
+
+For the Open Source form, use contribution/project URL
+`https://github.com/BashaarJavaid/addon-check` and GitHub username
+`BashaarJavaid`. Draft: “addon-check verifies an MCP server against the published
+add-on contract, and its companion host package renders MCP Apps and handles
+OAuth independently of Hirz's household logic. Tests include deliberately broken
+servers and a non-Hirz reference server. It gives builders a reusable way to check
+and exercise add-ons while access to the Alexa+ host is restricted.” Link the
+published versions and the [item 25a/29a evidence](verification-log.md) in the
+final form; no form has been submitted by this review.
+
 ## Description (draft)
 
 > **Hirz: house rules for the AI in your home, and your parents'.**
