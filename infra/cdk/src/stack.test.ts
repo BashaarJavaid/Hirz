@@ -99,6 +99,11 @@ describe('item 36 acceptance infrastructure', () => {
     template.hasResourceProperties('AWS::EC2::SecurityGroupIngress', { FromPort: port, ToPort: port, IpProtocol: 'tcp', SourceSecurityGroupId: security, GroupId: database.Properties.VPCSecurityGroups[0] });
     expect(JSON.stringify(runtime.Properties.EnvironmentVariables)).not.toContain('MachineSecret');
     expect(template.toJSON().Parameters.RuntimeResource.Default).toBe('');
+    for (const task of Object.values(template.findResources('AWS::ECS::TaskDefinition'))) {
+      for (const name of ['HIRZ_RUNTIME_RESOURCE', 'HIRZ_COGNITO_ISSUER', 'HIRZ_HUMAN_CLIENT']) {
+        expect(task.Properties.ContainerDefinitions[0].Environment).toContainEqual({ Name: name, Value: runtime.Properties.EnvironmentVariables[name] });
+      }
+    }
   });
   it('limits Memory access to the Runtime and worker on the configured resource', () => {
     const [id] = Object.keys(template.findResources('AWS::BedrockAgentCore::Memory'));

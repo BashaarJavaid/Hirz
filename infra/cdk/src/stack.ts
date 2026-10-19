@@ -283,6 +283,9 @@ export class HirzStack extends Stack {
     const cluster = new ecs.Cluster(this, 'Cluster', { vpc });
     const environment = {
       HIRZ_AWS_ROLE: 'worker', HIRZ_LLM: 'off', HIRZ_DATABASE_HOST: database.dbInstanceEndpointAddress,
+      HIRZ_RUNTIME_RESOURCE: runtimeResource.valueAsString,
+      HIRZ_COGNITO_ISSUER: `https://cognito-idp.${this.region}.amazonaws.com/${pool.userPoolId}`,
+      HIRZ_HUMAN_CLIENT: human.userPoolClientId,
       HIRZ_DATABASE_NAME: 'hirz_item36', HIRZ_DATABASE_SECRET: appPassword.secretArn,
       HIRZ_AUDIT_SECRET: audit.secretArn, HIRZ_TICK_SECRET: tickSecret.secretArn,
       HIRZ_MEMORY_ID: memory.attrMemoryId,

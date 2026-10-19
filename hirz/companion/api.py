@@ -15,13 +15,15 @@ from pydantic import BaseModel, ConfigDict, Field, StrictBool, model_validator
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from hirz import db
+from hirz.aws.auth import CognitoCache
 from hirz.aws.policy import AWS_ANALYSIS
 from hirz.aws.routing import Routing
-from hirz.companion import auth, policy, push, twin
+from hirz.companion import accounts, auth, policy, push, twin
 from hirz.constitution.boundary import Dogwood
 from hirz.constitution.schema import loads
 from hirz.contacts.service import Command as ContactCommand
 from hirz.graph.models import now
+from hirz.mcp.auth import AuthUnavailable
 from hirz.memory.models import Page
 from hirz.memory.service import MemoryService
 from hirz.pipeline.audit import AuditWriter
@@ -43,7 +45,10 @@ class Begin(Input):
         "activate",
         "approve",
         "contact",
+        "link_account",
     ]
+    account_token: str | None = Field(default=None, min_length=1, max_length=16384)
+    account_binding: str | None = Field(default=None, min_length=64, max_length=64)
     token: str | None = Field(default=None, min_length=32, max_length=128)
     credential_id: str | None = Field(default=None, max_length=2048)
     member_id: UUID | None = None
@@ -58,6 +63,7 @@ class Begin(Input):
     @model_validator(mode="after")
     def fields_for_operation(self) -> "Begin":
         allowed = {
+            "link_account": {"account_token", "account_binding"},
             "contact": {"contact"},
             "login": set(),
             "enroll": {"token"},
@@ -75,6 +81,7 @@ class Begin(Input):
 
 
 class Finish(Input):
+    account_token: str | None = Field(default=None, min_length=1, max_length=16384)
     contact: ContactCommand | None = None
     id: str = Field(min_length=32, max_length=128)
     credential: dict[str, Any]
@@ -112,6 +119,7 @@ class Companion:
         demo_world: TwinWorld | None = None,
         demo_worlds: dict[UUID, TwinWorld] | None = None,
         policy_routes: Routing | None = None,
+        account_verifier: CognitoCache | None = None,
     ):
         if demo_world is not None and not str(engine.url.database).startswith(
             "hirz_ha_smoke_"
@@ -126,6 +134,7 @@ class Companion:
         )
         self.demo_lock = asyncio.Lock()
         self.policy_routes = policy_routes
+        self.account_verifier = account_verifier
 
     @asynccontextmanager
     async def pipeline(self, household: UUID) -> AsyncIterator[Pipeline]:
@@ -231,6 +240,28 @@ def cookie(response: Response, name: str, token: str, *, secure: bool) -> None:
 
 def router(service: Companion) -> APIRouter:
     api = APIRouter(prefix="/api")
+
+    @api.get("/account-link")
+    async def account_link(request: Request, response: Response) -> dict[str, Any]:
+        response.headers["Cache-Control"] = "no-store"
+        async with service.authorized(request) as (p, member):
+            if service.account_verifier is None:
+                return {"available": False}
+            linked = await p.connection.scalar(
+                sa.select(db.member_accounts.c.sub)
+                .where(
+                    p.scope(db.member_accounts),
+                    db.member_accounts.c.member_id == member["member_id"],
+                    db.member_accounts.c.provider == service.account_verifier.issuer,
+                )
+                .limit(1)
+            )
+            token = request.cookies[service.config.session_cookie]
+            return {
+                "available": True,
+                "linked": linked is not None,
+                "session_binding": auth.digest("hirz-account-link:" + token),
+            }
 
     @api.get("/memory/proposals")
     async def memory_proposals(
@@ -358,7 +389,9 @@ def router(service: Companion) -> APIRouter:
             binding = (
                 None
                 if value.operation in {"login", "enroll"}
-                else value.model_dump(mode="json", exclude={"token"}, exclude_none=True)
+                else value.model_dump(
+                    mode="json", exclude={"token", "account_token"}, exclude_none=True
+                )
             )
             if value.operation == "contact":
                 from hirz.contacts.secrets import Config as ContactConfig
@@ -370,6 +403,22 @@ def router(service: Companion) -> APIRouter:
                     "operation": "contact",
                     "command_binding": config.binding(value.contact.model_dump_json()),
                 }
+            if value.operation == "link_account":
+                if (
+                    service.account_verifier is None
+                    or value.account_token is None
+                    or token is None
+                    or not secrets.compare_digest(
+                        value.account_binding or "",
+                        auth.digest("hirz-account-link:" + token),
+                    )
+                ):
+                    raise ValueError(
+                        "Account linking is unavailable or the session changed"
+                    )
+                binding = await accounts.binding(
+                    service.account_verifier, value.account_token
+                )
             if value.operation == "add_credential":
                 binding = {"operation": "add_credential"}
             async with service.engine.begin() as c:
@@ -381,6 +430,10 @@ def router(service: Companion) -> APIRouter:
                     session_token=token,
                     binding=binding,
                 )
+        except AuthUnavailable:
+            raise HTTPException(
+                503, "Account verification is temporarily unavailable."
+            ) from None
         except ValueError:
             raise HTTPException(
                 400, "Passkey request refused. Check your session and request."
@@ -395,6 +448,10 @@ def router(service: Companion) -> APIRouter:
             browser, token = service.guard(request)
             async with service.engine.begin() as c:
                 record = await auth.consume(c, value.id, browser, token, now())
+            if (record["binding"].get("operation") == "link_account") != (
+                value.account_token is not None
+            ):
+                raise ValueError("Account proof belongs only to the linking ceremony")
             async with service.engine.connect() as c:
                 if record["kind"] == "register":
                     household = UUID(record["binding"]["household_id"])
@@ -442,7 +499,21 @@ def router(service: Companion) -> APIRouter:
                                 update={"passkey_verified": True}
                             )
                             binding = record["binding"]
-                            if binding["operation"] == "contact":
+                            if binding["operation"] == "link_account":
+                                if (
+                                    service.account_verifier is None
+                                    or value.account_token is None
+                                ):
+                                    raise ValueError("Account linking is unavailable")
+                                await accounts.link(
+                                    p,
+                                    principal,
+                                    service.account_verifier,
+                                    value.account_token,
+                                    binding,
+                                )
+                                result = {"message": "Your login is linked."}
+                            elif binding["operation"] == "contact":
                                 from hirz.contacts.secrets import (
                                     Config as ContactConfig,
                                 )

@@ -34,6 +34,13 @@ def create_worker() -> FastAPI:
             signing_key({"AUDIT_SIGNING_KEY": config.secret("HIRZ_AUDIT_SECRET")})
         ),
         Config(os.environ["HIRZ_COMPANION_ORIGIN"], os.environ["HIRZ_COMPANION_RP_ID"]),
+        account_verifier=CognitoCache(
+            os.environ["HIRZ_COGNITO_ISSUER"],
+            os.environ["HIRZ_RUNTIME_RESOURCE"],
+            os.environ["HIRZ_HUMAN_CLIENT"],
+        )
+        if os.environ.get("HIRZ_RUNTIME_RESOURCE")
+        else None,
         policy_routes=policy_routes(
             Route(
                 os.environ["HIRZ_POLICY_ENGINE"],

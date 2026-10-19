@@ -16028,3 +16028,43 @@ live Memory strategy acceptance, real account linking, inference enablement,
 diagnostics, timing and full CI remain owed. No item 38 push, deployment, model
 call, new resource or physical action occurred. The Memory threat row remains
 Partial; only its local authenticated-consent evidence is updated.
+
+### Self-link backend and identity isolation — 2026-10-19
+
+Implemented the author's selected self-link model in the isolated item 38 checkout
+while item 37's corrected CI ran independently. The backend connects verified
+Cognito proofs to the existing passkey ceremony and audited credential enrollment;
+it adds no public owner-assignment path or direct graph-write exception.
+[Decision](adr/ADR-019-companion.md#item-38-self-linked-cognito-login--2026-10-19).
+
+Validation used the existing locked Python environment, native Dogwood, Node 24
+and disposable PostgreSQL databases:
+
+- Account-link, companion auth/API and AWS auth/configuration/Runtime unit suites:
+  **56 passed in 9.43 seconds**. They include read-scope and token-lifetime refusal,
+  stale key-cache failure, child/revoked-member refusal, worker resource wiring and
+  cache startup/shutdown with the companion lifespan. Existing token signature,
+  issuer/client/audience and strict-claims checks remain included.
+- Account-link and connected companion auth/HTTP database suites: **18 passed in
+  34.42 seconds**. The 13 new cases cover real owner/adult passkey assertions,
+  session binding, token substitution, wrong key, replay, duplicate links, revoked
+  credentials, rollback after graph/audit mutation, and concurrent linking of the
+  same subject from two households. Exactly one concurrent transaction commits;
+  the other refuses reassignment. Stored ceremonies exclude the bearer token,
+  successful links reference a real EXECUTE audit grant, and both chains verify.
+  Revocation setup uses the existing internal verified-ceremony principal.
+- CDK: **9 tests passed**, including matching worker/Runtime issuer, human client
+  and resource; existing IAM isolation and dependency-cycle checks remain intact.
+  TypeScript typecheck passed. Ruff lint/format and strict mypy passed for the
+  touched Python modules; `git diff --check` passed.
+
+Test construction initially tried JSON-serializing binary audit signatures, then
+looked for private action metadata in the redacted decision payload; assertions
+now verify the canonical action-to-signed-grant relationship. The revoked-session
+test now expects the existing 403 response. These were test corrections, not
+relaxed authorization, and earned no third-party friction entry.
+
+Browser PKCE/redirect wiring, production account-link acceptance, Memory ingress
+and extraction, inference enablement, diagnostics, full CI and all live item 38
+gates remain owed. No item 38 push, paid call, deployment or physical action occurred.
+No threat-model row is promoted and item 37's application revision stays unchanged.

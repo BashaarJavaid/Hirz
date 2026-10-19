@@ -2364,3 +2364,17 @@ uv run pytest tests/integration/test_memory_http.py tests/integration/test_memor
 # With the local Vite server already running:
 HIRZ_BROWSER_BACKEND=http://127.0.0.1:5173 pnpm --filter web test:browser tests/memory.spec.ts
 ```
+
+The self-link backend is also locally verified. `GET /api/account-link` requires
+the companion session and returns its binding plus link status. A `link_account`
+passkey begin request supplies that binding and a current Cognito access token;
+finish must supply the identical token with the assertion. Neither request may
+select a member. The worker uses `HIRZ_COGNITO_ISSUER`, `HIRZ_HUMAN_CLIENT` and the
+exact `HIRZ_RUNTIME_RESOURCE`; without the resource, linking is unavailable.
+Do not manually insert account mappings or paste real tokens into shell history.
+Browser PKCE/redirect wiring and the future reviewed live acceptance remain owed.
+
+```sh
+uv run pytest tests/unit/test_account_link.py tests/unit/test_companion_api.py tests/unit/test_companion_auth.py tests/unit/aws/test_auth.py tests/unit/aws/test_configuration.py tests/unit/aws/test_runtime.py --no-cov
+uv run pytest tests/integration/test_account_link.py tests/integration/test_companion_auth_database.py tests/integration/test_companion_http.py -m integration --no-cov
+```

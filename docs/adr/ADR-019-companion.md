@@ -96,3 +96,31 @@ persists across later publications that retain existing rules; raw AWS findings
 remain in publication history. Pending and
 failed publication behavior and local activation remain unchanged. Rejected:
 showing an unqualified AWS validation success after skipping semantic analysis.
+
+## Item 38 self-linked Cognito login — 2026-10-19
+
+The author selected each member linking their own login from their authenticated
+companion app. The backend verifies a short-lived Cognito human access token for
+the exact configured issuer, client and Runtime resource, with read scope. A
+fresh, single-use passkey ceremony binds its digest and provider/subject to the
+current companion session. Completion verifies the same token again and resolves
+the current member and credential; request fields cannot select a different member.
+Child members cannot link, preserving the identity contract in architecture §7.
+
+Linking uses the existing `governance.credentials` enrollment grant and stores the
+mapping in the same transaction as its action and signed audit decision. The
+action records the credential kind and provider/subject; bearer tokens stay out
+of stored ceremonies, actions and audit. A transaction advisory lock serializes
+the provider/subject across households. V1 refuses an existing mapping, including
+one in another household, because Runtime has no household selector. The database
+shape still permits future explicitly designed multi-household membership.
+
+Rejected: owner assignment of someone else's login, token claims supplying roles,
+email matching, an OAuth login replacing companion passkeys, reassignment of an
+existing mapping, and household-only locks that allow concurrent ambiguous links.
+No compiler grammar, bootstrap exception or migration is added. The worker starts
+the same bounded key cache used by Runtime only after its resource is configured.
+
+This amendment records the chosen identity model and locally verified backend.
+Browser PKCE/redirect wiring and live Cognito acceptance remain pending; it does
+not claim an end-to-end production login flow or an item 38 deployment.

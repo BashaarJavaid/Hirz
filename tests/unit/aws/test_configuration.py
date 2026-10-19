@@ -84,7 +84,8 @@ def test_fixture_is_stable_twin_and_covers_window(monkeypatch):
     assert first.execution_policy.version == 7
 
 
-def test_worker_request_evidence_omits_private_paths(monkeypatch, caplog):
+@pytest.mark.parametrize("resource", ["", "https://runtime.example.test/mcp"])
+def test_worker_request_evidence_omits_private_paths(monkeypatch, caplog, resource):
     import asyncio
     import logging
     from unittest.mock import AsyncMock
@@ -94,11 +95,15 @@ def test_worker_request_evidence_omits_private_paths(monkeypatch, caplog):
     from fastapi import FastAPI
 
     from hirz.aws import app as aws_app
+    from tests.unit.aws.test_auth import CLIENT, ISSUER
 
     secret = "ab" * 32
     monkeypatch.setenv("HIRZ_LLM", "off")
     monkeypatch.setenv("HIRZ_COMPANION_ORIGIN", "https://example.cloudfront.net")
     monkeypatch.setenv("HIRZ_COMPANION_RP_ID", "example.cloudfront.net")
+    monkeypatch.setenv("HIRZ_RUNTIME_RESOURCE", resource)
+    monkeypatch.setenv("HIRZ_COGNITO_ISSUER", ISSUER)
+    monkeypatch.setenv("HIRZ_HUMAN_CLIENT", CLIENT)
     for field in ("HIRZ_POLICY_ENGINE", "HIRZ_GATEWAY_ARN", "HIRZ_GATEWAY_URL"):
         monkeypatch.setenv(field, "synthetic")
     monkeypatch.setattr(aws_app.config, "secret", lambda _: secret)
@@ -123,6 +128,15 @@ def test_worker_request_evidence_omits_private_paths(monkeypatch, caplog):
             assert response.status_code == 204
 
     asyncio.run(run())
+    verifier = aws_app.Companion.call_args.kwargs["account_verifier"]
+    if resource:
+        assert (verifier.issuer, verifier.resource, verifier.client_id) == (
+            ISSUER,
+            resource,
+            CLIENT,
+        )
+    else:
+        assert verifier is None
     evidence = [r.message for r in caplog.records if "item36_request" in r.message]
     assert evidence == [
         "item36_request kind=other status=404",

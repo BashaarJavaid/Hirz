@@ -1447,7 +1447,9 @@ cascading deletion. UUIDs are supplied by future application callers.
 | `audit_pointer` | `household_id UUID` primary/foreign key; `seq bigint >= 0 DEFAULT 0`; `curr_hash` as 64 lowercase hex characters, default 64 zeroes |
 
 One provider/sub may link to a member in each household, but only once within that
-household. Graph tables have no extra timestamps, defaults, or indexes beyond
+household at the database level. The item 38 Cognito self-link backend additionally
+serializes provider/sub globally and refuses any existing mapping: Runtime V1 has
+no cross-household selector and rejects ambiguous identities. Graph tables have no extra timestamps, defaults, or indexes beyond
 keys. History columns and repositories arrive in item 6; `rate_plan`, pause, and
 demo-lifecycle fields arrive with their roadmap behavior. No seed or pointer rows
 are inserted by the migration. Item 10 will implement audit signing and pointer
@@ -1496,6 +1498,12 @@ or any attempt audit row, preserving evidence even if a claim pointer was remove
 - **Speaker hook.** `requested_by.speaker` is an optional field, `null` on every surface today. If Alexa ever passes a recognized-speaker identifier with a confidence level, it maps to a member through `member_accounts` and is subject to the same rule as a claimed role: it can lower or match the token's authority, never raise it. Hirz never derives a speaker itself (`THREAT_MODEL.md`). The absence of this field in the add-on contract is logged as a Critical feature request in `docs/friction-log.md`.
 - **Children and guests.** Child profiles cannot link; requests come through a parent's account and the constitution's `child_requests` rules apply (`ask` the parent, or `never`). Unlinked users get the guest experience.
 - **Companion app.** Separate passkey login bound to the existing linked `member` row. Initial local enrollment requires an explicitly issued invitation; email is not a login authority. Recovery codes permit enrollment only, never approval. Successful recovery consumes the code, revokes old credentials/sessions/unused security votes, and issues a replacement code. An owner may re-invite another linked member, but cannot reset their own account this way. Owners without a remaining passkey or recovery code have no in-product recovery; setup encourages a second distinct credential without requiring one, and explains that passkeys can sync. Credential revocation invalidates its sessions and unused votes immediately, with another check at redemption. Last-key revocation requires explicit lockout confirmation.
+
+The item 38 Cognito link backend lets an enrolled non-child member link only their
+own current login, with an exact resource-bound token and a fresh passkey over its
+digest. Existing mappings cannot be reassigned. The grant, account row and audit
+commit together. Its browser redirect flow and live acceptance remain pending
+([ADR-019](docs/adr/ADR-019-companion.md#item-38-self-linked-cognito-login--2026-10-19)).
 
 Local item 24 implements a separate simulated issuer and authenticated startup;
 [ADR-014](./docs/adr/ADR-014-local-oauth.md) specifies the lifetimes, limits,

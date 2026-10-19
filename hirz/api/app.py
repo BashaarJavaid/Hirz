@@ -75,6 +75,10 @@ def create_app(
                     await stack.enter_async_context(household.run())
                 if companion is not None:
                     await stack.enter_async_context(companion.boundary.persistent())
+                    if companion.account_verifier is not None:
+                        await stack.enter_async_context(
+                            companion.account_verifier.run()
+                        )
                 if cache is not None:
                     await stack.enter_async_context(cache.run())
                 await stack.enter_async_context(server.session_manager.run())

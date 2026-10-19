@@ -89,3 +89,30 @@ def test_anonymous_bootstrap_and_forged_authority():
             ).status_code
             == 403
         )
+
+
+def test_account_verifier_lives_with_companion(monkeypatch):
+    from hirz.api.app import create_app
+
+    state = []
+
+    @asynccontextmanager
+    async def run():
+        state.append("started")
+        try:
+            yield
+        finally:
+            state.append("stopped")
+
+    @asynccontextmanager
+    async def boundary():
+        yield
+
+    verifier = Mock()
+    verifier.run = run
+    service = Companion(Mock(), Mock(), CONFIG, account_verifier=verifier)
+    monkeypatch.setattr(service.boundary, "persistent", boundary)
+    with TestClient(create_app(companion=service)) as client:
+        assert client.get("/health").status_code == 200
+        assert state == ["started"]
+    assert state == ["started", "stopped"]
