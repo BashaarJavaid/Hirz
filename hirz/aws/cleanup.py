@@ -78,7 +78,15 @@ def empty_policy_engine(client: Any, engine: str) -> None:
             if policy["policyEngineId"] != engine:
                 raise ValueError("Policy cleanup crossed the recorded engine")
             if policy["status"] not in {"CREATING", "UPDATING", "DELETING"}:
-                client.delete_policy(policyEngineId=engine, policyId=policy["policyId"])
+                try:
+                    client.delete_policy(
+                        policyEngineId=engine, policyId=policy["policyId"]
+                    )
+                except ClientError as exc:
+                    if exc.response["Error"]["Code"] != "ThrottlingException":
+                        raise
+                    # Re-list after pacing; keep the original cleanup deadline.
+                    break
         time.sleep(2)
     raise ValueError("Policy cleanup exceeded its deadline")
 
