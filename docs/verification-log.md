@@ -15838,3 +15838,26 @@ A separate real STS probe using an in-memory profile override authenticated as
 log credentials or deploy resources. Private evidence is retained in
 `secrets/item37-awake-review/credential-probe.json`. CI and another live
 acceptance are still pending at this entry; no completion is claimed.
+
+### Prelaunch CI assertion correction — 2026-10-19
+
+[CI 39331746473](https://github.com/BashaarJavaid/Hirz/actions/runs/39331746473)
+on `f50da897d8e469e3bfa69434a29ca10728ef3090` passed ten jobs but failed
+`python-test`: 264 integration cases passed and one still expected the old
+`AWS rejected the production compiler` error after the harness wording changed.
+The actual error was `Policy publication did not commit; inspect retained findings
+before recovery`. This was a missed test update, not a new AWS finding. Combined
+coverage at that failed run was 89%; later Python-job steps did not run.
+
+The assertion now checks the new publication-failure prefix while retaining all
+checks of the failed publication, findings, two audit exports and recovery calls.
+`pytest tests/integration/test_policy_publication.py -m integration --no-cov -q`
+passed **19 cases in 56.57 seconds** against disposable PostgreSQL databases.
+Ruff lint/format and `git diff --check` passed. No application code changed in
+this correction. Fresh CI is still required before launch.
+
+The guarded supervisor stopped before issuing clearance or deploying resources.
+The fourth window remains unused, with zero Gateway call records; its existing
+$10 additional / $40 combined authorization remains conditional on CI and fresh
+clearance. Failed CI and supervisor logs are retained privately; no deadline,
+resource marker or prior allowance was reset.
