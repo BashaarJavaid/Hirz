@@ -33,3 +33,41 @@ Judges are not required to watch past 3:00 or to run anything, so the video must
 - The video follows one promise: the family grants useful authority and sets a limit (5:31), Hirz does helpful work inside it (the plan), an ordinary request that crosses the limit is refused (6:40), a legitimate authenticated action succeeds and is verified (7:04), and an attempted bypass is refused (the close).
 - The courier moment goes in the video only if the cold open stays at 55 seconds or less; otherwise it lives in the scenario assertions, the gallery, and the description.
 - Export with both scenario run ids in the description; the README links the runs' audit exports so anyone can verify the numbers.
+
+
+## Recording and human-check gates — 2026-10-19
+
+Use the [submission readiness review](submission.md#readiness-review--2026-10-19)
+for current blockers. The script above is the intended recording, not evidence
+that every shot exists. Record only after the cited scenario exports verify.
+The live lamp needs the physical plug's state/power evidence; the signed-command
+close needs item 38a. Do not substitute a simulated refusal while labeling it as
+an AWS or physical-home result. If a dependent gate misses the recording target,
+ask the author to choose the documented fallback and then rewrite the script.
+
+The author is arranging the plug and participants. Prepare one disposable demo
+household per participant and reset it through the documented demo procedure.
+Use synthetic contacts and requests. Recruit 5–8 people who did not build Hirz,
+including household managers and at least two older adults. Let each attempt the
+following tasks without explaining the expected answer first:
+
+| Task prompt | Observation to retain |
+|---|---|
+| Read this proposed rule and explain what will change before activating it. | Predicted behavior, actual completion, misunderstanding of the diff |
+| Someone claiming to be a family member asks for money. Check the request. | Whether the participant finds the trusted-contact check and interprets its result |
+| Your trusted contact has not replied. Decide what to do next. | Whether the no-answer state is understood without implying verification |
+| Review this expected visitor's unlock request. Explain what Hirz knows, then decide. | Whether a schedule is confused with visitor identity; phone approval understanding |
+| Stop Hirz from taking further actions. | Whether the participant finds pause and understands its state |
+
+For each participant retain an anonymous label, household-manager/older-adult
+category, device used, completion per task, any assistance, exact misunderstanding
+in their own words, and whether they would keep Hirz enabled and why. Do not turn
+a coached retry into an unassisted success. Fix misunderstandings or list them;
+report the actual sample and limits in the README when item 40a closes.
+
+Give the exported video to two people who did not build Hirz. Ask each to state
+who it helps, what the household rule changed, whether the visitor's identity was
+known, which devices were simulated, and what the refused replay demonstrated.
+Record confusing moments with timestamps. Check the export is under 3:00,
+captioned, free of unsupported live/security claims, and has scenario references
+and working repository links. This is preparation; no human results are claimed.
