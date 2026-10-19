@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-10-19: Wire the full authenticated MCP application into the Runtime entrypoint, preserve explicit household boundary assignments and prepare private RDS access with scoped infrastructure secrets; locally verified, not deployed ([decision](docs/adr/ADR-008-agentcore-topology.md#item-38-runtime-composition-locally-verified--2026-10-19)).
+
 - 2026-10-19: Start item 38 with locally tested resource-bound Cognito verification, current account lookup and issuer-correct permission discovery ([decision](docs/adr/ADR-014-local-oauth.md#item-38-cognito-verification-foundation--2026-10-19)); Runtime wiring remains pending.
 
 - 2026-10-19: Record passing repair CI/latency and the approved third, bounded item 37 acceptance window ([decision](docs/adr/ADR-008-agentcore-topology.md#additional-item-37-run-after-session-repair--2026-10-19)).

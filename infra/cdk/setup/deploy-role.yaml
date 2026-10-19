@@ -75,6 +75,7 @@ Resources:
                       - cloudfront.amazonaws.com
                       - bedrock-agentcore.amazonaws.com
                       - identity-network.bedrock-agentcore.amazonaws.com
+                      - network.bedrock-agentcore.amazonaws.com
 Outputs:
   RoleArn:
     Value: !GetAtt HirzDeploy.Arn

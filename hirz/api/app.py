@@ -9,6 +9,7 @@ from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from mcp.server.transport_security import TransportSecuritySettings
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 from hirz.companion.api import Companion
@@ -40,12 +41,13 @@ def create_app(
     household: HouseholdRuntime | None = None,
     companion: Companion | None = None,
     simulator: Simulator | None = None,
+    security: TransportSecuritySettings | None = None,
 ) -> FastAPI:
     """One SDK manager per app; only tests/smoke register diagnostic tools."""
     from hirz.protect.organizations import registry
 
     registry()
-    security = local_security(port)
+    security = security or local_security(port)
     server = create_server(
         security, authentication=cache is not None and engine is not None
     )

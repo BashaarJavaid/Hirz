@@ -205,3 +205,44 @@ all allowances. The prior two forecasts remain counted; no counter is reset.
 Local item 38 work may continue in a separate checkout while acceptance runs on
 the fixed item 37 implementation. This grants no item 38 deployment, signing,
 Link, physical execution or broader policy-validation exception.
+
+## Item 38 Runtime composition, locally verified — 2026-10-19
+
+The Runtime entrypoint now composes the existing authenticated MCP application,
+Cognito verifier, household services and signed audit writer. It retains stateful
+SDK sessions for the existing MCP 2025-11-25 elicitation contract, plus anonymous
+generic discovery. The shared application keeps its local transport defaults;
+the AWS entrypoint uses the private Runtime listener behind CUSTOM_JWT. Only
+`Authorization` is explicitly forwarded. The application independently checks
+the signed token and current membership on each protected request; forwarded
+identity or household hints confer no authority.
+
+CDK connects Runtime to the existing private subnets with its own security group
+and RDS-only ingress grant. Its role can read the application database password
+and audit key; it gains no tick secret, machine-client secret, Gateway invocation,
+adapter credential or signing permission. The deployment-role template adds only
+the documented `network.bedrock-agentcore.amazonaws.com` service-linked-role
+creation condition. None of these infrastructure changes has been deployed.
+
+The exact PRM `resource`, including `qualifier=DEFAULT`, is a `RuntimeResource`
+stack parameter. Initial creation leaves it empty and container startup refuses
+invocation. After discovery, a second deployment supplies it without changing the
+acceptance clock. Referencing the Runtime's own ARN in its environment would
+create a CloudFormation dependency cycle; a made-up audience or unsigned request
+header would weaken resource binding. Both alternatives are rejected.
+
+Household routing reuses the worker's explicit acceptance assignments: the two
+item 37 fixtures are managed and the hosted twin fixture is local. Startup checks
+the schema and rejects unassigned households, and every tool Pipeline receives
+the matching route. Runtime still has no Gateway client or adapter; device tools
+queue work for the worker. This does not change item 37's inert boundary or earn
+device execution. Production account-link creation remains separate work.
+
+Contracts: [Runtime MCP sessions](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-mcp-protocol-contract.html),
+[authorization forwarding](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-header-allowlist.html),
+and [VPC networking](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/agentcore-vpc.html).
+The VPC guide allows service-managed interfaces to remain for up to eight hours
+after Runtime deletion. Future item 38 acceptance must reserve that cleanup time
+inside its approved lifetime; item 37's current one-hour cleanup reserve cannot
+be reused for this topology. Tests and scope are in the
+[verification log](../verification-log.md#runtime-composition-and-private-network-template--2026-10-19).

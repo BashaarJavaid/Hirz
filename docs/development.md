@@ -2304,3 +2304,26 @@ A smaller isolated probe must establish strict conditional-policy acceptance,
 record any actual expected hard-deny rejection before its exception, and verify
 restoration before full acceptance. Preserve existing stack/resource names. No
 completion is earned until every original acceptance gate and teardown passes.
+
+## Item 38 Runtime preparation (local only)
+
+The Runtime composition and private network template are described in
+[ADR-008](adr/ADR-008-agentcore-topology.md#item-38-runtime-composition-locally-verified--2026-10-19).
+They have not been deployed. Do not update the active item 37 stack from the item
+38 checkout. Account linking, model/Memory integration, acceptance automation and
+the live verification gates remain unfinished.
+
+For the future reviewed deployment, keep `WorkerDesiredCount=0` during initial
+creation and explicit database/bootstrap initialization. Obtain the exact public
+PRM `resource` for the created Runtime; set `RuntimeResource` to that value in the
+second stack deployment, preserving `FixtureStart`. The entrypoint refuses an
+empty resource. Never substitute the container's `/mcp` URL for the public
+resource audience, or omit its qualifier. Apply the reviewed deployment-role
+template before configuring VPC access if its network service-linked-role
+permission is absent. No extra always-on resource is introduced.
+
+The existing `us-east-1a`/`us-east-1b` subnets map to supported `use1-az1`/`use1-az2`
+in account `661550216013` (read-only verification on 2026-10-19); verify the mapping
+again before a future deployment. Acceptance must account for Runtime's
+documented VPC-interface deletion delay inside its approved cleanup deadline.
+The item 37 live runner is not an item 38 acceptance runner.

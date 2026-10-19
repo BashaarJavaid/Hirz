@@ -24,6 +24,11 @@ export class HirzStack extends Stack {
       type: 'String', description: 'Fixed UTC acceptance start; preserve on every update.',
       allowedPattern: '^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\+00:00$',
     });
+    const runtimeResource = new CfnParameter(this, 'RuntimeResource', {
+      type: 'String', default: '',
+      description: 'Exact resource from Runtime PRM after initial creation; empty refuses invocation.',
+      allowedPattern: '^$|^https://bedrock-agentcore\\.us-east-1\\.amazonaws\\.com/runtimes/arn%3Aaws%3Abedrock-agentcore%3Aus-east-1%3A661550216013%3Aruntime%2F[A-Za-z0-9_-]+/invocations\\?qualifier=DEFAULT$',
+    });
     const vpc = new ec2.Vpc(this, 'Vpc', {
       ipAddresses: ec2.IpAddresses.cidr('10.36.0.0/16'),
       availabilityZones: ['us-east-1a', 'us-east-1b'], natGateways: 1,
@@ -33,6 +38,7 @@ export class HirzStack extends Stack {
       ],
     });
     const workerSg = new ec2.SecurityGroup(this, 'WorkerSecurity', { vpc });
+    const runtimeSg = new ec2.SecurityGroup(this, 'RuntimeSecurity', { vpc });
     const albSg = new ec2.SecurityGroup(this, 'OriginSecurity', { vpc });
     // AWS-managed CloudFront origin-facing prefix list in this fixed us-east-1 deployment.
     // https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-vpc-origins.html
@@ -53,6 +59,7 @@ export class HirzStack extends Stack {
       }),
     });
     database.connections.allowDefaultPortFrom(workerSg);
+    database.connections.allowDefaultPortFrom(runtimeSg);
     const appPassword = new secrets.Secret(this, 'DatabasePassword', {
       generateSecretString: { passwordLength: 40, excludePunctuation: true },
     });
@@ -111,6 +118,7 @@ export class HirzStack extends Stack {
     for (const role of [worker, setup]) {
       for (const secret of [appPassword, audit, tickSecret]) secret.grantRead(role);
     }
+    for (const secret of [appPassword, audit]) secret.grantRead(mcp);
     audit.grantWrite(setup);
     tickSecret.grantWrite(setup);
     database.secret!.grantRead(setup);
@@ -142,9 +150,13 @@ export class HirzStack extends Stack {
     const runtime = new core.CfnRuntime(this, 'Runtime', {
       agentRuntimeName: 'hirz_item36', roleArn: mcp.roleArn,
       agentRuntimeArtifact: { containerConfiguration: { containerUri: image.imageUri } },
-      protocolConfiguration: 'MCP', networkConfiguration: { networkMode: 'PUBLIC' },
+      protocolConfiguration: 'MCP', networkConfiguration: {
+        networkMode: 'VPC', networkModeConfig: {
+          subnets: vpc.privateSubnets.map(s => s.subnetId), securityGroups: [runtimeSg.securityGroupId],
+        },
+      },
       authorizerConfiguration: { customJwtAuthorizer: { discoveryUrl: discovery, allowedClients: [human.userPoolClientId] } },
-      environmentVariables: { HIRZ_AWS_ROLE: 'mcp', HIRZ_LLM: 'off' },
+      requestHeaderConfiguration: { requestHeaderAllowlist: ['Authorization'] },
     });
     const runtimeLog = new logs.LogGroup(this, 'RuntimeLog', {
       logGroupName: `/aws/bedrock-agentcore/runtimes/${runtime.attrAgentRuntimeId}-DEFAULT`,
@@ -177,6 +189,14 @@ export class HirzStack extends Stack {
       authorizerConfiguration: { customJwtAuthorizer: { discoveryUrl: discovery, allowedClients: [machine.userPoolClientId], allowedScopes: ['hirz-gateway/invoke'] } },
       policyEngineConfiguration: { arn: engine.attrPolicyEngineArn, mode: 'LOG_ONLY' },
     });
+    runtime.environmentVariables = {
+      HIRZ_AWS_ROLE: 'mcp', HIRZ_LLM: 'off', HIRZ_RUNTIME_RESOURCE: runtimeResource.valueAsString,
+      HIRZ_COGNITO_ISSUER: `https://cognito-idp.${this.region}.amazonaws.com/${pool.userPoolId}`,
+      HIRZ_HUMAN_CLIENT: human.userPoolClientId, HIRZ_DATABASE_HOST: database.dbInstanceEndpointAddress,
+      HIRZ_DATABASE_NAME: 'hirz_item36', HIRZ_DATABASE_SECRET: appPassword.secretArn,
+      HIRZ_AUDIT_SECRET: audit.secretArn, HIRZ_POLICY_ENGINE: engine.attrPolicyEngineId,
+      HIRZ_GATEWAY_ARN: gateway.attrGatewayArn, HIRZ_GATEWAY_URL: gateway.attrGatewayUrl,
+    };
     gatewayRole.addToPolicy(new iam.PolicyStatement({ actions: ['bedrock-agentcore:AuthorizeAction', 'bedrock-agentcore:PartiallyAuthorizeActions', 'bedrock-agentcore:GetPolicyEngine'], resources: [engine.attrPolicyEngineArn, this.formatArn({ service: 'bedrock-agentcore', resource: 'gateway', resourceName: 'hirz-item36-*' })] }));
     gatewayRole.addToPolicy(new iam.PolicyStatement({ actions: ['bedrock-agentcore:GetWorkloadAccessToken'], resources: [this.formatArn({ service: 'bedrock-agentcore', resource: 'workload-identity-directory', resourceName: 'default' }), this.formatArn({ service: 'bedrock-agentcore', resource: 'workload-identity-directory', resourceName: 'default/workload-identity/hirz-item36-*' })] }));
     worker.addToPolicy(new iam.PolicyStatement({ actions: ['bedrock-agentcore:InvokeGateway', 'bedrock-agentcore:ManageResourceScopedPolicy'], resources: [gateway.attrGatewayArn] }));

@@ -14,6 +14,7 @@ from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from hirz import db
+from hirz.aws.routing import Routing
 from hirz.constitution.boundary import Dogwood
 from hirz.constitution.schema import loads
 from hirz.graph.models import now
@@ -46,11 +47,13 @@ class HouseholdRuntime:
         profiles: Profiles | None = None,
         card_evidence: dict[UUID, Annualized] | None = None,
         allow_unvalidated_fixture: bool = False,
+        policy_routes: Routing | None = None,
     ):
         self.engine, self.audit, self.clock = engine, audit, clock
         self.profiles = profiles or Profiles()
         self.card_evidence = card_evidence or {}
         self.allow_unvalidated_fixture = allow_unvalidated_fixture
+        self.policy_routes = policy_routes
         self.boundary = Dogwood()
         self.bundles: dict[UUID, tuple[PolicyBundle, str]] = {}
 
@@ -63,6 +66,12 @@ class HouseholdRuntime:
     @asynccontextmanager
     async def _policies(self) -> AsyncIterator[None]:
         async with self.engine.connect() as connection:
+            if self.policy_routes is not None:
+                await connection.run_sync(db.require_current)
+                for household in (
+                    await connection.execute(sa.select(db.households.c.id))
+                ).scalars():
+                    self.policy_routes.route(household)
             rows = (
                 (
                     await connection.execute(
@@ -105,6 +114,11 @@ class HouseholdRuntime:
             )
         if identity is None:
             raise ValueError("Link your account to use household tools.")
+        route = (
+            self.policy_routes.route(identity.household_id)
+            if self.policy_routes is not None
+            else None
+        )
         cached = self.bundles.get(identity.household_id)
         if cached is None:
             raise ValueError(
@@ -150,6 +164,7 @@ class HouseholdRuntime:
                     self.audit,
                     self.clock,
                     require_active=not self.allow_unvalidated_fixture,
+                    policy_route=route,
                 ),
                 identity.principal,
                 policy_hash=fingerprint,

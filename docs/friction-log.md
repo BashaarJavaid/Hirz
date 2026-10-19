@@ -1300,3 +1300,20 @@ original tracing was restored. Final evidence is appended to the
   stack deletion alone is not accepted as cleanup evidence.
 - **Feature request:** Document teardown ordering for scheduled Lambda functions
   with custom log groups, including log delivery that overlaps stack deletion.
+
+## Item 38 — pnpm refused shared worktree dependencies — 2026-10-19
+
+- **Tool / task:** pnpm 12.4.2, CDK tests in an isolated Git worktree.
+- **Severity:** Minor.
+- **Docs:** [Dependency installation](https://pnpm.io/cli/install).
+- **Observed error:** `ERR_PNPM_UNSAFE_TASK_RUN_STATE_PATH` followed by
+  `Refusing to use task run state directory at /private/tmp/hirz-item38/node_modules because it is a symbolic link or not a directory`.
+- **What happened:** An attempted shortcut linked the primary checkout's
+  `node_modules` into the separate worktree. The task runner correctly refused
+  the symlink; no documented security guarantee failed. A subsequent offline
+  install returned `ERR_PNPM_NO_OFFLINE_TARBALL` for `qified@0.10.1`.
+- **Response:** Removed only those dependency-directory symlinks and ran
+  `pnpm install --frozen-lockfile` in the isolated worktree. Installation and the
+  CDK checks then passed without changing package versions or the lockfile.
+- **Feature request:** Include an isolated-worktree example that recommends a
+  separate install and explains the task-state restriction on directory symlinks.

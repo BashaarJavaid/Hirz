@@ -43,7 +43,12 @@ describe('item 36 acceptance infrastructure', () => {
     template.hasResourceProperties('AWS::Cognito::UserPoolClient', { GenerateSecret: false, AllowedOAuthFlows: ['code'], AccessTokenValidity: 5, CallbackURLs: ['http://localhost:8765/callback'] });
     template.hasResourceProperties('AWS::Cognito::UserPoolClient', { GenerateSecret: true, AllowedOAuthFlows: ['client_credentials'], AllowedOAuthScopes: [Match.anyValue()] });
     template.hasResourceProperties('AWS::BedrockAgentCore::Gateway', { AuthorizerType: 'CUSTOM_JWT', PolicyEngineConfiguration: Match.objectLike({ Mode: 'LOG_ONLY' }) });
-    template.hasResourceProperties('AWS::BedrockAgentCore::Runtime', { ProtocolConfiguration: 'MCP', AuthorizerConfiguration: { CustomJWTAuthorizer: Match.objectLike({ AllowedClients: [Match.anyValue()] }) }, EnvironmentVariables: { HIRZ_AWS_ROLE: 'mcp', HIRZ_LLM: 'off' } });
+    template.hasResourceProperties('AWS::BedrockAgentCore::Runtime', {
+      ProtocolConfiguration: 'MCP', AuthorizerConfiguration: { CustomJWTAuthorizer: Match.objectLike({ AllowedClients: [Match.anyValue()] }) },
+      NetworkConfiguration: { NetworkMode: 'VPC', NetworkModeConfig: { SecurityGroups: [Match.anyValue()], Subnets: [Match.anyValue(), Match.anyValue()] } },
+      RequestHeaderConfiguration: { RequestHeaderAllowlist: ['Authorization'] },
+      EnvironmentVariables: Match.objectLike({ HIRZ_AWS_ROLE: 'mcp', HIRZ_LLM: 'off', HIRZ_RUNTIME_RESOURCE: { Ref: 'RuntimeResource' }, HIRZ_HUMAN_CLIENT: Match.anyValue(), HIRZ_DATABASE_SECRET: Match.anyValue(), HIRZ_AUDIT_SECRET: Match.anyValue(), HIRZ_POLICY_ENGINE: Match.anyValue() }),
+    });
     template.hasResourceProperties('AWS::BedrockAgentCore::GatewayTarget', { TargetConfiguration: { Mcp: { Lambda: { LambdaArn: Match.anyValue(), ToolSchema: { InlinePayload: Match.arrayWith([Match.objectLike({ Name: 'governance_approve_action', OutputSchema: Match.objectLike({ Required: ['approved', 'ttl_minutes', 'executed'] }) })]) } } } } });
     template.hasResourceProperties('AWS::BedrockAgentCore::Memory', { EventExpiryDuration: 3, MemoryStrategies: [] });
     template.hasResourceProperties('AWS::KMS::Key', { KeySpec: 'ECC_NIST_P256', KeyUsage: 'SIGN_VERIFY', PendingWindowInDays: 7 });
@@ -74,6 +79,23 @@ describe('item 36 acceptance infrastructure', () => {
     template.hasResourceProperties('AWS::Logs::LogGroup', { LogGroupName: '/aws/application-signals/data', RetentionInDays: 7 });
     expect(JSON.stringify(template.findResources('AWS::Logs::ResourcePolicy'))).toContain('PolicySignals');
     template.hasResourceProperties('AWS::Logs::DeliverySource', { LogType: 'TRACES', Name: 'hirz-item36-policy-traces' });
+  });
+  it('gives Runtime database and audit access without worker or Gateway authority', () => {
+    const policy = Object.entries(template.findResources('AWS::IAM::Policy')).find(([id]) => id.startsWith('McpRoleDefaultPolicy'))![1];
+    const allows = policy.Properties.PolicyDocument.Statement.filter((s: { Effect: string }) => s.Effect === 'Allow');
+    const reads = allows.filter((s: { Action: string | string[] }) => [s.Action].flat().includes('secretsmanager:GetSecretValue'));
+    expect(reads).toHaveLength(2);
+    expect(JSON.stringify(reads)).toContain('DatabasePassword');
+    expect(JSON.stringify(reads)).toContain('AuditKey');
+    expect(JSON.stringify(reads)).not.toMatch(/MachineSecret|TickSecret|BackingSecret/);
+    expect(allows.flatMap((s: { Action: string | string[] }) => s.Action)).not.toEqual(expect.arrayContaining(['bedrock-agentcore:InvokeGateway']));
+    const runtime = Object.values(template.findResources('AWS::BedrockAgentCore::Runtime'))[0];
+    const security = runtime.Properties.NetworkConfiguration.NetworkModeConfig.SecurityGroups[0];
+    const [databaseId, database] = Object.entries(template.findResources('AWS::RDS::DBInstance'))[0];
+    const port = { 'Fn::GetAtt': [databaseId, 'Endpoint.Port'] };
+    template.hasResourceProperties('AWS::EC2::SecurityGroupIngress', { FromPort: port, ToPort: port, IpProtocol: 'tcp', SourceSecurityGroupId: security, GroupId: database.Properties.VPCSecurityGroups[0] });
+    expect(JSON.stringify(runtime.Properties.EnvironmentVariables)).not.toContain('MachineSecret');
+    expect(template.toJSON().Parameters.RuntimeResource.Default).toBe('');
   });
   it('synthesizes without network lookups and without dependency cycles', () => {
     expect(app.synth().manifest.missing ?? []).toEqual([]);

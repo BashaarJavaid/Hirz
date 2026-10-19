@@ -15828,3 +15828,49 @@ Runtime deployment wiring remains pending.
 
 The two updated Cognito integration cases passed in **4.80 seconds**; strict mypy
 on the changed authentication modules and `git diff --check` also passed.
+
+### Runtime composition and private network template — 2026-10-19
+
+Continued local item 38 work in `/private/tmp/hirz-item38` while the item 37
+acceptance remained pinned to `eb7667c`. The main checkout and deployment were
+unchanged. [ADR-008](adr/ADR-008-agentcore-topology.md#item-38-runtime-composition-locally-verified--2026-10-19)
+records the composition, permissions, rejected alternatives and future cleanup
+constraint.
+
+- `pytest tests/unit/aws/test_runtime.py tests/unit/aws/test_auth.py
+  tests/unit/test_mcp.py tests/unit/test_oauth.py --no-cov --tb=short -q`:
+  **121 passed in 13.22 seconds**. Covers the full catalog, Cognito/local verifier
+  regressions, missing-token 401 with qualified metadata URL, bounded request
+  bodies, no tick endpoint, lifecycle cleanup and incomplete-resource refusal.
+- `pytest tests/integration/test_runtime_database.py
+  tests/integration/test_cognito_database.py tests/integration/test_oauth_database.py
+  -m integration --no-cov --tb=short -q`: **8 passed in 26.22 seconds**.
+  Runtime composition uses explicitly simulated local OAuth over the real SDK,
+  PostgreSQL and native Dogwood, with real passkey activation, a household-context
+  read and a signed rule proposal. It verifies local/managed route propagation,
+  absence of a Gateway client and rejection of unassigned households at startup.
+  Both successful runs independently verify their audit chains. The separate
+  Cognito tests retain rollback-only account rows; no production account link is
+  fabricated or committed. The development database is not migrated.
+- `pnpm --filter infra test`: **7 passed**, including synthesis without network
+  lookups or dependency cycles, private Runtime subnets, authorization forwarding,
+  exact database ingress and only database/audit infrastructure secret reads.
+  TypeScript typecheck and eslint passed.
+- Ruff lint and strict mypy on the three changed application modules passed.
+- The existing AWS configuration suite passed **11 tests in 2.44 seconds**, and
+  the existing running-MCP policy activation/reload database test passed in
+  **5.44 seconds**. Combined targeted results are **132 unit, nine database and
+  seven CDK tests**; this is not the full repository CI gate.
+
+Initial test errors were corrected: audit verification must own an idle
+connection and returns a summary mapping; CDK represents the database port as an
+endpoint attribute, not a literal. These were test construction errors, not live
+service failures. Locked dependencies were installed in the isolated worktree;
+no lockfile or package version changed.
+
+A read-only `DescribeAvailabilityZones` under `hirz` confirmed the existing
+account-specific `us-east-1a`/`us-east-1b` mapping to supported `use1-az1`/`use1-az2`.
+There was no item 38 deployment, Runtime invocation or model call. Live Cognito
+linking, end-to-end AWS routing and VPC teardown are unverified. Bedrock, Memory,
+doctor, action timing, warm/cold latency and full item 38 CI remain owed; neither
+item closure nor a threat-model protection is claimed.
