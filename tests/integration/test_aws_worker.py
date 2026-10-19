@@ -1,7 +1,7 @@
 """AWS request composition over disposable PostgreSQL and real passkey ceremonies."""
 
 import asyncio
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import AsyncMock, Mock
 
@@ -22,10 +22,10 @@ from hirz.aws.worker import tick
 from hirz.companion.api import Companion
 from hirz.companion.auth import initial_invitation
 from hirz.constitution.schema import dump
-from hirz.graph.models import now
 from hirz.local import read_env, signing_key
 from hirz.pipeline.audit import AuditWriter
 from hirz.twin.authenticator import CONFIG, Authenticator
+from hirz.twin.clock import SimClock
 from hirz.twin.execution import bootstrap
 from scripts.smoke_executor import action
 
@@ -37,6 +37,15 @@ def test_aws_tick_activation_cancellation_duplicate_and_restart(
     scratch_database, monkeypatch, interrupt_after_dispatch
 ):
     async def run():
+        # This execution test must not enter household quiet hours based on CI time.
+        now = SimClock(datetime(2026, 10, 13, 23, tzinfo=UTC), 1)
+        for module in (
+            "hirz.companion.api",
+            "hirz.companion.auth",
+            "hirz.aws.probe",
+            "hirz.aws.worker",
+        ):
+            monkeypatch.setattr(f"{module}.now", now)
         start = now() - timedelta(minutes=2)
         monkeypatch.setenv("HIRZ_FIXTURE_START", start.isoformat())
         monkeypatch.setenv("HIRZ_LLM", "off")
@@ -142,7 +151,6 @@ def test_aws_tick_activation_cancellation_duplicate_and_restart(
                 async with service.pipeline(p.household_id) as q:
                     from hirz.executor.local import compose
                     from hirz.executor.observations import ingest
-                    from hirz.twin.clock import SimClock
 
                     loaded.world.clock = SimClock(now(), 1)
                     r = await compose(
