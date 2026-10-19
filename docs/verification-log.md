@@ -16106,3 +16106,21 @@ fixture without modifying application transport or security. No new third-party
 workaround is required. Production Cognito UI/CORS, actual hosted redirects,
 physical phone behavior, full CI and all item 38 live acceptance remain owed.
 No item 38 push, deployment, paid call or physical device action occurred.
+
+#### Full companion smoke after browser integration
+
+Ran `scripts/smoke_companion.py --artifacts-dir
+/private/tmp/hirz-item38-account-link-smoke` with the existing locked environment,
+native Dogwood, Node 24 and `HIRZ_LLM=off`. The complete companion smoke passed:
+**8 browser cases passed in 2.5 minutes**, including the new link presentation,
+real local OAuth/MCP, WebAuthn enrollment, policy activation, worker execution,
+rule review and independently verified signed exports. The separate simulator and
+AWS-only cases skipped because this was their companion harness, not those live
+environments. Export and disposable-database cleanup finished normally, with no
+shutdown diagnostic marker; this single pass does not resolve issue #7.
+
+The synthetic OAuth endpoints now share the local fixture origin so the tests
+also run under the offline companion's existing CSP. Production permits only the
+configured HTTPS issuer, checked separately in the API/configuration tests. Real
+Cognito CORS remains a live gate. Only the test fixture changed after the previous
+browser-flow commit; the application flow was unchanged.

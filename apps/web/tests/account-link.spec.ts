@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { accessibility } from "./accessibility";
 
 const backend = process.env.HIRZ_BROWSER_BACKEND ?? "http://127.0.0.1:5175";
-const origin = backend.replace("127.0.0.1", "localhost"), login = "https://login.example.test";
+const origin = backend.replace("127.0.0.1", "localhost"), login = origin;
 
 // Browser exchange/presentation fixtures; real grant, JWT and isolation checks run in PostgreSQL tests.
 for (const scenario of [{ width: 390, changed: false }, { width: 1280, changed: false }, { width: 390, changed: true }]) {
