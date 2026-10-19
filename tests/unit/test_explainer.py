@@ -341,6 +341,11 @@ def test_sdk_contract_and_persisted_reuse(proposal):
         assert request["modelId"] == MODEL_ID
         assert request["inferenceConfig"] == {"temperature": 0, "maxTokens": 512}
         assert request["outputConfig"]["textFormat"]["type"] == "json_schema"
+        schema = json.loads(
+            request["outputConfig"]["textFormat"]["structure"]["jsonSchema"]["schema"]
+        )
+        assert "maxLength" not in schema["properties"]["screen_summary"]
+        assert "maxItems" not in schema["properties"]["details"]
         assert (
             json.loads(
                 request["outputConfig"]["textFormat"]["structure"]["jsonSchema"][
@@ -381,6 +386,11 @@ def test_sdk_contract_and_persisted_reuse(proposal):
 @pytest.mark.parametrize(
     "payload,stop",
     [
+        (json.dumps({"details": [], "screen_summary": "x" * 501}), "end_turn"),
+        (
+            json.dumps({"details": ["Safe text."] * 4, "screen_summary": "ok"}),
+            "end_turn",
+        ),
         ('{"details":["Save $999.00."],"screen_summary":"Claim"}', "end_turn"),
         ('{"details":[],"screen_summary":"ok","decision":"execute"}', "end_turn"),
         ('{"details":[],"screen_summary":"I will unlock the door."}', "end_turn"),

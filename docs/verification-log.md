@@ -16235,3 +16235,36 @@ Recorded drafting/provider and AWS-call unit suites passed **10 checks in 1.51
 seconds**. Ruff and strict mypy passed. The active item 37 code and inference-off
 AWS deployment remain unchanged; this local fix does not enable paid inference
 or replace the outstanding durable-budget and live-model gates.
+
+### Provider schema compatibility and broad collection — 2026-10-19
+
+The first broad local run stopped during collection because unit and integration
+account-link files shared the `test_account_link` module name. Renamed only the
+integration module to `test_account_link_database.py` and updated the procedure.
+The next run collected all 2,069 tests successfully and passed **1,774 service-free
+checks in 272.60 seconds**. This was a test-layout error, not an application or AWS failure.
+
+Review against the current official Bedrock structured-output contract found that
+Details sent a disallowed string bound, while Patch sent open-object maps that
+strict mode prohibits. New request regressions failed on the original code:
+`AssertionError: assert 'maxLength' not in ...` and
+`AssertionError: assert 'outputConfig' not in request`. These are local assertions;
+no AWS rejection or paid invocation was observed or claimed.
+
+The explainer now sends the supported structural schema while retaining its full
+local validator. Drafting supplies the existing Patch schema as prompt guidance
+and validates the returned JSON and complete resulting constitution locally.
+The two connected provider suites passed **84 checks in 1.86 seconds**, including
+new rejection cases for an oversized summary and too many details. Existing
+invalid grammar, changed version, forbidden security channel, added household
+field and incomplete-result cases still refuse. Actual service schema acceptance,
+model quality and inference-budget integration remain live/implementation gates.
+
+After the provider corrections, a fresh broad run passed **1,776 tests in 264.37
+seconds**, with 295 integration/latency cases deselected and the two existing
+dependency deprecation warnings. It includes the native CLI/helper agreement
+checks and uses no AWS service or model call. Service-free coverage alone is 69%;
+the project's 80% gate applies after database integration coverage is appended.
+Strict mypy passed on both changed application modules, Ruff passed, all 370 Python
+files passed formatting, and `git diff --check` was clean. No third-party friction
+entry is earned by the local test-name or unsupported-schema mistakes.

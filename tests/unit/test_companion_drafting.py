@@ -30,6 +30,9 @@ def test_recorded_patch_and_untrusted_provider_output():
     provider.client = Mock()
     provider.client.converse.return_value = recorded(value)
     result = provider.converse("Never unlock for an unexpected visitor", POLICY)
+    request = provider.client.converse.call_args.kwargs
+    assert "outputConfig" not in request
+    assert json.loads(request["system"][1]["text"]) == Patch.model_json_schema()
     changed = patched(POLICY, result)
     assert changed.rule("security.door_unlock", "owner").never_for == (
         "unexpected_visitor",

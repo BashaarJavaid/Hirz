@@ -35,7 +35,11 @@ class BedrockExplainer:
                     connect_timeout=2, read_timeout=5, retries={"total_max_attempts": 1}
                 ),
             )
-        # https://docs.aws.amazon.com/boto3/latest/reference/services/bedrock-runtime/client/converse.html
+        # Bedrock's schema subset omits length limits; Details still enforces them.
+        schema = Details.model_json_schema()
+        del schema["properties"]["details"]["maxItems"]
+        del schema["properties"]["screen_summary"]["maxLength"]
+        # https://docs.aws.amazon.com/bedrock/latest/userguide/structured-output.html
         return self.client.converse(
             modelId=MODEL_ID,
             system=[
@@ -62,7 +66,7 @@ class BedrockExplainer:
                     "structure": {
                         "jsonSchema": {
                             "name": "explanation",
-                            "schema": json.dumps(Details.model_json_schema()),
+                            "schema": json.dumps(schema),
                         }
                     },
                 }

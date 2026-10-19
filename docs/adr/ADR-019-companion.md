@@ -162,3 +162,14 @@ result; the proposal remains queued for a later attempt. Rejected: releasing the
 lock while a non-cancellable thread can still consume model service, or treating
 that unfinished call as a completed draft. Model output validation, human review
 and passkey activation remain unchanged.
+
+### Drafting schema compatibility — 2026-10-19
+
+Bedrock's [strict-output subset](https://docs.aws.amazon.com/bedrock/latest/userguide/structured-output.html)
+requires closed objects, while the canonical Patch intentionally carries maps of
+complete rule replacements. Send that exact schema as prompt guidance and request
+plain JSON, then parse it with Patch and validate the resulting constitution as
+before. Do not send the incompatible schema in `outputConfig`. Rejected: making
+up a second patch language, broadening the constitution grammar, or trusting the
+provider to enforce the grammar. Invalid or incomplete output still fails the
+draft without activation; there is no repair prompt or additional model request.

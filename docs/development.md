@@ -2399,6 +2399,6 @@ attempt; if login or the passkey fails, return to Household and start again.
 
 ```sh
 uv run pytest tests/unit/test_account_link.py tests/unit/test_companion_api.py tests/unit/test_companion_auth.py tests/unit/aws/test_auth.py tests/unit/aws/test_configuration.py tests/unit/aws/test_runtime.py --no-cov
-uv run pytest tests/integration/test_account_link.py tests/integration/test_companion_auth_database.py tests/integration/test_companion_http.py -m integration --no-cov
+uv run pytest tests/integration/test_account_link_database.py tests/integration/test_companion_auth_database.py tests/integration/test_companion_http.py -m integration --no-cov
 HIRZ_BROWSER_BACKEND=http://127.0.0.1:5175 pnpm --filter web test:browser tests/account-link.spec.ts tests/memory.spec.ts
 ```

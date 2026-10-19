@@ -125,3 +125,15 @@ InvokeModel grants: the [Bedrock IAM reference](https://docs.aws.amazon.com/serv
 defines CountTokens against a foundation-model resource. Runtime, setup and action
 roles receive neither that permission nor model invocation authority. No IAM change
 has been deployed.
+
+### Bedrock schema subset correction — 2026-10-19
+
+The [structured-output contract](https://docs.aws.amazon.com/bedrock/latest/userguide/structured-output.html)
+does not support the generated string-length constraint, and does not list array
+maximum length among its supported constraints. The outgoing Details schema now
+omits those two bounds. The canonical Details parser still rejects more than three
+details or a summary longer than 500 characters before narration can be published.
+All attribution, numeric and speech checks remain in place. Local validation
+retains the full constraints without sending an unsupported service schema.
+No generic schema converter or retry is added;
+actual model acceptance remains a live gate.
