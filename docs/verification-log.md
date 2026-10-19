@@ -15567,3 +15567,208 @@ Final capacity/budget reconciliation and dated clearance remain required.
 A private continuation handoff is retained in that review folder because this
 chat repeatedly produced malformed tool requests rejected before execution;
 no additional resources were created.
+
+### Approved continuation preflight and window opened — 2026-10-18
+
+The author requested continuation from the private handoff with existing approvals
+unchanged. Documentation-only commit `ab31dd3` preserves the previous run's
+interruption, recovery, evidence and conditional authorization. Its production
+implementation is byte-for-byte unchanged from the verified `31db485` revision;
+the wrapper checks that only the seven reviewed documentation files differ.
+
+Fresh independent inventory at **19:05:41.804235 UTC** found all **24 resource
+categories empty** and all **14 recorded command keys PendingDeletion**. Additional
+read-only inventory across **17 enabled regions** found no competing RDS, NAT,
+EC2 instance or ECS cluster capacity; all **16 customer-managed keys** were pending
+deletion. The required availability-zone mapping and PostgreSQL 16.15 availability
+passed. Fresh account-owner billing evidence reported **$147.93** enabled eligible
+credit and unchanged rates for **14 products**. The account-wide October 17–18
+Cost Explorer gross usage remained **$2.0329821174**, offset by reported credits;
+that estimated, lagging reading includes item 36 and is not a final item 37 bill.
+
+The approved additional window starts **2026-10-18 19:07:44 UTC**; work stops by
+**2026-10-19 18:07:44 UTC**, with cleanup due by **2026-10-19 19:07:44 UTC**.
+Its forecast is derived from the entire prior conservative allowance:
+**$9.520634295833333333333333333** additional and
+**$19.04126859166666666666666667** combined, below the approved $10/$20 service-charge
+ceilings. The original three metadata Gateway calls remain in their original
+ledger; byte-identical copied records are explicitly reconciled, not deleted.
+The new ledger permits at most 5,000 additional calls; no third window or repeat
+full deployment is authorized. Taxes retain the accepted exception.
+
+The deployment uses the same names and sizes with unconditional cleanup. A private
+exclusive deployment marker prevents reuse of this wrapper. Operator role identity
+and credential refresh passed; the login issued at 18:23:59 UTC needs proactive
+refresh if work approaches its 12-hour renewal limit. This scheduling bound is not
+a guarantee of credential validity. The source is the
+[AWS CLI login contract](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-sign-in.html).
+Private preflight, financial clearance, reconciled ledger, reviewed operator
+scripts and deployment log are in `secrets/item37-continuation-acceptance/`.
+Live acceptance remains running and unearned; no corpus, promotion, target or
+real-expiry result is claimed. Development remains at migration 0005.
+
+### Continuation home activation verified — 2026-10-18
+
+The single approved continuation deployed successfully, completed disposable RDS
+bootstrap, started one worker, and passed the actual worker IAM denial regression.
+The new task definition and ECR digest exactly match the preceding verified image,
+`sha256:a1745f08ee4c0005821bd8652d6e225d72e556d241a3e2aa5923f9d9c7eb44a3`;
+all five retained compiler/publisher/Gateway/harness source hashes match.
+
+The home fixture committed **96 ACTIVE statements** at **21:59:59.443439 UTC**.
+Its activation event at sequence **20,492** independently verifies against the
+retained trusted public key, and its candidate hash matches the committed
+publication. Four signed exact hard-deny exception records independently verify
+against that key and the compiler whitelist: `health.medical_decisions`,
+`security.access_code_share`, `finance.change_payee`, and `finance.transfer_money`.
+This verifies individual signatures, not the final full audit chains; independent
+signed exports remain required. Private evidence is retained in
+`secrets/item37-continuation-acceptance/`, including `deployment-image-proof.json`,
+`item37-home-activation-progress.json` and `hard-deny-progress.json`.
+
+Parents publication began at **22:00:00.646326 UTC**, with zero findings in the
+subsequent read-only journal check. No current-window Gateway calls have been
+made; the three original metadata calls remain reconciled separately. New-window
+NAT telemetry at **21:16:27.780983 UTC** was **0.891839063 decimal GB**, below its
+20 GB allowance; metrics may lag and are not an invoice. The fixed work cutoff,
+cleanup deadline and aggregate budget remain unchanged. Full conformance,
+faulty-compiler refusal/restoration, session invalidation, ENFORCE, real expiry,
+final audit verification and teardown remain outstanding.
+
+### Both households published; companion session interrupted acceptance — 2026-10-19
+
+The single approved continuation committed the parents fixture at
+**06:06:18.349823 UTC**, completing **192 ACTIVE statements** across both households
+and **14 temporal policies**. The parents activation at sequence **61,284** and
+the home activation at sequence **20,492** independently verify against the
+retained trusted key and match their committed publication candidate hashes.
+All **eight** signed exact hard-deny exceptions were independently verified:
+the four previously recorded classes in each household. This is successful
+publication, not a completed boundary-agreement acceptance.
+
+The subsequent faulty-compiler fixture stopped before publication:
+`POST /api/constitution/draft` returned **HTTP 403 Forbidden**. The acceptance
+harness reused the home companion session last seen at **2026-10-18
+19:33:39.906116 UTC**, exceeding the production **30-minute idle limit**.
+Both AWS logins had been refreshed by the author and their identities verified
+at 02:12 UTC; this failure was the harness's companion session handling, not
+expired AWS credentials or an AWS analysis rejection. The user-refreshed operator
+and billing login issue times are retained privately for renewal scheduling.
+
+The harness now checks `/api/auth/session` before each activation, signs in through
+the existing WebAuthn login ceremony when expired, and installs the returned CSRF
+token before drafting. Production timeouts, passkey verification, rule review and
+activation confirmation are unchanged. Commit `783a2a4` contains this seven-line
+repair and real HTTP/PostgreSQL regression cases for a current session, idle
+expiry, absolute expiry after continued activity, and refusal of a wrong passkey.
+The **four** new cases passed; the connected publication/authentication suite
+passed **24 tests**, policy unit tests passed **40 tests**, Ruff lint/format and
+strict mypy passed (**356 formatted files**, **226 typed source files**).
+Repository CI and the non-diagnostic latency gate were requested after the author
+explicitly approved pushing the repair to the existing GitHub branch.
+
+Both final local exports independently passed the `hirz verify-audit` CLI against
+the retained public key: **20,492 home + 61,284 parents = 81,776 rows**, starting
+at sequence 1, fingerprint
+`385589f309b374189ea1b391f4a3ad193f3674cf7fb6e72e1a97caf76e21912b`.
+These local chains are not externally anchored and do not prove omitted history
+or exclude complete erasure. The disposable database was retained automatically.
+
+The new window made **zero Gateway calls**; the original three metadata calls
+remain separately reconciled. No faulty-compiler refusal/restoration, session
+invalidation, LOG_ONLY corpus, ENFORCE promotion/corpus, target-log denial proof
+or real expiry result is claimed. No signing, Link, physical execution or
+independent boundary passkey verification is claimed. Automatic teardown began
+and removed all policies; final stack/resource verification is recorded below
+when complete. The existing approval does not authorize another full deployment
+or a third window. Private evidence remains in
+`secrets/item37-continuation-acceptance/`, including both publication/activation
+records, `hard-deny-progress.json`, `companion-expiry-failure.json`, signed exports
+and `independent-audit-verification.json`.
+
+### Continuation teardown independently verified — 2026-10-19
+
+The acceptance wrapper completed its `finally` cleanup and exited with the
+original companion draft HTTP 403. Both `HirzItem36` and `HirzItem36Toolkit`
+are absent. An initial independent service inventory at **06:26:24.433932 UTC**
+found one recreated tick log group; all other categories were empty. Its exact
+name matched the pre-deletion stack inventory and its creation timestamp fell
+during teardown. Its two Lambda startup events and metadata were retained before
+removal through HirzDeploy, with all Lambda functions already absent. The initial
+inventory is preserved separately. This observation is recorded in the
+[friction log](./friction-log.md#2026-10-19--tick-log-group-remained-after-stack-teardown).
+
+The repeated independent inventory at **06:27:41.529779 UTC** found **zero
+resources across all 24 checked categories**, with all **15 recorded command
+keys PendingDeletion**. A separate all-customer-key enumeration found **17
+customer-managed keys**, all PendingDeletion. Nonbillable IAM setup remains
+intentionally retained. X-Ray is restored to **XRay / ACTIVE**, indexing matches
+the captured baseline, no `aws/spans` group remains, and the temporary Docker
+configuration is absent. The development database was read-only checked at
+**`0005_execution_attempt`**; the acceptance database and signed exports remain
+private and retained.
+
+Final-window NAT telemetry at **06:26:17.041695 UTC** was **1.09994706 decimal GB**
+across 28 metric series, below the 20 GB allowance. It counts the two incoming
+byte directions, may lag and is not an invoice. The original window's separately
+recorded 11.218546719 GB and three Gateway metadata calls are unchanged; this
+window made zero Gateway calls. Cleanup finished well before its fixed
+2026-10-19T19:07:44Z deadline. No new deployment or spending window was started.
+
+Private evidence: `policy-cleanup.json`, `post-delete-inventory-initial.json`,
+`late-tick-log-before-removal.json`, `post-delete-inventory.json`,
+`customer-key-inventory.json`, `final-checks.json`, and `nat-usage.json` in
+`secrets/item37-continuation-acceptance/`. The full live agreement, enforcement,
+faulty-compiler, invalidation and expiry gates remain owed; this teardown does
+not close item 37.
+
+### Repair CI exposed a wall-clock-dependent worker test — 2026-10-19
+
+The repair's [dispatched CI run](https://github.com/BashaarJavaid/Hirz/actions/runs/39208780578)
+passed **1,703 service-free tests**, then its PostgreSQL suite reported **263
+passed / 2 failed**. Both failures were the existing AWS worker execution test,
+which used the real clock and expected a light to execute without approval:
+`AssertionError: assert None == 'executing'`. At the run's Chicago-local time,
+the fixture's quiet-hours rule correctly returned `ASK_CONSTITUTION`. The failure
+was reproduced locally before editing; all four new session-renewal cases passed
+in that CI suite.
+
+Commit `575a5fa` gives the worker test a shared, progressing simulated clock
+starting at 2026-10-13T23:00:00Z (18:00 in the fixture's Chicago timezone), across
+its companion authentication, pipeline, probe and worker. It changes no production
+clock, policy or approval behavior. The test still asserts activation,
+cancellation, duplicate handling, interrupted dispatch recovery and signed audit.
+The corrected worker and existing executor suite, including quiet-hours consent,
+passed **33 tests in 74.80 seconds** locally; Ruff lint and format passed.
+The correction was pushed to the already approved branch for ordinary CI.
+The existing non-diagnostic latency jobs continue on `783a2a4`; the only code diff
+in `575a5fa` is `tests/integration/test_aws_worker.py`. Their final results and the
+new ordinary run are recorded separately when complete. No AWS deployment was
+started.
+
+### Repair repository and latency gates passed — 2026-10-19
+
+[Ordinary CI 39211205159](https://github.com/BashaarJavaid/Hirz/actions/runs/39211205159)
+passed on `575a5fae6f8cd9d149f22c9cb44e4400398b907b`: **1,703 service-free tests**,
+**265 PostgreSQL integration tests**, **89% combined coverage**, **168 native
+conformance tests**, and all other required jobs. The retained Python log records
+17,952 statements and 1,917 missed; browser suites reported 1, 1 and 51 passes.
+
+Both individual non-diagnostic latency jobs in
+[dispatch 39208780578](https://github.com/BashaarJavaid/Hirz/actions/runs/39208780578)
+passed on `783a2a483793f950a52e45d6a5cab64c2b7c4eed`. The dispatch overall failed
+the earlier worker test described above; it is not an overall dispatch success.
+`git diff 783a2a4 575a5fa --name-only` contains only
+`tests/integration/test_aws_worker.py`, so the application and acceptance harness
+are identical between the latency and corrected ordinary CI revisions.
+
+| Scenario | Cases / tools | Worst case p95 | Worst tool p95 | Test duration |
+|---|---:|---:|---:|---:|
+| demo-evening | 54 / 12 | plan-approval: 125.459 ms | approve_action: 110.719 ms | 2418.45 s |
+| demo-evening-hourly | 54 / 12 | objective-greenest: 186.507 ms | get_household_plan: 170.630 ms | 3279.87 s |
+
+Every reported case/tool gate passed; `HIRZ_BUDGET_DIAGNOSTIC=0`. These are local
+application CI latency gates, not live Runtime cold-start measurements or AWS
+policy agreement. Raw logs and derived `latency-summary.json` are retained under
+`secrets/item37-session-renewal-review/`. No new AWS deployment was started and
+item 37 remains incomplete pending its live gates and new window authorization.

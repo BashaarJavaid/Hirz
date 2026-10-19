@@ -1281,3 +1281,22 @@ original tracing was restored. Final evidence is appended to the
 - **Impact:** Parents publication became blocked after 54 installed statements; the same expired login prevented automatic teardown. The authenticated final inventory contained 150 ACTIVE statements across both households. This was credential expiry, not a semantic-analysis rejection or an AWS service defect.
 - **Workaround:** The owner refreshed the operator login; recovery teardown and independent inventory verification passed. The separate billing identity subsequently required its own refresh before financial clearance. No additional deployment started.
 - **Feature request:** Expose a clear credential-expiry warning for long-running SDK workflows using the CLI bridge, so operators can refresh before publication or cleanup is interrupted.
+
+### 2026-10-19 — Tick log group remained after stack teardown
+
+- **Tool:** AWS Lambda, CloudWatch Logs and CloudFormation deletion.
+- **Severity:** Minor.
+- **Docs:** [Custom Lambda log groups](https://docs.aws.amazon.com/lambda/latest/dg/monitoring-cloudwatchlogs-loggroups.html).
+- **What happened:** After application/toolkit deletion, independent inventory
+  found one tick log group with the exact recorded stack resource name but a new
+  creation timestamp during teardown. The local verification error was
+  `AssertionError: Remaining resources require inspection`; no AWS API error or
+  violated service guarantee is claimed. The group contained two Lambda startup
+  events and had no retention limit. All functions and the other resource
+  categories were already absent.
+- **Response:** Retained the group metadata and both events, verified ownership
+  against the pre-deletion inventory, removed the leftover group through
+  HirzDeploy, and repeated the independent inventory. The recreated group is why
+  stack deletion alone is not accepted as cleanup evidence.
+- **Feature request:** Document teardown ordering for scheduled Lambda functions
+  with custom log groups, including log delivery that overlaps stack deletion.

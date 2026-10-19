@@ -6,6 +6,11 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-10-19: Record passing repair CI/latency and the approved third, bounded item 37 acceptance window ([decision](docs/adr/ADR-008-agentcore-topology.md#additional-item-37-run-after-session-repair--2026-10-19)).
+
+- 2026-10-19: Renew expired acceptance companion sessions through the existing passkey login before drafting; retain both households’ successful publication and the still-pending live agreement gates ([evidence](docs/verification-log.md#both-households-published-companion-session-interrupted-acceptance--2026-10-19)).
+- 2026-10-19: Give the AWS worker integration fixture a fixed daytime clock so overnight CI does not accidentally test quiet-hours consent ([evidence](docs/verification-log.md#repair-ci-exposed-a-wall-clock-dependent-worker-test--2026-10-19)).
+
 - 2026-10-18: Record credential-interrupted publication, independently verified signed exports and recovered teardown; retain the pending live acceptance gate ([evidence](docs/verification-log.md#credential-interruption-and-verified-recovery-cleanup--2026-10-18)).
 
 - 2026-10-18: Record the first household's verified AWS activation and passing repository gates; retain incomplete live acceptance and the approved conditional continuation after teardown ([evidence](docs/verification-log.md#first-household-activation-during-full-acceptance--2026-10-18), [decision](docs/adr/ADR-008-agentcore-topology.md#conditional-additional-item-37-acceptance-window--2026-10-18)).

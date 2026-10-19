@@ -2199,13 +2199,14 @@ is verified. Item 36 stays open until every live gate and teardown passes.
 
 ## Item 37 policy acceptance
 
-**Blocked after the 2026-10-18 exact-action attempt:** strict AWS analysis rejected
-a conditional forbid in the partially published inventory. Restoration passed;
-the full corpus and enforcement gates were not reached. Do not repeat the
-deployment or weaken validation using the prior attempt's approval. The
-[ADR-003 follow-up](./adr/ADR-003-constitution-yaml-to-cedar.md#strict-publication-rejected-revised-decision-required--2026-10-18)
-records the revised decision needed; repository gates and the failed attempt
-are in the [evidence log](./verification-log.md#exact-action-acceptance-rejected-after-passing-repository-gates--2026-10-18).
+**Incomplete after the 2026-10-19 continuation:** both managed households
+published successfully, but the acceptance harness reused an idle-expired companion
+session before the faulty-compiler fixture. The harness now checks the session and
+performs ordinary passkey login before each activation when necessary; it does not
+extend production session limits. Cleanup and repair repository/latency CI are verified. The
+author approved one further bounded run after passing repair CI, subject to fresh
+clearance; no fourth window is authorized ([ADR-008](./adr/ADR-008-agentcore-topology.md#additional-item-37-run-after-session-repair--2026-10-19)). See the
+[evidence](./verification-log.md#both-households-published-companion-session-interrupted-acceptance--2026-10-19).
 
 Migration `0020_agentcore_policy` creates durable publication, engine-generation
 and Gateway-session state. Apply it only through the disposable test/acceptance

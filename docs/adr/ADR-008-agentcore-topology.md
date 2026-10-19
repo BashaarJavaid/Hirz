@@ -183,3 +183,25 @@ conditional authorization is unused.
 Rejected: extending or patching the running process to evade its deadline,
 overlapping stacks, shortening acceptance, treating the extra window as unlimited
 retries, and spending without fresh financial clearance.
+
+## Additional item 37 run after session repair — 2026-10-19
+
+The author approved **one additional inert full acceptance run** after the
+session-renewal repair and required CI gates passed. This adds at most **$10
+service charges and 24 hours including failures and teardown**, for a **$30
+combined service-charge ceiling** across three windows. The existing tax exception
+persists. This amendment supersedes the prior prohibition on a third window;
+**no fourth window is authorized**. The final hour is cleanup-only.
+
+The concrete proposal is retained in
+`secrets/item37-session-renewal-review/README.txt`; its approval is recorded beside
+it. Independently verified teardown, fresh eligible credits, prices, capacity
+and aggregate cost clearance remain launch prerequisites. Same stack names,
+resource sizes and strict acceptance gates; no overlapping deployment or repeat
+full deployment. The first window's three Gateway calls and second window's zero
+calls remain retained, with at most 5,000 additional calls and at most 15,000 across
+all allowances. The prior two forecasts remain counted; no counter is reset.
+
+Local item 38 work may continue in a separate checkout while acceptance runs on
+the fixed item 37 implementation. This grants no item 38 deployment, signing,
+Link, physical execution or broader policy-validation exception.
