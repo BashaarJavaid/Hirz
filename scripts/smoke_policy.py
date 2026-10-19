@@ -777,7 +777,7 @@ async def live(acceptance: Acceptance) -> None:
                 )
                 if job["status"] != "committed":
                     raise ValueError(
-                        "AWS rejected the production compiler; revise the decision without bypassing findings"
+                        "Policy publication did not commit; inspect retained findings before recovery"
                     )
                 p.bundle = await reload_policy(p)
                 pipelines.append(p)

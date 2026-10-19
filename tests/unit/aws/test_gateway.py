@@ -5,6 +5,7 @@ from uuid import uuid4
 
 import httpx
 import pytest
+from botocore.exceptions import ClientError
 
 from hirz.aws.cleanup import empty_policy_engine, policy_tracing
 from hirz.aws.gateway import Gateway, SessionConflict, evidence, receipt
@@ -207,6 +208,46 @@ def test_cleanup_waits_for_owned_policies(monkeypatch):
         ]
     }
     with pytest.raises(ValueError, match="crossed"):
+        empty_policy_engine(sdk, "engine")
+
+
+def test_policy_cleanup_throttle_rechecks_inventory_within_deadline(monkeypatch):
+    sdk = Mock()
+    active = {
+        "policies": [
+            {"policyId": "one", "policyEngineId": "engine", "status": "ACTIVE"}
+        ]
+    }
+    throttle = ClientError({"Error": {"Code": "ThrottlingException"}}, "DeletePolicy")
+    sdk.list_policies.side_effect = [active, active, {"policies": []}]
+    sdk.delete_policy.side_effect = [throttle, None]
+    sleep = Mock()
+    monkeypatch.setattr("hirz.aws.cleanup.time.sleep", sleep)
+    empty_policy_engine(sdk, "engine")
+    assert sdk.delete_policy.call_count == 2
+    assert sleep.call_count == 2
+
+    sdk.list_policies.side_effect = None
+    sdk.list_policies.return_value = active
+    sdk.delete_policy.side_effect = throttle
+    monkeypatch.setattr(
+        "hirz.aws.cleanup.time.monotonic", Mock(side_effect=[0, 0, 301])
+    )
+    with pytest.raises(ValueError, match="deadline"):
+        empty_policy_engine(sdk, "engine")
+
+
+def test_policy_cleanup_does_not_hide_other_failures(monkeypatch):
+    sdk = Mock()
+    sdk.list_policies.return_value = {
+        "policies": [
+            {"policyId": "one", "policyEngineId": "engine", "status": "ACTIVE"}
+        ]
+    }
+    sdk.delete_policy.side_effect = ClientError(
+        {"Error": {"Code": "AccessDeniedException"}}, "DeletePolicy"
+    )
+    with pytest.raises(ClientError, match="AccessDeniedException"):
         empty_policy_engine(sdk, "engine")
 
 
