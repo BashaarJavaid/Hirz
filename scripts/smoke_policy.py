@@ -245,6 +245,13 @@ async def ceremony(
 
 
 async def activate(http: httpx.AsyncClient, key: Authenticator, candidate: str) -> str:
+    # AWS publication can outlast the companion session's idle or absolute limit.
+    response = await http.get("/api/auth/session")
+    response.raise_for_status()
+    session = response.json()
+    if not session["authenticated"]:
+        session = await ceremony(http, key, {"operation": "login"})
+    http.headers["x-hirz-csrf"] = session["csrf"]
     response = await http.post("/api/constitution/draft", json={"yaml": candidate})
     response.raise_for_status()
     draft = response.json()

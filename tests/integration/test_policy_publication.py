@@ -2,10 +2,12 @@
 
 import asyncio
 import json
-from contextlib import asynccontextmanager
+from contextlib import aclosing, asynccontextmanager
+from datetime import timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
+import httpx
 import pytest
 import sqlalchemy as sa
 from test_companion_auth_database import enroll
@@ -23,6 +25,83 @@ from tests.unit.test_companion_auth import Authenticator
 from tests.unit.test_pipeline import POLICY, ident
 
 pytestmark = pytest.mark.integration
+
+
+@pytest.mark.parametrize(
+    "minutes,bad_key", [(0, False), (31, False), (721, False), (31, True)]
+)
+def test_acceptance_activation_renews_expired_phone_session(
+    scratch_database, monkeypatch, minutes, bad_key
+):
+    from hirz.aws.routing import Routing
+    from hirz.companion import api
+    from scripts import smoke_policy
+    from tests.unit.test_pipeline import SEED
+
+    async def run():
+        async with connect(scratch_database) as c:
+            p = await setup(c, native=True)
+            start = at = smoke_policy.now()
+            monkeypatch.setattr(api, "now", lambda: at)
+            monkeypatch.setattr(auth, "now", lambda: at)
+            p.clock = lambda: at
+            route = Route(
+                "engine",
+                "arn:aws:bedrock-agentcore:us-east-1:123456789012:gateway/test",
+                "https://example.test/mcp",
+            )
+            service = api.Companion(
+                c.engine,
+                p.audit,
+                smoke_policy.CONFIG,
+                policy_routes=Routing(frozenset({p.household_id}), frozenset(), route),
+            )
+            http, key = await smoke_policy.phone(service, p, SEED)
+            async with aclosing(http):
+                previous = http.cookies.get(auth.SESSION_COOKIE)
+                if minutes > 720:
+                    # Keep it active until the absolute limit; idle expiry is separate.
+                    for minute in range(20, 720, 20):
+                        at = start + timedelta(minutes=minute)
+                        assert (await http.get("/api/auth/session")).json()[
+                            "authenticated"
+                        ]
+                at = start + timedelta(minutes=minutes)
+                if minutes:
+                    refused = await http.post(
+                        "/api/constitution/draft", json={"yaml": SEED.yaml}
+                    )
+                    assert refused.status_code == 403
+                if bad_key:
+                    with pytest.raises(httpx.HTTPStatusError) as error:
+                        await smoke_policy.activate(
+                            http, smoke_policy.Authenticator(), SEED.yaml
+                        )
+                    assert error.value.response.status_code == 400
+                    async with c.begin():
+                        assert (
+                            await c.scalar(
+                                sa.select(sa.func.count()).select_from(
+                                    db.companion_drafts
+                                )
+                            )
+                            == 0
+                        )
+                    return
+                reference = await smoke_policy.activate(http, key, SEED.yaml)
+                current = http.cookies.get(auth.SESSION_COOKIE)
+                assert (current != previous) == bool(minutes)
+                assert http.headers["x-hirz-csrf"] == auth.csrf(current)
+                async with c.begin():
+                    job = (
+                        (await c.execute(sa.select(db.policy_publications)))
+                        .mappings()
+                        .one()
+                    )
+                    assert job["id"] == reference
+                    assert job["status"] == "queued"
+
+    asyncio.run(run())
 
 
 def test_acceptance_phone_publication_failure_exports_audit(
