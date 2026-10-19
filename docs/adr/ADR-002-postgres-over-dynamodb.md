@@ -239,3 +239,33 @@ Author-approved migration 0012 adds grant-reference and budget-ledger indexes;
 its downgrade removes only indexes. No household or signed audit data is rewritten.
 Verification upgrades disposable databases only. Decision and query details:
 [ADR-017](./ADR-017-tool-latency-and-isolation.md#budget-index-and-terminal-read-amendment--2026-09-23).
+
+## Item 38 advisory Memory provider — 2026-10-19
+
+Keep the item 20 commit-first contract and add an optional SDK provider selected
+by the deployed Memory ID. Reuse the existing bounded, cancellation-settling AWS
+call helper and built-in user-preference/semantic strategies. Reject a second
+durable outbox or a cloud-first conversation store: a failed mirror must not make
+committed session context unavailable. This accepts incomplete cloud memory after
+an outage; replay uses the same durable Turn ID, without an automatic repair job.
+
+Keep the canonical Turn as a blob beside conversational text. AWS documents that
+[conversational payloads are extracted and blobs are not](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/short-term-create-event.html);
+this preserves replay metadata without asking the extractor to interpret IDs.
+Use the API's explicit `SKIP` mode when models or learning are disabled
+([CreateEvent](https://docs.aws.amazon.com/bedrock-agentcore/latest/APIReference/API_CreateEvent.html)).
+Reject raw session IDs as AWS keys because the local contract permits longer
+Unicode values; deterministic mapping preserves existing callers.
+
+Use member-scoped [built-in strategy namespace templates](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/long-term-configuring-built-in-strategies.html),
+and validate exact namespaces on returned hints because
+[ListMemoryRecords accepts a prefix](https://docs.aws.amazon.com/bedrock-agentcore/latest/APIReference/API_ListMemoryRecords.html).
+Only Runtime and worker roles receive CreateEvent/ListEvents/ListMemoryRecords on
+the exact deployed Memory ARN, as supported by the
+[IAM action reference](https://docs.aws.amazon.com/service-authorization/latest/reference/list_bedrock-agentcore.html).
+Namespace isolation is application-enforced within those shared roles, not a
+claim of per-member IAM isolation or protection from a compromised worker.
+
+The [implemented contract](../../ARCHITECTURE.md#59-memory) keeps hints separate
+from accepted graph preferences. Local verification does not earn live strategies,
+production transcript capture or companion consent; those remain item 38 work.

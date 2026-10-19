@@ -2310,7 +2310,7 @@ completion is earned until every original acceptance gate and teardown passes.
 The Runtime composition and private network template are described in
 [ADR-008](adr/ADR-008-agentcore-topology.md#item-38-runtime-composition-locally-verified--2026-10-19).
 They have not been deployed. Do not update the active item 37 stack from the item
-38 checkout. Account linking, model/Memory integration, acceptance automation and
+38 checkout. Account linking, model integration, live Memory wiring, acceptance automation and
 the live verification gates remain unfinished.
 
 For the future reviewed deployment, keep `WorkerDesiredCount=0` during initial
@@ -2327,3 +2327,16 @@ in account `661550216013` (read-only verification on 2026-10-19); verify the map
 again before a future deployment. Acceptance must account for Runtime's
 documented VPC-interface deletion delay inside its approved cleanup deadline.
 The item 37 live runner is not an item 38 acceptance runner.
+
+The optional Memory provider is locally verified against the pinned SDK schema.
+`HIRZ_MEMORY_ID` selects the deployed ID (not its ARN); unset it for offline local
+work. `MemoryService` commits to PostgreSQL first and mirrors outside that
+transaction. Extraction stays skipped with the template's `HIRZ_LLM=off` and when
+the constitution disables learning. This does not yet connect production
+transcripts or extracted hints to the consent UI. Contract and limits:
+[architecture §5.9](../ARCHITECTURE.md#59-memory).
+
+```sh
+uv run pytest tests/unit/aws/test_agentcore_memory.py tests/unit/test_memory.py --no-cov
+uv run pytest tests/integration/test_memory_database.py -m integration --no-cov --tb=short
+```

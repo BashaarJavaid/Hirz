@@ -1,5 +1,6 @@
 """Memory mutations participate in the existing Pipeline grant transaction."""
 
+import os
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Literal
 from uuid import UUID, uuid5
@@ -20,7 +21,7 @@ from hirz.memory.models import (
     Turn,
     TurnInput,
 )
-from hirz.memory.provider import Hint, InProcessMemory, MemoryProvider
+from hirz.memory.provider import Hint, MemoryProvider, configured
 from hirz.pipeline.hashing import digest
 from hirz.pipeline.models import Action, Decision, EventType, Principal
 from hirz.planner.coordinator import Clarification
@@ -320,7 +321,7 @@ async def commit(
 class MemoryService:
     def __init__(self, pipeline: "Pipeline", provider: MemoryProvider | None = None):
         self.pipeline = pipeline
-        self.provider = provider if provider is not None else InProcessMemory()
+        self.provider = provider if provider is not None else configured()
 
     async def session(self, principal: Principal, session_id: str) -> Session:
         member = await self.pipeline.requester(principal)
@@ -354,7 +355,11 @@ class MemoryService:
             p._memory_turn = None
         if isinstance(result.record, Turn):
             try:
-                await self.provider.append(result.record)
+                await self.provider.append(
+                    result.record,
+                    extract=os.environ.get("HIRZ_LLM", "off") == "bedrock"
+                    and p.bundle.policy().learning.accept_memory_proposals != "never",
+                )
             except Exception:
                 pass  # Advisory mirror; committed Postgres remains authoritative.
         return result

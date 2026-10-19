@@ -15874,3 +15874,52 @@ There was no item 38 deployment, Runtime invocation or model call. Live Cognito
 linking, end-to-end AWS routing and VPC teardown are unverified. Bedrock, Memory,
 doctor, action timing, warm/cold latency and full item 38 CI remain owed; neither
 item closure nor a threat-model protection is claimed.
+
+### Advisory Memory provider and strategy template — 2026-10-19
+
+Continued local item 38 work in the isolated checkout while the approved item 37
+acceptance remained active. Added the optional AgentCore provider, commit-first
+service integration, explicit extraction gating and two built-in strategy
+templates with exact-resource IAM permissions. Decision and API sources:
+[ADR-002](adr/ADR-002-postgres-over-dynamodb.md#item-38-advisory-memory-provider--2026-10-19).
+
+Validation used the main checkout's locked Python environment with `PYTHONPATH=.`
+and its pinned native Dogwood, plus this worktree's locked Node 24 dependencies:
+
+- `pytest tests/unit/aws/test_agentcore_memory.py tests/unit/test_memory.py
+  --no-cov --tb=short -q`: **32 passed in 1.85 seconds**. Botocore Stubber checks
+  real pinned request/response schemas, stable retry tokens, unordered and empty
+  pages, duplicate/conflicting sequences, bounded pagination, household/member/
+  surface/session separation, altered event contents and exact hint namespaces.
+  These are SDK contract tests, not live AWS idempotency or extraction evidence.
+- `pytest tests/integration/test_memory_database.py -m integration --no-cov
+  --tb=short -q`: **11 passed in 28.05 seconds**. Four new cases exercise the
+  configured provider through MemoryService, with a separate connection proving
+  the private turn committed before the mocked AWS write. Models-off and
+  learning-never skip extraction; permitted extraction omits SKIP. A synthetic
+  outage leaves durable turns readable. Signed audit payloads omit transcript
+  text, and no graph proposal appears automatically. Existing consent, replay,
+  isolation and refresh rollback cases also pass. Databases are disposable.
+- `pnpm --filter infra test`: **eight passed**. The additional test restricts
+  the three Memory operations to Runtime/worker on the exact Memory ARN and
+  checks environment IDs. Existing strategy, dependency-cycle, networking and
+  secret-boundary checks still pass. TypeScript typecheck and eslint pass.
+- Ruff lint/format on all five changed Python files and strict mypy on the three
+  changed application modules pass. `git diff --check` passes.
+- Existing `scripts/smoke_memory.py --audit-output <new-private-file>`, with
+  `HIRZ_MEMORY_ID` unset and `HIRZ_LLM=off`: **PASS**, pending/rejected preferences
+  leave planner input unchanged, accepted preference is 74 F, service restart
+  preserves context, a fresh twin worker publishes the refresh, obsolete attempts
+  are zero, and **53 signed rows** verify independently offline. The disposable
+  database was dropped; development was unchanged. Private export retained as
+  `secrets/item38-local-review/memory-local-audit-20261019.json` in the main checkout.
+
+Initial test construction errors were corrected before these passing runs: a
+duplicate pytest module basename and a synthetic record ID shorter than the SDK
+minimum. No third-party failure or new friction entry was earned.
+
+No item 38 push, deployment, model invocation or live Memory request was made.
+The template still sets `HIRZ_LLM=off`. Production transcript ingress, conversion
+of hints to typed consent proposals, companion consent, live strategy behavior,
+account linking, remaining Bedrock/doctor/timing gates and full CI remain owed.
+This is local provider/configuration progress, not item 38 completion.

@@ -871,8 +871,24 @@ The async provider contract appends/lists turns and lists recorded hints for the
 exact `Session` scope. Postgres commits first. Provider failures leave durable
 session reads available and hints absent; returned hints are scope-checked again.
 The in-process provider extracts nothing, and a fresh provider can start empty.
-The separation follows AgentCore's actor/session/namespace organization, not its
-unimplemented cloud API ([ADR-002](./docs/adr/ADR-002-postgres-over-dynamodb.md#consent-gated-memory-amendment--2026-09-21)).
+The optional item 38 provider implements AgentCore's actor/session/namespace
+organization ([ADR-002](./docs/adr/ADR-002-postgres-over-dynamodb.md#item-38-advisory-memory-provider--2026-10-19)).
+`HIRZ_MEMORY_ID` selects it; absent configuration retains the in-process provider.
+The actor is the household UUID hex plus `_` plus the member UUID hex. The session
+is SHA-256 of surface plus `:` plus the opaque session ID, keeping long Unicode
+IDs within AWS limits. Events carry conversational text and the canonical Turn in
+a non-extracted blob, with the durable Turn ID as the idempotency token. Reads
+validate both scope and embedded content, reject conflicting sequences, then sort
+and apply the canonical cursor. Advisory scans stop after ten 100-record pages;
+overflow fails the mirror read without affecting durable Postgres reads.
+
+The two built-in strategies use `/hirz/{actorId}/preferences/` and
+`/hirz/{actorId}/semantic/`. Long-term hints span the same member's sessions;
+returned namespaces must match exactly because AWS listing uses a prefix.
+Extraction is skipped unless `HIRZ_LLM=bedrock` and the current constitution permits
+memory proposals. Hints remain advisory text; this provider adds no transcript
+ingress, text-to-Candidate extraction or companion consent screen. The deployment
+template keeps `HIRZ_LLM=off`; live strategy behavior remains unverified.
 
 Follow-ups resolve the latest explicit reference of the requested kind in exactly
 that conversation. The object must still belong to this household and be current:

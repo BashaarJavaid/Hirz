@@ -50,7 +50,10 @@ describe('item 36 acceptance infrastructure', () => {
       EnvironmentVariables: Match.objectLike({ HIRZ_AWS_ROLE: 'mcp', HIRZ_LLM: 'off', HIRZ_RUNTIME_RESOURCE: { Ref: 'RuntimeResource' }, HIRZ_HUMAN_CLIENT: Match.anyValue(), HIRZ_DATABASE_SECRET: Match.anyValue(), HIRZ_AUDIT_SECRET: Match.anyValue(), HIRZ_POLICY_ENGINE: Match.anyValue() }),
     });
     template.hasResourceProperties('AWS::BedrockAgentCore::GatewayTarget', { TargetConfiguration: { Mcp: { Lambda: { LambdaArn: Match.anyValue(), ToolSchema: { InlinePayload: Match.arrayWith([Match.objectLike({ Name: 'governance_approve_action', OutputSchema: Match.objectLike({ Required: ['approved', 'ttl_minutes', 'executed'] }) })]) } } } } });
-    template.hasResourceProperties('AWS::BedrockAgentCore::Memory', { EventExpiryDuration: 3, MemoryStrategies: [] });
+    template.hasResourceProperties('AWS::BedrockAgentCore::Memory', { EventExpiryDuration: 3, MemoryStrategies: [
+      { UserPreferenceMemoryStrategy: { Name: 'MemberPreferences', NamespaceTemplates: ['/hirz/{actorId}/preferences/'] } },
+      { SemanticMemoryStrategy: { Name: 'MemberFacts', NamespaceTemplates: ['/hirz/{actorId}/semantic/'] } },
+    ] });
     template.hasResourceProperties('AWS::KMS::Key', { KeySpec: 'ECC_NIST_P256', KeyUsage: 'SIGN_VERIFY', PendingWindowInDays: 7 });
     template.hasResourceProperties('AWS::S3::Bucket', { ObjectLockConfiguration: { ObjectLockEnabled: 'Enabled', Rule: { DefaultRetention: { Mode: 'GOVERNANCE', Days: 30 } } } });
     for (const log of Object.values(template.findResources('AWS::Logs::LogGroup'))) expect(log.Properties.RetentionInDays).toBe(7);
@@ -96,6 +99,26 @@ describe('item 36 acceptance infrastructure', () => {
     template.hasResourceProperties('AWS::EC2::SecurityGroupIngress', { FromPort: port, ToPort: port, IpProtocol: 'tcp', SourceSecurityGroupId: security, GroupId: database.Properties.VPCSecurityGroups[0] });
     expect(JSON.stringify(runtime.Properties.EnvironmentVariables)).not.toContain('MachineSecret');
     expect(template.toJSON().Parameters.RuntimeResource.Default).toBe('');
+  });
+  it('limits Memory access to the Runtime and worker on the configured resource', () => {
+    const [id] = Object.keys(template.findResources('AWS::BedrockAgentCore::Memory'));
+    const operations = ['bedrock-agentcore:CreateEvent', 'bedrock-agentcore:ListEvents', 'bedrock-agentcore:ListMemoryRecords'];
+    const grants = Object.entries(template.findResources('AWS::IAM::Policy')).flatMap(([policy, p]) =>
+      p.Properties.PolicyDocument.Statement.filter((s: { Effect: string; Action: string | string[] }) => s.Effect === 'Allow' && [s.Action].flat().some(a => operations.includes(a))).map((s: { Action: string[]; Resource: unknown }) => ({ policy, ...s })));
+    expect(grants).toHaveLength(2);
+    expect(grants.map(g => g.policy).sort()).toEqual([
+      expect.stringMatching(/^McpRoleDefaultPolicy/), expect.stringMatching(/^WorkerRoleDefaultPolicy/),
+    ]);
+    for (const grant of grants) {
+      expect(grant.Action).toEqual(operations);
+      expect(grant.Resource).toEqual({ 'Fn::GetAtt': [id, 'MemoryArn'] });
+    }
+    template.hasResourceProperties('AWS::BedrockAgentCore::Runtime', {
+      EnvironmentVariables: Match.objectLike({ HIRZ_MEMORY_ID: { 'Fn::GetAtt': [id, 'MemoryId'] } }),
+    });
+    for (const task of Object.values(template.findResources('AWS::ECS::TaskDefinition'))) {
+      expect(task.Properties.ContainerDefinitions[0].Environment).toContainEqual({ Name: 'HIRZ_MEMORY_ID', Value: { 'Fn::GetAtt': [id, 'MemoryId'] } });
+    }
   });
   it('synthesizes without network lookups and without dependency cycles', () => {
     expect(app.synth().manifest.missing ?? []).toEqual([]);

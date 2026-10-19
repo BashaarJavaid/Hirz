@@ -170,7 +170,17 @@ export class HirzStack extends Stack {
     void runtimeLog;
     const engine = new core.CfnPolicyEngine(this, 'PolicyEngine', { name: 'hirz_item36' });
     worker.addToPolicy(new iam.PolicyStatement({ actions: ['bedrock-agentcore:GetPolicyEngine', 'bedrock-agentcore:ListPolicies', 'bedrock-agentcore:CreatePolicy', 'bedrock-agentcore:GetPolicy', 'bedrock-agentcore:UpdatePolicy', 'bedrock-agentcore:DeletePolicy'], resources: [engine.attrPolicyEngineArn, `${engine.attrPolicyEngineArn}/policy/*`] }));
-    new core.CfnMemory(this, 'Memory', { name: 'hirz_item36', eventExpiryDuration: 3, memoryStrategies: [] });
+    const memory = new core.CfnMemory(this, 'Memory', {
+      name: 'hirz_item36', eventExpiryDuration: 3,
+      memoryStrategies: [
+        { userPreferenceMemoryStrategy: { name: 'MemberPreferences', namespaceTemplates: ['/hirz/{actorId}/preferences/'] } },
+        { semanticMemoryStrategy: { name: 'MemberFacts', namespaceTemplates: ['/hirz/{actorId}/semantic/'] } },
+      ],
+    });
+    for (const role of [mcp, worker]) role.addToPolicy(new iam.PolicyStatement({
+      actions: ['bedrock-agentcore:CreateEvent', 'bedrock-agentcore:ListEvents', 'bedrock-agentcore:ListMemoryRecords'],
+      resources: [memory.attrMemoryArn],
+    }));
     const code = lambda.Code.fromAsset(fileURLToPath(new URL('../../../hirz/aws/lambdas', import.meta.url)));
     const actionLog = new logs.LogGroup(this, 'ActionLog', { retention: logs.RetentionDays.ONE_WEEK, removalPolicy: RemovalPolicy.DESTROY });
     const signer = new lambda.Function(this, 'Signer', {
@@ -195,6 +205,7 @@ export class HirzStack extends Stack {
       HIRZ_HUMAN_CLIENT: human.userPoolClientId, HIRZ_DATABASE_HOST: database.dbInstanceEndpointAddress,
       HIRZ_DATABASE_NAME: 'hirz_item36', HIRZ_DATABASE_SECRET: appPassword.secretArn,
       HIRZ_AUDIT_SECRET: audit.secretArn, HIRZ_POLICY_ENGINE: engine.attrPolicyEngineId,
+      HIRZ_MEMORY_ID: memory.attrMemoryId,
       HIRZ_GATEWAY_ARN: gateway.attrGatewayArn, HIRZ_GATEWAY_URL: gateway.attrGatewayUrl,
     };
     gatewayRole.addToPolicy(new iam.PolicyStatement({ actions: ['bedrock-agentcore:AuthorizeAction', 'bedrock-agentcore:PartiallyAuthorizeActions', 'bedrock-agentcore:GetPolicyEngine'], resources: [engine.attrPolicyEngineArn, this.formatArn({ service: 'bedrock-agentcore', resource: 'gateway', resourceName: 'hirz-item36-*' })] }));
@@ -269,6 +280,7 @@ export class HirzStack extends Stack {
       HIRZ_AWS_ROLE: 'worker', HIRZ_LLM: 'off', HIRZ_DATABASE_HOST: database.dbInstanceEndpointAddress,
       HIRZ_DATABASE_NAME: 'hirz_item36', HIRZ_DATABASE_SECRET: appPassword.secretArn,
       HIRZ_AUDIT_SECRET: audit.secretArn, HIRZ_TICK_SECRET: tickSecret.secretArn,
+      HIRZ_MEMORY_ID: memory.attrMemoryId,
       HIRZ_COMPANION_ORIGIN: origin, HIRZ_COMPANION_RP_ID: distribution.distributionDomainName,
       HIRZ_FIXTURE_START: start.valueAsString, HIRZ_SCHEDULE_GROUP: group.ref,
       HIRZ_TICK_ARN: tick.functionArn, HIRZ_SCHEDULE_ROLE: scheduleRole.roleArn,
@@ -310,6 +322,7 @@ export class HirzStack extends Stack {
       AuditSecret: audit.secretArn, TickSecret: tickSecret.secretArn, CommandKey: signingKey.keyArn,
       IdentityProvider: identity.attrCredentialProviderArn, IdentitySecret: backingSecret,
       SignerRole: actions.roleArn, AnchorBucket: anchors.bucketName, Runtime: runtime.attrAgentRuntimeArn,
+      Memory: memory.attrMemoryId,
       Gateway: gateway.attrGatewayUrl, UserPool: pool.userPoolId, HumanClient: human.userPoolClientId,
       PolicyEngine: engine.attrPolicyEngineId, GatewayArn: gateway.attrGatewayArn, GatewayTarget: actionTarget.attrTargetId,
       MachineClient: machine.userPoolClientId, MachineSecret: machineSecret.secretArn,
