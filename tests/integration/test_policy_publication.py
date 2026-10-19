@@ -141,7 +141,7 @@ def test_acceptance_phone_publication_failure_exports_audit(
     )
     monkeypatch.setattr(smoke_policy, "disposable", database)
     monkeypatch.setattr(smoke_policy, "Publisher", lambda *a, **kw: publisher)
-    with pytest.raises(ValueError, match="AWS rejected the production compiler"):
+    with pytest.raises(ValueError, match="Policy publication did not commit"):
         asyncio.run(smoke_policy.live(acceptance))
     job = json.loads((tmp_path / "item37-home-publication.json").read_text())
     assert job["status"] == "failed"

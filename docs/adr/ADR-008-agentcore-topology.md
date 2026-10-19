@@ -206,6 +206,35 @@ Local item 38 work may continue in a separate checkout while acceptance runs on
 the fixed item 37 implementation. This grants no item 38 deployment, signing,
 Link, physical execution or broader policy-validation exception.
 
+
+## One awake-run retry after credential connectivity failure — 2026-10-19
+
+The author requested another attempt and separately approved “Approve $10
+additional; $40 combined”. This authorizes **one fourth inert full acceptance**,
+at most **$10 additional service charges**, **$40 combined**, and **24 hours
+including failures and teardown**. It supersedes the previous no-fourth-window
+restriction; **no fifth window is authorized**. Same resources and sizes, no
+overlapping stack, final hour cleanup only, existing tax exception retained.
+
+The reviewed plan and derived forecast are retained in
+`secrets/item37-awake-review/README.txt` and `budget-proposal.json`. All three
+prior forecasts, ledgers and call provenance remain counted. At most 5,000 new
+Gateway calls and 20,000 across the four allowances; prior actual calls remain
+three. Verified teardown, passing repair CI and fresh account-specific credit,
+price, capacity and aggregate-cost clearance are required before deployment.
+
+The operator credential bridge retries the observed sign-in connection failure
+within a fixed 120-second bound. A private AWS config copy leaves normal profiles
+unchanged. AC-powered `caffeinate -i -s`, an open lid and source-login supervision
+address the sleep-correlated interruption. None extends the work or teardown
+deadline. Full agreement, refusal/restoration, expiry, audit and teardown gates
+remain required; no signing, Link, physical execution or item 38 deployment is
+authorized here. Local item 38 work continues separately.
+
+Rejected: relying on sleep prevention to survive lid closure, repeating an
+expired login indefinitely, resetting prior cost allowances, extending a live
+window or reducing acceptance to the checks already reached.
+
 ## Item 38 Runtime composition, locally verified — 2026-10-19
 
 The Runtime entrypoint now composes the existing authenticated MCP application,
