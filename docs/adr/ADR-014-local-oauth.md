@@ -133,3 +133,35 @@ resumed elicitation rechecks current membership and token validity. Linking afte
 anonymous discovery requires initialization of an authenticated session; updated
 SDK smoke clients exercise that boundary explicitly. Simulator tokens stay in
 server memory and confer no companion authority.
+
+## Item 38 Cognito verification foundation — 2026-10-19
+
+The local verifier remains unchanged in its accepted token contract. A Cognito
+verifier reuses its bounded, same-origin OIDC/JWKS refresh and the existing request
+gate. It requires RS256, a known key, `typ=JWT`, the configured issuer and human
+client, `token_use=access`, an exact scalar resource audience, and a maximum
+300-second token lifetime. Cognito's `hirz/read`, `hirz/plan`, `hirz/act` and
+`hirz/verify` names map to the existing internal scopes; discovery and challenges
+use the issuer's public names. Unknown scopes confer no Hirz permission.
+
+The configured issuer URL is the graph account provider; the signed subject must
+match exactly one current household account. No match or ambiguous cross-household
+links grant no household authority. Existing member lookup supplies the current
+role. Token household, role, provider, speaker and passkey claims are discarded.
+A suspended request revalidates both its bearer and current graph identity before
+resuming. No new canonical identity or action shape is introduced.
+
+Alternatives rejected: trusting token-supplied household/role would bypass the
+current graph; accepting ID tokens or the machine client would confuse the login
+and Gateway contracts; selecting the first of several household matches would
+violate v1's one-household login. Accepting unbound Cognito access tokens would
+weaken the existing exact-resource guarantee. Cognito authorization-code requests
+must supply `resource` to obtain the bound `aud`; this still needs live proof.
+
+This foundation is tested locally and is **not yet wired into the AWS Runtime**.
+It adds no account-link mutation, seed exception, deployment, inference or AWS
+acceptance claim. Tests use rollback-only account views in disposable databases.
+
+Contracts: [Cognito access tokens](https://docs.aws.amazon.com/cognito/latest/developerguide/amazon-cognito-user-pools-using-the-access-token.html),
+[Cognito resource binding](https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-define-resource-servers.html),
+and [Runtime authorization forwarding](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-header-allowlist.html).

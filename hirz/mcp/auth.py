@@ -19,7 +19,7 @@ from mcp.server.auth.middleware.auth_context import auth_context_var
 from mcp.server.auth.middleware.bearer_auth import AuthenticatedUser
 from mcp.server.auth.provider import AccessToken
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -51,16 +51,20 @@ identity_context: ContextVar[Identity | None] = ContextVar(
 
 
 class KeyCache:
+    scope_names = {scope: scope for scope in SCOPES}
+
     def __init__(
         self,
         issuer: str = ISSUER,
         resource: str = RESOURCE,
         *,
         clock: Callable[[], float] = time.monotonic,
+        discovery_path: str = "/.well-known/oauth-authorization-server",
     ) -> None:
         self.issuer = issuer
         self.resource = resource
         self.clock = clock
+        self.discovery_path = discovery_path
         self.keys: dict[str, RSAPublicKey] = {}
         self.updated: float | None = None
 
@@ -82,9 +86,7 @@ class KeyCache:
 
     async def refresh(self, client: httpx.AsyncClient) -> bool:
         try:
-            metadata = await self.document(
-                client, self.issuer + "/.well-known/oauth-authorization-server"
-            )
+            metadata = await self.document(client, self.issuer + self.discovery_path)
             uri = metadata.get("jwks_uri")
             if metadata.get("issuer") != self.issuer or not isinstance(uri, str):
                 raise ValueError("Invalid issuer metadata")
@@ -218,6 +220,15 @@ class KeyCache:
         ):
             return None
 
+    async def identity(
+        self, connection: AsyncConnection, access: AccessToken
+    ) -> Identity | None:
+        assert access.claims is not None and access.subject is not None
+        household = UUID(access.claims["household_id"])
+        principal = Principal(provider="demo", sub=access.subject, surface="alexa")
+        member = await resolve_member(connection, household, principal)
+        return Identity(household, principal, member)
+
 
 class OAuthGate:
     """Body bounds/transport checks run first; this gate never fetches issuer keys."""
@@ -266,7 +277,10 @@ class OAuthGate:
                 )
                 challenge = f'Bearer resource_metadata="{prm}", error="{code}"'
                 if required:
-                    challenge += f', scope="{required}"'
+                    public_scope = (
+                        self.cache.scope_names[required] if self.cache else required
+                    )
+                    challenge += f', scope="{public_scope}"'
                 headers["WWW-Authenticate"] = challenge
             await JSONResponse(
                 {"error": code, "message": message}, status_code=status, headers=headers
@@ -275,6 +289,7 @@ class OAuthGate:
         headers = request.headers.getlist("authorization")
         access: AccessToken | None = None
         identity: Identity | None = None
+        household: UUID | None = None
         if headers:
             if self.cache is None:
                 await error(
@@ -324,15 +339,11 @@ class OAuthGate:
             try:
                 if self.engine is None:
                     raise AuthUnavailable
-                assert access.claims is not None and access.subject is not None
-                household = UUID(access.claims["household_id"])
-                principal = Principal(
-                    provider="demo", sub=access.subject, surface="alexa"
-                )
+                assert self.cache is not None
                 async with asyncio.timeout(2):
                     async with self.engine.connect() as connection:
-                        member = await resolve_member(connection, household, principal)
-                identity = Identity(household, principal, member)
+                        identity = await self.cache.identity(connection, access)
+                household = identity.household_id if identity else None
             except (
                 AuthUnavailable,
                 SQLAlchemyError,
@@ -346,7 +357,11 @@ class OAuthGate:
                     "Household access is temporarily unavailable.",
                 )
                 return
-            if member.member_id is None or member.role in ("child", "unknown"):
+            if (
+                identity is None
+                or identity.member.member_id is None
+                or identity.member.role in ("child", "unknown")
+            ):
                 # A resumed stream or elicitation reply needs current membership,
                 # even though it carries no tools/call scope to inspect.
                 if (
@@ -370,7 +385,7 @@ class OAuthGate:
             AuthenticatedUser(
                 access.model_copy(
                     update={
-                        "subject": f"{access.claims['household_id']}:{access.subject}:{','.join(sorted(access.scopes))}"
+                        "subject": f"{household}:{access.subject}:{','.join(sorted(access.scopes))}"
                     }
                 )
             )
@@ -389,15 +404,16 @@ class OAuthGate:
                 raise ValueError("Account authorization expired while waiting")
             assert identity is not None
             async with self.engine.connect() as connection:
-                member = await resolve_member(
-                    connection, identity.household_id, identity.principal
-                )
-            if member.member_id != identity.member.member_id or member.role in (
-                "unknown",
-                "child",
+                resolved = await self.cache.identity(connection, current)
+            if (
+                resolved is None
+                or resolved.household_id != identity.household_id
+                or resolved.principal != identity.principal
+                or resolved.member.member_id != identity.member.member_id
+                or resolved.member.role in ("unknown", "child")
             ):
                 raise ValueError("Account membership changed while waiting")
-            return Identity(identity.household_id, identity.principal, member)
+            return resolved
 
         scope["hirz_reauthorize"] = reauthorize
         sent = False

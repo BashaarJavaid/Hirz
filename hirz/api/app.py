@@ -17,7 +17,7 @@ from hirz.companion.auth import Config as CompanionConfig
 from hirz.db import database_url
 from hirz.host.simulator import Simulator
 from hirz.local import read_env, signing_key
-from hirz.mcp.auth import SCOPES, KeyCache, OAuthGate
+from hirz.mcp.auth import KeyCache, OAuthGate
 from hirz.mcp.card_evidence import load as load_card_evidence
 from hirz.mcp.profiles import load as load_profiles
 from hirz.mcp.runtime import HouseholdRuntime
@@ -182,7 +182,7 @@ def create_app(
             return {
                 "resource": cache.resource,
                 "authorization_servers": [cache.issuer],
-                "scopes_supported": list(SCOPES),
+                "scopes_supported": list(cache.scope_names.values()),
                 "bearer_methods_supported": ["header"],
             }
 

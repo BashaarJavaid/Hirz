@@ -15772,3 +15772,39 @@ application CI latency gates, not live Runtime cold-start measurements or AWS
 policy agreement. Raw logs and derived `latency-summary.json` are retained under
 `secrets/item37-session-renewal-review/`. No new AWS deployment was started and
 item 37 remains incomplete pending its live gates and new window authorization.
+
+## Item 38
+
+### Local Cognito verification foundation — 2026-10-19
+
+The author requested local item 38 work in parallel with the approved item 37
+acceptance. Work is isolated on `feat/item38-runtime-integration`; the active
+item 37 checkout and deployment are unchanged. The verifier, graph membership
+resolution, scope advertisement and rejected alternatives are specified in
+[ADR-014](./adr/ADR-014-local-oauth.md#item-38-cognito-verification-foundation--2026-10-19).
+
+Using the existing Python environment, `PYTHONPATH=.` and native Dogwood binary:
+
+- MCP, local OAuth and Cognito unit suites: **116 passed in 10.89 seconds**.
+- Cognito and existing OAuth PostgreSQL suites: **5 passed in 10.29 seconds**;
+  after adding captured-request membership revalidation assertions, the two
+  changed Cognito cases passed again in **5.30 seconds**.
+- Ruff lint/format and strict mypy on the three touched source modules passed.
+
+The database tests use real signed test JWTs, real HTTP/MCP dispatch and disposable
+PostgreSQL. Explicit rollback-only account rows model issuer links without
+committing unaudited account changes or weakening the demo-only seed restriction.
+They cover both households, ambiguous/unlinked subjects, claimed household/role/
+passkey rejection, machine-client refusal, insufficient scopes, PRM/401 public
+scope names, current child-role refusal and revalidation of the original request.
+Both seed snapshots remain unchanged. The development database is not migrated.
+
+Initial fixture and HTTP-helper mistakes were corrected before these passes.
+A sandbox-denied local database attempt printed its password in a long pytest
+traceback; the user was informed, subsequent runs use short tracebacks, and no AWS
+credential was involved. No password is retained in this evidence entry.
+
+Runtime wiring, audited production account linking, live resource-bound Cognito
+PKCE, Bedrock, Memory, AWS doctor, action timing and Runtime warm/cold latency
+remain owed. No item 38 live deployment, full CI, completion or threat-model claim
+is made. Existing upstream deprecation warnings require no workaround here.
