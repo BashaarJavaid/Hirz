@@ -4,6 +4,7 @@ import { AsyncButton, Load, Panel, Secret } from "../components/primitives";
 import type { Value } from "../schema-form";
 import { Contacts } from "../components/Contacts";
 import { Memory } from "../components/Memory";
+import { AccountLink } from "../components/AccountLink";
 import { date } from "../types";
 
 export function Household() {
@@ -15,6 +16,7 @@ export function Household() {
   if (!r.data || r.error) return <Load {...r} />;
   return <>
     <h1>Household</h1>
+    <AccountLink />
     <Memory />
     {secret && <Secret value={secret} />}
     <Panel title="Passkeys">

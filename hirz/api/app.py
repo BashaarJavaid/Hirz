@@ -130,11 +130,14 @@ def create_app(
         )
 
         async def page() -> FileResponse:
+            connections = "'self'"
+            if companion.account_login_origin is not None:
+                connections += " " + companion.account_login_origin
             return FileResponse(
                 ui / "index.html",
                 headers={
                     "Cache-Control": "no-store",
-                    "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+                    "Content-Security-Policy": f"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src {connections}; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
                     "Referrer-Policy": "no-referrer",
                     "X-Content-Type-Options": "nosniff",
                 },
@@ -146,6 +149,7 @@ def create_app(
             "/approvals",
             "/constitution",
             "/household",
+            "/account-link",
             "/checkins",
             "/contact-links",
             "/audit",

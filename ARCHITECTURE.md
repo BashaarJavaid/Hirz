@@ -1502,7 +1502,9 @@ or any attempt audit row, preserving evidence even if a claim pointer was remove
 The item 38 Cognito link backend lets an enrolled non-child member link only their
 own current login, with an exact resource-bound token and a fresh passkey over its
 digest. Existing mappings cannot be reassigned. The grant, account row and audit
-commit together. Its browser redirect flow and live acceptance remain pending
+commit together. Household starts a browser PKCE flow bound to the current session;
+the return consumes its state before token exchange and fresh passkey confirmation.
+The flow is locally verified; hosted Cognito and live acceptance remain pending
 ([ADR-019](docs/adr/ADR-019-companion.md#item-38-self-linked-cognito-login--2026-10-19)).
 
 Local item 24 implements a separate simulated issuer and authenticated startup;

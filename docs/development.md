@@ -2372,9 +2372,16 @@ finish must supply the identical token with the assertion. Neither request may
 select a member. The worker uses `HIRZ_COGNITO_ISSUER`, `HIRZ_HUMAN_CLIENT` and the
 exact `HIRZ_RUNTIME_RESOURCE`; without the resource, linking is unavailable.
 Do not manually insert account mappings or paste real tokens into shell history.
-Browser PKCE/redirect wiring and the future reviewed live acceptance remain owed.
+Household now supplies the browser PKCE/redirect flow. In the second reviewed
+deployment, also set `CompanionCallbackUrl` to the exact created companion origin
+plus `/account-link`; preserve `FixtureStart`. The worker enables the link button
+only when that callback matches its origin and `RuntimeResource` is populated.
+The local placeholder is not a production callback. Actual Cognito UI/CORS and
+hosted/phone acceptance remain unverified. The flow consumes its state on an
+attempt; if login or the passkey fails, return to Household and start again.
 
 ```sh
 uv run pytest tests/unit/test_account_link.py tests/unit/test_companion_api.py tests/unit/test_companion_auth.py tests/unit/aws/test_auth.py tests/unit/aws/test_configuration.py tests/unit/aws/test_runtime.py --no-cov
 uv run pytest tests/integration/test_account_link.py tests/integration/test_companion_auth_database.py tests/integration/test_companion_http.py -m integration --no-cov
+HIRZ_BROWSER_BACKEND=http://127.0.0.1:5175 pnpm --filter web test:browser tests/account-link.spec.ts tests/memory.spec.ts
 ```

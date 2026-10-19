@@ -124,3 +124,31 @@ the same bounded key cache used by Runtime only after its resource is configured
 This amendment records the chosen identity model and locally verified backend.
 Browser PKCE/redirect wiring and live Cognito acceptance remain pending; it does
 not claim an end-to-end production login flow or an item 38 deployment.
+
+### Browser self-link flow locally verified — 2026-10-19
+
+Household now starts the chosen member's login flow. The browser generates random
+OAuth state and an S256 PKCE verifier, retaining them for at most five minutes in
+tab-scoped storage with the companion-session binding and exact login config.
+On return it removes the code from the address bar and consumes that state before
+exchanging the code. Changed sessions/issuers, expired or duplicate returns and
+provider cancellation fail before exchange. A subsequent user gesture confirms
+the same access token through the existing passkey ceremony. Access and refresh
+tokens are never persisted; cancellation or failure requires starting again.
+
+The worker serves only its configured human client, Runtime resource, callback
+and HTTPS login origin. CSP permits that exact origin for token exchange. A new
+`CompanionCallbackUrl` deployment parameter avoids a CloudFormation dependency
+cycle: the second deployment registers the created companion origin plus
+`/account-link`, preserving the acceptance CLI callback. Its initial local
+placeholder leaves the browser flow unavailable. No resources or permissions are
+added. Existing mappings remain non-reassignable; this adds no unlink/recovery path.
+
+Contracts checked on 2026-10-19:
+[Cognito authorization endpoint](https://docs.aws.amazon.com/cognito/latest/developerguide/authorization-endpoint.html)
+and [token endpoint](https://docs.aws.amazon.com/cognito/latest/developerguide/token-endpoint.html).
+The authorization request includes `resource`, `state`, `code_challenge_method=S256`
+and `prompt=login`; the latter requires managed login and is not relied on as an
+authorization guarantee. Token validation and the member's fresh passkey remain
+mandatory. Local tests cover the browser protocol and virtual passkeys; actual
+Cognito UI/CORS, hosted redirect, physical phone and live acceptance remain owed.

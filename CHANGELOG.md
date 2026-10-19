@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-10-19: Connect Household's login button to session-bound browser PKCE and fresh passkey confirmation, with explicit callback configuration; live Cognito acceptance remains pending ([decision](docs/adr/ADR-019-companion.md#browser-self-link-flow-locally-verified--2026-10-19)).
+
 - 2026-10-19: Add the approved self-link backend with exact Cognito proof/passkey binding and atomic, non-reassignable account mapping; browser flow and live acceptance remain pending ([decision](docs/adr/ADR-019-companion.md#item-38-self-linked-cognito-login--2026-10-19)).
 
 - 2026-10-19: Add authenticated, subject-only temperature-preference review in Household, preserving atomic Pipeline consent and audit; production transcript capture and live extraction remain pending ([decision](docs/adr/ADR-002-postgres-over-dynamodb.md#item-38-authenticated-preference-consent--2026-10-19)).

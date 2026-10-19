@@ -2,6 +2,7 @@
 
 import asyncio
 import os
+import re
 import secrets
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -120,6 +121,7 @@ class Companion:
         demo_worlds: dict[UUID, TwinWorld] | None = None,
         policy_routes: Routing | None = None,
         account_verifier: CognitoCache | None = None,
+        account_login_origin: str | None = None,
     ):
         if demo_world is not None and not str(engine.url.database).startswith(
             "hirz_ha_smoke_"
@@ -135,6 +137,17 @@ class Companion:
         self.demo_lock = asyncio.Lock()
         self.policy_routes = policy_routes
         self.account_verifier = account_verifier
+        if account_login_origin is not None:
+            if (
+                not re.fullmatch(
+                    r"https://[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?", account_login_origin
+                )
+                or account_verifier is None
+            ):
+                raise ValueError(
+                    "Account linking requires an HTTPS issuer and verifier"
+                )
+        self.account_login_origin = account_login_origin
 
     @asynccontextmanager
     async def pipeline(self, household: UUID) -> AsyncIterator[Pipeline]:
@@ -261,6 +274,15 @@ def router(service: Companion) -> APIRouter:
                 "available": True,
                 "linked": linked is not None,
                 "session_binding": auth.digest("hirz-account-link:" + token),
+                "login": {
+                    "origin": service.account_login_origin,
+                    "client_id": service.account_verifier.client_id,
+                    "resource": service.account_verifier.resource,
+                    "redirect_uri": service.config.origin + "/account-link",
+                }
+                if service.account_login_origin is not None
+                and member["role"] != "child"
+                else None,
             }
 
     @api.get("/memory/proposals")

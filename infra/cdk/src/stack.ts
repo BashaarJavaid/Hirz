@@ -29,6 +29,12 @@ export class HirzStack extends Stack {
       description: 'Exact resource from Runtime PRM after initial creation; empty refuses invocation.',
       allowedPattern: '^$|^https://bedrock-agentcore\\.us-east-1\\.amazonaws\\.com/runtimes/arn%3Aaws%3Abedrock-agentcore%3Aus-east-1%3A661550216013%3Aruntime%2F[A-Za-z0-9_-]+/invocations\\?qualifier=DEFAULT$',
     });
+    // Supply the created distribution's exact callback on the second deployment; avoid a resource cycle.
+    const companionCallback = new CfnParameter(this, 'CompanionCallbackUrl', {
+      type: 'String', default: 'http://localhost:8765/account-link',
+      description: 'Companion origin plus /account-link after initial creation; local placeholder keeps the browser flow disabled.',
+      allowedPattern: '^http://localhost:8765/account-link$|^https://[a-z0-9]+\\.cloudfront\\.net/account-link$',
+    });
     const vpc = new ec2.Vpc(this, 'Vpc', {
       ipAddresses: ec2.IpAddresses.cidr('10.36.0.0/16'),
       availabilityZones: ['us-east-1a', 'us-east-1b'], natGateways: 1,
@@ -127,7 +133,7 @@ export class HirzStack extends Stack {
     const humanResource = pool.addResourceServer('HumanScopes', { identifier: 'hirz', scopes: humanScopes });
     const human = pool.addClient('Human', {
       generateSecret: false, accessTokenValidity: Duration.minutes(5),
-      oAuth: { flows: { authorizationCodeGrant: true }, callbackUrls: ['http://localhost:8765/callback'],
+      oAuth: { flows: { authorizationCodeGrant: true }, callbackUrls: ['http://localhost:8765/callback', companionCallback.valueAsString],
         scopes: [cognito.OAuthScope.OPENID, ...humanScopes.map(s => cognito.OAuthScope.resourceServer(humanResource, s))] },
       preventUserExistenceErrors: true,
     });
@@ -142,7 +148,7 @@ export class HirzStack extends Stack {
     machineSecret.grantRead(setup);
     machineSecret.grantWrite(setup);
     setup.addToPolicy(new iam.PolicyStatement({ actions: ['cognito-idp:DescribeUserPoolClient'], resources: [pool.userPoolArn] }));
-    pool.addDomain('LoginDomain', { cognitoDomain: { domainPrefix: 'hirz-item36-661550216013' } });
+    const loginDomain = pool.addDomain('LoginDomain', { cognitoDomain: { domainPrefix: 'hirz-item36-661550216013' } });
     const discovery = `https://cognito-idp.${this.region}.amazonaws.com/${pool.userPoolId}/.well-known/openid-configuration`;
     const root = fileURLToPath(new URL('../../../', import.meta.url));
     const image = new assets.DockerImageAsset(this, 'Image', { directory: root, platform: assets.Platform.LINUX_ARM64, ignoreMode: IgnoreMode.DOCKER, exclude: ["infra/cdk/cdk.out", "**/node_modules", ".git", ".env"] });
@@ -286,6 +292,8 @@ export class HirzStack extends Stack {
       HIRZ_RUNTIME_RESOURCE: runtimeResource.valueAsString,
       HIRZ_COGNITO_ISSUER: `https://cognito-idp.${this.region}.amazonaws.com/${pool.userPoolId}`,
       HIRZ_HUMAN_CLIENT: human.userPoolClientId,
+      HIRZ_COGNITO_LOGIN_ORIGIN: loginDomain.baseUrl(),
+      HIRZ_ACCOUNT_LINK_CALLBACK: companionCallback.valueAsString,
       HIRZ_DATABASE_NAME: 'hirz_item36', HIRZ_DATABASE_SECRET: appPassword.secretArn,
       HIRZ_AUDIT_SECRET: audit.secretArn, HIRZ_TICK_SECRET: tickSecret.secretArn,
       HIRZ_MEMORY_ID: memory.attrMemoryId,

@@ -85,7 +85,16 @@ def test_fixture_is_stable_twin_and_covers_window(monkeypatch):
 
 
 @pytest.mark.parametrize("resource", ["", "https://runtime.example.test/mcp"])
-def test_worker_request_evidence_omits_private_paths(monkeypatch, caplog, resource):
+@pytest.mark.parametrize(
+    "callback",
+    [
+        "http://localhost:8765/account-link",
+        "https://example.cloudfront.net/account-link",
+    ],
+)
+def test_worker_request_evidence_omits_private_paths(
+    monkeypatch, caplog, resource, callback
+):
     import asyncio
     import logging
     from unittest.mock import AsyncMock
@@ -104,6 +113,8 @@ def test_worker_request_evidence_omits_private_paths(monkeypatch, caplog, resour
     monkeypatch.setenv("HIRZ_RUNTIME_RESOURCE", resource)
     monkeypatch.setenv("HIRZ_COGNITO_ISSUER", ISSUER)
     monkeypatch.setenv("HIRZ_HUMAN_CLIENT", CLIENT)
+    monkeypatch.setenv("HIRZ_ACCOUNT_LINK_CALLBACK", callback)
+    monkeypatch.setenv("HIRZ_COGNITO_LOGIN_ORIGIN", "https://login.example.test")
     for field in ("HIRZ_POLICY_ENGINE", "HIRZ_GATEWAY_ARN", "HIRZ_GATEWAY_URL"):
         monkeypatch.setenv(field, "synthetic")
     monkeypatch.setattr(aws_app.config, "secret", lambda _: secret)
@@ -137,6 +148,11 @@ def test_worker_request_evidence_omits_private_paths(monkeypatch, caplog, resour
         )
     else:
         assert verifier is None
+    assert aws_app.Companion.call_args.kwargs["account_login_origin"] == (
+        "https://login.example.test"
+        if resource and callback == "https://example.cloudfront.net/account-link"
+        else None
+    )
     evidence = [r.message for r in caplog.records if "item36_request" in r.message]
     assert evidence == [
         "item36_request kind=other status=404",

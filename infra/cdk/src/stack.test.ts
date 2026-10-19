@@ -40,7 +40,7 @@ describe('item 36 acceptance infrastructure', () => {
   });
   it('keeps all acceptance boundaries explicit', () => {
     template.hasResourceProperties('AWS::Cognito::UserPool', { AdminCreateUserConfig: { AllowAdminCreateUserOnly: true } });
-    template.hasResourceProperties('AWS::Cognito::UserPoolClient', { GenerateSecret: false, AllowedOAuthFlows: ['code'], AccessTokenValidity: 5, CallbackURLs: ['http://localhost:8765/callback'] });
+    template.hasResourceProperties('AWS::Cognito::UserPoolClient', { GenerateSecret: false, AllowedOAuthFlows: ['code'], AccessTokenValidity: 5, CallbackURLs: ['http://localhost:8765/callback', { Ref: 'CompanionCallbackUrl' }] });
     template.hasResourceProperties('AWS::Cognito::UserPoolClient', { GenerateSecret: true, AllowedOAuthFlows: ['client_credentials'], AllowedOAuthScopes: [Match.anyValue()] });
     template.hasResourceProperties('AWS::BedrockAgentCore::Gateway', { AuthorizerType: 'CUSTOM_JWT', PolicyEngineConfiguration: Match.objectLike({ Mode: 'LOG_ONLY' }) });
     template.hasResourceProperties('AWS::BedrockAgentCore::Runtime', {
@@ -103,6 +103,7 @@ describe('item 36 acceptance infrastructure', () => {
       for (const name of ['HIRZ_RUNTIME_RESOURCE', 'HIRZ_COGNITO_ISSUER', 'HIRZ_HUMAN_CLIENT']) {
         expect(task.Properties.ContainerDefinitions[0].Environment).toContainEqual({ Name: name, Value: runtime.Properties.EnvironmentVariables[name] });
       }
+      expect(task.Properties.ContainerDefinitions[0].Environment).toContainEqual({ Name: 'HIRZ_ACCOUNT_LINK_CALLBACK', Value: { Ref: 'CompanionCallbackUrl' } });
     }
   });
   it('limits Memory access to the Runtime and worker on the configured resource', () => {

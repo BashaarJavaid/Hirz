@@ -16068,3 +16068,41 @@ Browser PKCE/redirect wiring, production account-link acceptance, Memory ingress
 and extraction, inference enablement, diagnostics, full CI and all live item 38
 gates remain owed. No item 38 push, paid call, deployment or physical action occurred.
 No threat-model row is promoted and item 37's application revision stays unchanged.
+
+### Browser self-link and callback configuration — 2026-10-19
+
+Completed the local browser path over the verified self-link backend. Household
+starts PKCE and the return page checks its saved state, expiry, exact login config
+and current companion session before exchanging the code and requesting a fresh
+passkey. The return URL is cleared, access/refresh tokens are not stored, and a
+failed or cancelled attempt must restart. The CDK callback parameter preserves
+the existing CLI callback and adds no resource or permission.
+[Decision and contracts](adr/ADR-019-companion.md#browser-self-link-flow-locally-verified--2026-10-19).
+
+- Companion API and AWS configuration unit suites: **21 passed in 5.68 seconds**,
+  including CSP-origin validation, callback routing and explicit callback/resource
+  gating. Strict mypy passed on the three application modules; Ruff passed.
+- The account-link database suite with configured browser metadata passed
+  **13 checks in 22.89 seconds**, retaining the real signatures, rollback,
+  duplicate/refused proof and concurrent-household gates recorded above.
+- Companion unit tests: **9 passed**. Eight new checks verify S256 against the
+  actual exchanged verifier, no persisted tokens, one-use state and refusal before
+  exchange for session/state/issuer changes, expiry, duplicate code, cancellation
+  and malformed stored state.
+- Browser account-link plus Memory presentation suites: **6 passed in 8.6 seconds**.
+  The three new cases use a local callback, synthetic OAuth endpoints and a real
+  browser virtual authenticator. Phone (390px) and desktop (1280px) complete PKCE
+  and an assertion; changing the companion session prevents any token exchange or
+  passkey finish. Checks include URL cleanup, exact resource, CSRF/token forwarding,
+  no token persistence, accessible names/contrast/keyboard order and no overflow.
+  This is not an actual Cognito login or production-cookie acceptance test.
+- CDK's **9 tests**, TypeScript checks and eslint passed. Companion TypeScript,
+  eslint and production build passed; existing Vite directive/chunk warnings remain.
+  `git diff --check` passed.
+
+The initial synthetic HTTPS hostname could not resolve after a mocked HTTP 302
+(`net::ERR_NAME_NOT_RESOLVED`). Using the real local callback fixes the browser
+fixture without modifying application transport or security. No new third-party
+workaround is required. Production Cognito UI/CORS, actual hosted redirects,
+physical phone behavior, full CI and all item 38 live acceptance remain owed.
+No item 38 push, deployment, paid call or physical device action occurred.

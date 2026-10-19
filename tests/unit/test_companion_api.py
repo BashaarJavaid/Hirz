@@ -3,6 +3,7 @@
 from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, Mock
 
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -110,9 +111,38 @@ def test_account_verifier_lives_with_companion(monkeypatch):
 
     verifier = Mock()
     verifier.run = run
-    service = Companion(Mock(), Mock(), CONFIG, account_verifier=verifier)
+    service = Companion(
+        Mock(),
+        Mock(),
+        CONFIG,
+        account_verifier=verifier,
+        account_login_origin="https://login.example.test",
+    )
     monkeypatch.setattr(service.boundary, "persistent", boundary)
     with TestClient(create_app(companion=service)) as client:
         assert client.get("/health").status_code == 200
+        callback = client.get("/account-link")
+        assert callback.status_code == 200
+        assert (
+            "connect-src 'self' https://login.example.test;"
+            in callback.headers["content-security-policy"]
+        )
+        assert callback.headers["referrer-policy"] == "no-referrer"
         assert state == ["started"]
     assert state == ["started", "stopped"]
+
+
+@pytest.mark.parametrize(
+    "origin",
+    [
+        "http://login.example.test",
+        "https://login.example.test/path",
+        "https://login.example.test; script-src unsafe-inline",
+        "https://user@login.example.test",
+    ],
+)
+def test_account_login_origin_cannot_expand_browser_policy(origin):
+    with pytest.raises(ValueError, match="HTTPS issuer"):
+        Companion(
+            Mock(), Mock(), CONFIG, account_verifier=Mock(), account_login_origin=origin
+        )

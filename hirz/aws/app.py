@@ -41,6 +41,11 @@ def create_worker() -> FastAPI:
         )
         if os.environ.get("HIRZ_RUNTIME_RESOURCE")
         else None,
+        account_login_origin=os.environ["HIRZ_COGNITO_LOGIN_ORIGIN"]
+        if os.environ.get("HIRZ_RUNTIME_RESOURCE")
+        and os.environ.get("HIRZ_ACCOUNT_LINK_CALLBACK")
+        == os.environ["HIRZ_COMPANION_ORIGIN"] + "/account-link"
+        else None,
         policy_routes=policy_routes(
             Route(
                 os.environ["HIRZ_POLICY_ENGINE"],

@@ -1,6 +1,10 @@
 import { test, expect } from "@playwright/test";
 import { accessibility } from "./accessibility";
 
+test.beforeEach(async ({ page }) => {
+  await page.route("**/api/account-link", route => route.fulfill({ json: { available: false } }));
+});
+
 // Presentation-only fixtures; real subject/session isolation is tested in Postgres.
 for (const width of [390, 1280]) {
   test(`Preference consent at ${width}px`, async ({ page }) => {

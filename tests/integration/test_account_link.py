@@ -45,7 +45,13 @@ def test_bound_self_link_and_atomic_audit(
             )
             rsa_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
             verifier = cache(rsa_key)
-            service = Companion(c.engine, p.audit, CONFIG, account_verifier=verifier)
+            service = Companion(
+                c.engine,
+                p.audit,
+                CONFIG,
+                account_verifier=verifier,
+                account_login_origin="https://login.example.test",
+            )
             signed = token(rsa_key)
             async with (
                 service.boundary.persistent(),
@@ -65,6 +71,12 @@ def test_bound_self_link_and_atomic_audit(
                 before = await http.get("/api/account-link")
                 assert before.status_code == 200
                 assert before.json()["linked"] is False
+                assert before.json()["login"] == {
+                    "origin": "https://login.example.test",
+                    "client_id": verifier.client_id,
+                    "resource": verifier.resource,
+                    "redirect_uri": CONFIG.origin + "/account-link",
+                }
                 request = {
                     "operation": "link_account",
                     "account_token": signed,
