@@ -1300,3 +1300,45 @@ original tracing was restored. Final evidence is appended to the
   stack deletion alone is not accepted as cleanup evidence.
 - **Feature request:** Document teardown ordering for scheduled Lambda functions
   with custom log groups, including log delivery that overlaps stack deletion.
+
+### 2026-10-19 — Credential refresh endpoint interruption during publication
+
+- **Tool:** AWS CLI credential-process bridge used by the AgentCore acceptance runner.
+- **Severity:** Major.
+- **Docs:** [AWS CLI sign-in](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-sign-in.html).
+- **What happened:** The third approved run stopped during parents publication at
+  128 ACTIVE policies across the shared engine. The retained finding was
+  `CredentialRetrievalError`, with the exact message
+  `aws: [ERROR]: Could not connect to the endpoint URL: "https://us-east-1.signin.aws.amazon.com/v1/token"`.
+  The same error prevented automatic teardown. This was a credential-refresh
+  connection failure, not a semantic policy finding; its network cause is unknown.
+  Both logins had been refreshed earlier in the run.
+- **Response:** Retained publication and audit artifacts, verified that HirzDeploy
+  access worked again, and started recovery through the existing owned-resource
+  teardown. Independent cleanup verification is still pending. No fourth
+  acceptance window or deployment was started.
+- **Feature request:** Provide bounded refresh retries and clearer recoverable
+  connection-failure diagnostics for long-running credential-process consumers.
+
+Later local investigation found a likely environmental trigger: macOS recorded
+`Clamshell Sleep` at 16:47:17 EDT, a maintenance `DarkWake` at 17:03:15, and a normal
+lid/user wake at 17:24:36. The publication failure was recorded at 17:03:23.
+This timing strongly suggests sleep-related network unavailability; it does not
+establish an AWS endpoint outage. Relevant power events are retained privately.
+A temporary, process-bound `caffeinate -i -s` assertion now protects recovery from
+idle sleep. A future local acceptance must keep the Mac powered and lid open.
+
+Recovery also encountered
+`An error occurred (ThrottlingException) when calling the DeletePolicy operation (reached max retries: 2): Too Many Requests`.
+Adaptive SDK retries let the owned policy inventory drain. The repository cleanup
+now re-lists and paces after that specific error within its original five-minute
+deadline; unrelated errors still fail. The misleading generic compiler-rejection
+message now directs the operator to the retained findings. Nineteen focused unit
+checks pass; final resource cleanup verification remains pending.
+
+Recovery completed at 21:46:59 UTC: independent inventory found zero resources in
+all 24 categories, all 18 customer KMS keys are pending deletion, and both signed
+audit exports verify. See the [evidence entry](verification-log.md#sleep-correlated-credential-failure-and-recovered-teardown--2026-10-19).
+The bounded operator bridge also recovered through the real SDK subprocess path
+from a synthetic reproduction of the exact endpoint error; a separate real STS
+probe authenticated as HirzDeploy. Neither probe deployed resources.

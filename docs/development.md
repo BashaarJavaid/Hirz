@@ -2054,6 +2054,23 @@ region = us-east-1
 
 Verify `aws sts get-caller-identity --profile hirz` returns
 `arn:aws:sts::661550216013:assumed-role/HirzDeploy/hirz-item36` before deploying.
+For the repaired long acceptance runner, a private copy of this configuration
+sets only `hirz-operator.credential_process` to the absolute Python 3.12 interpreter
+and `scripts/aws_operator_credentials.py`. Pass that copy using `AWS_CONFIG_FILE`;
+leave the user's normal profiles intact. The bridge retries the observed sign-in
+endpoint connection error or a process timeout at most three times within 120
+seconds, with five-second pauses. Expired logins and other errors fail immediately.
+Its successful stdout is the credential protocol for the SDK: never invoke it
+interactively, print its output, or put credentials in a log. Child errors are
+replaced with fixed, non-secret messages.
+
+Run the one-shot acceptance launcher under `caffeinate -i -s` on macOS, keep the
+Mac on AC power with its lid open, and check the sleep assertion before deploying.
+The guard ends with its process; it does not replace the fixed AWS cleanup
+deadline or login renewal supervision. A resumed machine must check the deadline
+before any new acceptance action. Sleep and connection outages do not extend the
+approved lifetime. SDK retries cannot compensate for a long offline interval.
+
 The existing root login is preserved only as the explicit `hirz-bootstrap` setup
 profile, refreshed with `aws login --profile hirz-login --region us-east-1` for
 billing/setup reads. Refreshing it does not refresh the separate operator login;

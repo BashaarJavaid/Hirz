@@ -15772,3 +15772,69 @@ application CI latency gates, not live Runtime cold-start measurements or AWS
 policy agreement. Raw logs and derived `latency-summary.json` are retained under
 `secrets/item37-session-renewal-review/`. No new AWS deployment was started and
 item 37 remains incomplete pending its live gates and new window authorization.
+### Sleep-correlated credential failure and recovered teardown — 2026-10-19
+
+The third approved acceptance stopped at 21:03 UTC during parents publication.
+The retained inventory had **128 ACTIVE policies**; home publication committed,
+parents publication was blocked, and **zero Gateway calls** were made. Both
+retained findings are `CredentialRetrievalError` with
+`aws: [ERROR]: Could not connect to the endpoint URL: "https://us-east-1.signin.aws.amazon.com/v1/token"`.
+This is not a semantic compiler rejection. The harness's generic rejection
+message has been corrected to direct the operator to the retained findings.
+
+Local power events show lid-closed sleep at 16:47:17 EDT, maintenance DarkWake at
+17:03:15, failure at 17:03:23, and normal lid/user wake at 17:24:36. Their timing
+strongly suggests sleep-related network unavailability, without establishing an
+AWS endpoint outage. Both source logins had been refreshed at approximately
+19:09 UTC, so this is not evidence that their renewal limit was exhausted.
+
+Recovery used the existing HirzDeploy identity and recorded-resource teardown.
+An initial deletion attempt hit `DeletePolicy` throttling; adaptive SDK retries
+then drained the engine. Future cleanup re-lists and paces on that specific error
+within the original deadline and continues to refuse unrelated failures. Focused
+Gateway/cleanup tests passed **19 in 0.95 seconds**; Ruff and strict mypy passed.
+No fourth deployment was started.
+
+Independent postflight completed at **21:46:59 UTC**:
+
+- Both stacks absent and **all 24 resource categories zero**; **18 customer KMS
+  keys PendingDeletion**, tracing destination/indexing restored, span logs absent.
+- Home export: **18,160 valid signed rows**; parents: **14,221**, totaling
+  **32,381 verified rows**. Exports remain unanchored and do not prove completeness
+  against erasure or a re-signed rewrite.
+- Temporary Docker configuration absent; development migration remains
+  `0005_execution_attempt`. A temporary process-bound sleep assertion protected
+  recovery and released when postflight finished.
+- CloudWatch NAT incoming-byte observations total **1.291817779 decimal GB**;
+  metrics may lag and this is not an invoice. Prior budgets/call ledgers remain
+  intact. The only prior Gateway usage remains three metadata calls in the first
+  window, with zero in the second and third.
+
+Private evidence is in `secrets/item37-session-renewal-acceptance/`, including
+`postflight-summary.json`, `post-delete-inventory.json`, `final-checks.json`,
+`independent-audit-verification.json`, `power-events.txt` and both recovery logs.
+Item 37 remains incomplete: faulty-compiler refusal/restoration, session/TTL
+invalidation, both 1,560-case modes, denied-target absence and real expiry are
+still owed. A new run must republish into a fresh engine; no deleted publication
+is treated as resumable or accepted.
+
+
+### Bounded operator credential bridge — 2026-10-19
+
+`scripts/aws_operator_credentials.py` retries only the observed sign-in endpoint
+connection error or a timed-out CLI subprocess, at most three attempts within
+120 seconds. Expired login and unrelated errors fail immediately with fixed,
+redacted diagnostics. The successful credential protocol goes only to its SDK
+consumer; the bridge does not persist credentials. Acceptance uses a private
+configuration copy and an AC-powered `caffeinate -i -s` process with the lid open.
+This cannot override lid closure or renew an expired source login.
+
+`pytest tests/unit/aws/test_operator_credentials.py tests/unit/aws/test_gateway.py
+tests/unit/aws/test_policy.py --no-cov -q`: **66 passed in 8.33 seconds**, including
+an actual botocore ProcessProvider subprocess recovering from the exact synthetic
+CLI error. Repository Ruff lint/format and strict mypy passed (227 source files).
+A separate real STS probe using an in-memory profile override authenticated as
+`HirzDeploy` in account `661550216013`; it did not change the normal AWS profiles,
+log credentials or deploy resources. Private evidence is retained in
+`secrets/item37-awake-review/credential-probe.json`. CI and another live
+acceptance are still pending at this entry; no completion is claimed.
