@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-10-19: Connect initial and refreshed worker plans to the configured explainer, retain stale-result checks and settle in-flight SDK narration before cancellation releases ownership; AWS inference remains disabled ([decision](docs/adr/ADR-012-explainer.md#item-38-worker-narration-preparation--2026-10-19)).
+
 - 2026-10-19: Add an optional AgentCore Memory mirror and scoped strategy configuration while retaining durable PostgreSQL turns and explicit preference consent; locally verified, not deployed ([decision](docs/adr/ADR-002-postgres-over-dynamodb.md#item-38-advisory-memory-provider--2026-10-19)).
 
 - 2026-10-19: Wire the full authenticated MCP application into the Runtime entrypoint, preserve explicit household boundary assignments and prepare private RDS access with scoped infrastructure secrets; locally verified, not deployed ([decision](docs/adr/ADR-008-agentcore-topology.md#item-38-runtime-composition-locally-verified--2026-10-19)).

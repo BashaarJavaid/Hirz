@@ -1,10 +1,10 @@
 """Lazy Converse SDK bridge. Boto3 is the approved synchronous SDK exception."""
 
-import asyncio
 import json
 import os
 from typing import Any
 
+from hirz.aws.client import call
 from hirz.explainer.core import (
     MODEL_ID,
     Context,
@@ -77,7 +77,7 @@ class BedrockExplainer:
         if selected.get("historical") or isinstance(obj, Decision) and obj.status:
             return template(obj, ctx, provider="bedrock")
         try:
-            response = await asyncio.to_thread(self.converse, selected)
+            response = await call(self, "converse", selected=selected)
         except Exception:
             # CancelledError is a BaseException: cancellation must propagate.
             return template(

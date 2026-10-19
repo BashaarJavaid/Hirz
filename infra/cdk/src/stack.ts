@@ -275,6 +275,11 @@ export class HirzStack extends Stack {
       this.formatArn({ service: 'bedrock', resource: 'inference-profile', resourceName: 'us.anthropic.claude-haiku-4-5-20251001-v1:0' }),
       this.formatArn({ service: 'bedrock', resource: 'inference-profile', resourceName: 'us.amazon.nova-lite-v1:0' }),
     ] }));
+    // The existing Protect/emulator budget gate counts Haiku input before inference.
+    // https://docs.aws.amazon.com/service-authorization/latest/reference/list_bedrock.html
+    worker.addToPolicy(new iam.PolicyStatement({ actions: ['bedrock:CountTokens'], resources: [
+      'arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0',
+    ] }));
     const cluster = new ecs.Cluster(this, 'Cluster', { vpc });
     const environment = {
       HIRZ_AWS_ROLE: 'worker', HIRZ_LLM: 'off', HIRZ_DATABASE_HOST: database.dbInstanceEndpointAddress,

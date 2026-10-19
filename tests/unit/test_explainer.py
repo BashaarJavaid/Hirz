@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import threading
 from dataclasses import replace
 from decimal import Decimal
 from unittest.mock import Mock
@@ -432,6 +433,33 @@ def test_provider_error_offline_config_and_cancellation(proposal, monkeypatch):
         explainer.converse = Mock(side_effect=asyncio.CancelledError)
         with pytest.raises(asyncio.CancelledError):
             await explainer.narrate(proposal, Context(HOME))
+
+    asyncio.run(run())
+
+
+def test_cancellation_settles_inflight_narration_before_return(proposal):
+    async def run():
+        started, finish = threading.Event(), threading.Event()
+        provider = BedrockExplainer()
+
+        def converse(selected):
+            started.set()
+            assert finish.wait(timeout=5)
+            return response('{"details":[],"screen_summary":"Household timing."}')
+
+        provider.converse = converse
+        pending = asyncio.create_task(provider.narrate(proposal, Context(HOME)))
+        try:
+            async with asyncio.timeout(5):
+                while not started.is_set():
+                    await asyncio.sleep(0)
+            pending.cancel()
+            await asyncio.sleep(0)
+            assert not pending.done()
+        finally:
+            finish.set()
+            with pytest.raises(asyncio.CancelledError):
+                await pending
 
     asyncio.run(run())
 

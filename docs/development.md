@@ -2340,3 +2340,15 @@ transcripts or extracted hints to the consent UI. Contract and limits:
 uv run pytest tests/unit/aws/test_agentcore_memory.py tests/unit/test_memory.py --no-cov
 uv run pytest tests/integration/test_memory_database.py -m integration --no-cov --tb=short
 ```
+
+Worker narration preparation is also locally verified: initial plans and refreshes
+share the configured Explainer, and cancellation waits for the bounded SDK thread.
+The AWS entrypoint still rejects inference-enabled startup. Before changing that
+for a future reviewed acceptance, supply the explicit drafting model and durable
+Protect/emulator budget configuration, and verify the worker's permissions and
+aggregate spend limits. No local test here authorizes paid model calls.
+
+```sh
+uv run pytest tests/unit/test_explainer.py tests/unit/aws/test_evidence.py --no-cov
+uv run pytest tests/integration/test_explainer_database.py tests/integration/test_aws_worker.py tests/integration/test_household_tools_database.py -m integration --no-cov --tb=short
+```

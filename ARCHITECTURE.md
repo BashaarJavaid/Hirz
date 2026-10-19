@@ -827,7 +827,7 @@ validation does not establish narrative truth.
 The optional canonical `narration` field stores `input_hash`, `version`, `provider`,
 `model_id`, `screen_summary` and `fallback_reason`; legacy objects omit it. Existing
 audited writes store narration without migrations. The pure planner and immediate
-Decision paths use templates. Coordinator and RefreshWorker allow explicit async
+Decision paths use templates. Coordinator, initial plan preparation and RefreshWorker allow explicit async
 enrichment outside transactions; refresh freshness checks run afterwards.
 Publication validates prepared narration or supplies templates. Reads reuse valid
 stored output, including fallback, and supply current templates for changed status
@@ -841,6 +841,11 @@ JSON-schema contract; live Bedrock remains item 38. Full validation limits, prov
 settings, privacy selection and rejected alternatives are in
 [ADR-012](./docs/adr/ADR-012-explainer.md); run procedures are in
 [development](./docs/development.md#item-21-explainer).
+Both worker compositions pass the configured provider to initial plans and
+refreshes; direct callers default to templates. Initial publication rechecks its
+snapshot after narration. Cancellation settles the bounded SDK thread before
+worker ownership is released, then propagates without publishing the response.
+The current AWS entrypoint and template still require models off.
 
 ### 5.9 Memory
 

@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import pytest
 import sqlalchemy as sa
-from test_database import connect
+from test_database import connect, migrate
 from test_database import scratch_database as scratch_database
 from test_refresh_database import prepared as setup
 
@@ -24,6 +24,123 @@ from hirz.planner.coordinator import Coordinator
 from scripts.smoke_executor import PRINCIPAL, action
 
 pytestmark = pytest.mark.integration
+
+
+@pytest.mark.parametrize("outcome", ["success", "outage", "changed", "cancelled"])
+def test_first_plan_narration_preserves_publication_boundaries(
+    scratch_database, monkeypatch, outcome
+):
+    from hirz.aws.fixture import load
+    from hirz.executor.local import compose
+    from hirz.executor.observations import ingest
+    from hirz.mcp.household import HouseholdTools
+    from hirz.mcp.worker import prepare_plans
+    from hirz.twin.execution import bootstrap
+
+    monkeypatch.setenv("HIRZ_FIXTURE_START", "2026-10-13T22:30:00+00:00")
+
+    async def run():
+        loaded = load()
+        async with connect(scratch_database) as c:
+            await migrate(c)
+            p = await bootstrap(loaded, c)
+            registry = await compose(
+                p, world=loaded.world, config="presence:twin,energy:twin"
+            )
+            await registry.start()
+            try:
+                await ingest(p, registry, PRINCIPAL)
+                tools = HouseholdTools(p, PRINCIPAL)
+                queued = await tools.call("get_household_plan", {"request_id": "first"})
+                assert queued.data.status == "preparing", queued
+                calls = []
+                changes = []
+
+                class Provider(BedrockExplainer):
+                    async def narrate(self, obj, ctx):
+                        assert not c.in_transaction()
+                        calls.append(obj)
+                        if outcome == "cancelled":
+                            raise asyncio.CancelledError
+                        if outcome == "changed":
+                            changed = await tools.call(
+                                "revise_household_plan",
+                                {
+                                    "text": "The car stops at fifty",
+                                    "applies_to": "car",
+                                    "kind": "one_time",
+                                    "operation": "add",
+                                    "change": "car_limit",
+                                    "percent": 50,
+                                    "request_id": "changed-during-narration",
+                                },
+                            )
+                            changes.append(changed)
+                        return await super().narrate(obj, ctx)
+
+                provider = Provider()
+                provider.converse = Mock(
+                    side_effect=RuntimeError("synthetic outage")
+                    if outcome == "outage"
+                    else None,
+                    return_value={
+                        "stopReason": "end_turn",
+                        "output": {
+                            "message": {
+                                "role": "assistant",
+                                "content": [
+                                    {
+                                        "text": '{"details":[],"screen_summary":"Energy timing follows household requirements."}'
+                                    }
+                                ],
+                            }
+                        },
+                    },
+                )
+                if outcome == "cancelled":
+                    with pytest.raises(asyncio.CancelledError):
+                        await prepare_plans(p, loaded, explainer=provider)
+                else:
+                    await prepare_plans(p, loaded, explainer=provider)
+                assert len(calls) == 1
+                if outcome == "changed":
+                    assert len(changes) == 1 and changes[0].data.status == "recorded", (
+                        changes
+                    )
+                async with c.begin():
+                    request = (
+                        (await c.execute(sa.select(db.plan_requests))).mappings().one()
+                    )
+                    documents = (
+                        (await c.execute(sa.select(db.plans.c.document)))
+                        .scalars()
+                        .all()
+                    )
+                if outcome in {"changed", "cancelled"}:
+                    assert request["status"] == "pending" and not documents
+                else:
+                    assert request["status"] == "ready" and len(documents) == 1
+                    stored = Plan.model_validate(documents[0])
+                    assert stored.narration.provider == (
+                        "template" if outcome == "outage" else "bedrock"
+                    )
+                    assert stored.narration.fallback_reason == (
+                        "provider_error" if outcome == "outage" else None
+                    )
+                    assert stored.model_dump(
+                        exclude={"speakable", "narration"}
+                    ) == calls[0].model_dump(exclude={"speakable", "narration"})
+                    await tools.call("get_household_plan", {})
+                    await tools.call("explain_plan", {})
+                    assert provider.converse.call_count == 1
+                summary, _ = await verify_database(
+                    c, p.household_id, p.audit.key.public_key()
+                )
+                assert summary["status"] == "valid"
+            finally:
+                await registry.close()
+
+    asyncio.run(run())
 
 
 def test_audited_publication_restart_reuse_status_and_scope(scratch_database):

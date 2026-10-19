@@ -120,6 +120,16 @@ describe('item 36 acceptance infrastructure', () => {
       expect(task.Properties.ContainerDefinitions[0].Environment).toContainEqual({ Name: 'HIRZ_MEMORY_ID', Value: { 'Fn::GetAtt': [id, 'MemoryId'] } });
     }
   });
+  it('permits token counting only for the worker and the configured Haiku model', () => {
+    const policies = Object.entries(template.findResources('AWS::IAM::Policy'));
+    const counters = policies.filter(([, p]) => p.Properties.PolicyDocument.Statement.some((s: { Action: string | string[] }) => [s.Action].flat().includes('bedrock:CountTokens')));
+    expect(counters).toHaveLength(1);
+    expect(counters[0][0]).toMatch(/^WorkerRoleDefaultPolicy/);
+    expect(counters[0][1].Properties.PolicyDocument.Statement).toContainEqual({ Effect: 'Allow', Action: 'bedrock:CountTokens', Resource: 'arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0' });
+    for (const [id, policy] of policies.filter(([id]) => !id.startsWith('WorkerRoleDefaultPolicy'))) {
+      expect(policy.Properties.PolicyDocument.Statement.flatMap((s: { Action: string | string[] }) => s.Action), id).not.toEqual(expect.arrayContaining(['bedrock:InvokeModel']));
+    }
+  });
   it('synthesizes without network lookups and without dependency cycles', () => {
     expect(app.synth().manifest.missing ?? []).toEqual([]);
     const visit = (id: string, trail: string[]) => {

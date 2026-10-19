@@ -274,7 +274,11 @@ async def worker(args: argparse.Namespace) -> int:
                                         await deliver_push(
                                             refresh_pipeline, push_config
                                         )
-                                    await prepare_plans(refresh_pipeline, loaded)
+                                    await prepare_plans(
+                                        refresh_pipeline,
+                                        loaded,
+                                        explainer=refresh.explainer,
+                                    )
                                     await refresh.batch()
                                     await advance_twin(refresh_pipeline)
 

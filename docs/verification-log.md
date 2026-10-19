@@ -15923,3 +15923,61 @@ The template still sets `HIRZ_LLM=off`. Production transcript ingress, conversio
 of hints to typed consent proposals, companion consent, live strategy behavior,
 account linking, remaining Bedrock/doctor/timing gates and full CI remain owed.
 This is local provider/configuration progress, not item 38 completion.
+
+### Worker narration and inference permission preparation — 2026-10-19
+
+Continued independent item 38 work while the approved item 37 publication ran.
+Initial plan preparation now accepts an Explainer; local and AWS twin worker
+compositions share their configured provider with initial and refreshed plans.
+The existing SDK helper settles narration threads before cancelled worker ownership
+is released. Model calls remain outside transactions and MCP calls; request,
+objective and snapshot checks still precede publication. The local infrastructure
+template adds the missing, exact-model CountTokens permission for existing worker
+budget checks. [Decision and limitations](adr/ADR-012-explainer.md#item-38-worker-narration-preparation--2026-10-19).
+
+Targeted validation, using the locked Python environment and pinned native Dogwood:
+
+- `pytest tests/unit/test_explainer.py tests/unit/aws/test_evidence.py --no-cov
+  --tb=short -q`: **90 passed in 2.05 seconds**, including a blocked SDK thread
+  that must settle before cancellation returns, existing SDK/schema/fallback
+  checks and solver cancellation.
+- `pytest tests/integration/test_explainer_database.py
+  tests/integration/test_aws_worker.py tests/integration/test_household_tools_database.py
+  -m integration --no-cov --tb=short -q`: **20 passed in 56.49 seconds**. New
+  first-plan cases use the actual tool request, deterministic planner and audited
+  publication with a mocked provider. Successful narration preserves canonical
+  plan fields; an outage publishes a template with `provider_error`; a constraint
+  recorded during narration leaves the request pending and publishes no stale
+  plan; cancellation likewise publishes nothing. Provider calls run outside
+  transactions, reads add no model call, and all four signed chains verify.
+  Connected AWS tick duplicate/restart and household-tool tests remain passing.
+- `scripts/smoke_explainer.py` with `HIRZ_LLM=off`: **PASS**, fabricated figure
+  refused, canonical plan unchanged, 103 actions and valid cached narration.
+- Repository-wide Ruff lint and format pass (**363 Python files**); strict mypy
+  passes **228 source files**. No development migration or physical write occurred.
+
+Initial test assertions incorrectly expected a Bedrock provider label on a
+template fallback, and omitted required fields from the concurrent revision.
+Both test-construction issues were fixed before the passing run. No external
+provider call, paid retry or new third-party friction occurred.
+
+The AWS entrypoint and template still require models off. Live Bedrock, complete
+inference/drafting/Protect/emulator configuration, production account linking,
+Memory consent, doctor and timing gates remain owed. No push or deployment was
+performed, and the active item 37 application/harness remained unchanged.
+
+Broader local verification after the targeted checks:
+
+- `pytest --no-cov --tb=short -q` with `HIRZ_LLM=off` and pinned Dogwood completed
+  in **228.44 seconds**: **1,749 passed**, three failed solely because the sandbox
+  denied loopback socket binding, 280 deselected and two existing deprecation
+  warnings. Re-running exactly `test_ports_and_private_directories` and both
+  `test_websocket_token_contract` cases with local network permission passed
+  **all three in 1.72 seconds**. Thus all **1,752 service-free checks**, including
+  native conformance, have passing results; this was not one unrestricted run,
+  full integration CI, coverage or a latency acceptance gate.
+- `pnpm --filter infra test`: **nine passed**, including exact-model worker-only
+  token counting and absence of model invocation permissions from other roles.
+  TypeScript typecheck and eslint passed. No template was deployed.
+- Final `git diff --check` passed. The sandbox permission failures were local
+  execution restrictions, not AWS/provider defects; no new friction entry earned.
