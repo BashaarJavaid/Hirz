@@ -15808,3 +15808,23 @@ Runtime wiring, audited production account linking, live resource-bound Cognito
 PKCE, Bedrock, Memory, AWS doctor, action timing and Runtime warm/cold latency
 remain owed. No item 38 live deployment, full CI, completion or threat-model claim
 is made. Existing upstream deprecation warnings require no workaround here.
+
+### Runtime discovery contract read — 2026-10-19
+
+A single unauthenticated metadata GET against the Runtime already created by the
+approved item 37 stack returned **HTTP 200**, with `resource` and
+`authorization_servers` fields. Its resource is the AWS Runtime invocation URL
+including `?qualifier=DEFAULT`; it did not include `scopes_supported`. No Runtime
+invocation, model call or resource mutation was made. The private response is
+retained in `secrets/item38-local-review/runtime-metadata-read.json` in the primary
+checkout. This is a discovery observation on the existing generic deployment,
+not item 38 application acceptance.
+
+The gate now supports an explicitly configured public metadata URL, preserving
+that path and qualifier in challenges. Local URL derivation remains unchanged.
+Connected OAuth/Cognito units passed **39 tests in 15.47 seconds**; the two HTTP/
+PostgreSQL Cognito cases verify the configured URL verbatim in the 401 header.
+Runtime deployment wiring remains pending.
+
+The two updated Cognito integration cases passed in **4.80 seconds**; strict mypy
+on the changed authentication modules and `git diff --check` also passed.

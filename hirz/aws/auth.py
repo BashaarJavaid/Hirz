@@ -14,9 +14,19 @@ from hirz.pipeline.models import Principal
 class CognitoCache(KeyCache):
     scope_names = {scope: scope.replace(":", "/") for scope in SCOPES}
 
-    def __init__(self, issuer: str, resource: str, client_id: str) -> None:
+    def __init__(
+        self,
+        issuer: str,
+        resource: str,
+        client_id: str,
+        *,
+        metadata_url: str | None = None,
+    ) -> None:
         super().__init__(
-            issuer, resource, discovery_path="/.well-known/openid-configuration"
+            issuer,
+            resource,
+            discovery_path="/.well-known/openid-configuration",
+            metadata_url=metadata_url,
         )
         if not client_id:
             raise ValueError("Cognito requires the configured human app client")

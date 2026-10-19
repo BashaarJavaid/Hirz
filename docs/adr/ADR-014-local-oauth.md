@@ -165,3 +165,10 @@ acceptance claim. Tests use rollback-only account views in disposable databases.
 Contracts: [Cognito access tokens](https://docs.aws.amazon.com/cognito/latest/developerguide/amazon-cognito-user-pools-using-the-access-token.html),
 [Cognito resource binding](https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-define-resource-servers.html),
 and [Runtime authorization forwarding](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-header-allowlist.html).
+
+The gate also accepts an explicitly configured metadata URL so an AWS challenge
+can retain the invocation path and qualifier query. The local default is
+unchanged. [Runtime's documented PRM endpoint](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-oauth.html)
+is served by AWS before container authentication; the live read recorded below
+confirms its resource URL for the existing item 37 deployment. Runtime wiring
+must supply that configuration rather than derive it from an untrusted request.

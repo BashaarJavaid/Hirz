@@ -39,6 +39,7 @@ def test_cognito_scopes_links_and_claimed_household(scratch_database, ambiguous)
             await load_seeds(connection, seeds, lambda: at)
         key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
         verifier = cache(key)
+        verifier.metadata_url = "https://runtime.example.test/invocations/.well-known/oauth-protected-resource?qualifier=DEFAULT"
 
         @asynccontextmanager
         async def running():
@@ -97,6 +98,10 @@ def test_cognito_scopes_links_and_claimed_household(scratch_database, ambiguous)
                         ]
                         anonymous = await client.post("/mcp", json=call())
                         assert anonymous.status_code == 401
+                        assert (
+                            f'resource_metadata="{verifier.metadata_url}"'
+                            in anonymous.headers["www-authenticate"]
+                        )
                         assert (
                             'scope="hirz/read"' in anonymous.headers["www-authenticate"]
                         )

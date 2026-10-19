@@ -60,11 +60,15 @@ class KeyCache:
         *,
         clock: Callable[[], float] = time.monotonic,
         discovery_path: str = "/.well-known/oauth-authorization-server",
+        metadata_url: str | None = None,
     ) -> None:
         self.issuer = issuer
         self.resource = resource
         self.clock = clock
         self.discovery_path = discovery_path
+        self.metadata_url = metadata_url or (
+            resource.rsplit("/", 1)[0] + "/.well-known/oauth-protected-resource"
+        )
         self.keys: dict[str, RSAPublicKey] = {}
         self.updated: float | None = None
 
@@ -271,9 +275,13 @@ class OAuthGate:
         async def error(status: int, code: str, message: str) -> None:
             headers = {"Cache-Control": "no-store"}
             if status in (401, 403) and code in ("invalid_token", "insufficient_scope"):
-                resource = self.cache.resource if self.cache else RESOURCE
                 prm = (
-                    resource.rsplit("/", 1)[0] + "/.well-known/oauth-protected-resource"
+                    self.cache.metadata_url
+                    if self.cache
+                    else (
+                        RESOURCE.rsplit("/", 1)[0]
+                        + "/.well-known/oauth-protected-resource"
+                    )
                 )
                 challenge = f'Bearer resource_metadata="{prm}", error="{code}"'
                 if required:
