@@ -10,8 +10,8 @@ from typing import Any, Literal
 from uuid import UUID
 
 import sqlalchemy as sa
-from fastapi import APIRouter, HTTPException, Request, Response
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from fastapi import APIRouter, HTTPException, Query, Request, Response
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, model_validator
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from hirz import db
@@ -22,6 +22,8 @@ from hirz.constitution.boundary import Dogwood
 from hirz.constitution.schema import loads
 from hirz.contacts.service import Command as ContactCommand
 from hirz.graph.models import now
+from hirz.memory.models import Page
+from hirz.memory.service import MemoryService
 from hirz.pipeline.audit import AuditWriter
 from hirz.pipeline.service import Pipeline, PolicyBundle
 from hirz.twin.world import TwinWorld
@@ -92,6 +94,12 @@ class Reference(Input):
 class RecordedDraft(Input):
     sentence: str = Field(min_length=1, max_length=2000)
     proposal_id: str | None = None
+
+
+class MemoryReview(Input):
+    proposal_id: UUID
+    accept: StrictBool
+    request_id: str = Field(min_length=1, max_length=128)
 
 
 class Companion:
@@ -223,6 +231,35 @@ def cookie(response: Response, name: str, token: str, *, secure: bool) -> None:
 
 def router(service: Companion) -> APIRouter:
     api = APIRouter(prefix="/api")
+
+    @api.get("/memory/proposals")
+    async def memory_proposals(
+        request: Request,
+        response: Response,
+        after: int = Query(default=0, ge=0),
+        limit: int = Query(default=50, ge=1, le=100),
+    ) -> list[dict[str, Any]]:
+        response.headers["Cache-Control"] = "no-store"
+        async with service.authorized(request) as (p, member):
+            proposals = await MemoryService(p).proposals(
+                member["principal"], page=Page(after=after, limit=limit), locked=True
+            )
+            return [proposal.model_dump(mode="json") for proposal in proposals]
+
+    @api.post("/memory/review")
+    async def memory_review(
+        value: MemoryReview, request: Request, response: Response
+    ) -> dict[str, Any]:
+        response.headers["Cache-Control"] = "no-store"
+        async with service.authorized(request) as (p, member):
+            result = await MemoryService(p).review(
+                member["principal"],
+                action_id="memory-review:" + value.request_id,
+                proposal_id=value.proposal_id,
+                accept=value.accept,
+                locked=True,
+            )
+            return result.model_dump(mode="json", by_alias=True)
 
     @api.post("/twin/doorbell")
     async def ring_twin(request: Request) -> dict[str, str]:

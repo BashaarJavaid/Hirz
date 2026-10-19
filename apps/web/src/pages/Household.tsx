@@ -3,6 +3,7 @@ import { passkey, useResource } from "../api";
 import { AsyncButton, Load, Panel, Secret } from "../components/primitives";
 import type { Value } from "../schema-form";
 import { Contacts } from "../components/Contacts";
+import { Memory } from "../components/Memory";
 import { date } from "../types";
 
 export function Household() {
@@ -14,6 +15,7 @@ export function Household() {
   if (!r.data || r.error) return <Load {...r} />;
   return <>
     <h1>Household</h1>
+    <Memory />
     {secret && <Secret value={secret} />}
     <Panel title="Passkeys">
       <p>Add a second distinct credential, especially for the owner. Passkeys may sync across devices.</p>

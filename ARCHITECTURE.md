@@ -856,8 +856,8 @@ Two stores with a clear split:
 - **Remember is consent-gated.** Extracted preferences arrive as `MEMORY_PROPOSED` audit rows and companion-app cards ("Hirz noticed you usually skip the car on Wednesdays. Remember that?"). Only accepted proposals are written to the graph (`source: learned_accepted`). The planner uses graph preferences only. A proposal that has not been accepted is never planner input; an explanation may say that a proposal is waiting in the app.
 
 **Item 20 local contract.** `hirz.memory.service.MemoryService` accepts trusted
-internal `Principal` objects. Public authentication and companion consent screens
-remain later work. `record_turn`, `propose` and `review` return the canonical
+internal `Principal` objects. Item 38 adds authenticated companion review below;
+production transcript intake remains later work. `record_turn`, `propose` and `review` return the canonical
 `Decision` with a typed `Turn` or `Proposal`; a refusal has no returned record.
 `turns`, `proposals`, `hints` and `resolve` are scoped reads, with no audit mutation.
 There is no public memory CLI, extraction model, semantic search or AWS dependency.
@@ -892,7 +892,7 @@ The two built-in strategies use `/hirz/{actorId}/preferences/` and
 returned namespaces must match exactly because AWS listing uses a prefix.
 Extraction is skipped unless `HIRZ_LLM=bedrock` and the current constitution permits
 memory proposals. Hints remain advisory text; this provider adds no transcript
-ingress, text-to-Candidate extraction or companion consent screen. The deployment
+ingress or text-to-Candidate extraction. The deployment
 template keeps `HIRZ_LLM=off`; live strategy behavior remains unverified.
 
 Follow-ups resolve the latest explicit reference of the requested kind in exactly
@@ -916,6 +916,17 @@ changed retries cannot mutate anything again. Session recording, proposal events
 acceptance history and refresh holds commit with signed audit evidence or roll back
 together. Learning-disabled and native-policy rules are in
 [the constitution contract](./docs/constitution.md#item-20-internal-memory-permissions--2026-09-21).
+
+**Item 38 companion consent (locally verified).** Household shows the signed-in
+member's pending temperature suggestions with Remember and Don't remember actions.
+`GET /api/memory/proposals` uses the existing audit cursor (default 50, maximum
+100); `POST /api/memory/review` accepts only proposal ID, strict boolean consent
+and a bounded request ID. Both use the current passkey session and no-store
+responses; writes require the existing Origin/CSRF checks. Session revalidation,
+subject resolution, Pipeline review and response construction share the owned
+household transaction. No fresh passkey ceremony is added for preference consent.
+An owner cannot see or accept another member's suggestions. The routes expose no
+transcript or proposal-creation surface and invoke no model or Memory SDK.
 
 Only declared and accepted graph preferences enter the Coordinator. A member's
 explicit temperature request/band for the same room/window takes precedence over

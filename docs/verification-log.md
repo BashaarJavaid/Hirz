@@ -15981,3 +15981,50 @@ Broader local verification after the targeted checks:
   TypeScript typecheck and eslint passed. No template was deployed.
 - Final `git diff --check` passed. The sandbox permission failures were local
   execution restrictions, not AWS/provider defects; no new friction entry earned.
+
+### Authenticated Memory consent — 2026-10-19
+
+Continued independent item 38 work in the isolated checkout while item 37
+publication ran unchanged. Household now lists the authenticated subject's pending
+temperature proposals and offers explicit acceptance/rejection. The HTTP routes
+reuse current session authentication, Origin/CSRF guards, canonical proposal and
+mutation results, and the owned Pipeline transaction. The internal standalone
+Memory path retains its commit-before-mirror behavior.
+[Decision](adr/ADR-002-postgres-over-dynamodb.md#item-38-authenticated-preference-consent--2026-10-19).
+
+Validation used the existing locked Python environment, pinned native Dogwood,
+Node 24 and disposable PostgreSQL databases:
+
+- `pytest tests/unit/test_memory.py tests/unit/aws/test_agentcore_memory.py
+  --no-cov -q --tb=short`: **32 passed in 2.42 seconds**.
+- The connected Memory database and companion HTTP suites passed **14 checks**
+  in the combined run. The new `tests/integration/test_memory_http.py` then passed
+  **one check in 6.88 seconds** after correcting test setup/teardown. It verifies
+  real passkey enrollment and sessions, owner-versus-subject visibility, non-owner
+  consent, anonymous/CSRF/Origin refusal, strict fields and pagination, rollback
+  after a mutation, identical replay, changed/stale review refusal, rejection,
+  revoked-credential refusal, accepted graph provenance and a valid signed chain
+  without transcript text. Locked review outside an owned transaction is refused.
+  Revocation setup uses the existing internal verified-ceremony principal; this
+  test does not claim a new browser WebAuthn revocation ceremony.
+- `HIRZ_BROWSER_BACKEND=http://127.0.0.1:5175 pnpm --filter web test:browser
+  tests/memory.spec.ts`: **three passed in 7.5 seconds**. Synthetic API fixtures
+  exercise 390px/1280px presentation, acceptance/rejection/refusal, explicit
+  refresh, audit-cursor paging, keyboard order, visible names, contrast and no
+  horizontal overflow. These are presentation checks, not live AWS or browser
+  authentication evidence.
+- Companion TypeScript typecheck, eslint and production build passed. Vite emitted
+  existing dependency `use client` and chunk-size warnings; no workaround needed.
+  Ruff lint/format passed on the three touched Python files; strict mypy passed
+  on both application modules.
+
+Initial test construction reused a request ID across members, omitted the internal
+verified-ceremony flag for revocation, and left a snapshot read transaction open
+before audit verification. These were corrected without changing application
+authorization. No third-party failure or new friction entry was earned.
+
+Production transcript ingress, conversion of extracted hints to typed proposals,
+live Memory strategy acceptance, real account linking, inference enablement,
+diagnostics, timing and full CI remain owed. No item 38 push, deployment, model
+call, new resource or physical action occurred. The Memory threat row remains
+Partial; only its local authenticated-consent evidence is updated.

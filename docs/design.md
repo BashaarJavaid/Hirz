@@ -209,3 +209,13 @@ as activation; blocked restoration explicitly requires operator repair. The
 review warns that queued AWS rules have not yet taken effect. These states are
 polled through the existing Constitution resource; there is no optimistic
 activation or cloud call in a public Alexa tool.
+
+### Preference suggestions — 2026-10-19
+
+Household uses the existing Panel and AsyncButton components for the signed-in
+member's pending temperature suggestions. Each shows the temperature and proposal
+date, with Remember and Don't remember buttons. Both disable while its review is
+pending; success appears only after an executed response with the expected status.
+Refusals stay visible with a retryable error. Refresh and cursor-based paging are
+explicit. No transcript, internal identifier or another member's suggestion is
+rendered. Preference consent uses the current authenticated session.

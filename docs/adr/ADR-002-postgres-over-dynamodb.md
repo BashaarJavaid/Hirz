@@ -269,3 +269,20 @@ claim of per-member IAM isolation or protection from a compromised worker.
 The [implemented contract](../../ARCHITECTURE.md#59-memory) keeps hints separate
 from accepted graph preferences. Local verification does not earn live strategies,
 production transcript capture or companion consent; those remain item 38 work.
+
+## Item 38 authenticated preference consent — 2026-10-19
+
+Expose the existing typed proposal review in the companion Household page. Resolve
+the subject from the current passkey session, then revalidate that session and
+review inside the existing serialized Pipeline transaction. Reuse `mutate_locked`
+for this owned transaction; retain the standalone service path for internal callers
+and commit-before-mirror behavior. Do not add a second consent store or a direct
+graph write. The original subject-app-principal requirement does not require a
+fresh passkey ceremony for every temperature preference.
+
+Reject owner consent on another member's behalf, caller-supplied identity or
+candidate values, transcript disclosure, and automatic hint acceptance. Lists
+use the existing audit cursor and pending-only filter. Acceptance still checks
+learning permission and captured preference version, writes signed evidence, and
+queues refresh atomically. This closes local authenticated review only; production
+transcript intake, typed extraction and live strategies remain outstanding.

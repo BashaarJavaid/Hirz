@@ -2352,3 +2352,15 @@ aggregate spend limits. No local test here authorizes paid model calls.
 uv run pytest tests/unit/test_explainer.py tests/unit/aws/test_evidence.py --no-cov
 uv run pytest tests/integration/test_explainer_database.py tests/integration/test_aws_worker.py tests/integration/test_household_tools_database.py -m integration --no-cov --tb=short
 ```
+
+Household now exposes authenticated review of existing pending Memory proposals.
+Sign in as the subject member; the owner's session cannot review another member's
+preferences. The UI does not create proposals or ingest transcripts. Local HTTP
+tests use real passkey enrollment and disposable PostgreSQL; the browser test
+uses synthetic responses to check presentation and accessibility only.
+
+```sh
+uv run pytest tests/integration/test_memory_http.py tests/integration/test_memory_database.py tests/integration/test_companion_http.py -m integration --no-cov --tb=short
+# With the local Vite server already running:
+HIRZ_BROWSER_BACKEND=http://127.0.0.1:5173 pnpm --filter web test:browser tests/memory.spec.ts
+```
