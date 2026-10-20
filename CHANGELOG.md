@@ -6,6 +6,10 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-10-20: Add the local Link signature/replay journal, durable endings and recorded HA transport; production relay and device acceptance remain pending ([decision](docs/adr/ADR-009-signed-commands-home-agent.md#item-38a-local-command-foundation--2026-10-20)).
+
+- 2026-10-20: Move setup, recovery and CI procedures into the development guide, correct the README topology/scope and prepare evidence-based tool feedback for submission ([evidence](docs/verification-log.md#item-41)).
+
 - 2026-10-19: Prepare a private, read-only Runtime discovery and linked-household smoke for item 38; live invocation and the full AWS doctor remain pending ([procedure](docs/development.md#runtime-discovery-and-read-smoke)).
 
 - 2026-10-19: Prepare Cognito Simulator login with pinned endpoints, current member binding and a derived callback; preserve PKCE despite Cognito's omitted discovery field ([decision](docs/adr/ADR-014-local-oauth.md#item-38-cognito-simulator-composition--2026-10-19)).

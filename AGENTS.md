@@ -42,7 +42,7 @@ Each kind of record has one home. Write it there once and link to it; never past
 | A decision with its rejected alternatives | `docs/adr/`, one file, listed in `docs/adr/README.md`; a later change is an amendment in the same file, dated | | Not in `CHANGELOG.md` alone, not only in a commit message |
 | Third-party tool friction and feature requests | `docs/friction-log.md` (see Conventions) | Devpost's format, with URL and exact error text | Nothing invented or padded |
 | How a component works | `ARCHITECTURE.md` section, `docs/*.md` spec | | Not in the README, not in the roadmap |
-| Development and operations procedure (setup, recovery, reset, CI mechanics) | `docs/development.md` (the Phase 0 sections now in `README.md` move there before submission) | | Not in the README beyond the quickstart |
+| Development and operations procedure (setup, recovery, reset, CI mechanics) | `docs/development.md`, including toolchain, setup, recovery and CI | | Not in the README beyond the quickstart |
 | Where the project stands right now | `CLAUDE.md`/`AGENTS.md` "Current phase" | Under about 80 words: what is done, what is next, one caveat. Details live in the roadmap and the evidence log | Not a second verification log |
 | Pitch, demo story, tech stack, quickstart, pointers | `README.md` | | Not procedures, not evidence |
 
@@ -90,14 +90,14 @@ is in `docs/development.md`. Item 8 adds standalone Python risk scoring; its API
 smoke procedure is also in `docs/development.md`. Item 9 adds the internal pipeline API and disposable `scripts/smoke_pipeline.py`
 example; signed append is internal only. Item 10 adds audit verification/export and
 the smoke's `--audit` option; anchors remain item 38b. Item 11 adds read-only `hirz decide` with explicit hypothetical inputs; its development-database invocation is verified. Item 12 adds the adapter contract smoke and explicit observation/room/scam preview files; schema upgrade remains manual (docs/development.md). Item 13 adds credential-free in-memory twin physics and eight read adapters via `scripts/smoke_twin.py`; general execution remains later work. Item 14 adds credential-free ComEd/Open-Meteo reads and `scripts/smoke_energy.py` (recorded by default, `--live --history-month 2026-08` for network verification); ingestion remains later work. Item 15 adds local HA reads/subscriptions and single-attempt Pipeline writes via `scripts/smoke_ha.py` (recorded by default, `--live-demo` or explicitly mapped `--live-plug`); live checks use disposable databases and retain audit exports. The physical plug gate remains pending; migrations stay explicit. Item 16 adds offline `hirz scenario run|step`, recorded simulated policy patches, observation assertions and redacted JSON reports; native Dogwood is required for simulated activation. Tool execution, persistence and full-demo assertions remain deferred. Item 17 adds read-only `scripts/smoke_planner.py` (`--live-weather` is separate), offline `scripts/backtest.py` (`--fetch` downloads; `--verify` reproduces retained outputs), and two planning-scenario snapshots. Historical completion and billing coverage are reported separately. Item 18 adds the internal Coordinator service, audited constraint intake/history and `--scope constraints` reads, plus `scripts/smoke_coordinator.py` with explicit twin holds and signed audit export. Item 19 adds durable local plan consent/revision/cancellation, queued Pipeline actions, bounded endings, twin checkpoints and `hirz worker`; `scripts/smoke_executor.py` verifies a separate twin worker or `--live-demo` HA restoration. Migrations `0006_coordinator_constraints` and `0007_execution_lifecycle` remain manual; item 19a adds durable refresh inputs/jobs, automatic local refresh, inherited consent, held reads and reservation transfers. `scripts/smoke_refresh.py` verifies separate-worker twin or live HA demo restart, restoration and signed exports in disposable databases. Migration `0008_plan_refresh` also remains manual. Item 20 adds internal private session memory, a recorded-only provider interface and subject-app consent for temperature preferences; `scripts/smoke_memory.py` verifies twin planning, a fresh worker and signed exports in a disposable database. Migration `0009_memory` remains manual; no public memory CLI, companion authentication or AWS integration is added. Item 21 adds validated template narration, an offline-tested Converse provider, and audited narration reuse; `scripts/smoke_explainer.py` is offline by default, with `--integration --audit-output <new-file>` for disposable PostgreSQL publication and signed export. Live Bedrock remains item 38. Item 22 adds a disposable PostgreSQL scripted scenario host over the existing services, planned-action approval resumption, private signed artifacts and a current-time HA lamp/restoration smoke. Main evening execution is separate from Hourly planning and parents observations; MCP, authenticated policy activation, trust/security execution and Link remain deferred. Item 23 adds local stateless JSON MCP at `/mcp`, generic `what_can_you_do`, fixed loopback request guards and `scripts/smoke_mcp.py`; SDK and Inspector UI/CLI checks are locally verified. Item 24 adds a separate simulated local OAuth issuer, authenticated MCP startup, scope gates and current member mapping; `scripts/smoke_oauth.py` uses separate loopback processes and a disposable database. SDK/browser linking and anonymous Inspector checks are locally verified; real login and production linking remain later work. Item 25 completes the approved local twelve-tool surface, migrations 0010–0011, durable requests, first-plan worker preparation, simulated private trust, explicit household profiles and objective tilts, and a pinned headless host. Local SDK/restart/audit and the full live selection gate pass within the retained $2.00 ceiling (ADR-015). Profiles use startup-loaded HIRZ_PROFILES_FILE, with no inferred presets and independent Pipeline decisions per device. The other commands below remain target state.
-The verified toolchain and scaffold setup are in `README.md`; use Node 24.
+The verified toolchain and setup are in `docs/development.md`; use Node 24.
 
 - `uv sync` — install Python deps; `pnpm install` — install workspaces.
 - `uv sync --locked` / `pnpm install --frozen-lockfile` — reproduce locked dependencies; `uv build` — build the Python sdist and wheel.
 - `uv run python scripts/init_dev.py` — initialize local credentials and HA demo onboarding; preserves existing state.
 - `docker compose -f compose.dev.yml up -d` — Postgres 16 + Home Assistant (demo integration) + Hirz liveness server.
 - `uv run python scripts/check_dev.py` — authenticated database/HA checks and `/health`; `--observability` also checks a disposable trace after starting the optional Jaeger profile.
-- `docker compose -f compose.dev.yml --profile observability down` — stop services, preserving named volumes; README documents recovery and the separate destructive reset.
+- `docker compose -f compose.dev.yml --profile observability down` — stop services, preserving named volumes; `docs/development.md` documents recovery and the separate destructive reset.
 - `uv run alembic upgrade head` — explicit local migrations; never applied at startup. `downgrade base` destroys the application tables and graph history and is for disposable data only.
 - `uv run hirz seed constitutions/quinn-home.yaml constitutions/quinn-parents.yaml` — explicit synthetic bootstrap; unchanged seeds are no-ops, evolved households are refused.
 - `uv run hirz context <household-uuid> --scope all` — redacted graph reads; `--scope member --member <uuid>` and timezone-aware `--as-of` are supported. Procedures in `docs/development.md`.
@@ -138,13 +138,12 @@ Item 32 adds `HIRZ_LLM=off uv run --locked python -m scripts.smoke_protect --art
 
 ## Current phase
 
-Item 36 is complete. Item 37's fourth/final inert acceptance is running within
-its $40 combined ceiling; live agreement and cleanup remain. Item 38's Runtime,
-Cognito linking, Simulator memory and consent are locally tested; durable AWS
-model/Memory budgets, live acceptance, full diagnostics and timing remain
-([roadmap](ROADMAP.md)). Item 31 owes email/push; item 28 owes real Web Push (#7).
-Ring remains twin; Link is item 38a. Development stays on 0005; migrations are
-manual.
+Item 36 is complete. Item 37's final inert acceptance is running within its $40
+combined ceiling. Item 38's Cognito, Simulator memory and consent are locally
+tested; durable model budgets and live gates remain. Link's signed-command
+journal and restart endings pass local checks; relay and physical acceptance
+remain ([roadmap](ROADMAP.md)). Item 31 owes email/push; item 28 owes real Web
+Push (#7). Ring remains twin. Development stays on 0005; migrations are manual.
 
 
 ---

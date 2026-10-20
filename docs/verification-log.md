@@ -16457,3 +16457,117 @@ Final repeat after preserving the caller's logging setting: **21 passed in
 (**377 files**), `git diff --check` and the identical AGENTS/CLAUDE check pass.
 Retained local logs are `/private/tmp/hirz-item38-runtime-read-unit.log` and
 `/private/tmp/hirz-item38-runtime-read-database.log`.
+
+
+### Broad local regression and submission preparation — 2026-10-20
+
+The isolated item 38 branch includes the unchanged item 37 implementation
+`c0d0717` and local Link foundation `919ef33`. No item 38 push, deployment or paid
+model/Memory call was made. The active item 37 checkout remains clean and pinned.
+
+- Service-free run: **1,834 passed**, with three localhost socket checks blocked
+  by the sandbox; those exact three passed with localhost permission in **9.73
+  seconds**, for **1,837 passing service-free checks** across the two runs.
+- Full PostgreSQL suite: **294 passed in 1,325.11 seconds**. Its real five-minute
+  prompt-expiry case passed without shortening the security deadline.
+- Combined coverage: **90%** (18,660 statements; 1,874 missed); explicit
+  `coverage report --fail-under=80` passed after the ordered runs.
+- Repository Ruff/format and strict mypy passed (384 Python files / 239 source
+  modules); the final Link import reuse also passed its focused checks below.
+- `scripts.smoke_companion`: **8 passed, 2 separate-harness skips in 2.8 minutes**,
+  followed by independent signed exports and disposable-database cleanup. The
+  skipped Simulator and AWS cases require their own launchers; no live AWS or
+  physical-phone result is inferred. The three named phone designs were visually
+  inspected at 390 pixels among 41 retained captures.
+- The built wheel imports all Link modules outside the checkout. The local
+  development database remains at **0005_execution_attempt**, verified read-only;
+  a first diagnostic used the wrong full revision name, then the corrected check
+  passed. No migration was applied.
+
+The inspected regression parent/child processes exited, and the temporary Vite
+preview was stopped. The existing companion shutdown issue #7 did not reproduce;
+its cause remains unconfirmed and the issue stays open. No new third-party
+friction was earned; the known sandbox restriction is already recorded.
+
+Private completed-check logs are retained in
+`secrets/item38-local-review/parallel-20261020` in the primary checkout; browser
+artifacts remain `/private/tmp/hirz-item38-companion-final`. Main's background
+supervisor and read-only policy monitor continue. Local full CI dispatch, production
+relay/Lambda integration, durable model/Memory budget approval and implementation,
+real Cognito/Runtime/Memory/model quality, physical acceptance and warm/cold/action
+timing gates remain outstanding. These results do not close item 38 or 38a.
+
+## Item 38a
+
+### Signed command and durable ending foundation — 2026-10-20
+
+Local work is isolated in the item 38 worktree; the running item 37 checkout and
+AWS resources are unchanged. The implementation and limits are in
+[ADR-009](adr/ADR-009-signed-commands-home-agent.md#item-38a-local-command-foundation--2026-10-20).
+
+The new Link suite plus existing executor and HA suites passed **74 tests in
+1.91 seconds**. They cover signature/home/expiry/hash refusal, nonce/action/semantic
+replays after restart, one-process ownership, malformed/private journal refusal,
+failed persistence before actuation, backwards clocks, pending endings after a
+crash, failed-ending retry, strict read-back and recorded HA light/climate calls.
+The KMS contract is checked with a recorded SDK, not a paid KMS invocation.
+The door case is simulated; it proves the local ending algorithm, not a real lock.
+An initial process lock on the SQLite inode conflicted with macOS SQLite locks;
+the corrected implementation locks a separate private inode. Test fixtures were
+corrected before the passing run.
+
+The first `scripts.smoke_link` run used real Pipeline enqueue/redemption and
+native Dogwood in a disposable twin database. Opening, replay refusal and ending
+after journal reopen passed, with **14 valid signed audit rows** and **4 local
+receipts**. Artifacts are private in `/private/tmp/hirz-link-pipeline-smoke`;
+the test database was dropped and development remained unchanged. This smoke
+uses PostgreSQL for the twin's execution accounting. Its local rejection receipts
+are not yet ingested into the cloud audit.
+
+Full relay/registration, observation and out-of-band change reporting, daemon
+recovery, production Lambda wiring, actual KMS, physical plug, offline physical
+relock, AWS doctor and final CI remain owed. No roadmap completion or strengthened
+threat-model claim is made.
+
+
+### Final local foundation checks — 2026-10-20
+
+After reusing the existing audit-key fingerprint helper and making the simulated
+lock fixture name explicit, the Link/executor/HA suites passed again: **74 tests
+in 3.43 seconds**. Ruff passed for all seven changed Python files; strict mypy
+passed on the six source modules. The updated smoke additionally verified its
+exported audit file against the separately held trusted public key: **14 valid
+rows**, opening/replay/restart-ending checks passed, and disposable storage was
+removed. Artifacts: `/private/tmp/hirz-link-offline-audit-smoke`.
+
+`uv build --offline` produced both sdist and wheel. Archive inspection confirmed
+all four Link implementation modules are packaged and private `.env`, `secrets`
+and `.aws` paths are absent. No artifact was uploaded. Implementation and ADR are
+committed locally as `919ef33`; this is still a partial item 38a result.
+
+The final Link audit export was also rechecked from a separate process using the
+trusted local audit public key; `audit-public.pem` is retained with that private
+artifact set and no signing key was replaced.
+
+## Item 41
+
+### Setup procedures moved to their permanent home — 2026-10-20
+
+The README's Phase 0 scaffold, CI, local-stack setup, diagnostics, key recovery
+and explicit destructive-reset procedures now live in `docs/development.md`.
+README retains the pitch, quickstart and pointers. Relative links were adjusted;
+the relocated coverage instructions now name the existing combined service-free
+and integration gate. AGENTS/CLAUDE references were mirrored. This is submission
+preparation, not another person's final clean-machine validation or a completed
+Devpost form.
+
+The submission draft now maps 20 tool/service groups to their actual use and
+evidence, with unverified integrations explicitly separated. Exact errors and
+feature requests stay in the friction log. Unmeasured onboarding times and the
+author's personal reuse decision remain unfilled rather than invented. All local
+file links and heading anchors in the README, submission draft and Link ADR were
+checked; AGENTS and CLAUDE remain identical. The stale item 36 procedure status
+now points to its existing closure; it grants no new deployment approval.
+
+The README architecture diagram now names the approved Fargate worker and points
+to the roadmap/threat model for the pending AWS and physical signed-home gates.
