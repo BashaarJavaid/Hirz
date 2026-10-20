@@ -96,7 +96,7 @@ def create_app(
     app.add_api_route("/health", health)
     if simulator is not None:
         from hirz.host.api import router as simulator_router
-        from hirz.host.memory import record
+        from hirz.host.memory import record, suggest
 
         if (
             companion is None
@@ -108,6 +108,7 @@ def create_app(
                 "Simulator memory requires its companion and OAuth verifier"
             )
         simulator.memory = partial(record, companion, cache)
+        simulator.suggest = partial(suggest, companion, cache)
 
         app.include_router(simulator_router(simulator))
     if companion is not None:

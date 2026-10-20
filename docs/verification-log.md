@@ -16307,3 +16307,57 @@ transcripts, AWS Memory, extraction quality or consent from a live model-produce
 candidate. Typed extraction and durable model budgeting remain unfinished. No
 item 38 push, deployment, paid call or physical action occurred. No third-party
 friction entry was earned by this implementation.
+
+
+### Simulator temperature suggestion and consent wiring — 2026-10-19
+
+Connected the approved capture to the existing model selector's internal host
+controls. The selected candidate is bound to the actual stored user Turn, a fresh
+linked OAuth principal, an exact supporting quote and matching Fahrenheit value.
+It creates a pending proposal through `MemoryService`; it cannot accept a
+preference or execute a thermostat command. Identical source/candidate retries
+reuse one mutation. The public MCP catalog and constitution grammar are unchanged.
+
+The connected Simulator/Memory suites passed **58 unit checks in 2.65 seconds**.
+They cover exact source-value evidence, ambiguous/mismatched units, pending model
+selection receipts, success/failure speech, and no MCP device execution. The first
+run passed 57 and failed one advisory-error case: an existing inner `import
+logging` shadowed the new module-level logger. Removed that redundant local import
+and reran successfully.
+
+The expanded disposable PostgreSQL check passed **1 test in 5.29 seconds**. Signed
+OAuth and native policy reject an assistant source, forged source text, changed
+value, tampered token and another linked member. Two identical attempts produce
+one pending proposal and leave graph preferences unchanged. Anonymous review fails;
+the subject's real passkey session lists the suggestion without its transcript,
+then accepts through HTTP and writes `source: learned_accepted`. The signed export
+verifies and contains neither the quoted sentence nor bearer token. Existing
+Memory tests cover learning-disabled and audit-rollback behavior.
+
+Strict mypy passed for all four changed application modules; Ruff passed.
+No live model was called: recorded selector output verifies routing and consent,
+not language-model extraction quality. The earlier real browser capture pass is
+separate evidence, not a live model-to-browser acceptance claim. Paid AWS inference,
+AgentCore strategy behavior, diagnostics, timing and full final-tree CI remain
+owed. No new third-party friction was observed.
+
+
+Added unavailable-control, invalid-output redaction and cancellation regressions;
+the final focused unit run passed **61 checks in 2.54 seconds**. Cancellation before
+proposal submission creates no suggestion or speech. A stale control cannot be
+selected once unavailable, and malformed output does not expose its private value
+in the raised error.
+
+The broad integration run that began before Simulator capture/suggestion edits
+finished with **293 passed, 1,778 deselected, two warnings in 1,372.88 seconds
+(22:52)**. Together with the earlier 1,776 service-free checks it reports **89%
+coverage**. Its transport checks include a real five-minute prompt-expiry wait;
+that wait was not a hang. This is broad local baseline evidence, not full final-tree
+CI; the later focused memory checks cover the new code separately.
+
+
+After the broad coverage writer finished, the final focused run appended coverage
+and passed **62 checks in 12.81 seconds** (61 unit checks plus the disposable
+OAuth/source/proposal/HTTP-consent integration). `coverage report --fail-under=80`
+passed at **90% combined local coverage**. Repository strict mypy passed all 231
+source files. This does not replace final-tree CI or live acceptance.

@@ -2349,8 +2349,8 @@ The optional Memory provider is locally verified against the pinned SDK schema.
 `HIRZ_MEMORY_ID` selects the deployed ID (not its ARN); unset it for offline local
 work. `MemoryService` commits to PostgreSQL first and mirrors outside that
 transaction. Extraction stays skipped with the template's `HIRZ_LLM=off` and when
-the constitution disables learning. This does not yet connect production
-transcripts or extracted hints to the consent UI. Contract and limits:
+the constitution disables learning. The provider alone does not convert long-term hints into typed proposals; the
+Simulator capture and consent path is described below. Contract and limits:
 [architecture §5.9](../ARCHITECTURE.md#59-memory).
 
 ```sh
@@ -2407,8 +2407,10 @@ HIRZ_BROWSER_BACKEND=http://127.0.0.1:5175 pnpm --filter web test:browser tests/
 Approved Simulator conversation capture uses the same disposable launcher. The
 application requires its matching OAuth verifier and Companion service; each
 stored turn rechecks planning scope and current linked membership. Use models off
-for local acceptance. It does not infer a transcript from MCP arguments or create
-temperature suggestions yet.
+for local acceptance. It does not infer a transcript from MCP arguments. Scripted
+mode creates no temperature suggestions; the configured model selector can propose
+explicit personal Fahrenheit preferences for review using its existing bounded
+call path. Live model quality and AWS strategy behavior still need acceptance.
 
 ```sh
 uv run pytest tests/unit/test_simulator_memory.py tests/unit/test_simulator.py --no-cov

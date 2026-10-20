@@ -904,7 +904,14 @@ The Simulator explains that conversations are saved under the linked account and
 temperature suggestions need approval in Household. Recording failure leaves
 the interaction available and logs only the exception type. Alexa MCP calls
 provide no complete transcript; this capture applies to the Simulator only.
-Typed extraction into pending proposals remains outstanding.
+The Simulator's existing bounded model selection can propose a temperature through
+an internal host control. It binds the latest saved user turn, checks an exact
+supporting quote and matching explicit Fahrenheit value, and freshly resolves the
+linked account before `MemoryService.propose`. The control is unavailable without
+a saved source and after one suggestion in that utterance. It is not an MCP tool,
+does not execute a device, and does not bypass subject approval in Household.
+Scripted mode extracts nothing. AgentCore long-term hint interpretation and live
+model selection quality remain unverified; no inference is enabled by this wiring.
 
 Follow-ups resolve the latest explicit reference of the requested kind in exactly
 that conversation. The object must still belong to this household and be current:

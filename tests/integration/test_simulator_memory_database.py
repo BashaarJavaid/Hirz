@@ -4,6 +4,7 @@ import asyncio
 import time
 from unittest.mock import AsyncMock
 
+import httpx
 import pytest
 import sqlalchemy as sa
 from test_companion_auth_database import enroll
@@ -18,7 +19,7 @@ from hirz.companion import auth, policy
 from hirz.companion.api import Companion
 from hirz.constitution.schema import dump
 from hirz.graph.models import now
-from hirz.host.memory import record
+from hirz.host.memory import Suggestion, record, suggest
 from hirz.host.simulator import Simulator
 from hirz.mcp.auth import ISSUER, RESOURCE, AuthUnavailable
 from hirz.memory.models import TurnInput
@@ -53,14 +54,14 @@ def test_authenticated_private_turns_and_refusals(scratch_database):
             verifier = await cache_for(issuer)
             service = Companion(connection.engine, p.audit, CONFIG)
             simulator = Simulator(origin=CONFIG.origin, mcp_url=RESOURCE, issuer=ISSUER)
-            create_app(companion=service, cache=verifier, simulator=simulator)
+            app = create_app(companion=service, cache=verifier, simulator=simulator)
             assert simulator.memory is not None
             signed = encode(issuer, claims(issuer, scope="hirz:read hirz:plan"))
             listener = PRINCIPAL.model_copy(update={"surface": "alexa"})
             user = TurnInput(
                 session_id="simulator:private-session",
                 role="user",
-                text="I prefer the room at 72 degrees.",
+                text="I prefer the room at 72 degrees Fahrenheit.",
             )
             async with service.boundary.persistent():
                 for turn in (
@@ -116,6 +117,88 @@ def test_authenticated_private_turns_and_refusals(scratch_database):
                 service.audit = writer
                 assert await MemoryService(p).turns(listener, user.session_id) == stored
                 assert await MemoryService(p).turns(PRINCIPAL, user.session_id) == ()
+                assert (
+                    await connection.scalar(
+                        sa.select(sa.func.count()).select_from(db.memory_proposals)
+                    )
+                    == 0
+                )
+                await connection.rollback()
+                before = await p.snapshot(now())
+                await connection.rollback()
+                suggestion = Suggestion(value=72, confidence=0.9, quote=user.text)
+                for altered in (
+                    stored[1],
+                    stored[0].model_copy(update={"text": "Forged source"}),
+                ):
+                    with pytest.raises(ValueError, match="source"):
+                        await suggest(service, verifier, signed, altered, suggestion)
+                with pytest.raises(ValueError, match="Fahrenheit evidence"):
+                    await suggest(
+                        service,
+                        verifier,
+                        signed,
+                        stored[0],
+                        suggestion.model_copy(update={"value": 74}),
+                    )
+                with pytest.raises(ValueError):
+                    await suggest(
+                        service, verifier, signed + "tampered", stored[0], suggestion
+                    )
+                other = encode(
+                    issuer, claims(issuer, sub="dad", role="adult", scope="hirz:plan")
+                )
+                with pytest.raises(ValueError):
+                    await suggest(service, verifier, other, stored[0], suggestion)
+                for _ in range(2):
+                    await suggest(service, verifier, signed, stored[0], suggestion)
+                pending = await MemoryService(p).proposals(listener)
+                assert len(pending) == 1 and pending[0].status == "pending"
+                assert pending[0].source_turn == stored[0].id
+                after = await p.snapshot(now())
+                assert before.data["preferences"] == after.data["preferences"]
+                await connection.rollback()
+                async with httpx.AsyncClient(
+                    transport=httpx.ASGITransport(app=app), base_url=CONFIG.origin
+                ) as client:
+                    assert (
+                        await client.get("/api/memory/proposals")
+                    ).status_code == 403
+                    client.cookies.set(auth.SESSION_COOKIE, login["session"])
+                    client.cookies.set(auth.BROWSER_COOKIE, "memory-browser")
+                    client.headers.update(
+                        {
+                            "origin": CONFIG.origin,
+                            "x-hirz-csrf": auth.csrf(login["session"]),
+                        }
+                    )
+                    response = await client.get("/api/memory/proposals")
+                    assert response.status_code == 200
+                    assert response.json()[0]["candidate"]["value"] == 72
+                    assert user.text not in response.text
+                    response = await client.post(
+                        "/api/memory/review",
+                        json={
+                            "proposal_id": str(pending[0].id),
+                            "accept": True,
+                            "request_id": "simulator-accept",
+                        },
+                    )
+                    assert response.status_code == 200
+                    assert response.json()["record"]["status"] == "accepted"
+                after = await p.snapshot(now())
+                learned = [
+                    r
+                    for r in after.data["preferences"]
+                    if r["member_id"] == str(ident("members", "malik"))
+                    and r["key"] == "temperature_target_f"
+                ]
+                assert len(learned) == 1
+                assert (
+                    learned[0]["value"] == 72
+                    and learned[0]["source"] == "learned_accepted"
+                )
+                await connection.rollback()
             summary, rows = await verify_database(
                 connection, HOME, p.audit.key.public_key(), collect=True
             )
@@ -128,7 +211,7 @@ def test_authenticated_private_turns_and_refusals(scratch_database):
                 await connection.scalar(
                     sa.select(sa.func.count()).select_from(db.memory_proposals)
                 )
-                == 0
+                == 1
             )
             await connection.rollback()
 

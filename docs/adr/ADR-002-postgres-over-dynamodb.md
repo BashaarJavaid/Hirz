@@ -307,3 +307,28 @@ identity and guesses about the speaker. Failure is advisory to the Simulator but
 cannot weaken later tool authorization; logs disclose only the exception type.
 The UI explains account attribution and approval. This adds no model call or
 automatic preference acceptance, and makes no live AWS or real Alexa claim.
+
+
+## Item 38 Simulator temperature suggestions — 2026-10-19
+
+Reuse the Simulator's existing model selector and budget reservation to extract
+one explicit personal Fahrenheit preference from the latest saved user message.
+A private host control returns the canonical Candidate fields plus an exact
+supporting quote. Reject a separate extraction inference/provider, a public MCP
+memory tool, automatic acceptance and a second consent mechanism. Continuation
+uses the existing bounded selection loop; no new spend allowance is created.
+
+The host owns the source Turn, verifies its saved contents and linked member again,
+checks that the quote contains the exact proposed Fahrenheit value, and uses the
+existing audited proposal service. A stable source/candidate action ID prevents
+identical retries from duplicating a proposal. Cards and assistant messages cannot
+supply source evidence. The source quote stays private; graph values change only
+when that member accepts in the companion app. An unclear unit needs clarification,
+not guessed conversion. Scripted mode does not extract.
+
+These checks prove attribution to a linked account and explicit numeric evidence,
+not the identity of the speaker or that a model understood a sentence correctly.
+The subject must review the suggestion. The existing paid-selector call path is
+reused, but local tests substitute recorded selections: actual Haiku/Nova quality,
+AgentCore long-term strategy output and durable AWS inference budgeting remain
+outstanding. This wiring enables no paid run or deployment.
