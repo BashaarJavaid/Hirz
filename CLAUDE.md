@@ -138,16 +138,13 @@ Item 32 adds `HIRZ_LLM=off uv run --locked python -m scripts.smoke_protect --art
 
 ## Current phase
 
-Item 36 is complete. Item 37's third run stopped on credential connectivity;
-cleanup and signed exports are verified
-([evidence](docs/verification-log.md#sleep-correlated-credential-failure-and-recovered-teardown--2026-10-19)).
-The fourth and final retry is approved within a $40 combined ceiling, subject to
-passing repair CI and fresh clearance; bounded credential recovery and sleep
-prevention are prepared. Item 38
-local work continues separately. Item 31 owes email/push; item 28 owes real Web
-Push (#7). Ring remains twin; Link is item 38a. Development stays on 0005;
+The author approved the Simulator submission scope for 2026-10-23; current
+priorities and deferrals are in [ROADMAP.md](ROADMAP.md#cut-line-and-fallbacks).
+Item 36 is complete. Item 37 failed its first Gateway evidence check; cleanup
+and signed exports are independently verified. Unfinished AWS/Link work is
+deferred; local item 38 preparation is retained separately. Human testing,
+video, judge instructions and release checks remain. Development stays on 0005;
 migrations are manual.
-
 
 ---
 

@@ -1,5 +1,12 @@
 # Hackathon Submission Checklist
 
+**Scope update — 2026-10-20:** the author approved the
+[Simulator submission plan](../ROADMAP.md#cut-line-and-fallbacks), supported by
+the [official Alexa+ simulation option](https://amazonappdev2026.devpost.com/rules).
+It supersedes the AWS-dependent readiness plan below. Item 41 must reconcile
+this checklist and the submission claims before release; deferred cloud gates
+remain incomplete, and the no-credential local demo replaces a hosted URL.
+
 Build, Ship, Shape: Amazon Developer Hackathon 2026. Submission period 2026-08-31 10:15 PT to **2026-10-23 12:00 PT**. Judging 2026-11-09 to 2026-11-20. Tracks entered: **Alexa+**. Mini-challenges entered: **AWS Builder** and **Open Source**. "A project can only win one (1) track prize and one (1) mini challenge prize"; nothing stops it entering more than one.
 
 Two-stage judging: Stage One is a pass/fail check that the project fits the track and actually calls the required technology; Stage Two scores four equally weighted criteria (Tech Implementation, Design, Potential Impact, Quality of the Idea), with up to 10 percent bonus from friction-log entries. Judges may judge from the description, images, and video alone, so those three carry the whole case.

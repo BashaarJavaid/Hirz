@@ -1,5 +1,13 @@
 # Demo Script (under 3 minutes)
 
+**Scope update — 2026-10-20:** the author approved the
+[Simulator submission plan](../ROADMAP.md#cut-line-and-fallbacks).
+The AWS/Link close and mandatory physical-device shots below are superseded;
+item 40 must revise this script before recording. Use the local rule decision
+and signed audit for the close, direct companion navigation where delivery is
+unverified, and accurately labeled twin devices. The original shot list below
+is not the approved recording plan or evidence of completion.
+
 One customer, two homes, one evening. Malik runs the smart home at his own place and set one up for his parents. The video opens cold on a person with a problem, shows one rule being written and then enforced, and closes on the door. Three beats and a close; each beat proves one thing.
 
 Every number on screen, including every dollar figure, comes from the cited scenario runs (`scenarios/parents-scam-check.yaml` and `scenarios/demo-evening.yaml`, seed 20261013) and maps to an audit row. No savings figure is typed into a caption, the README, or the Devpost description; whatever the run says, the video says. Recorded from the Hirz Simulator in Echo Show mode, rendered at 1280×800 (Amazon's 768×480 base canvas × 1.667, `docs/design.md`), with a five-second switch to Echo Dot (voice-only) mode inside beat 2 to prove voice completeness.

@@ -15861,3 +15861,54 @@ The fourth window remains unused, with zero Gateway call records; its existing
 $10 additional / $40 combined authorization remains conditional on CI and fresh
 clearance. Failed CI and supervisor logs are retained privately; no deadline,
 resource marker or prior allowance was reset.
+
+### Final acceptance stopped at Gateway evidence; teardown verified — 2026-10-20
+
+The fourth and final authorized run used `c0d0717`, after all eleven jobs in
+[CI 39337122355](https://github.com/BashaarJavaid/Hirz/actions/runs/39337122355)
+passed. Clearance began at 2026-10-19T23:24:29Z within the existing $10
+incremental / $40 combined ceiling and 24-hour lifetime. The user refreshed both
+AWS logins; read-only identity probes confirmed the active operator and billing
+profiles. No fifth deployment or extension is authorized.
+
+Both household publications committed: home at 2026-10-20T02:13:12Z and parents
+at 10:22:04Z. All **192 intended policies** became ACTIVE. Each publication
+retained four approved hard-deny exceptions. The additional
+`isolated_faulty_compiler` policy reached CREATE_FAILED with actual
+`Overly Permissive` findings; refusal and restoration checks passed before the
+runner advanced to session invalidation.
+
+The first Gateway call, `governance.approve_action`, returned HTTP 200, but
+`hirz/aws/gateway.py:evidence` raised
+`ValueError: Invalid or incomplete AWS policy evidence`. The retained trace
+contains an `AgentCore.Gateway.InvokeTool` span with
+`aws.agentcore.policy.authorization_decision: LOG_ONLY_ASYNC`; it does not
+contain a final AuthorizeAction decision in the captured seven-event read.
+The caller selects any span carrying that attribute, while the validator
+requires a complete correlated ALLOW/DENY result. This explains the rejected
+intermediate span; it does not establish whether a later final evaluation
+would have succeeded. No parser fix or live retest is claimed.
+
+Only **one Gateway call** was made in this window. The full LOG_ONLY corpus,
+promotion, ENFORCE corpus, session invalidation, denied-target proof and real
+expiry gate did not complete. Publication and the faulty-compiler result do
+not earn item 37 or any additional threat-model coverage.
+
+Automatic teardown finished and the runner exited 1 at
+2026-10-20T10:50:49Z. Independent postflight at 10:51:40Z verified zero resources
+in all **24 cleanup inventory categories**, restored XRay/indexing settings,
+absence of temporary span logs and Docker configuration, and all 19 customer
+KMS keys scheduled for deletion. The development database remained at
+`0005_execution_attempt`. Independent trusted-key verification passed for
+21,392 home and 61,628 parents audit rows (**83,020 total**); these exports are
+unanchored and retain their existing completeness limits. The usage check
+exited 0; this is not a final invoice or a claim about future judging costs.
+
+Private evidence is retained in `secrets/item37-awake-acceptance/`:
+`item37-home-publication.json`, `item37-parents-publication.json`,
+`faulty-compiler.json`, `gateway-spans-before-cleanup-103621.json`, `deploy.log`,
+`runner-exit.json`, `policy-cleanup.json`, `post-delete-inventory.json`,
+`independent-audit-verification.json`, `final-checks.json` and
+`postflight-summary.json`. The user subsequently approved the
+[Simulator submission scope](adr/ADR-007-alexa-surface-strategy.md#simulator-submission-scope--2026-10-20-author-approved);
+item 37 remains incomplete and deferred.

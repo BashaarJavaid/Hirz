@@ -31,3 +31,52 @@
 ## Household tools amendment — 2026-09-23
 
 The local authenticated server now registers twelve household tools with structured native-rendering data and no UI resources. A pinned Strands headless host consumes actual tools/list, keeps conversation context and requires explicit confirmation for commitments. The $1-capped live selection gate remains distinct from deterministic SDK execution. Full contract and rejected alternatives: [ADR-015](./ADR-015-household-tools.md).
+
+## Simulator submission scope — 2026-10-20 (author approved)
+
+The author approved the Simulator submission plan and requested the roadmap be
+updated after the final item 37 acceptance failed. This amendment supersedes
+the earlier requirement to finish items 37–38a before submission and the
+AWS/signed-command video close. It changes submission scope, not the original
+verification gates or completed evidence.
+
+The [official rules, §4](https://amazonappdev2026.devpost.com/rules), checked on
+2026-10-20, explicitly permit an Alexa+ simulation built with an AI or agentic
+tool, without a prescribed framework or MCP interface. Its source must be in
+the submitted repository and its functioning simulation shown in the video.
+Hirz retains its existing real MCP server/client and local deterministic
+pipeline. The no-credential judge path uses `HIRZ_LLM=off` with the scripted
+host and labeled twin devices; it must be verified from the final release.
+Already verified model integrations remain documented with their measured
+scope. This decision grants no new model-call budget or deployment permission.
+
+The submission keeps both households, the scam check, proposed rules activated
+through the passkey companion app, planning/re-planning, local rule refusal,
+phone-gated simulated actions, source labels and signed local audit evidence.
+Human testing, two video reviewers, source/run instructions and release checks
+remain required work. The physical plug is an optional addition once its real
+state/power and restoration gates pass; it does not block the Simulator entry.
+Unverified push/email delivery must not be depicted as working; the verified
+companion-app path can be opened directly.
+
+Full AWS acceptance (37–38), production Link (38a), anchors (38b), public hosted
+demo (38c), boundary passkeys (38d), tamper playground (38e), new judging-stack
+deployment/alarm work (39) and credibility clips (41a) are deferred beyond
+submission. Local preparation is retained, not relabeled complete. Cost
+reconciliation and verified cleanup remain obligations. There is no fifth
+item 37 run. The completed item 36 and other verified AWS integrations may be
+documented for AWS Builder; the separate conformance-checker/host-harness
+contribution remains the Open Source entry. Neither entry permits unearned
+cloud, identity or physical-device claims.
+
+The roadmap owns the revised order and dates. Items 40–41 must align the
+recording script, README, gallery and submission checklist with this scope;
+the close uses the local rule decision and signed audit rather than an
+unverified cloud-signed command or physical replay refusal. Threat-model rows
+stay at their earned status, and deferred items retain their original checks.
+
+Rejected: another full AWS retry (the author has no time and authorized no
+fifth window); weakening acceptance or calling publication alone completion
+(would misstate enforcement); presenting a simulated result as live AWS or
+physical execution (would misstate the demo); deleting the unfinished work
+(it remains useful after submission).

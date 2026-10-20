@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-10-20: Adopt the approved Simulator submission scope, defer unfinished cloud gates without marking them complete, and prioritize demo, human and release checks ([decision](docs/adr/ADR-007-alexa-surface-strategy.md#simulator-submission-scope--2026-10-20-author-approved), [roadmap](ROADMAP.md#cut-line-and-fallbacks)). Record the final policy acceptance failure and independently verified teardown ([evidence](docs/verification-log.md#final-acceptance-stopped-at-gateway-evidence-teardown-verified--2026-10-20)).
+
 - 2026-10-19: Align the publication audit-export regression assertion with the corrected failure message; prelaunch CI prevented AWS deployment while it was stale ([evidence](docs/verification-log.md#prelaunch-ci-assertion-correction--2026-10-19)).
 
 - 2026-10-19: Record the approved final policy retry and review remaining submission gates, current rules, source claims and human-test instructions ([readiness](docs/submission.md#readiness-review--2026-10-19)).

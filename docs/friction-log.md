@@ -1342,3 +1342,27 @@ audit exports verify. See the [evidence entry](verification-log.md#sleep-correla
 The bounded operator bridge also recovered through the real SDK subprocess path
 from a synthetic reproduction of the exact endpoint error; a separate real STS
 probe authenticated as HirzDeploy. Neither probe deployed resources.
+
+## Item 37 — intermediate Gateway policy telemetry rejected as final evidence — 2026-10-20
+
+- **Tool/task:** AgentCore Gateway/Policy observability; correlate a real
+  LOG_ONLY request with its final authorization decision.
+- **Documentation:** [AgentCore policy observability](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/observability-policy-metrics.html)
+  describes ALLOW/DENY attributes for AuthorizeAction; [enforcement modes](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/policy-enforcement-modes.html)
+  describes LOG_ONLY evaluation without enforcement.
+- **Steps/expected:** after publication and faulty-policy restoration, invoke
+  the approval control and collect the correlated final policy evaluation.
+- **Actual:** the retained Gateway InvokeTool span carries
+  `aws.agentcore.policy.authorization_decision: LOG_ONLY_ASYNC`, without the
+  final policy fields. Hirz selected any span with that attribute and raised
+  `ValueError: Invalid or incomplete AWS policy evidence`. This is a Hirz
+  integration assumption exposed by intermediate telemetry, not evidence that
+  AWS made an incorrect authorization decision; the captured read did not
+  establish a later final result.
+- **Severity:** Major — full acceptance stopped and the author chose a
+  narrower submission scope.
+- **Workaround:** retain diagnostics and signed evidence, verify teardown,
+  and defer the live gate; no repaired parser or live retest is claimed.
+- **Suggestion:** include intermediate LOG_ONLY span examples and demonstrate
+  how to locate and correlate the final AuthorizeAction event separately.
+  Run results and cleanup are in the [verification entry](verification-log.md#final-acceptance-stopped-at-gateway-evidence-teardown-verified--2026-10-20).
