@@ -856,8 +856,8 @@ Two stores with a clear split:
 - **Remember is consent-gated.** Extracted preferences arrive as `MEMORY_PROPOSED` audit rows and companion-app cards ("Hirz noticed you usually skip the car on Wednesdays. Remember that?"). Only accepted proposals are written to the graph (`source: learned_accepted`). The planner uses graph preferences only. A proposal that has not been accepted is never planner input; an explanation may say that a proposal is waiting in the app.
 
 **Item 20 local contract.** `hirz.memory.service.MemoryService` accepts trusted
-internal `Principal` objects. Item 38 adds authenticated companion review below;
-production transcript intake remains later work. `record_turn`, `propose` and `review` return the canonical
+internal `Principal` objects. Item 38 adds authenticated companion review and
+Simulator conversation capture below. `record_turn`, `propose` and `review` return the canonical
 `Decision` with a typed `Turn` or `Proposal`; a refusal has no returned record.
 `turns`, `proposals`, `hints` and `resolve` are scoped reads, with no audit mutation.
 There is no public memory CLI, extraction model, semantic search or AWS dependency.
@@ -894,6 +894,17 @@ Extraction is skipped unless `HIRZ_LLM=bedrock` and the current constitution per
 memory proposals. Hints remain advisory text; this provider adds no transcript
 ingress or text-to-Candidate extraction. The deployment
 template keeps `HIRZ_LLM=off`; live strategy behavior remains unverified.
+
+The approved Simulator capture records actual user messages, free-text replies,
+displayed prompts and emitted assistant speech through `record_turn`. Each Echo
+has its own opaque session; relinking starts a new one. The host freshly verifies
+the linked OAuth token, planning scope and current member mapping for each write.
+Cards, tool arguments and cancelled speech do not become invented dialogue.
+The Simulator explains that conversations are saved under the linked account and
+temperature suggestions need approval in Household. Recording failure leaves
+the interaction available and logs only the exception type. Alexa MCP calls
+provide no complete transcript; this capture applies to the Simulator only.
+Typed extraction into pending proposals remains outstanding.
 
 Follow-ups resolve the latest explicit reference of the requested kind in exactly
 that conversation. The object must still belong to this household and be current:

@@ -286,3 +286,24 @@ use the existing audit cursor and pending-only filter. Acceptance still checks
 learning permission and captured preference version, writes signed evidence, and
 queues refresh atomically. This closes local authenticated review only; production
 transcript intake, typed extraction and live strategies remain outstanding.
+
+## Item 38 approved Simulator conversation capture — 2026-10-19
+
+The author selected **Enable Simulator conversation memory**: save the actual
+conversation for the linked member and offer extracted temperature preferences
+for that member's approval. Alexa MCP calls do not supply a full conversation;
+Simulator dialogue is the available source. This amendment implements capture;
+typed extraction remains the next step.
+
+Reuse private `session_turns` and `MemoryService.record_turn`, resolving identity
+from a freshly verified OAuth token with planning scope and the current account
+mapping. The ordinary Pipeline enforces the active constitution and commits audit
+and storage together. Each linked Echo gets a distinct opaque session. Actual
+user text, free-text clarification replies, visible prompts and emitted assistant
+speech are eligible; card arguments and suppressed speech are not transcripts.
+
+Reject a public memory tool, a second transcript table, caller-supplied member
+identity and guesses about the speaker. Failure is advisory to the Simulator but
+cannot weaken later tool authorization; logs disclose only the exception type.
+The UI explains account attribution and approval. This adds no model call or
+automatic preference acceptance, and makes no live AWS or real Alexa claim.

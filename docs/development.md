@@ -2402,3 +2402,20 @@ uv run pytest tests/unit/test_account_link.py tests/unit/test_companion_api.py t
 uv run pytest tests/integration/test_account_link_database.py tests/integration/test_companion_auth_database.py tests/integration/test_companion_http.py -m integration --no-cov
 HIRZ_BROWSER_BACKEND=http://127.0.0.1:5175 pnpm --filter web test:browser tests/account-link.spec.ts tests/memory.spec.ts
 ```
+
+
+Approved Simulator conversation capture uses the same disposable launcher. The
+application requires its matching OAuth verifier and Companion service; each
+stored turn rechecks planning scope and current linked membership. Use models off
+for local acceptance. It does not infer a transcript from MCP arguments or create
+temperature suggestions yet.
+
+```sh
+uv run pytest tests/unit/test_simulator_memory.py tests/unit/test_simulator.py --no-cov
+uv run pytest tests/integration/test_simulator_memory_database.py -m integration --no-cov --tb=short
+HIRZ_DOGWOOD="$PWD/.tools/dogwood" HIRZ_LLM=off uv run --locked python -m scripts.simulator_demo --origin https://hirz.example.test --port 8172 --issuer-port 8173 --artifacts-dir /tmp/item38-memory-unique --browser-test
+```
+
+Build both apps first using the item 29 procedure. The launcher verifies signed
+exports and removes its disposable database; it does not migrate development.
+Private audit evidence contains hashes and decisions, not the saved dialogue.

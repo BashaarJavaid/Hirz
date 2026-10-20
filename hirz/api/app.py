@@ -4,6 +4,7 @@ import gc
 import os
 from collections.abc import AsyncIterator, Callable
 from contextlib import AsyncExitStack, asynccontextmanager
+from functools import partial
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -95,6 +96,18 @@ def create_app(
     app.add_api_route("/health", health)
     if simulator is not None:
         from hirz.host.api import router as simulator_router
+        from hirz.host.memory import record
+
+        if (
+            companion is None
+            or cache is None
+            or cache.resource != simulator.mcp_url
+            or cache.issuer != simulator.issuer
+        ):
+            raise ValueError(
+                "Simulator memory requires its companion and OAuth verifier"
+            )
+        simulator.memory = partial(record, companion, cache)
 
         app.include_router(simulator_router(simulator))
     if companion is not None:

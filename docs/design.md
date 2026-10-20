@@ -75,6 +75,8 @@ fallback. Spoken yes/no or a single scalar can answer each pending question; fie
 one at a time and retain a labeled typed form. The transcript distinguishes processing
 from human wait, and reconnection never re-speaks old results. Rule activation and
 security approval link to the independently authenticated companion app.
+The frame also explains that linked conversations are saved under that account
+and that temperature suggestions require approval in Household.
 
 Playback is a companion-authorized control. A contact reply is explicitly labeled
 simulated, updates the genuine verification case, and is spoken only after a new

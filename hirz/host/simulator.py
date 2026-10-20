@@ -1,13 +1,15 @@
 """Local browser host state. OAuth, conversation and prompts never enter cards."""
 
 import asyncio
+import logging
 import re
 import secrets
 import time
 from collections import deque
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import parse_qs, urlsplit
 from uuid import uuid4
 
@@ -18,6 +20,7 @@ from mcp import types
 from hirz.mcp.auth import SCOPES
 from hirz.mcp.cards import TOOLS as CARDS
 from hirz.mcp.dev_oauth import choices
+from hirz.memory.models import TurnInput
 
 ACCOUNTS = {"mom": "Mom’s Echo", "malik": "Malik’s Echo", "dad": "Dad’s Echo"}
 MODELS = {"scripted": "Scripted", "haiku": "Claude Haiku 4.5", "nova": "Nova Lite"}
@@ -65,6 +68,7 @@ def describe(name: str, arguments: dict[str, Any]) -> str:
 @dataclass
 class Echo:
     oauth: OAuthSession | None = field(default=None, repr=False)
+    memory_session: str = field(default_factory=lambda: "simulator:" + uuid4().hex)
     history: list[dict[str, Any]] = field(default_factory=list)
     results: dict[str, Any] = field(default_factory=dict)
     request_ids: dict[str, str] = field(default_factory=dict)
@@ -316,6 +320,29 @@ class Simulator:
         )
         self.browsers: dict[str, Browser] = {}
         self.active: dict[str, asyncio.Task[None]] = {}
+        self.memory: Callable[[str, TurnInput], Awaitable[None]] | None = None
+
+    async def remember(
+        self, echo: Echo, role: Literal["user", "assistant"], text: str
+    ) -> None:
+        if self.memory is None or echo.oauth is None or not text.strip():
+            return
+        try:
+            await self.memory(
+                await echo.oauth.token(),
+                TurnInput(session_id=echo.memory_session, role=role, text=text),
+            )
+        except Exception as exc:
+            # Memory is advisory; each subsequent tool still enforces its own boundary.
+            logging.getLogger(__name__).warning(
+                "Simulator conversation memory unavailable (%s)", type(exc).__name__
+            )
+
+    async def say(self, echo: Echo, generation: int, text: str) -> None:
+        if echo.generation != generation:
+            return
+        self.emit(echo, generation, kind="speech", text=text)
+        await self.remember(echo, "assistant", text)
 
     def browser(
         self, token: str | None, *, create: bool = False, touch: bool = True
@@ -433,6 +460,7 @@ class Simulator:
         )
         started = time.monotonic()
         try:
+            await self.remember(echo, "assistant", message)
             async with asyncio.timeout(300):
                 result = await future
             if browser.expired() or echo.generation != generation:
@@ -466,6 +494,8 @@ class Simulator:
         try:
             if echo.oauth is None:
                 raise ValueError("Link this Echo first")
+            if not selected:
+                await self.remember(echo, "user", text)
 
             async def elicit(context: Any, params: Any) -> types.ElicitResult:
                 reply = await self.ask(
@@ -549,6 +579,7 @@ class Simulator:
                         if answer.get("action") != "accept":
                             return []
                         message = str(answer["content"]["reply"])
+                        await self.remember(echo, "user", message)
                     raise ValueError("Too many clarification questions")
 
                 if selected:
@@ -558,10 +589,9 @@ class Simulator:
                 else:
                     calls = await choose(text)
                 if not calls and not selected:
-                    self.emit(
+                    await self.say(
                         echo,
                         generation,
-                        kind="speech",
                         text="Scripted mode supports the recorded scenario utterances. Choose one to continue."
                         if model == "scripted"
                         else "No tool request was submitted. Please clarify your request or explicitly choose Scripted mode.",
@@ -614,10 +644,9 @@ class Simulator:
                             answer.get("action") != "accept"
                             or answer.get("content", {}).get("confirmed") is not True
                         ):
-                            self.emit(
+                            await self.say(
                                 echo,
                                 generation,
-                                kind="speech",
                                 text="That request was not submitted.",
                             )
                             break
@@ -693,10 +722,9 @@ class Simulator:
                     )
                     if echo.generation == generation and not selected:
                         speakable = output.get("speakable", {})
-                        self.emit(
+                        await self.say(
                             echo,
                             generation,
-                            kind="speech",
                             text=" ".join(
                                 [
                                     speakable.get("headline", "Request failed."),

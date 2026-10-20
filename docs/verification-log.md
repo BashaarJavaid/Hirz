@@ -16268,3 +16268,42 @@ the project's 80% gate applies after database integration coverage is appended.
 Strict mypy passed on both changed application modules, Ruff passed, all 370 Python
 files passed formatting, and `git diff --check` was clean. No third-party friction
 entry is earned by the local test-name or unsupported-schema mistakes.
+
+
+### Approved Simulator conversation capture — 2026-10-19
+
+Implemented the author's **Enable Simulator conversation memory** choice locally
+in the isolated item 38 checkout. Actual dialogue passes through fresh OAuth
+verification, planning scope, current linked membership, the active Pipeline and
+existing private turn storage. It never infers speaker identity or manufactures
+an Alexa transcript from tool arguments. Distinct Echo/relink sessions isolate
+conversations; card interactions and suppressed cancelled speech are excluded.
+
+Validation:
+
+- Simulator unit suites: **31 passed in 3.48 seconds**, including actual turn and
+  prompt capture, per-Echo/relink sessions, card/cancellation exclusions and
+  advisory errors without transcript or bearer disclosure.
+- New disposable database check: **1 passed in 6.35 seconds**, using real signed
+  local OAuth, native policy and audit. It covers member/surface isolation,
+  missing planning scope, wrong audience, expiry, unlinked subject, tampering,
+  stale key cache and atomic rollback on audit failure. The export verifies and
+  contains neither raw dialogue nor the JWT. No preference proposal is fabricated.
+  The first assertion used the fixture's app surface instead of its authenticated
+  Alexa surface; corrected the test and retained the cross-surface refusal check.
+- Built frontend, TypeScript and ESLint passed. The real disposable Simulator
+  Playwright workflow passed **1 test (50.2 seconds; 53.5 seconds total)** with
+  passkey enrollment, OAuth linking, account switching, cards, Dot and responsive
+  light/dark layouts. The notice is visible. Its verified export contains **six
+  Simulator memory EXECUTE decisions**; no memory-unavailable log was observed.
+  Launcher cleanup reports `disposable_database=dropped; development_database=unchanged`.
+- Ruff and strict mypy passed for the changed application modules. Existing Vite
+  directive/chunk-size warnings remain; no new dependency was added.
+
+Private browser artifacts are retained at
+`/private/tmp/hirz-item38-simulator-memory-smoke`, with its sibling `.log`.
+These local checks do not verify physical microphone/passkeys, real Alexa
+transcripts, AWS Memory, extraction quality or consent from a live model-produced
+candidate. Typed extraction and durable model budgeting remain unfinished. No
+item 38 push, deployment, paid call or physical action occurred. No third-party
+friction entry was earned by this implementation.
