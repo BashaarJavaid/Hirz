@@ -21,6 +21,7 @@ from hirz.companion import accounts, auth
 from hirz.companion.api import Companion
 from hirz.graph.models import now
 from hirz.graph.seeds import demo_id, load_seeds, read_seed
+from hirz.host.simulator import Simulator
 from tests.unit.aws.test_auth import ISSUER, cache, token
 from tests.unit.test_companion_auth import CONFIG, Authenticator
 from tests.unit.test_pipeline import ident
@@ -53,10 +54,25 @@ def test_bound_self_link_and_atomic_audit(
                 account_login_origin="https://login.example.test",
             )
             signed = token(rsa_key)
+            simulator = Simulator(
+                origin=CONFIG.origin, mcp_url=verifier.resource, issuer=verifier.issuer
+            )
+            app = create_app(companion=service, simulator=simulator)
+            assert simulator.client_id == verifier.client_id
+            assert simulator.scopes == (
+                "hirz/read",
+                "hirz/plan",
+                "hirz/act",
+                "hirz/verify",
+            )
+            assert simulator.login_origin == service.account_login_origin
+            assert simulator.verify_link is not None
+            with pytest.raises(ValueError):
+                await simulator.verify_link("malik", signed)
             async with (
                 service.boundary.persistent(),
                 httpx.AsyncClient(
-                    transport=httpx.ASGITransport(create_app(companion=service)),
+                    transport=httpx.ASGITransport(app),
                     base_url=CONFIG.origin,
                 ) as http,
             ):
@@ -153,6 +169,18 @@ def test_bound_self_link_and_atomic_audit(
                 else:
                     assert after.json()["linked"] is (failure is None)
                 if failure is None:
+                    if person == "malik":
+                        await simulator.verify_link("malik", signed)
+                    else:
+                        # Mom's Echo is explicitly her parents-household account.
+                        with pytest.raises(ValueError):
+                            await simulator.verify_link("mom", signed)
+                    with pytest.raises(ValueError):
+                        await simulator.verify_link("dad", signed)
+                    with pytest.raises(ValueError):
+                        await simulator.verify_link(
+                            "malik", token(rsa_key, {"sub": "unlinked"})
+                        )
                     # Even a fresh passkey cannot reassign an already-linked identity.
                     retry = (await http.post("/api/auth/begin", json=request)).json()
                     finish.update(

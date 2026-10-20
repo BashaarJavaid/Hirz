@@ -97,18 +97,32 @@ def create_app(
     if simulator is not None:
         from hirz.host.api import router as simulator_router
         from hirz.host.memory import record, suggest
+        from hirz.host.oauth import linked
+
+        verifier = cache or (companion.account_verifier if companion else None)
 
         if (
             companion is None
-            or cache is None
-            or cache.resource != simulator.mcp_url
-            or cache.issuer != simulator.issuer
+            or verifier is None
+            or verifier.resource != simulator.mcp_url
+            or verifier.issuer != simulator.issuer
         ):
             raise ValueError(
                 "Simulator memory requires its companion and OAuth verifier"
             )
-        simulator.memory = partial(record, companion, cache)
-        simulator.suggest = partial(suggest, companion, cache)
+        from hirz.aws.auth import CognitoCache
+
+        if isinstance(verifier, CognitoCache):
+            if companion.account_login_origin is None:
+                raise ValueError(
+                    "Simulator requires the configured Cognito login origin"
+                )
+            simulator.client_id = verifier.client_id
+            simulator.login_origin = companion.account_login_origin
+        simulator.scopes = tuple(verifier.scope_names.values())
+        simulator.verify_link = partial(linked, companion, verifier)
+        simulator.memory = partial(record, companion, verifier)
+        simulator.suggest = partial(suggest, companion, verifier)
 
         app.include_router(simulator_router(simulator))
     if companion is not None:

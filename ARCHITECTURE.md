@@ -1339,6 +1339,16 @@ sessions, household JWT checks, selection, consent, scenario controls and source
 labels. OAuth metadata and endpoints are restricted to configured MCP/issuer
 origins, with pre-registered public clients and no automatic tool retries
 ([ADR-021](./docs/adr/ADR-021-extracted-host-harness.md)).
+The item 38 Cognito adapter additionally permits only the configured login
+origin's exact authorization/token endpoints. It retains S256 when Cognito omits
+the discovery capability field, and rejects explicit conflicting metadata.
+Both local and Cognito linking resolve the current graph member before accepting
+the selected demo Echo; token household/role claims do not choose that identity.
+The worker prepares the Simulator only after the exact Runtime resource and
+companion callback are configured. Its Cognito callback is derived from that same
+origin, and its model ledger remains unset. This is local preparation; live
+login, Runtime traffic and Memory/model budgets still require acceptance
+([ADR-014](./docs/adr/ADR-014-local-oauth.md#item-38-cognito-simulator-composition--2026-10-19)).
 
 The MCP Apps bridge initializes opaque sandboxed cards and forwards actual
 protocol results without credentials. Show scales a 1280×800 canvas; Dot mounts no

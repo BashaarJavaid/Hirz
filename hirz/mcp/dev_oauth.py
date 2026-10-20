@@ -81,6 +81,7 @@ class Choice:
     subject: str
     label: str
     role: str
+    member_id: str
 
 
 def choices() -> list[Choice]:
@@ -98,6 +99,7 @@ def choices() -> list[Choice]:
                     data["sub"],
                     f"{member['display_name']} — {seed.graph['household']['name']}",
                     member["role"],
+                    str(data["member_id"]),
                 )
             )
     return result

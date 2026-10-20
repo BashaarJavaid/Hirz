@@ -16361,3 +16361,53 @@ and passed **62 checks in 12.81 seconds** (61 unit checks plus the disposable
 OAuth/source/proposal/HTTP-consent integration). `coverage report --fail-under=80`
 passed at **90% combined local coverage**. Repository strict mypy passed all 231
 source files. This does not replace final-tree CI or live acceptance.
+
+
+### Cognito Simulator composition and discovery compatibility — 2026-10-19
+
+Prepared the existing Simulator for the human Cognito client, native scope names,
+current graph membership and same-origin registered callback. The existing demo
+Echo labels remain explicit household/member targets. The worker exposes this
+host only after exact Runtime-resource and companion-callback configuration;
+models and paid host ledger remain disabled.
+
+An offline probe against installed `addon-host==0.1.0` reproduced
+`ValueError: Discovered endpoint is outside its configured origin`. A read-only
+GET of the active pool's public OIDC metadata returned HTTP 200, the expected
+issuer, authorization/token endpoints sharing a different origin, and no PKCE
+method field. Only a redacted metadata summary was retained at
+`secrets/item38-local-review/cognito-discovery-check.json` in the main checkout.
+No token request, login, model call or AWS mutation was made.
+
+The Cognito adapter retains the published host's resource/issuer checks, state,
+PKCE and refresh, permitting only the configured login endpoints and the
+provider-documented S256 capability when absent from discovery. Local refusal
+cases cover explicit plain PKCE, wrong issuer/resource, unconfigured endpoints,
+endpoint query/path changes and insecure/malformed origins. The initial run
+passed 74 cases and failed one test expecting ValueError where the SDK correctly
+raised OAuthFlowError for an issuer mismatch; corrected that assertion.
+
+Final connected results:
+
+- **75 unit checks passed in 8.86 seconds**, including real host discovery/PKCE,
+  one-use state, token exchange/refresh through recorded HTTP responses, strict
+  endpoint boundaries and worker configuration. These are not live Cognito tokens.
+- **14 disposable database checks passed in 28.89 seconds**. Real passkey linking,
+  ephemeral signed Cognito tokens, native policy and audit establish the current
+  member. Unlinked accounts, wrong Echo/member and Mom's other-household membership
+  cannot link the selected Echo. The source-bound memory/consent integration also
+  passes under the revised app composition.
+- **Nine CDK checks passed**; infrastructure TypeScript and ESLint passed. The
+  callback is derived from the already validated companion callback parameter.
+- The real local Simulator browser workflow passed **one test in 35.3 seconds**,
+  including local OAuth, enrollment, account switching, cards and memory capture.
+  Signed exports and disposable cleanup completed. No memory-unavailable log was
+  observed. Artifacts: `/private/tmp/hirz-item38-cognito-host-browser`, with sibling
+  `.log`; `disposable_database=dropped; development_database=unchanged`.
+- Repository strict mypy passed **232 source files**; Ruff passed.
+
+The public metadata read is a compatibility observation, not item 38 live
+acceptance. Actual Cognito browser login, deployed callbacks, Runtime calls,
+AgentCore Memory strategies, model quality/budgeting, doctor, timing and final-tree
+CI remain owed. No item 38 push/deployment or new AWS resource was introduced.
+The friction entry records this observed published-library/provider mismatch.

@@ -30,10 +30,16 @@ class Suggestion(Candidate):
         return Candidate.model_validate(self.model_dump(exclude={"quote"}))
 
 
-async def identity(service: Companion, verifier: KeyCache, token: str) -> Identity:
+async def identity(
+    service: Companion,
+    verifier: KeyCache,
+    token: str,
+    *,
+    required_scope: str = "hirz:plan",
+) -> Identity:
     access = await verifier.verify_token(token)
-    if access is None or "hirz:plan" not in access.scopes:
-        raise ValueError("Conversation memory requires a current planning login")
+    if access is None or required_scope not in access.scopes:
+        raise ValueError("A current login with the required scope is needed")
     async with service.engine.begin() as connection:
         identity = await verifier.identity(connection, access)
     if identity is None or identity.member.member_id is None:

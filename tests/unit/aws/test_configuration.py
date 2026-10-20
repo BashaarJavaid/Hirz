@@ -123,7 +123,8 @@ def test_worker_request_evidence_omits_private_paths(
         aws_app, "signing_key", lambda _: ec.generate_private_key(ec.SECP256R1())
     )
     monkeypatch.setattr(aws_app, "Companion", Mock())
-    monkeypatch.setattr(aws_app, "create_app", lambda **kw: FastAPI())
+    factory = Mock(side_effect=lambda **kw: FastAPI())
+    monkeypatch.setattr(aws_app, "create_app", factory)
     monkeypatch.setattr(aws_app, "tick", AsyncMock())
     caplog.set_level(logging.INFO, logger="uvicorn.error")
 
@@ -153,6 +154,12 @@ def test_worker_request_evidence_omits_private_paths(
         if resource and callback == "https://example.cloudfront.net/account-link"
         else None
     )
+    simulator = factory.call_args.kwargs["simulator"]
+    if resource and callback == "https://example.cloudfront.net/account-link":
+        assert simulator.issuer == ISSUER and simulator.mcp_url == resource
+        assert simulator.ledger is None
+    else:
+        assert simulator is None
     evidence = [r.message for r in caplog.records if "item36_request" in r.message]
     assert evidence == [
         "item36_request kind=other status=404",

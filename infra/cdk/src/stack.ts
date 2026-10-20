@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 import {
-  Stack, ArnFormat, IgnoreMode, CfnOutput, CfnParameter, Duration, RemovalPolicy, SecretValue, Tags,
+  Stack, ArnFormat, IgnoreMode, CfnOutput, CfnParameter, Duration, RemovalPolicy, SecretValue, Tags, Fn,
   aws_bedrockagentcore as core, aws_cloudfront as cf, aws_cloudfront_origins as origins,
   aws_cognito as cognito, aws_ec2 as ec2, aws_ecs as ecs, aws_ecr_assets as assets,
   aws_elasticloadbalancingv2 as elb, aws_events as events, aws_events_targets as targets,
@@ -133,7 +133,10 @@ export class HirzStack extends Stack {
     const humanResource = pool.addResourceServer('HumanScopes', { identifier: 'hirz', scopes: humanScopes });
     const human = pool.addClient('Human', {
       generateSecret: false, accessTokenValidity: Duration.minutes(5),
-      oAuth: { flows: { authorizationCodeGrant: true }, callbackUrls: ['http://localhost:8765/callback', companionCallback.valueAsString],
+      oAuth: { flows: { authorizationCodeGrant: true }, callbackUrls: [
+        'http://localhost:8765/callback', companionCallback.valueAsString,
+        Fn.join('', [Fn.select(0, Fn.split('/account-link', companionCallback.valueAsString)), '/api/simulator/callback']),
+      ],
         scopes: [cognito.OAuthScope.OPENID, ...humanScopes.map(s => cognito.OAuthScope.resourceServer(humanResource, s))] },
       preventUserExistenceErrors: true,
     });

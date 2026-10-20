@@ -172,3 +172,41 @@ unchanged. [Runtime's documented PRM endpoint](https://docs.aws.amazon.com/bedro
 is served by AWS before container authentication; the live read recorded below
 confirms its resource URL for the existing item 37 deployment. Runtime wiring
 must supply that configuration rather than derive it from an untrusted request.
+
+
+## Item 38 Cognito Simulator composition — 2026-10-19
+
+Reuse the pinned `addon-host` discovery, PKCE, state consumption, refresh and MCP
+connection machinery. Add a narrow Cognito adapter because its issuer and hosted
+login have different origins. Only the configured login origin's exact
+`/oauth2/authorize` and `/oauth2/token` endpoints are additionally allowed. PRM,
+issuer and all other origin checks remain in the published harness. Reject
+arbitrary cross-origin discovery, a second OAuth implementation and token exposure
+to the browser.
+
+The active acceptance pool's public OIDC metadata was read without authentication
+or mutation. It returns the expected issuer and separate login endpoints, but
+omits `code_challenge_methods_supported`. The installed host rejects those
+conditions; the observed friction is recorded in
+[the friction log](../friction-log.md#2026-10-19--cognito-discovery-differs-from-the-pinned-hosts-single-origin-assumption).
+AWS documents [S256 as Cognito's only PKCE method](https://docs.aws.amazon.com/cognito/latest/developerguide/authorization-endpoint.html).
+After the harness has validated resource, issuer and endpoint origins, the adapter
+handles only its pinned missing-PKCE failure: re-read and validate the exact OIDC
+document, reject any explicit conflicting method list, and retain mandatory S256.
+There is no plain-PKCE fallback or skipped token verification. Remove this adapter
+when the published harness can express this explicit provider configuration.
+
+Use the human client and native Cognito scopes. Resolve the signed account's
+current graph membership for both local and Cognito login; compare it with the
+existing explicit demo Echo's household/member fixture. Mom's Echo still means
+her parents-household account; her membership in the home does not substitute.
+Self-linking remains the separately passkey-gated mutation, not an OAuth callback
+side effect. A token cannot invent household membership or choose the Echo label.
+
+Reuse `CompanionCallbackUrl` to derive the Simulator callback on the same origin,
+avoiding another parameter and CloudFormation resource cycle. The worker composes
+the Simulator only after its exact resource and companion callback are configured.
+It uses the Companion's existing Cognito verifier lifecycle; it does not add a
+second public household MCP implementation. Models remain disabled and no host
+ledger is supplied. Durable AWS inference and Memory-event budgeting, actual
+Cognito UI/token exchange, Runtime interaction and live acceptance remain owed.

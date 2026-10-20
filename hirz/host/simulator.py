@@ -13,14 +13,12 @@ from typing import Any, Literal
 from urllib.parse import parse_qs, urlsplit
 from uuid import uuid4
 
-import httpx
 from addon_host import OAuthConfig, OAuthSession, connect_mcp
 from mcp import types
 
 from hirz.host.memory import Suggestion
 from hirz.mcp.auth import SCOPES
 from hirz.mcp.cards import TOOLS as CARDS
-from hirz.mcp.dev_oauth import choices
 from hirz.memory.models import Turn, TurnInput
 
 ACCOUNTS = {"mom": "Mom’s Echo", "malik": "Malik’s Echo", "dad": "Dad’s Echo"}
@@ -323,6 +321,10 @@ class Simulator:
         self.active: dict[str, asyncio.Task[None]] = {}
         self.memory: Callable[[str, TurnInput], Awaitable[Turn]] | None = None
         self.suggest: Callable[[str, Turn, Suggestion], Awaitable[None]] | None = None
+        self.verify_link: Callable[[str, str], Awaitable[None]] | None = None
+        self.client_id = "hirz-dev-sdk"
+        self.scopes = tuple(SCOPES)
+        self.login_origin: str | None = None
 
     async def remember(
         self, echo: Echo, role: Literal["user", "assistant"], text: str
@@ -368,14 +370,19 @@ class Simulator:
         return token, browser
 
     async def link(self, browser: Browser) -> str:
-        oauth = OAuthSession(
-            OAuthConfig(
-                server_url=self.mcp_url,
-                issuer=self.issuer,
-                client_id="hirz-dev-sdk",
-                redirect_uri=self.origin + "/api/simulator/callback",
-                scopes=tuple(SCOPES),
-            )
+        config = OAuthConfig(
+            server_url=self.mcp_url,
+            issuer=self.issuer,
+            client_id=self.client_id,
+            redirect_uri=self.origin + "/api/simulator/callback",
+            scopes=self.scopes,
+        )
+        from hirz.host.oauth import CognitoSession
+
+        oauth = (
+            CognitoSession(config, login_origin=self.login_origin)
+            if self.login_origin is not None
+            else OAuthSession(config)
         )
         browser.linking.clear()
         account = browser.account
@@ -391,32 +398,9 @@ class Simulator:
         if browser.expired() or browser.account != account:
             raise ValueError("Linking expired")
         await oauth.complete(state, code)
-        # Generic OAuth proves possession; only Hirz validates the linked household.
-        from hirz.mcp.auth import KeyCache
-
-        async with httpx.AsyncClient(trust_env=False) as http:
-            cache = KeyCache(self.issuer, self.mcp_url)
-            if not await cache.refresh(http):
-                raise ValueError("Issuer unavailable")
-            access = await cache.verify_token(await oauth.token())
-        available = choices()
-        home = next(c.household for c in available if c.subject == "malik")
-        parents = next(
-            c.household for c in available if c.subject == "mom" and c.role == "owner"
-        )
-        expected = next(
-            c
-            for c in available
-            if c.subject == account
-            and c.household == (parents if account == "mom" else home)
-        )
-        if (
-            access is None
-            or access.subject != expected.subject
-            or not access.claims
-            or access.claims["household_id"] != expected.household
-        ):
-            raise ValueError("Choose the household account named by this Echo")
+        if self.verify_link is None:
+            raise ValueError("Simulator account verification is unavailable")
+        await self.verify_link(account, await oauth.token())
         if browser.expired() or browser.account != account:
             raise ValueError("Linking expired")
         browser.cancel()

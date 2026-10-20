@@ -20,6 +20,7 @@ from hirz.aws.tick import router
 from hirz.aws.worker import tick
 from hirz.companion.api import Companion
 from hirz.companion.auth import Config
+from hirz.host.simulator import Simulator
 from hirz.local import signing_key
 from hirz.mcp.runtime import HouseholdRuntime
 from hirz.pipeline.audit import AuditWriter
@@ -28,24 +29,28 @@ from hirz.pipeline.audit import AuditWriter
 def create_worker() -> FastAPI:
     if os.environ.get("HIRZ_LLM") != "off":
         raise ValueError("Item 36 acceptance requires inference disabled")
+    resource = os.environ.get("HIRZ_RUNTIME_RESOURCE", "")
+    origin = os.environ["HIRZ_COMPANION_ORIGIN"]
+    login_origin = (
+        os.environ["HIRZ_COGNITO_LOGIN_ORIGIN"]
+        if resource
+        and os.environ.get("HIRZ_ACCOUNT_LINK_CALLBACK") == origin + "/account-link"
+        else None
+    )
     service = Companion(
         config.database(config.secret("HIRZ_DATABASE_SECRET")),
         AuditWriter(
             signing_key({"AUDIT_SIGNING_KEY": config.secret("HIRZ_AUDIT_SECRET")})
         ),
-        Config(os.environ["HIRZ_COMPANION_ORIGIN"], os.environ["HIRZ_COMPANION_RP_ID"]),
+        Config(origin, os.environ["HIRZ_COMPANION_RP_ID"]),
         account_verifier=CognitoCache(
             os.environ["HIRZ_COGNITO_ISSUER"],
-            os.environ["HIRZ_RUNTIME_RESOURCE"],
+            resource,
             os.environ["HIRZ_HUMAN_CLIENT"],
         )
-        if os.environ.get("HIRZ_RUNTIME_RESOURCE")
+        if resource
         else None,
-        account_login_origin=os.environ["HIRZ_COGNITO_LOGIN_ORIGIN"]
-        if os.environ.get("HIRZ_RUNTIME_RESOURCE")
-        and os.environ.get("HIRZ_ACCOUNT_LINK_CALLBACK")
-        == os.environ["HIRZ_COMPANION_ORIGIN"] + "/account-link"
-        else None,
+        account_login_origin=login_origin,
         policy_routes=policy_routes(
             Route(
                 os.environ["HIRZ_POLICY_ENGINE"],
@@ -54,7 +59,14 @@ def create_worker() -> FastAPI:
             )
         ),
     )
-    app = create_app(companion=service, engine=service.engine)
+    simulator = (
+        Simulator(
+            origin=origin, mcp_url=resource, issuer=os.environ["HIRZ_COGNITO_ISSUER"]
+        )
+        if login_origin is not None
+        else None
+    )
+    app = create_app(companion=service, engine=service.engine, simulator=simulator)
 
     @app.middleware("http")
     async def request_evidence(

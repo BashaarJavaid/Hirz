@@ -2421,3 +2421,24 @@ HIRZ_DOGWOOD="$PWD/.tools/dogwood" HIRZ_LLM=off uv run --locked python -m script
 Build both apps first using the item 29 procedure. The launcher verifies signed
 exports and removes its disposable database; it does not migrate development.
 Private audit evidence contains hashes and decisions, not the saved dialogue.
+
+
+The prepared AWS worker now composes the Simulator when `RuntimeResource` is set
+and `CompanionCallbackUrl` equals its exact origin plus `/account-link`. CDK derives
+and registers `/api/simulator/callback` from that same callback parameter. No new
+parameter or placeholder deployment is needed. Linking uses the configured human
+client, Cognito scopes and current passkey-linked graph member. The host still
+uses the three explicit demo Echo labels, and no paid host ledger is installed.
+Do not deploy this preparation before the outstanding Memory-event/inference
+budget and live acceptance plan are reviewed.
+
+```sh
+uv run pytest tests/unit/test_simulator_oauth.py tests/unit/test_simulator.py tests/unit/test_simulator_memory.py tests/unit/test_oauth.py tests/unit/aws/test_configuration.py --no-cov
+uv run pytest tests/integration/test_account_link_database.py tests/integration/test_simulator_memory_database.py -m integration --no-cov --tb=short
+pnpm --filter infra test
+```
+
+The local browser procedure above verifies the same membership callback with the
+local issuer. It cannot establish hosted Cognito UI, deployed callbacks or Runtime
+connectivity. The Cognito adapter's provider-specific limit is in
+[ADR-014](adr/ADR-014-local-oauth.md#item-38-cognito-simulator-composition--2026-10-19).

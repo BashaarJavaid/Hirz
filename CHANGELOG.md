@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-10-19: Prepare Cognito Simulator login with pinned endpoints, current member binding and a derived callback; preserve PKCE despite Cognito's omitted discovery field ([decision](docs/adr/ADR-014-local-oauth.md#item-38-cognito-simulator-composition--2026-10-19)).
+
 - 2026-10-19: Connect Simulator temperature suggestions to source-checked, subject-only consent through its existing model selection; paid inference remains disabled ([decision](docs/adr/ADR-002-postgres-over-dynamodb.md#item-38-simulator-temperature-suggestions--2026-10-19)).
 
 - 2026-10-19: Record approved Simulator conversations under the freshly verified linked account through existing private, audited memory storage ([decision](docs/adr/ADR-002-postgres-over-dynamodb.md#item-38-approved-simulator-conversation-capture--2026-10-19)).
