@@ -141,7 +141,7 @@ Item 32 adds `HIRZ_LLM=off uv run --locked python -m scripts.smoke_protect --art
 Item 36 is complete. Item 37's fourth/final inert acceptance is running within
 its $40 combined ceiling; live agreement and cleanup remain. Item 38's Runtime,
 Cognito linking, Simulator memory and consent are locally tested; durable AWS
-model/Memory budgets, live acceptance, diagnostics and timing remain
+model/Memory budgets, live acceptance, full diagnostics and timing remain
 ([roadmap](ROADMAP.md)). Item 31 owes email/push; item 28 owes real Web Push (#7).
 Ring remains twin; Link is item 38a. Development stays on 0005; migrations are
 manual.

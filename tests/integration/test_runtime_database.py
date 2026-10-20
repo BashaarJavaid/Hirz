@@ -25,6 +25,7 @@ from hirz.companion import auth, policy
 from hirz.constitution.schema import dump
 from hirz.mcp import runtime as mcp_runtime
 from hirz.mcp.contracts import TOOLS
+from scripts.smoke_runtime import invoke
 from tests.unit.aws.test_runtime import RESOURCE
 from tests.unit.test_companion_auth import Authenticator
 from tests.unit.test_oauth import cache_for, claims, encode, provider
@@ -109,6 +110,11 @@ def test_runtime_real_tools_audit_and_explicit_policy_route(
                     transport=httpx.ASGITransport(app),
                     headers={"Authorization": "Bearer " + signed},
                 ) as http:
+                    report = await invoke(
+                        http, "http://runtime.internal:8000/mcp", p.household_id
+                    )
+                    assert report["expected_household"] == "matched"
+                    assert report["tool_count"] == len(TOOLS)
                     async with streamable_http_client(
                         "http://runtime.internal:8000/mcp", http_client=http
                     ) as (read, write, _):
@@ -135,7 +141,7 @@ def test_runtime_real_tools_audit_and_explicit_policy_route(
                             assert (
                                 result.structuredContent["data"]["status"] == "recorded"
                             )
-                            assert len(pipelines) == 2
+                            assert len(pipelines) == 3
                             assert all(
                                 q.require_active and q.gateway is None
                                 for q in pipelines

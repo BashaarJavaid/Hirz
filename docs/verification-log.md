@@ -16411,3 +16411,49 @@ acceptance. Actual Cognito browser login, deployed callbacks, Runtime calls,
 AgentCore Memory strategies, model quality/budgeting, doctor, timing and final-tree
 CI remain owed. No item 38 push/deployment or new AWS resource was introduced.
 The friction entry records this observed published-library/provider mismatch.
+
+### Runtime read acceptance preparation — 2026-10-19
+
+Added `scripts/smoke_runtime.py` while item 37's final AWS acceptance continued
+independently. The future operator command verifies the public 401/PRM resource
+and issuer, negotiates MCP 2025-11-25 with the official SDK, checks the exact
+twelve-tool catalog, and validates a protected read against the explicitly
+expected household. It invokes no action tool or model. Runtime endpoints are
+derived from an ARN and matching-region Cognito pool; metadata redirects and
+untrusted challenge targets are refused before sending a token. Tokens come
+from the existing private `.env` reader. Reports use the existing exclusive
+mode-0600 writer and omit tokens and household response data.
+
+Verification:
+
+- `pytest tests/unit/aws/test_runtime_smoke.py tests/unit/aws/test_runtime.py
+  --no-cov -q --tb=short`: **21 passed in 2.69 seconds**. The new smoke cases use
+  real SDK exchanges over recorded HTTP; wrong issuer/resource, anonymous
+  access, metadata redirects, duplicate/missing tools, application errors,
+  denied/wrong-household reads, private-file permissions, output preservation
+  and error redaction are checked. The initial fixture omitted mandatory
+  `speakable.details/options`; corrected the fixture and checked each negative
+  case reaches its intended refusal instead of that schema error.
+- `HIRZ_LLM=off pytest tests/integration/test_runtime_database.py -m integration
+  --no-cov -q --tb=short`: **3 passed in 10.77 seconds**. The new read probe uses
+  the real Runtime composition, signed local tokens, native policy, current
+  member mapping and disposable PostgreSQL; both explicit managed/local routes
+  read the expected household, while an unassigned household cannot start.
+  Existing proposal and signed-audit assertions still pass. These are local
+  issuer fixtures, not real Cognito or Gateway calls.
+- The operator CLI's `--help` runs; the actual CLI entry function also passes
+  against recorded HTTP, writes a private report, refuses overwrite and returns
+  nonzero without a success report on failure.
+
+The command is locally prepared, not run against AWS. Observed initialization
+and single-read timings do not establish cold-start or warm-p95 acceptance.
+The report lists all untested gates; `hirz doctor --aws`, worker timing, live
+models/Memory and the other §14 deployment checks remain incomplete. No new
+deployment, paid invocation, resource or item 38 push occurred. Reviewing the
+documented Runtime contract did not produce new third-party friction.
+
+Final repeat after preserving the caller's logging setting: **21 passed in
+2.33 seconds**. Repository Ruff, strict mypy (**233 source files**), format
+(**377 files**), `git diff --check` and the identical AGENTS/CLAUDE check pass.
+Retained local logs are `/private/tmp/hirz-item38-runtime-read-unit.log` and
+`/private/tmp/hirz-item38-runtime-read-database.log`.

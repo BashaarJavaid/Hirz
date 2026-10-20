@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-10-19: Prepare a private, read-only Runtime discovery and linked-household smoke for item 38; live invocation and the full AWS doctor remain pending ([procedure](docs/development.md#runtime-discovery-and-read-smoke)).
+
 - 2026-10-19: Prepare Cognito Simulator login with pinned endpoints, current member binding and a derived callback; preserve PKCE despite Cognito's omitted discovery field ([decision](docs/adr/ADR-014-local-oauth.md#item-38-cognito-simulator-composition--2026-10-19)).
 
 - 2026-10-19: Connect Simulator temperature suggestions to source-checked, subject-only consent through its existing model selection; paid inference remains disabled ([decision](docs/adr/ADR-002-postgres-over-dynamodb.md#item-38-simulator-temperature-suggestions--2026-10-19)).

@@ -2327,8 +2327,9 @@ completion is earned until every original acceptance gate and teardown passes.
 The Runtime composition and private network template are described in
 [ADR-008](adr/ADR-008-agentcore-topology.md#item-38-runtime-composition-locally-verified--2026-10-19).
 They have not been deployed. Do not update the active item 37 stack from the item
-38 checkout. Account linking, model integration, live Memory wiring, acceptance automation and
-the live verification gates remain unfinished.
+38 checkout. Local account linking and Simulator memory are prepared below;
+durable inference budgets, full acceptance automation and live verification
+remain unfinished.
 
 For the future reviewed deployment, keep `WorkerDesiredCount=0` during initial
 creation and explicit database/bootstrap initialization. Obtain the exact public
@@ -2344,6 +2345,50 @@ in account `661550216013` (read-only verification on 2026-10-19); verify the map
 again before a future deployment. Acceptance must account for Runtime's
 documented VPC-interface deletion delay inside its approved cleanup deadline.
 The item 37 live runner is not an item 38 acceptance runner.
+
+### Runtime discovery and read smoke
+
+`scripts/smoke_runtime.py` prepares the read-only part of item 38 acceptance. It
+uses the official MCP SDK to verify the public 401 challenge and PRM, the exact
+twelve-tool catalog and a protected read of the expected linked household. The
+resource URL includes `qualifier=DEFAULT`; region and escaped ARN are derived
+from the explicit Runtime ARN. The Cognito pool must be in that region. AWS's
+[Runtime contract](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-mcp.html)
+defines the public metadata URL. No discovered URL can redirect the anonymous
+metadata fetch, and only the authenticated Runtime client receives the token.
+
+Run this only inside a separately approved item 38 acceptance window; read-only
+Runtime calls can incur service charges. First self-link the member through the
+companion and obtain their resource-bound Cognito access token through PKCE.
+Store it as `HIRZ_ACCEPTANCE_TOKEN` in a regular, nonsymlink, mode-0600 `.env`
+file under the private acceptance directory. Do not pass the token on the command
+line. The script does not create accounts, refresh tokens or deploy resources.
+
+```sh
+uv run --locked python -m scripts.smoke_runtime \
+  --runtime-arn '<Runtime output>' --user-pool '<UserPool output>' \
+  --household '<expected household UUID>' \
+  --token-file secrets/item38-acceptance/.env \
+  --output secrets/item38-acceptance/runtime-read.json
+```
+
+The new output file is exclusive and private. It contains checks and elapsed
+times, not tokens, member data or the household response. Errors suppress upstream
+details and return nonzero. `initialization_ms` is an observed initialization;
+it does **not** establish a cold start, and a single read is not a warm-p95 test.
+The report explicitly lists the remaining worker, Gateway, Link, anchor, tick,
+companion/demo, model/Memory and latency checks. Passing this smoke does not pass
+the complete `hirz doctor --aws` gate, which is still pending.
+
+Local verification uses recorded HTTP with the real SDK and the existing Runtime
+composition in disposable PostgreSQL databases:
+
+```sh
+uv run pytest tests/unit/aws/test_runtime_smoke.py tests/unit/aws/test_runtime.py --no-cov
+HIRZ_LLM=off uv run pytest tests/integration/test_runtime_database.py -m integration --no-cov --tb=short
+```
+
+### Memory, narration and account linking
 
 The optional Memory provider is locally verified against the pinned SDK schema.
 `HIRZ_MEMORY_ID` selects the deployed ID (not its ARN); unset it for offline local
