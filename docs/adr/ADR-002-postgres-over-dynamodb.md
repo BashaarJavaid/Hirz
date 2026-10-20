@@ -239,3 +239,96 @@ Author-approved migration 0012 adds grant-reference and budget-ledger indexes;
 its downgrade removes only indexes. No household or signed audit data is rewritten.
 Verification upgrades disposable databases only. Decision and query details:
 [ADR-017](./ADR-017-tool-latency-and-isolation.md#budget-index-and-terminal-read-amendment--2026-09-23).
+
+## Item 38 advisory Memory provider — 2026-10-19
+
+Keep the item 20 commit-first contract and add an optional SDK provider selected
+by the deployed Memory ID. Reuse the existing bounded, cancellation-settling AWS
+call helper and built-in user-preference/semantic strategies. Reject a second
+durable outbox or a cloud-first conversation store: a failed mirror must not make
+committed session context unavailable. This accepts incomplete cloud memory after
+an outage; replay uses the same durable Turn ID, without an automatic repair job.
+
+Keep the canonical Turn as a blob beside conversational text. AWS documents that
+[conversational payloads are extracted and blobs are not](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/short-term-create-event.html);
+this preserves replay metadata without asking the extractor to interpret IDs.
+Use the API's explicit `SKIP` mode when models or learning are disabled
+([CreateEvent](https://docs.aws.amazon.com/bedrock-agentcore/latest/APIReference/API_CreateEvent.html)).
+Reject raw session IDs as AWS keys because the local contract permits longer
+Unicode values; deterministic mapping preserves existing callers.
+
+Use member-scoped [built-in strategy namespace templates](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/long-term-configuring-built-in-strategies.html),
+and validate exact namespaces on returned hints because
+[ListMemoryRecords accepts a prefix](https://docs.aws.amazon.com/bedrock-agentcore/latest/APIReference/API_ListMemoryRecords.html).
+Only Runtime and worker roles receive CreateEvent/ListEvents/ListMemoryRecords on
+the exact deployed Memory ARN, as supported by the
+[IAM action reference](https://docs.aws.amazon.com/service-authorization/latest/reference/list_bedrock-agentcore.html).
+Namespace isolation is application-enforced within those shared roles, not a
+claim of per-member IAM isolation or protection from a compromised worker.
+
+The [implemented contract](../../ARCHITECTURE.md#59-memory) keeps hints separate
+from accepted graph preferences. Local verification does not earn live strategies,
+production transcript capture or companion consent; those remain item 38 work.
+
+## Item 38 authenticated preference consent — 2026-10-19
+
+Expose the existing typed proposal review in the companion Household page. Resolve
+the subject from the current passkey session, then revalidate that session and
+review inside the existing serialized Pipeline transaction. Reuse `mutate_locked`
+for this owned transaction; retain the standalone service path for internal callers
+and commit-before-mirror behavior. Do not add a second consent store or a direct
+graph write. The original subject-app-principal requirement does not require a
+fresh passkey ceremony for every temperature preference.
+
+Reject owner consent on another member's behalf, caller-supplied identity or
+candidate values, transcript disclosure, and automatic hint acceptance. Lists
+use the existing audit cursor and pending-only filter. Acceptance still checks
+learning permission and captured preference version, writes signed evidence, and
+queues refresh atomically. This closes local authenticated review only; production
+transcript intake, typed extraction and live strategies remain outstanding.
+
+## Item 38 approved Simulator conversation capture — 2026-10-19
+
+The author selected **Enable Simulator conversation memory**: save the actual
+conversation for the linked member and offer extracted temperature preferences
+for that member's approval. Alexa MCP calls do not supply a full conversation;
+Simulator dialogue is the available source. This amendment implements capture;
+typed extraction remains the next step.
+
+Reuse private `session_turns` and `MemoryService.record_turn`, resolving identity
+from a freshly verified OAuth token with planning scope and the current account
+mapping. The ordinary Pipeline enforces the active constitution and commits audit
+and storage together. Each linked Echo gets a distinct opaque session. Actual
+user text, free-text clarification replies, visible prompts and emitted assistant
+speech are eligible; card arguments and suppressed speech are not transcripts.
+
+Reject a public memory tool, a second transcript table, caller-supplied member
+identity and guesses about the speaker. Failure is advisory to the Simulator but
+cannot weaken later tool authorization; logs disclose only the exception type.
+The UI explains account attribution and approval. This adds no model call or
+automatic preference acceptance, and makes no live AWS or real Alexa claim.
+
+
+## Item 38 Simulator temperature suggestions — 2026-10-19
+
+Reuse the Simulator's existing model selector and budget reservation to extract
+one explicit personal Fahrenheit preference from the latest saved user message.
+A private host control returns the canonical Candidate fields plus an exact
+supporting quote. Reject a separate extraction inference/provider, a public MCP
+memory tool, automatic acceptance and a second consent mechanism. Continuation
+uses the existing bounded selection loop; no new spend allowance is created.
+
+The host owns the source Turn, verifies its saved contents and linked member again,
+checks that the quote contains the exact proposed Fahrenheit value, and uses the
+existing audited proposal service. A stable source/candidate action ID prevents
+identical retries from duplicating a proposal. Cards and assistant messages cannot
+supply source evidence. The source quote stays private; graph values change only
+when that member accepts in the companion app. An unclear unit needs clarification,
+not guessed conversion. Scripted mode does not extract.
+
+These checks prove attribution to a linked account and explicit numeric evidence,
+not the identity of the speaker or that a model understood a sentence correctly.
+The subject must review the suggestion. The existing paid-selector call path is
+reused, but local tests substitute recorded selections: actual Haiku/Nova quality,
+AgentCore long-term strategy output and durable AWS inference budgeting remain
+outstanding. This wiring enables no paid run or deployment.

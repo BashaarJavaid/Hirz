@@ -15912,3 +15912,712 @@ Private evidence is retained in `secrets/item37-awake-acceptance/`:
 `postflight-summary.json`. The user subsequently approved the
 [Simulator submission scope](adr/ADR-007-alexa-surface-strategy.md#simulator-submission-scope--2026-10-20-author-approved);
 item 37 remains incomplete and deferred.
+
+## Item 38
+
+### Local Cognito verification foundation — 2026-10-19
+
+The author requested local item 38 work in parallel with the approved item 37
+acceptance. Work is isolated on `feat/item38-runtime-integration`; the active
+item 37 checkout and deployment are unchanged. The verifier, graph membership
+resolution, scope advertisement and rejected alternatives are specified in
+[ADR-014](./adr/ADR-014-local-oauth.md#item-38-cognito-verification-foundation--2026-10-19).
+
+Using the existing Python environment, `PYTHONPATH=.` and native Dogwood binary:
+
+- MCP, local OAuth and Cognito unit suites: **116 passed in 10.89 seconds**.
+- Cognito and existing OAuth PostgreSQL suites: **5 passed in 10.29 seconds**;
+  after adding captured-request membership revalidation assertions, the two
+  changed Cognito cases passed again in **5.30 seconds**.
+- Ruff lint/format and strict mypy on the three touched source modules passed.
+
+The database tests use real signed test JWTs, real HTTP/MCP dispatch and disposable
+PostgreSQL. Explicit rollback-only account rows model issuer links without
+committing unaudited account changes or weakening the demo-only seed restriction.
+They cover both households, ambiguous/unlinked subjects, claimed household/role/
+passkey rejection, machine-client refusal, insufficient scopes, PRM/401 public
+scope names, current child-role refusal and revalidation of the original request.
+Both seed snapshots remain unchanged. The development database is not migrated.
+
+Initial fixture and HTTP-helper mistakes were corrected before these passes.
+A sandbox-denied local database attempt printed its password in a long pytest
+traceback; the user was informed, subsequent runs use short tracebacks, and no AWS
+credential was involved. No password is retained in this evidence entry.
+
+Runtime wiring, audited production account linking, live resource-bound Cognito
+PKCE, Bedrock, Memory, AWS doctor, action timing and Runtime warm/cold latency
+remain owed. No item 38 live deployment, full CI, completion or threat-model claim
+is made. Existing upstream deprecation warnings require no workaround here.
+
+### Runtime discovery contract read — 2026-10-19
+
+A single unauthenticated metadata GET against the Runtime already created by the
+approved item 37 stack returned **HTTP 200**, with `resource` and
+`authorization_servers` fields. Its resource is the AWS Runtime invocation URL
+including `?qualifier=DEFAULT`; it did not include `scopes_supported`. No Runtime
+invocation, model call or resource mutation was made. The private response is
+retained in `secrets/item38-local-review/runtime-metadata-read.json` in the primary
+checkout. This is a discovery observation on the existing generic deployment,
+not item 38 application acceptance.
+
+The gate now supports an explicitly configured public metadata URL, preserving
+that path and qualifier in challenges. Local URL derivation remains unchanged.
+Connected OAuth/Cognito units passed **39 tests in 15.47 seconds**; the two HTTP/
+PostgreSQL Cognito cases verify the configured URL verbatim in the 401 header.
+Runtime deployment wiring remains pending.
+
+The two updated Cognito integration cases passed in **4.80 seconds**; strict mypy
+on the changed authentication modules and `git diff --check` also passed.
+
+### Runtime composition and private network template — 2026-10-19
+
+Continued local item 38 work in `/private/tmp/hirz-item38` while the item 37
+acceptance remained pinned to `eb7667c`. The main checkout and deployment were
+unchanged. [ADR-008](adr/ADR-008-agentcore-topology.md#item-38-runtime-composition-locally-verified--2026-10-19)
+records the composition, permissions, rejected alternatives and future cleanup
+constraint.
+
+- `pytest tests/unit/aws/test_runtime.py tests/unit/aws/test_auth.py
+  tests/unit/test_mcp.py tests/unit/test_oauth.py --no-cov --tb=short -q`:
+  **121 passed in 13.22 seconds**. Covers the full catalog, Cognito/local verifier
+  regressions, missing-token 401 with qualified metadata URL, bounded request
+  bodies, no tick endpoint, lifecycle cleanup and incomplete-resource refusal.
+- `pytest tests/integration/test_runtime_database.py
+  tests/integration/test_cognito_database.py tests/integration/test_oauth_database.py
+  -m integration --no-cov --tb=short -q`: **8 passed in 26.22 seconds**.
+  Runtime composition uses explicitly simulated local OAuth over the real SDK,
+  PostgreSQL and native Dogwood, with real passkey activation, a household-context
+  read and a signed rule proposal. It verifies local/managed route propagation,
+  absence of a Gateway client and rejection of unassigned households at startup.
+  Both successful runs independently verify their audit chains. The separate
+  Cognito tests retain rollback-only account rows; no production account link is
+  fabricated or committed. The development database is not migrated.
+- `pnpm --filter infra test`: **7 passed**, including synthesis without network
+  lookups or dependency cycles, private Runtime subnets, authorization forwarding,
+  exact database ingress and only database/audit infrastructure secret reads.
+  TypeScript typecheck and eslint passed.
+- Ruff lint and strict mypy on the three changed application modules passed.
+- The existing AWS configuration suite passed **11 tests in 2.44 seconds**, and
+  the existing running-MCP policy activation/reload database test passed in
+  **5.44 seconds**. Combined targeted results are **132 unit, nine database and
+  seven CDK tests**; this is not the full repository CI gate.
+
+Initial test errors were corrected: audit verification must own an idle
+connection and returns a summary mapping; CDK represents the database port as an
+endpoint attribute, not a literal. These were test construction errors, not live
+service failures. Locked dependencies were installed in the isolated worktree;
+no lockfile or package version changed.
+
+A read-only `DescribeAvailabilityZones` under `hirz` confirmed the existing
+account-specific `us-east-1a`/`us-east-1b` mapping to supported `use1-az1`/`use1-az2`.
+There was no item 38 deployment, Runtime invocation or model call. Live Cognito
+linking, end-to-end AWS routing and VPC teardown are unverified. Bedrock, Memory,
+doctor, action timing, warm/cold latency and full item 38 CI remain owed; neither
+item closure nor a threat-model protection is claimed.
+
+### Advisory Memory provider and strategy template — 2026-10-19
+
+Continued local item 38 work in the isolated checkout while the approved item 37
+acceptance remained active. Added the optional AgentCore provider, commit-first
+service integration, explicit extraction gating and two built-in strategy
+templates with exact-resource IAM permissions. Decision and API sources:
+[ADR-002](adr/ADR-002-postgres-over-dynamodb.md#item-38-advisory-memory-provider--2026-10-19).
+
+Validation used the main checkout's locked Python environment with `PYTHONPATH=.`
+and its pinned native Dogwood, plus this worktree's locked Node 24 dependencies:
+
+- `pytest tests/unit/aws/test_agentcore_memory.py tests/unit/test_memory.py
+  --no-cov --tb=short -q`: **32 passed in 1.85 seconds**. Botocore Stubber checks
+  real pinned request/response schemas, stable retry tokens, unordered and empty
+  pages, duplicate/conflicting sequences, bounded pagination, household/member/
+  surface/session separation, altered event contents and exact hint namespaces.
+  These are SDK contract tests, not live AWS idempotency or extraction evidence.
+- `pytest tests/integration/test_memory_database.py -m integration --no-cov
+  --tb=short -q`: **11 passed in 28.05 seconds**. Four new cases exercise the
+  configured provider through MemoryService, with a separate connection proving
+  the private turn committed before the mocked AWS write. Models-off and
+  learning-never skip extraction; permitted extraction omits SKIP. A synthetic
+  outage leaves durable turns readable. Signed audit payloads omit transcript
+  text, and no graph proposal appears automatically. Existing consent, replay,
+  isolation and refresh rollback cases also pass. Databases are disposable.
+- `pnpm --filter infra test`: **eight passed**. The additional test restricts
+  the three Memory operations to Runtime/worker on the exact Memory ARN and
+  checks environment IDs. Existing strategy, dependency-cycle, networking and
+  secret-boundary checks still pass. TypeScript typecheck and eslint pass.
+- Ruff lint/format on all five changed Python files and strict mypy on the three
+  changed application modules pass. `git diff --check` passes.
+- Existing `scripts/smoke_memory.py --audit-output <new-private-file>`, with
+  `HIRZ_MEMORY_ID` unset and `HIRZ_LLM=off`: **PASS**, pending/rejected preferences
+  leave planner input unchanged, accepted preference is 74 F, service restart
+  preserves context, a fresh twin worker publishes the refresh, obsolete attempts
+  are zero, and **53 signed rows** verify independently offline. The disposable
+  database was dropped; development was unchanged. Private export retained as
+  `secrets/item38-local-review/memory-local-audit-20261019.json` in the main checkout.
+
+Initial test construction errors were corrected before these passing runs: a
+duplicate pytest module basename and a synthetic record ID shorter than the SDK
+minimum. No third-party failure or new friction entry was earned.
+
+No item 38 push, deployment, model invocation or live Memory request was made.
+The template still sets `HIRZ_LLM=off`. Production transcript ingress, conversion
+of hints to typed consent proposals, companion consent, live strategy behavior,
+account linking, remaining Bedrock/doctor/timing gates and full CI remain owed.
+This is local provider/configuration progress, not item 38 completion.
+
+### Worker narration and inference permission preparation — 2026-10-19
+
+Continued independent item 38 work while the approved item 37 publication ran.
+Initial plan preparation now accepts an Explainer; local and AWS twin worker
+compositions share their configured provider with initial and refreshed plans.
+The existing SDK helper settles narration threads before cancelled worker ownership
+is released. Model calls remain outside transactions and MCP calls; request,
+objective and snapshot checks still precede publication. The local infrastructure
+template adds the missing, exact-model CountTokens permission for existing worker
+budget checks. [Decision and limitations](adr/ADR-012-explainer.md#item-38-worker-narration-preparation--2026-10-19).
+
+Targeted validation, using the locked Python environment and pinned native Dogwood:
+
+- `pytest tests/unit/test_explainer.py tests/unit/aws/test_evidence.py --no-cov
+  --tb=short -q`: **90 passed in 2.05 seconds**, including a blocked SDK thread
+  that must settle before cancellation returns, existing SDK/schema/fallback
+  checks and solver cancellation.
+- `pytest tests/integration/test_explainer_database.py
+  tests/integration/test_aws_worker.py tests/integration/test_household_tools_database.py
+  -m integration --no-cov --tb=short -q`: **20 passed in 56.49 seconds**. New
+  first-plan cases use the actual tool request, deterministic planner and audited
+  publication with a mocked provider. Successful narration preserves canonical
+  plan fields; an outage publishes a template with `provider_error`; a constraint
+  recorded during narration leaves the request pending and publishes no stale
+  plan; cancellation likewise publishes nothing. Provider calls run outside
+  transactions, reads add no model call, and all four signed chains verify.
+  Connected AWS tick duplicate/restart and household-tool tests remain passing.
+- `scripts/smoke_explainer.py` with `HIRZ_LLM=off`: **PASS**, fabricated figure
+  refused, canonical plan unchanged, 103 actions and valid cached narration.
+- Repository-wide Ruff lint and format pass (**363 Python files**); strict mypy
+  passes **228 source files**. No development migration or physical write occurred.
+
+Initial test assertions incorrectly expected a Bedrock provider label on a
+template fallback, and omitted required fields from the concurrent revision.
+Both test-construction issues were fixed before the passing run. No external
+provider call, paid retry or new third-party friction occurred.
+
+The AWS entrypoint and template still require models off. Live Bedrock, complete
+inference/drafting/Protect/emulator configuration, production account linking,
+Memory consent, doctor and timing gates remain owed. No push or deployment was
+performed, and the active item 37 application/harness remained unchanged.
+
+Broader local verification after the targeted checks:
+
+- `pytest --no-cov --tb=short -q` with `HIRZ_LLM=off` and pinned Dogwood completed
+  in **228.44 seconds**: **1,749 passed**, three failed solely because the sandbox
+  denied loopback socket binding, 280 deselected and two existing deprecation
+  warnings. Re-running exactly `test_ports_and_private_directories` and both
+  `test_websocket_token_contract` cases with local network permission passed
+  **all three in 1.72 seconds**. Thus all **1,752 service-free checks**, including
+  native conformance, have passing results; this was not one unrestricted run,
+  full integration CI, coverage or a latency acceptance gate.
+- `pnpm --filter infra test`: **nine passed**, including exact-model worker-only
+  token counting and absence of model invocation permissions from other roles.
+  TypeScript typecheck and eslint passed. No template was deployed.
+- Final `git diff --check` passed. The sandbox permission failures were local
+  execution restrictions, not AWS/provider defects; no new friction entry earned.
+
+### Authenticated Memory consent — 2026-10-19
+
+Continued independent item 38 work in the isolated checkout while item 37
+publication ran unchanged. Household now lists the authenticated subject's pending
+temperature proposals and offers explicit acceptance/rejection. The HTTP routes
+reuse current session authentication, Origin/CSRF guards, canonical proposal and
+mutation results, and the owned Pipeline transaction. The internal standalone
+Memory path retains its commit-before-mirror behavior.
+[Decision](adr/ADR-002-postgres-over-dynamodb.md#item-38-authenticated-preference-consent--2026-10-19).
+
+Validation used the existing locked Python environment, pinned native Dogwood,
+Node 24 and disposable PostgreSQL databases:
+
+- `pytest tests/unit/test_memory.py tests/unit/aws/test_agentcore_memory.py
+  --no-cov -q --tb=short`: **32 passed in 2.42 seconds**.
+- The connected Memory database and companion HTTP suites passed **14 checks**
+  in the combined run. The new `tests/integration/test_memory_http.py` then passed
+  **one check in 6.88 seconds** after correcting test setup/teardown. It verifies
+  real passkey enrollment and sessions, owner-versus-subject visibility, non-owner
+  consent, anonymous/CSRF/Origin refusal, strict fields and pagination, rollback
+  after a mutation, identical replay, changed/stale review refusal, rejection,
+  revoked-credential refusal, accepted graph provenance and a valid signed chain
+  without transcript text. Locked review outside an owned transaction is refused.
+  Revocation setup uses the existing internal verified-ceremony principal; this
+  test does not claim a new browser WebAuthn revocation ceremony.
+- `HIRZ_BROWSER_BACKEND=http://127.0.0.1:5175 pnpm --filter web test:browser
+  tests/memory.spec.ts`: **three passed in 7.5 seconds**. Synthetic API fixtures
+  exercise 390px/1280px presentation, acceptance/rejection/refusal, explicit
+  refresh, audit-cursor paging, keyboard order, visible names, contrast and no
+  horizontal overflow. These are presentation checks, not live AWS or browser
+  authentication evidence.
+- Companion TypeScript typecheck, eslint and production build passed. Vite emitted
+  existing dependency `use client` and chunk-size warnings; no workaround needed.
+  Ruff lint/format passed on the three touched Python files; strict mypy passed
+  on both application modules.
+
+Initial test construction reused a request ID across members, omitted the internal
+verified-ceremony flag for revocation, and left a snapshot read transaction open
+before audit verification. These were corrected without changing application
+authorization. No third-party failure or new friction entry was earned.
+
+Production transcript ingress, conversion of extracted hints to typed proposals,
+live Memory strategy acceptance, real account linking, inference enablement,
+diagnostics, timing and full CI remain owed. No item 38 push, deployment, model
+call, new resource or physical action occurred. The Memory threat row remains
+Partial; only its local authenticated-consent evidence is updated.
+
+### Self-link backend and identity isolation — 2026-10-19
+
+Implemented the author's selected self-link model in the isolated item 38 checkout
+while item 37's corrected CI ran independently. The backend connects verified
+Cognito proofs to the existing passkey ceremony and audited credential enrollment;
+it adds no public owner-assignment path or direct graph-write exception.
+[Decision](adr/ADR-019-companion.md#item-38-self-linked-cognito-login--2026-10-19).
+
+Validation used the existing locked Python environment, native Dogwood, Node 24
+and disposable PostgreSQL databases:
+
+- Account-link, companion auth/API and AWS auth/configuration/Runtime unit suites:
+  **56 passed in 9.43 seconds**. They include read-scope and token-lifetime refusal,
+  stale key-cache failure, child/revoked-member refusal, worker resource wiring and
+  cache startup/shutdown with the companion lifespan. Existing token signature,
+  issuer/client/audience and strict-claims checks remain included.
+- Account-link and connected companion auth/HTTP database suites: **18 passed in
+  34.42 seconds**. The 13 new cases cover real owner/adult passkey assertions,
+  session binding, token substitution, wrong key, replay, duplicate links, revoked
+  credentials, rollback after graph/audit mutation, and concurrent linking of the
+  same subject from two households. Exactly one concurrent transaction commits;
+  the other refuses reassignment. Stored ceremonies exclude the bearer token,
+  successful links reference a real EXECUTE audit grant, and both chains verify.
+  Revocation setup uses the existing internal verified-ceremony principal.
+- CDK: **9 tests passed**, including matching worker/Runtime issuer, human client
+  and resource; existing IAM isolation and dependency-cycle checks remain intact.
+  TypeScript typecheck passed. Ruff lint/format and strict mypy passed for the
+  touched Python modules; `git diff --check` passed.
+
+Test construction initially tried JSON-serializing binary audit signatures, then
+looked for private action metadata in the redacted decision payload; assertions
+now verify the canonical action-to-signed-grant relationship. The revoked-session
+test now expects the existing 403 response. These were test corrections, not
+relaxed authorization, and earned no third-party friction entry.
+
+Browser PKCE/redirect wiring, production account-link acceptance, Memory ingress
+and extraction, inference enablement, diagnostics, full CI and all live item 38
+gates remain owed. No item 38 push, paid call, deployment or physical action occurred.
+No threat-model row is promoted and item 37's application revision stays unchanged.
+
+### Browser self-link and callback configuration — 2026-10-19
+
+Completed the local browser path over the verified self-link backend. Household
+starts PKCE and the return page checks its saved state, expiry, exact login config
+and current companion session before exchanging the code and requesting a fresh
+passkey. The return URL is cleared, access/refresh tokens are not stored, and a
+failed or cancelled attempt must restart. The CDK callback parameter preserves
+the existing CLI callback and adds no resource or permission.
+[Decision and contracts](adr/ADR-019-companion.md#browser-self-link-flow-locally-verified--2026-10-19).
+
+- Companion API and AWS configuration unit suites: **21 passed in 5.68 seconds**,
+  including CSP-origin validation, callback routing and explicit callback/resource
+  gating. Strict mypy passed on the three application modules; Ruff passed.
+- The account-link database suite with configured browser metadata passed
+  **13 checks in 22.89 seconds**, retaining the real signatures, rollback,
+  duplicate/refused proof and concurrent-household gates recorded above.
+- Companion unit tests: **9 passed**. Eight new checks verify S256 against the
+  actual exchanged verifier, no persisted tokens, one-use state and refusal before
+  exchange for session/state/issuer changes, expiry, duplicate code, cancellation
+  and malformed stored state.
+- Browser account-link plus Memory presentation suites: **6 passed in 8.6 seconds**.
+  The three new cases use a local callback, synthetic OAuth endpoints and a real
+  browser virtual authenticator. Phone (390px) and desktop (1280px) complete PKCE
+  and an assertion; changing the companion session prevents any token exchange or
+  passkey finish. Checks include URL cleanup, exact resource, CSRF/token forwarding,
+  no token persistence, accessible names/contrast/keyboard order and no overflow.
+  This is not an actual Cognito login or production-cookie acceptance test.
+- CDK's **9 tests**, TypeScript checks and eslint passed. Companion TypeScript,
+  eslint and production build passed; existing Vite directive/chunk warnings remain.
+  `git diff --check` passed.
+
+The initial synthetic HTTPS hostname could not resolve after a mocked HTTP 302
+(`net::ERR_NAME_NOT_RESOLVED`). Using the real local callback fixes the browser
+fixture without modifying application transport or security. No new third-party
+workaround is required. Production Cognito UI/CORS, actual hosted redirects,
+physical phone behavior, full CI and all item 38 live acceptance remain owed.
+No item 38 push, deployment, paid call or physical device action occurred.
+
+#### Full companion smoke after browser integration
+
+Ran `scripts/smoke_companion.py --artifacts-dir
+/private/tmp/hirz-item38-account-link-smoke` with the existing locked environment,
+native Dogwood, Node 24 and `HIRZ_LLM=off`. The complete companion smoke passed:
+**8 browser cases passed in 2.5 minutes**, including the new link presentation,
+real local OAuth/MCP, WebAuthn enrollment, policy activation, worker execution,
+rule review and independently verified signed exports. The separate simulator and
+AWS-only cases skipped because this was their companion harness, not those live
+environments. Export and disposable-database cleanup finished normally, with no
+shutdown diagnostic marker; this single pass does not resolve issue #7.
+
+The synthetic OAuth endpoints now share the local fixture origin so the tests
+also run under the offline companion's existing CSP. Production permits only the
+configured HTTPS issuer, checked separately in the API/configuration tests. Real
+Cognito CORS remains a live gate. Only the test fixture changed after the previous
+browser-flow commit; the application flow was unchanged.
+
+### Drafting cancellation ownership — 2026-10-19
+
+Local inspection found the drafting worker awaited `asyncio.to_thread` directly,
+so cancelling its task released its PostgreSQL advisory lock while the provider
+thread still ran. A new disposable-database regression reproduced this before
+the repair: the task raised `CancelledError` immediately instead of waiting for
+the blocked synthetic provider. No paid model call was made.
+
+Reused `hirz.aws.client.call` to settle the bounded provider call before releasing
+ownership. The regression then passed **1 check in 3.50 seconds**: a second
+connection cannot take the lock while the cancelled call is in flight, the lock
+is released after it settles, no draft is published by the cancelled task, a later
+attempt produces a reviewable draft, the seed constitution stays unvalidated,
+and the signed audit chain verifies. The initial test assertion called that seed
+state `draft`; it was corrected to its actual `unvalidated` state.
+
+Recorded drafting/provider and AWS-call unit suites passed **10 checks in 1.51
+seconds**. Ruff and strict mypy passed. The active item 37 code and inference-off
+AWS deployment remain unchanged; this local fix does not enable paid inference
+or replace the outstanding durable-budget and live-model gates.
+
+### Provider schema compatibility and broad collection — 2026-10-19
+
+The first broad local run stopped during collection because unit and integration
+account-link files shared the `test_account_link` module name. Renamed only the
+integration module to `test_account_link_database.py` and updated the procedure.
+The next run collected all 2,069 tests successfully and passed **1,774 service-free
+checks in 272.60 seconds**. This was a test-layout error, not an application or AWS failure.
+
+Review against the current official Bedrock structured-output contract found that
+Details sent a disallowed string bound, while Patch sent open-object maps that
+strict mode prohibits. New request regressions failed on the original code:
+`AssertionError: assert 'maxLength' not in ...` and
+`AssertionError: assert 'outputConfig' not in request`. These are local assertions;
+no AWS rejection or paid invocation was observed or claimed.
+
+The explainer now sends the supported structural schema while retaining its full
+local validator. Drafting supplies the existing Patch schema as prompt guidance
+and validates the returned JSON and complete resulting constitution locally.
+The two connected provider suites passed **84 checks in 1.86 seconds**, including
+new rejection cases for an oversized summary and too many details. Existing
+invalid grammar, changed version, forbidden security channel, added household
+field and incomplete-result cases still refuse. Actual service schema acceptance,
+model quality and inference-budget integration remain live/implementation gates.
+
+After the provider corrections, a fresh broad run passed **1,776 tests in 264.37
+seconds**, with 295 integration/latency cases deselected and the two existing
+dependency deprecation warnings. It includes the native CLI/helper agreement
+checks and uses no AWS service or model call. Service-free coverage alone is 69%;
+the project's 80% gate applies after database integration coverage is appended.
+Strict mypy passed on both changed application modules, Ruff passed, all 370 Python
+files passed formatting, and `git diff --check` was clean. No third-party friction
+entry is earned by the local test-name or unsupported-schema mistakes.
+
+
+### Approved Simulator conversation capture — 2026-10-19
+
+Implemented the author's **Enable Simulator conversation memory** choice locally
+in the isolated item 38 checkout. Actual dialogue passes through fresh OAuth
+verification, planning scope, current linked membership, the active Pipeline and
+existing private turn storage. It never infers speaker identity or manufactures
+an Alexa transcript from tool arguments. Distinct Echo/relink sessions isolate
+conversations; card interactions and suppressed cancelled speech are excluded.
+
+Validation:
+
+- Simulator unit suites: **31 passed in 3.48 seconds**, including actual turn and
+  prompt capture, per-Echo/relink sessions, card/cancellation exclusions and
+  advisory errors without transcript or bearer disclosure.
+- New disposable database check: **1 passed in 6.35 seconds**, using real signed
+  local OAuth, native policy and audit. It covers member/surface isolation,
+  missing planning scope, wrong audience, expiry, unlinked subject, tampering,
+  stale key cache and atomic rollback on audit failure. The export verifies and
+  contains neither raw dialogue nor the JWT. No preference proposal is fabricated.
+  The first assertion used the fixture's app surface instead of its authenticated
+  Alexa surface; corrected the test and retained the cross-surface refusal check.
+- Built frontend, TypeScript and ESLint passed. The real disposable Simulator
+  Playwright workflow passed **1 test (50.2 seconds; 53.5 seconds total)** with
+  passkey enrollment, OAuth linking, account switching, cards, Dot and responsive
+  light/dark layouts. The notice is visible. Its verified export contains **six
+  Simulator memory EXECUTE decisions**; no memory-unavailable log was observed.
+  Launcher cleanup reports `disposable_database=dropped; development_database=unchanged`.
+- Ruff and strict mypy passed for the changed application modules. Existing Vite
+  directive/chunk-size warnings remain; no new dependency was added.
+
+Private browser artifacts are retained at
+`/private/tmp/hirz-item38-simulator-memory-smoke`, with its sibling `.log`.
+These local checks do not verify physical microphone/passkeys, real Alexa
+transcripts, AWS Memory, extraction quality or consent from a live model-produced
+candidate. Typed extraction and durable model budgeting remain unfinished. No
+item 38 push, deployment, paid call or physical action occurred. No third-party
+friction entry was earned by this implementation.
+
+
+### Simulator temperature suggestion and consent wiring — 2026-10-19
+
+Connected the approved capture to the existing model selector's internal host
+controls. The selected candidate is bound to the actual stored user Turn, a fresh
+linked OAuth principal, an exact supporting quote and matching Fahrenheit value.
+It creates a pending proposal through `MemoryService`; it cannot accept a
+preference or execute a thermostat command. Identical source/candidate retries
+reuse one mutation. The public MCP catalog and constitution grammar are unchanged.
+
+The connected Simulator/Memory suites passed **58 unit checks in 2.65 seconds**.
+They cover exact source-value evidence, ambiguous/mismatched units, pending model
+selection receipts, success/failure speech, and no MCP device execution. The first
+run passed 57 and failed one advisory-error case: an existing inner `import
+logging` shadowed the new module-level logger. Removed that redundant local import
+and reran successfully.
+
+The expanded disposable PostgreSQL check passed **1 test in 5.29 seconds**. Signed
+OAuth and native policy reject an assistant source, forged source text, changed
+value, tampered token and another linked member. Two identical attempts produce
+one pending proposal and leave graph preferences unchanged. Anonymous review fails;
+the subject's real passkey session lists the suggestion without its transcript,
+then accepts through HTTP and writes `source: learned_accepted`. The signed export
+verifies and contains neither the quoted sentence nor bearer token. Existing
+Memory tests cover learning-disabled and audit-rollback behavior.
+
+Strict mypy passed for all four changed application modules; Ruff passed.
+No live model was called: recorded selector output verifies routing and consent,
+not language-model extraction quality. The earlier real browser capture pass is
+separate evidence, not a live model-to-browser acceptance claim. Paid AWS inference,
+AgentCore strategy behavior, diagnostics, timing and full final-tree CI remain
+owed. No new third-party friction was observed.
+
+
+Added unavailable-control, invalid-output redaction and cancellation regressions;
+the final focused unit run passed **61 checks in 2.54 seconds**. Cancellation before
+proposal submission creates no suggestion or speech. A stale control cannot be
+selected once unavailable, and malformed output does not expose its private value
+in the raised error.
+
+The broad integration run that began before Simulator capture/suggestion edits
+finished with **293 passed, 1,778 deselected, two warnings in 1,372.88 seconds
+(22:52)**. Together with the earlier 1,776 service-free checks it reports **89%
+coverage**. Its transport checks include a real five-minute prompt-expiry wait;
+that wait was not a hang. This is broad local baseline evidence, not full final-tree
+CI; the later focused memory checks cover the new code separately.
+
+
+After the broad coverage writer finished, the final focused run appended coverage
+and passed **62 checks in 12.81 seconds** (61 unit checks plus the disposable
+OAuth/source/proposal/HTTP-consent integration). `coverage report --fail-under=80`
+passed at **90% combined local coverage**. Repository strict mypy passed all 231
+source files. This does not replace final-tree CI or live acceptance.
+
+
+### Cognito Simulator composition and discovery compatibility — 2026-10-19
+
+Prepared the existing Simulator for the human Cognito client, native scope names,
+current graph membership and same-origin registered callback. The existing demo
+Echo labels remain explicit household/member targets. The worker exposes this
+host only after exact Runtime-resource and companion-callback configuration;
+models and paid host ledger remain disabled.
+
+An offline probe against installed `addon-host==0.1.0` reproduced
+`ValueError: Discovered endpoint is outside its configured origin`. A read-only
+GET of the active pool's public OIDC metadata returned HTTP 200, the expected
+issuer, authorization/token endpoints sharing a different origin, and no PKCE
+method field. Only a redacted metadata summary was retained at
+`secrets/item38-local-review/cognito-discovery-check.json` in the main checkout.
+No token request, login, model call or AWS mutation was made.
+
+The Cognito adapter retains the published host's resource/issuer checks, state,
+PKCE and refresh, permitting only the configured login endpoints and the
+provider-documented S256 capability when absent from discovery. Local refusal
+cases cover explicit plain PKCE, wrong issuer/resource, unconfigured endpoints,
+endpoint query/path changes and insecure/malformed origins. The initial run
+passed 74 cases and failed one test expecting ValueError where the SDK correctly
+raised OAuthFlowError for an issuer mismatch; corrected that assertion.
+
+Final connected results:
+
+- **75 unit checks passed in 8.86 seconds**, including real host discovery/PKCE,
+  one-use state, token exchange/refresh through recorded HTTP responses, strict
+  endpoint boundaries and worker configuration. These are not live Cognito tokens.
+- **14 disposable database checks passed in 28.89 seconds**. Real passkey linking,
+  ephemeral signed Cognito tokens, native policy and audit establish the current
+  member. Unlinked accounts, wrong Echo/member and Mom's other-household membership
+  cannot link the selected Echo. The source-bound memory/consent integration also
+  passes under the revised app composition.
+- **Nine CDK checks passed**; infrastructure TypeScript and ESLint passed. The
+  callback is derived from the already validated companion callback parameter.
+- The real local Simulator browser workflow passed **one test in 35.3 seconds**,
+  including local OAuth, enrollment, account switching, cards and memory capture.
+  Signed exports and disposable cleanup completed. No memory-unavailable log was
+  observed. Artifacts: `/private/tmp/hirz-item38-cognito-host-browser`, with sibling
+  `.log`; `disposable_database=dropped; development_database=unchanged`.
+- Repository strict mypy passed **232 source files**; Ruff passed.
+
+The public metadata read is a compatibility observation, not item 38 live
+acceptance. Actual Cognito browser login, deployed callbacks, Runtime calls,
+AgentCore Memory strategies, model quality/budgeting, doctor, timing and final-tree
+CI remain owed. No item 38 push/deployment or new AWS resource was introduced.
+The friction entry records this observed published-library/provider mismatch.
+
+### Runtime read acceptance preparation — 2026-10-19
+
+Added `scripts/smoke_runtime.py` while item 37's final AWS acceptance continued
+independently. The future operator command verifies the public 401/PRM resource
+and issuer, negotiates MCP 2025-11-25 with the official SDK, checks the exact
+twelve-tool catalog, and validates a protected read against the explicitly
+expected household. It invokes no action tool or model. Runtime endpoints are
+derived from an ARN and matching-region Cognito pool; metadata redirects and
+untrusted challenge targets are refused before sending a token. Tokens come
+from the existing private `.env` reader. Reports use the existing exclusive
+mode-0600 writer and omit tokens and household response data.
+
+Verification:
+
+- `pytest tests/unit/aws/test_runtime_smoke.py tests/unit/aws/test_runtime.py
+  --no-cov -q --tb=short`: **21 passed in 2.69 seconds**. The new smoke cases use
+  real SDK exchanges over recorded HTTP; wrong issuer/resource, anonymous
+  access, metadata redirects, duplicate/missing tools, application errors,
+  denied/wrong-household reads, private-file permissions, output preservation
+  and error redaction are checked. The initial fixture omitted mandatory
+  `speakable.details/options`; corrected the fixture and checked each negative
+  case reaches its intended refusal instead of that schema error.
+- `HIRZ_LLM=off pytest tests/integration/test_runtime_database.py -m integration
+  --no-cov -q --tb=short`: **3 passed in 10.77 seconds**. The new read probe uses
+  the real Runtime composition, signed local tokens, native policy, current
+  member mapping and disposable PostgreSQL; both explicit managed/local routes
+  read the expected household, while an unassigned household cannot start.
+  Existing proposal and signed-audit assertions still pass. These are local
+  issuer fixtures, not real Cognito or Gateway calls.
+- The operator CLI's `--help` runs; the actual CLI entry function also passes
+  against recorded HTTP, writes a private report, refuses overwrite and returns
+  nonzero without a success report on failure.
+
+The command is locally prepared, not run against AWS. Observed initialization
+and single-read timings do not establish cold-start or warm-p95 acceptance.
+The report lists all untested gates; `hirz doctor --aws`, worker timing, live
+models/Memory and the other §14 deployment checks remain incomplete. No new
+deployment, paid invocation, resource or item 38 push occurred. Reviewing the
+documented Runtime contract did not produce new third-party friction.
+
+Final repeat after preserving the caller's logging setting: **21 passed in
+2.33 seconds**. Repository Ruff, strict mypy (**233 source files**), format
+(**377 files**), `git diff --check` and the identical AGENTS/CLAUDE check pass.
+Retained local logs are `/private/tmp/hirz-item38-runtime-read-unit.log` and
+`/private/tmp/hirz-item38-runtime-read-database.log`.
+
+
+### Broad local regression and submission preparation — 2026-10-20
+
+The isolated item 38 branch includes the unchanged item 37 implementation
+`c0d0717` and local Link foundation `919ef33`. No item 38 push, deployment or paid
+model/Memory call was made. The active item 37 checkout remains clean and pinned.
+
+- Service-free run: **1,834 passed**, with three localhost socket checks blocked
+  by the sandbox; those exact three passed with localhost permission in **9.73
+  seconds**, for **1,837 passing service-free checks** across the two runs.
+- Full PostgreSQL suite: **294 passed in 1,325.11 seconds**. Its real five-minute
+  prompt-expiry case passed without shortening the security deadline.
+- Combined coverage: **90%** (18,660 statements; 1,874 missed); explicit
+  `coverage report --fail-under=80` passed after the ordered runs.
+- Repository Ruff/format and strict mypy passed (384 Python files / 239 source
+  modules); the final Link import reuse also passed its focused checks below.
+- `scripts.smoke_companion`: **8 passed, 2 separate-harness skips in 2.8 minutes**,
+  followed by independent signed exports and disposable-database cleanup. The
+  skipped Simulator and AWS cases require their own launchers; no live AWS or
+  physical-phone result is inferred. The three named phone designs were visually
+  inspected at 390 pixels among 41 retained captures.
+- The built wheel imports all Link modules outside the checkout. The local
+  development database remains at **0005_execution_attempt**, verified read-only;
+  a first diagnostic used the wrong full revision name, then the corrected check
+  passed. No migration was applied.
+
+The inspected regression parent/child processes exited, and the temporary Vite
+preview was stopped. The existing companion shutdown issue #7 did not reproduce;
+its cause remains unconfirmed and the issue stays open. No new third-party
+friction was earned; the known sandbox restriction is already recorded.
+
+Private completed-check logs are retained in
+`secrets/item38-local-review/parallel-20261020` in the primary checkout; browser
+artifacts remain `/private/tmp/hirz-item38-companion-final`. Main's background
+supervisor and read-only policy monitor continue. Local full CI dispatch, production
+relay/Lambda integration, durable model/Memory budget approval and implementation,
+real Cognito/Runtime/Memory/model quality, physical acceptance and warm/cold/action
+timing gates remain outstanding. These results do not close item 38 or 38a.
+
+## Item 38a
+
+### Signed command and durable ending foundation — 2026-10-20
+
+Local work is isolated in the item 38 worktree; the running item 37 checkout and
+AWS resources are unchanged. The implementation and limits are in
+[ADR-009](adr/ADR-009-signed-commands-home-agent.md#item-38a-local-command-foundation--2026-10-20).
+
+The new Link suite plus existing executor and HA suites passed **74 tests in
+1.91 seconds**. They cover signature/home/expiry/hash refusal, nonce/action/semantic
+replays after restart, one-process ownership, malformed/private journal refusal,
+failed persistence before actuation, backwards clocks, pending endings after a
+crash, failed-ending retry, strict read-back and recorded HA light/climate calls.
+The KMS contract is checked with a recorded SDK, not a paid KMS invocation.
+The door case is simulated; it proves the local ending algorithm, not a real lock.
+An initial process lock on the SQLite inode conflicted with macOS SQLite locks;
+the corrected implementation locks a separate private inode. Test fixtures were
+corrected before the passing run.
+
+The first `scripts.smoke_link` run used real Pipeline enqueue/redemption and
+native Dogwood in a disposable twin database. Opening, replay refusal and ending
+after journal reopen passed, with **14 valid signed audit rows** and **4 local
+receipts**. Artifacts are private in `/private/tmp/hirz-link-pipeline-smoke`;
+the test database was dropped and development remained unchanged. This smoke
+uses PostgreSQL for the twin's execution accounting. Its local rejection receipts
+are not yet ingested into the cloud audit.
+
+Full relay/registration, observation and out-of-band change reporting, daemon
+recovery, production Lambda wiring, actual KMS, physical plug, offline physical
+relock, AWS doctor and final CI remain owed. No roadmap completion or strengthened
+threat-model claim is made.
+
+
+### Final local foundation checks — 2026-10-20
+
+After reusing the existing audit-key fingerprint helper and making the simulated
+lock fixture name explicit, the Link/executor/HA suites passed again: **74 tests
+in 3.43 seconds**. Ruff passed for all seven changed Python files; strict mypy
+passed on the six source modules. The updated smoke additionally verified its
+exported audit file against the separately held trusted public key: **14 valid
+rows**, opening/replay/restart-ending checks passed, and disposable storage was
+removed. Artifacts: `/private/tmp/hirz-link-offline-audit-smoke`.
+
+`uv build --offline` produced both sdist and wheel. Archive inspection confirmed
+all four Link implementation modules are packaged and private `.env`, `secrets`
+and `.aws` paths are absent. No artifact was uploaded. Implementation and ADR are
+committed locally as `919ef33`; this is still a partial item 38a result.
+
+The final Link audit export was also rechecked from a separate process using the
+trusted local audit public key; `audit-public.pem` is retained with that private
+artifact set and no signing key was replaced.
+
+## Item 41
+
+### Setup procedures moved to their permanent home — 2026-10-20
+
+The README's Phase 0 scaffold, CI, local-stack setup, diagnostics, key recovery
+and explicit destructive-reset procedures now live in `docs/development.md`.
+README retains the pitch, quickstart and pointers. Relative links were adjusted;
+the relocated coverage instructions now name the existing combined service-free
+and integration gate. AGENTS/CLAUDE references were mirrored. This is submission
+preparation, not another person's final clean-machine validation or a completed
+Devpost form.
+
+The submission draft now maps 20 tool/service groups to their actual use and
+evidence, with unverified integrations explicitly separated. Exact errors and
+feature requests stay in the friction log. Unmeasured onboarding times and the
+author's personal reuse decision remain unfilled rather than invented. All local
+file links and heading anchors in the README, submission draft and Link ADR were
+checked; AGENTS and CLAUDE remain identical. The stale item 36 procedure status
+now points to its existing closure; it grants no new deployment approval.
+
+The README architecture diagram now names the approved Fargate worker and points
+to the roadmap/threat model for the pending AWS and physical signed-home gates.

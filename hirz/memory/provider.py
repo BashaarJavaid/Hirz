@@ -1,5 +1,6 @@
 """Actor/session isolation compatible with AgentCore; local recorded hints only."""
 
+import os
 from typing import Protocol
 
 from pydantic import Field
@@ -14,7 +15,7 @@ class Hint(Model):
 
 
 class MemoryProvider(Protocol):
-    async def append(self, turn: Turn) -> None: ...
+    async def append(self, turn: Turn, *, extract: bool = False) -> None: ...
     async def turns(
         self, session: Session, page: Page = Page()
     ) -> tuple[Turn, ...]: ...
@@ -26,7 +27,7 @@ class InProcessMemory:
         self._turns: dict[Session, dict[int, Turn]] = {}
         self._hints = tuple(Hint.model_validate(h.model_dump()) for h in hints)
 
-    async def append(self, turn: Turn) -> None:
+    async def append(self, turn: Turn, *, extract: bool = False) -> None:
         turn = Turn.model_validate(turn.model_dump())
         rows = self._turns.setdefault(turn.session, {})
         old = rows.get(turn.sequence)
@@ -41,3 +42,12 @@ class InProcessMemory:
 
     async def hints(self, session: Session) -> tuple[Hint, ...]:
         return tuple(h for h in self._hints if h.session == session)
+
+
+def configured() -> MemoryProvider:
+    memory_id = os.environ.get("HIRZ_MEMORY_ID")
+    if memory_id is None:
+        return InProcessMemory()
+    from hirz.aws.memory import AgentCoreMemory
+
+    return AgentCoreMemory(memory_id)

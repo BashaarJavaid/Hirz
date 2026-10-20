@@ -2,6 +2,7 @@
 
 import asyncio
 import os
+import re
 import secrets
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -10,18 +11,22 @@ from typing import Any, Literal
 from uuid import UUID
 
 import sqlalchemy as sa
-from fastapi import APIRouter, HTTPException, Request, Response
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from fastapi import APIRouter, HTTPException, Query, Request, Response
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, model_validator
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from hirz import db
+from hirz.aws.auth import CognitoCache
 from hirz.aws.policy import AWS_ANALYSIS
 from hirz.aws.routing import Routing
-from hirz.companion import auth, policy, push, twin
+from hirz.companion import accounts, auth, policy, push, twin
 from hirz.constitution.boundary import Dogwood
 from hirz.constitution.schema import loads
 from hirz.contacts.service import Command as ContactCommand
 from hirz.graph.models import now
+from hirz.mcp.auth import AuthUnavailable
+from hirz.memory.models import Page
+from hirz.memory.service import MemoryService
 from hirz.pipeline.audit import AuditWriter
 from hirz.pipeline.service import Pipeline, PolicyBundle
 from hirz.twin.world import TwinWorld
@@ -41,7 +46,10 @@ class Begin(Input):
         "activate",
         "approve",
         "contact",
+        "link_account",
     ]
+    account_token: str | None = Field(default=None, min_length=1, max_length=16384)
+    account_binding: str | None = Field(default=None, min_length=64, max_length=64)
     token: str | None = Field(default=None, min_length=32, max_length=128)
     credential_id: str | None = Field(default=None, max_length=2048)
     member_id: UUID | None = None
@@ -56,6 +64,7 @@ class Begin(Input):
     @model_validator(mode="after")
     def fields_for_operation(self) -> "Begin":
         allowed = {
+            "link_account": {"account_token", "account_binding"},
             "contact": {"contact"},
             "login": set(),
             "enroll": {"token"},
@@ -73,6 +82,7 @@ class Begin(Input):
 
 
 class Finish(Input):
+    account_token: str | None = Field(default=None, min_length=1, max_length=16384)
     contact: ContactCommand | None = None
     id: str = Field(min_length=32, max_length=128)
     credential: dict[str, Any]
@@ -94,6 +104,12 @@ class RecordedDraft(Input):
     proposal_id: str | None = None
 
 
+class MemoryReview(Input):
+    proposal_id: UUID
+    accept: StrictBool
+    request_id: str = Field(min_length=1, max_length=128)
+
+
 class Companion:
     def __init__(
         self,
@@ -104,6 +120,8 @@ class Companion:
         demo_world: TwinWorld | None = None,
         demo_worlds: dict[UUID, TwinWorld] | None = None,
         policy_routes: Routing | None = None,
+        account_verifier: CognitoCache | None = None,
+        account_login_origin: str | None = None,
     ):
         if demo_world is not None and not str(engine.url.database).startswith(
             "hirz_ha_smoke_"
@@ -118,6 +136,18 @@ class Companion:
         )
         self.demo_lock = asyncio.Lock()
         self.policy_routes = policy_routes
+        self.account_verifier = account_verifier
+        if account_login_origin is not None:
+            if (
+                not re.fullmatch(
+                    r"https://[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?", account_login_origin
+                )
+                or account_verifier is None
+            ):
+                raise ValueError(
+                    "Account linking requires an HTTPS issuer and verifier"
+                )
+        self.account_login_origin = account_login_origin
 
     @asynccontextmanager
     async def pipeline(self, household: UUID) -> AsyncIterator[Pipeline]:
@@ -224,6 +254,66 @@ def cookie(response: Response, name: str, token: str, *, secure: bool) -> None:
 def router(service: Companion) -> APIRouter:
     api = APIRouter(prefix="/api")
 
+    @api.get("/account-link")
+    async def account_link(request: Request, response: Response) -> dict[str, Any]:
+        response.headers["Cache-Control"] = "no-store"
+        async with service.authorized(request) as (p, member):
+            if service.account_verifier is None:
+                return {"available": False}
+            linked = await p.connection.scalar(
+                sa.select(db.member_accounts.c.sub)
+                .where(
+                    p.scope(db.member_accounts),
+                    db.member_accounts.c.member_id == member["member_id"],
+                    db.member_accounts.c.provider == service.account_verifier.issuer,
+                )
+                .limit(1)
+            )
+            token = request.cookies[service.config.session_cookie]
+            return {
+                "available": True,
+                "linked": linked is not None,
+                "session_binding": auth.digest("hirz-account-link:" + token),
+                "login": {
+                    "origin": service.account_login_origin,
+                    "client_id": service.account_verifier.client_id,
+                    "resource": service.account_verifier.resource,
+                    "redirect_uri": service.config.origin + "/account-link",
+                }
+                if service.account_login_origin is not None
+                and member["role"] != "child"
+                else None,
+            }
+
+    @api.get("/memory/proposals")
+    async def memory_proposals(
+        request: Request,
+        response: Response,
+        after: int = Query(default=0, ge=0),
+        limit: int = Query(default=50, ge=1, le=100),
+    ) -> list[dict[str, Any]]:
+        response.headers["Cache-Control"] = "no-store"
+        async with service.authorized(request) as (p, member):
+            proposals = await MemoryService(p).proposals(
+                member["principal"], page=Page(after=after, limit=limit), locked=True
+            )
+            return [proposal.model_dump(mode="json") for proposal in proposals]
+
+    @api.post("/memory/review")
+    async def memory_review(
+        value: MemoryReview, request: Request, response: Response
+    ) -> dict[str, Any]:
+        response.headers["Cache-Control"] = "no-store"
+        async with service.authorized(request) as (p, member):
+            result = await MemoryService(p).review(
+                member["principal"],
+                action_id="memory-review:" + value.request_id,
+                proposal_id=value.proposal_id,
+                accept=value.accept,
+                locked=True,
+            )
+            return result.model_dump(mode="json", by_alias=True)
+
     @api.post("/twin/doorbell")
     async def ring_twin(request: Request) -> dict[str, str]:
         from hirz.companion.governance import household
@@ -321,7 +411,9 @@ def router(service: Companion) -> APIRouter:
             binding = (
                 None
                 if value.operation in {"login", "enroll"}
-                else value.model_dump(mode="json", exclude={"token"}, exclude_none=True)
+                else value.model_dump(
+                    mode="json", exclude={"token", "account_token"}, exclude_none=True
+                )
             )
             if value.operation == "contact":
                 from hirz.contacts.secrets import Config as ContactConfig
@@ -333,6 +425,22 @@ def router(service: Companion) -> APIRouter:
                     "operation": "contact",
                     "command_binding": config.binding(value.contact.model_dump_json()),
                 }
+            if value.operation == "link_account":
+                if (
+                    service.account_verifier is None
+                    or value.account_token is None
+                    or token is None
+                    or not secrets.compare_digest(
+                        value.account_binding or "",
+                        auth.digest("hirz-account-link:" + token),
+                    )
+                ):
+                    raise ValueError(
+                        "Account linking is unavailable or the session changed"
+                    )
+                binding = await accounts.binding(
+                    service.account_verifier, value.account_token
+                )
             if value.operation == "add_credential":
                 binding = {"operation": "add_credential"}
             async with service.engine.begin() as c:
@@ -344,6 +452,10 @@ def router(service: Companion) -> APIRouter:
                     session_token=token,
                     binding=binding,
                 )
+        except AuthUnavailable:
+            raise HTTPException(
+                503, "Account verification is temporarily unavailable."
+            ) from None
         except ValueError:
             raise HTTPException(
                 400, "Passkey request refused. Check your session and request."
@@ -358,6 +470,10 @@ def router(service: Companion) -> APIRouter:
             browser, token = service.guard(request)
             async with service.engine.begin() as c:
                 record = await auth.consume(c, value.id, browser, token, now())
+            if (record["binding"].get("operation") == "link_account") != (
+                value.account_token is not None
+            ):
+                raise ValueError("Account proof belongs only to the linking ceremony")
             async with service.engine.connect() as c:
                 if record["kind"] == "register":
                     household = UUID(record["binding"]["household_id"])
@@ -405,7 +521,21 @@ def router(service: Companion) -> APIRouter:
                                 update={"passkey_verified": True}
                             )
                             binding = record["binding"]
-                            if binding["operation"] == "contact":
+                            if binding["operation"] == "link_account":
+                                if (
+                                    service.account_verifier is None
+                                    or value.account_token is None
+                                ):
+                                    raise ValueError("Account linking is unavailable")
+                                await accounts.link(
+                                    p,
+                                    principal,
+                                    service.account_verifier,
+                                    value.account_token,
+                                    binding,
+                                )
+                                result = {"message": "Your login is linked."}
+                            elif binding["operation"] == "contact":
                                 from hirz.contacts.secrets import (
                                     Config as ContactConfig,
                                 )

@@ -94,3 +94,46 @@ permissions and native schema acceptance remain item 38.
   for the approved offline-tested SDK bridge and fixed item 21 contract.
 
 Evidence lives in [item 21](../verification-log.md#item-21--2026-09-22).
+
+## Item 38 worker narration preparation — 2026-10-19
+
+Initial plan preparation accepts the same optional Explainer as refreshes. Local
+and AWS twin workers pass their configured provider to both paths; ordinary
+scenario/test callers retain templates. The model call happens after deterministic
+planning and runtime replay, outside database transactions. Publication still
+checks the pending request, objective and current snapshot fingerprint, so a
+concurrent constraint change discards the prepared result. Outages preserve the
+existing audited template fallback. No MCP call or read invokes a model.
+
+Use the existing cancellation-settling AWS call helper for narration. Unlike the
+earlier item 21 behavior, a cancelled caller now waits for its bounded SDK thread
+to exit before releasing worker ownership; the late response is discarded.
+Allowing the next tick to start while the previous paid call was still running
+was rejected. SDK timeouts, one-attempt behavior and the fixed model stay the same;
+no new retry, queue or SDK dependency is introduced.
+
+This is locally tested preparation. The current AWS entrypoint still requires
+`HIRZ_LLM=off`, and the deployment template remains off. Enabling inference needs
+the future item 38 deployment configuration, complete drafting/Protect budget
+configuration and bounded live acceptance. Existing emulator model selection and
+its ledgers remain separate; no live inference or item closure is claimed here.
+
+The worker's prepared IAM template also grants `bedrock:CountTokens` on only the
+Haiku foundation-model ARN in `us-east-1`. Existing Protect and emulator budget
+checks require it before inference. This is separate from their existing scoped
+InvokeModel grants: the [Bedrock IAM reference](https://docs.aws.amazon.com/service-authorization/latest/reference/list_bedrock.html)
+defines CountTokens against a foundation-model resource. Runtime, setup and action
+roles receive neither that permission nor model invocation authority. No IAM change
+has been deployed.
+
+### Bedrock schema subset correction — 2026-10-19
+
+The [structured-output contract](https://docs.aws.amazon.com/bedrock/latest/userguide/structured-output.html)
+does not support the generated string-length constraint, and does not list array
+maximum length among its supported constraints. The outgoing Details schema now
+omits those two bounds. The canonical Details parser still rejects more than three
+details or a summary longer than 500 characters before narration can be published.
+All attribution, numeric and speech checks remain in place. Local validation
+retains the full constraints without sending an unsupported service schema.
+No generic schema converter or retry is added;
+actual model acceptance remains a live gate.

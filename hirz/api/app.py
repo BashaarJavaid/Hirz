@@ -4,11 +4,13 @@ import gc
 import os
 from collections.abc import AsyncIterator, Callable
 from contextlib import AsyncExitStack, asynccontextmanager
+from functools import partial
 from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from mcp.server.transport_security import TransportSecuritySettings
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 from hirz.companion.api import Companion
@@ -17,7 +19,7 @@ from hirz.companion.auth import Config as CompanionConfig
 from hirz.db import database_url
 from hirz.host.simulator import Simulator
 from hirz.local import read_env, signing_key
-from hirz.mcp.auth import SCOPES, KeyCache, OAuthGate
+from hirz.mcp.auth import KeyCache, OAuthGate
 from hirz.mcp.card_evidence import load as load_card_evidence
 from hirz.mcp.profiles import load as load_profiles
 from hirz.mcp.runtime import HouseholdRuntime
@@ -40,12 +42,13 @@ def create_app(
     household: HouseholdRuntime | None = None,
     companion: Companion | None = None,
     simulator: Simulator | None = None,
+    security: TransportSecuritySettings | None = None,
 ) -> FastAPI:
     """One SDK manager per app; only tests/smoke register diagnostic tools."""
     from hirz.protect.organizations import registry
 
     registry()
-    security = local_security(port)
+    security = security or local_security(port)
     server = create_server(
         security, authentication=cache is not None and engine is not None
     )
@@ -73,6 +76,10 @@ def create_app(
                     await stack.enter_async_context(household.run())
                 if companion is not None:
                     await stack.enter_async_context(companion.boundary.persistent())
+                    if companion.account_verifier is not None:
+                        await stack.enter_async_context(
+                            companion.account_verifier.run()
+                        )
                 if cache is not None:
                     await stack.enter_async_context(cache.run())
                 await stack.enter_async_context(server.session_manager.run())
@@ -89,6 +96,33 @@ def create_app(
     app.add_api_route("/health", health)
     if simulator is not None:
         from hirz.host.api import router as simulator_router
+        from hirz.host.memory import record, suggest
+        from hirz.host.oauth import linked
+
+        verifier = cache or (companion.account_verifier if companion else None)
+
+        if (
+            companion is None
+            or verifier is None
+            or verifier.resource != simulator.mcp_url
+            or verifier.issuer != simulator.issuer
+        ):
+            raise ValueError(
+                "Simulator memory requires its companion and OAuth verifier"
+            )
+        from hirz.aws.auth import CognitoCache
+
+        if isinstance(verifier, CognitoCache):
+            if companion.account_login_origin is None:
+                raise ValueError(
+                    "Simulator requires the configured Cognito login origin"
+                )
+            simulator.client_id = verifier.client_id
+            simulator.login_origin = companion.account_login_origin
+        simulator.scopes = tuple(verifier.scope_names.values())
+        simulator.verify_link = partial(linked, companion, verifier)
+        simulator.memory = partial(record, companion, verifier)
+        simulator.suggest = partial(suggest, companion, verifier)
 
         app.include_router(simulator_router(simulator))
     if companion is not None:
@@ -124,11 +158,14 @@ def create_app(
         )
 
         async def page() -> FileResponse:
+            connections = "'self'"
+            if companion.account_login_origin is not None:
+                connections += " " + companion.account_login_origin
             return FileResponse(
                 ui / "index.html",
                 headers={
                     "Cache-Control": "no-store",
-                    "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+                    "Content-Security-Policy": f"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src {connections}; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
                     "Referrer-Policy": "no-referrer",
                     "X-Content-Type-Options": "nosniff",
                 },
@@ -140,6 +177,7 @@ def create_app(
             "/approvals",
             "/constitution",
             "/household",
+            "/account-link",
             "/checkins",
             "/contact-links",
             "/audit",
@@ -182,7 +220,7 @@ def create_app(
             return {
                 "resource": cache.resource,
                 "authorization_servers": [cache.issuer],
-                "scopes_supported": list(SCOPES),
+                "scopes_supported": list(cache.scope_names.values()),
                 "bearer_methods_supported": ["header"],
             }
 

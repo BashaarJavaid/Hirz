@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import threading
 from dataclasses import replace
 from decimal import Decimal
 from unittest.mock import Mock
@@ -340,6 +341,11 @@ def test_sdk_contract_and_persisted_reuse(proposal):
         assert request["modelId"] == MODEL_ID
         assert request["inferenceConfig"] == {"temperature": 0, "maxTokens": 512}
         assert request["outputConfig"]["textFormat"]["type"] == "json_schema"
+        schema = json.loads(
+            request["outputConfig"]["textFormat"]["structure"]["jsonSchema"]["schema"]
+        )
+        assert "maxLength" not in schema["properties"]["screen_summary"]
+        assert "maxItems" not in schema["properties"]["details"]
         assert (
             json.loads(
                 request["outputConfig"]["textFormat"]["structure"]["jsonSchema"][
@@ -380,6 +386,11 @@ def test_sdk_contract_and_persisted_reuse(proposal):
 @pytest.mark.parametrize(
     "payload,stop",
     [
+        (json.dumps({"details": [], "screen_summary": "x" * 501}), "end_turn"),
+        (
+            json.dumps({"details": ["Safe text."] * 4, "screen_summary": "ok"}),
+            "end_turn",
+        ),
         ('{"details":["Save $999.00."],"screen_summary":"Claim"}', "end_turn"),
         ('{"details":[],"screen_summary":"ok","decision":"execute"}', "end_turn"),
         ('{"details":[],"screen_summary":"I will unlock the door."}', "end_turn"),
@@ -432,6 +443,33 @@ def test_provider_error_offline_config_and_cancellation(proposal, monkeypatch):
         explainer.converse = Mock(side_effect=asyncio.CancelledError)
         with pytest.raises(asyncio.CancelledError):
             await explainer.narrate(proposal, Context(HOME))
+
+    asyncio.run(run())
+
+
+def test_cancellation_settles_inflight_narration_before_return(proposal):
+    async def run():
+        started, finish = threading.Event(), threading.Event()
+        provider = BedrockExplainer()
+
+        def converse(selected):
+            started.set()
+            assert finish.wait(timeout=5)
+            return response('{"details":[],"screen_summary":"Household timing."}')
+
+        provider.converse = converse
+        pending = asyncio.create_task(provider.narrate(proposal, Context(HOME)))
+        try:
+            async with asyncio.timeout(5):
+                while not started.is_set():
+                    await asyncio.sleep(0)
+            pending.cancel()
+            await asyncio.sleep(0)
+            assert not pending.done()
+        finally:
+            finish.set()
+            with pytest.raises(asyncio.CancelledError):
+                await pending
 
     asyncio.run(run())
 

@@ -54,6 +54,97 @@ async def propose(service, source, value=74, action_id=None):
     return result
 
 
+@pytest.mark.parametrize(
+    "mode,learning,outage",
+    [
+        ("off", "manual", False),
+        ("bedrock", "manual", False),
+        ("bedrock", "never", False),
+        ("bedrock", "manual", True),
+    ],
+)
+def test_configured_aws_mirror_commits_first_and_gates_extraction(
+    scratch_database, monkeypatch, mode, learning, outage
+):
+    from hirz.aws import memory as aws_memory
+
+    monkeypatch.setenv("HIRZ_MEMORY_ID", "hirz_test-1234567890")
+    monkeypatch.setenv("HIRZ_LLM", mode)
+
+    async def run():
+        async with connect(scratch_database) as c:
+            policy = POLICY.model_copy(
+                update={
+                    "learning": POLICY.learning.model_copy(
+                        update={"accept_memory_proposals": learning}
+                    )
+                }
+            )
+            p = await setup(c, policy=policy, native=True)
+            calls = []
+            checked = []
+
+            async def sdk_call(sdk, method, **kwargs):
+                if method == "client":
+                    return object()
+                calls.append((method, kwargs))
+                if method == "create_event":
+                    private = kwargs["payload"][1]["blob"]
+                    # A separate connection must see the committed turn before AWS.
+                    async with connect(scratch_database) as other:
+                        assert (
+                            await other.scalar(
+                                sa.select(sa.func.count())
+                                .select_from(db.session_turns)
+                                .where(db.session_turns.c.id == private["id"])
+                            )
+                            == 1
+                        )
+                    assert kwargs.get("extractionMode") == (
+                        None if mode == "bedrock" and learning == "manual" else "SKIP"
+                    )
+                    checked.append(True)
+                    if not outage:
+                        return {
+                            "event": {
+                                k: v
+                                for k, v in kwargs.items()
+                                if k not in {"clientToken", "extractionMode"}
+                            }
+                            | {"eventId": "1#abc"}
+                        }
+                raise RuntimeError("synthetic AWS outage")
+
+            monkeypatch.setattr(aws_memory, "call", sdk_call)
+            service = MemoryService(p)
+            assert isinstance(service.provider, aws_memory.AgentCoreMemory)
+            source = await turn(
+                service,
+                action_id="aws-mirror",
+                text="Private temperature preference 72",
+            )
+            assert calls[0][0] == "create_event"
+            assert checked == [True]  # Mirror failures must not hide test assertions.
+            assert await service.turns(PRINCIPAL, "one") == (source.record,)
+            assert await service.hints(PRINCIPAL, "one") == ()
+            summary, rows = await verify_database(
+                c, p.household_id, p.audit.key.public_key(), collect=True
+            )
+            assert summary["status"] == "valid"
+            assert all(
+                "Private temperature preference" not in str(row.payload) for row in rows
+            )
+            assert (
+                await c.scalar(
+                    sa.select(sa.func.count()).select_from(db.memory_proposals)
+                )
+                == 0
+            )
+            await c.rollback()
+
+    asyncio.run(run())
+
+
 def test_consent_replay_versions_private_storage_and_outage(scratch_database):
     async def run():
         async with connect(scratch_database) as c:

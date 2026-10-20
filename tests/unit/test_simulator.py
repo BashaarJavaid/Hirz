@@ -315,7 +315,17 @@ def test_selection_stops_before_unreserved_inference(
 
 
 @pytest.mark.parametrize(
-    "step", ["ask_user", "finish_request", "multiple", "stale_finish", "unknown"]
+    "step",
+    [
+        "ask_user",
+        "finish_request",
+        "suggest_temperature_preference",
+        "stale_suggestion",
+        "invalid_suggestion",
+        "multiple",
+        "stale_finish",
+        "unknown",
+    ],
 )
 def test_model_host_controls_never_execute_mcp(tmp_path, monkeypatch, step):
     from unittest.mock import Mock
@@ -329,11 +339,21 @@ def test_model_host_controls_never_execute_mcp(tmp_path, monkeypatch, step):
     agent = Mock()
     question = "Which door and how many minutes?"
     arguments = {"question": question} if step == "ask_user" else {}
+    if step in {
+        "suggest_temperature_preference",
+        "stale_suggestion",
+        "invalid_suggestion",
+    }:
+        arguments = {"value": 72, "confidence": 0.9, "quote": "I prefer 72°F."}
+    if step == "invalid_suggestion":
+        arguments["value"] = "private invalid value"
     selected = (
         "ask_user"
         if step == "multiple"
         else "finish_request"
         if step == "stale_finish"
+        else "suggest_temperature_preference"
+        if step in {"stale_suggestion", "invalid_suggestion"}
         else step
     )
     agent.messages = [
@@ -380,11 +400,17 @@ def test_model_host_controls_never_execute_mcp(tmp_path, monkeypatch, step):
     if step == "multiple":
         with pytest.raises(ValueError, match="exactly one"):
             selection.select("nova", tmp_path / "ledger", [], history, "Hi")
-    elif step in {"stale_finish", "unknown"}:
+    elif step in {"stale_finish", "stale_suggestion", "unknown"}:
         with pytest.raises(ValueError, match="unavailable tool"):
             selection.select("nova", tmp_path / "ledger", [], history, "Hi")
+    elif step == "invalid_suggestion":
+        with pytest.raises(ValueError) as error:
+            selection.select(
+                "nova", tmp_path / "ledger", [], history, "Hi", memory=True
+            )
+        assert str(error.value) == "Invalid temperature suggestion"
     else:
-        assert selection.select(
+        result = selection.select(
             "nova",
             tmp_path / "ledger",
             [],
@@ -392,10 +418,18 @@ def test_model_host_controls_never_execute_mcp(tmp_path, monkeypatch, step):
             "Hi",
             diagnostics,
             continuing=step == "finish_request",
-        ) == ([], question if step == "ask_user" else "")
-        assert history[-1]["content"][0]["toolResult"]["content"] == [
-            {"json": {"received": True}}
-        ]
+            memory=step == "suggest_temperature_preference",
+        )
+        if step == "suggest_temperature_preference":
+            assert result == ([(step, arguments)], "")
+            assert history[-1]["content"][0]["toolResult"]["content"] == [
+                {"text": PENDING}
+            ]
+        else:
+            assert result == ([], question if step == "ask_user" else "")
+            assert history[-1]["content"][0]["toolResult"]["content"] == [
+                {"json": {"received": True}}
+            ]
         assert diagnostics["stop_reason"] == "end_turn"
     names = [t.tool_name for t in factory.call_args.kwargs["tools"]]
     assert ("finish_request" in names) == (step == "finish_request")

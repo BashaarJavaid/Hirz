@@ -827,7 +827,7 @@ validation does not establish narrative truth.
 The optional canonical `narration` field stores `input_hash`, `version`, `provider`,
 `model_id`, `screen_summary` and `fallback_reason`; legacy objects omit it. Existing
 audited writes store narration without migrations. The pure planner and immediate
-Decision paths use templates. Coordinator and RefreshWorker allow explicit async
+Decision paths use templates. Coordinator, initial plan preparation and RefreshWorker allow explicit async
 enrichment outside transactions; refresh freshness checks run afterwards.
 Publication validates prepared narration or supplies templates. Reads reuse valid
 stored output, including fallback, and supply current templates for changed status
@@ -841,6 +841,11 @@ JSON-schema contract; live Bedrock remains item 38. Full validation limits, prov
 settings, privacy selection and rejected alternatives are in
 [ADR-012](./docs/adr/ADR-012-explainer.md); run procedures are in
 [development](./docs/development.md#item-21-explainer).
+Both worker compositions pass the configured provider to initial plans and
+refreshes; direct callers default to templates. Initial publication rechecks its
+snapshot after narration. Cancellation settles the bounded SDK thread before
+worker ownership is released, then propagates without publishing the response.
+The current AWS entrypoint and template still require models off.
 
 ### 5.9 Memory
 
@@ -851,8 +856,8 @@ Two stores with a clear split:
 - **Remember is consent-gated.** Extracted preferences arrive as `MEMORY_PROPOSED` audit rows and companion-app cards ("Hirz noticed you usually skip the car on Wednesdays. Remember that?"). Only accepted proposals are written to the graph (`source: learned_accepted`). The planner uses graph preferences only. A proposal that has not been accepted is never planner input; an explanation may say that a proposal is waiting in the app.
 
 **Item 20 local contract.** `hirz.memory.service.MemoryService` accepts trusted
-internal `Principal` objects. Public authentication and companion consent screens
-remain later work. `record_turn`, `propose` and `review` return the canonical
+internal `Principal` objects. Item 38 adds authenticated companion review and
+Simulator conversation capture below. `record_turn`, `propose` and `review` return the canonical
 `Decision` with a typed `Turn` or `Proposal`; a refusal has no returned record.
 `turns`, `proposals`, `hints` and `resolve` are scoped reads, with no audit mutation.
 There is no public memory CLI, extraction model, semantic search or AWS dependency.
@@ -871,8 +876,42 @@ The async provider contract appends/lists turns and lists recorded hints for the
 exact `Session` scope. Postgres commits first. Provider failures leave durable
 session reads available and hints absent; returned hints are scope-checked again.
 The in-process provider extracts nothing, and a fresh provider can start empty.
-The separation follows AgentCore's actor/session/namespace organization, not its
-unimplemented cloud API ([ADR-002](./docs/adr/ADR-002-postgres-over-dynamodb.md#consent-gated-memory-amendment--2026-09-21)).
+The optional item 38 provider implements AgentCore's actor/session/namespace
+organization ([ADR-002](./docs/adr/ADR-002-postgres-over-dynamodb.md#item-38-advisory-memory-provider--2026-10-19)).
+`HIRZ_MEMORY_ID` selects it; absent configuration retains the in-process provider.
+The actor is the household UUID hex plus `_` plus the member UUID hex. The session
+is SHA-256 of surface plus `:` plus the opaque session ID, keeping long Unicode
+IDs within AWS limits. Events carry conversational text and the canonical Turn in
+a non-extracted blob, with the durable Turn ID as the idempotency token. Reads
+validate both scope and embedded content, reject conflicting sequences, then sort
+and apply the canonical cursor. Advisory scans stop after ten 100-record pages;
+overflow fails the mirror read without affecting durable Postgres reads.
+
+The two built-in strategies use `/hirz/{actorId}/preferences/` and
+`/hirz/{actorId}/semantic/`. Long-term hints span the same member's sessions;
+returned namespaces must match exactly because AWS listing uses a prefix.
+Extraction is skipped unless `HIRZ_LLM=bedrock` and the current constitution permits
+memory proposals. Hints remain advisory text; this provider adds no transcript
+ingress or text-to-Candidate extraction. The deployment
+template keeps `HIRZ_LLM=off`; live strategy behavior remains unverified.
+
+The approved Simulator capture records actual user messages, free-text replies,
+displayed prompts and emitted assistant speech through `record_turn`. Each Echo
+has its own opaque session; relinking starts a new one. The host freshly verifies
+the linked OAuth token, planning scope and current member mapping for each write.
+Cards, tool arguments and cancelled speech do not become invented dialogue.
+The Simulator explains that conversations are saved under the linked account and
+temperature suggestions need approval in Household. Recording failure leaves
+the interaction available and logs only the exception type. Alexa MCP calls
+provide no complete transcript; this capture applies to the Simulator only.
+The Simulator's existing bounded model selection can propose a temperature through
+an internal host control. It binds the latest saved user turn, checks an exact
+supporting quote and matching explicit Fahrenheit value, and freshly resolves the
+linked account before `MemoryService.propose`. The control is unavailable without
+a saved source and after one suggestion in that utterance. It is not an MCP tool,
+does not execute a device, and does not bypass subject approval in Household.
+Scripted mode extracts nothing. AgentCore long-term hint interpretation and live
+model selection quality remain unverified; no inference is enabled by this wiring.
 
 Follow-ups resolve the latest explicit reference of the requested kind in exactly
 that conversation. The object must still belong to this household and be current:
@@ -895,6 +934,17 @@ changed retries cannot mutate anything again. Session recording, proposal events
 acceptance history and refresh holds commit with signed audit evidence or roll back
 together. Learning-disabled and native-policy rules are in
 [the constitution contract](./docs/constitution.md#item-20-internal-memory-permissions--2026-09-21).
+
+**Item 38 companion consent (locally verified).** Household shows the signed-in
+member's pending temperature suggestions with Remember and Don't remember actions.
+`GET /api/memory/proposals` uses the existing audit cursor (default 50, maximum
+100); `POST /api/memory/review` accepts only proposal ID, strict boolean consent
+and a bounded request ID. Both use the current passkey session and no-store
+responses; writes require the existing Origin/CSRF checks. Session revalidation,
+subject resolution, Pipeline review and response construction share the owned
+household transaction. No fresh passkey ceremony is added for preference consent.
+An owner cannot see or accept another member's suggestions. The routes expose no
+transcript or proposal-creation surface and invoke no model or Memory SDK.
 
 Only declared and accepted graph preferences enter the Coordinator. A member's
 explicit temperature request/band for the same room/window takes precedence over
@@ -1289,6 +1339,16 @@ sessions, household JWT checks, selection, consent, scenario controls and source
 labels. OAuth metadata and endpoints are restricted to configured MCP/issuer
 origins, with pre-registered public clients and no automatic tool retries
 ([ADR-021](./docs/adr/ADR-021-extracted-host-harness.md)).
+The item 38 Cognito adapter additionally permits only the configured login
+origin's exact authorization/token endpoints. It retains S256 when Cognito omits
+the discovery capability field, and rejects explicit conflicting metadata.
+Both local and Cognito linking resolve the current graph member before accepting
+the selected demo Echo; token household/role claims do not choose that identity.
+The worker prepares the Simulator only after the exact Runtime resource and
+companion callback are configured. Its Cognito callback is derived from that same
+origin, and its model ledger remains unset. This is local preparation; live
+login, Runtime traffic and Memory/model budgets still require acceptance
+([ADR-014](./docs/adr/ADR-014-local-oauth.md#item-38-cognito-simulator-composition--2026-10-19)).
 
 The MCP Apps bridge initializes opaque sandboxed cards and forwards actual
 protocol results without credentials. Show scales a 1280×800 canvas; Dot mounts no
@@ -1415,7 +1475,9 @@ cascading deletion. UUIDs are supplied by future application callers.
 | `audit_pointer` | `household_id UUID` primary/foreign key; `seq bigint >= 0 DEFAULT 0`; `curr_hash` as 64 lowercase hex characters, default 64 zeroes |
 
 One provider/sub may link to a member in each household, but only once within that
-household. Graph tables have no extra timestamps, defaults, or indexes beyond
+household at the database level. The item 38 Cognito self-link backend additionally
+serializes provider/sub globally and refuses any existing mapping: Runtime V1 has
+no cross-household selector and rejects ambiguous identities. Graph tables have no extra timestamps, defaults, or indexes beyond
 keys. History columns and repositories arrive in item 6; `rate_plan`, pause, and
 demo-lifecycle fields arrive with their roadmap behavior. No seed or pointer rows
 are inserted by the migration. Item 10 will implement audit signing and pointer
@@ -1464,6 +1526,14 @@ or any attempt audit row, preserving evidence even if a claim pointer was remove
 - **Speaker hook.** `requested_by.speaker` is an optional field, `null` on every surface today. If Alexa ever passes a recognized-speaker identifier with a confidence level, it maps to a member through `member_accounts` and is subject to the same rule as a claimed role: it can lower or match the token's authority, never raise it. Hirz never derives a speaker itself (`THREAT_MODEL.md`). The absence of this field in the add-on contract is logged as a Critical feature request in `docs/friction-log.md`.
 - **Children and guests.** Child profiles cannot link; requests come through a parent's account and the constitution's `child_requests` rules apply (`ask` the parent, or `never`). Unlinked users get the guest experience.
 - **Companion app.** Separate passkey login bound to the existing linked `member` row. Initial local enrollment requires an explicitly issued invitation; email is not a login authority. Recovery codes permit enrollment only, never approval. Successful recovery consumes the code, revokes old credentials/sessions/unused security votes, and issues a replacement code. An owner may re-invite another linked member, but cannot reset their own account this way. Owners without a remaining passkey or recovery code have no in-product recovery; setup encourages a second distinct credential without requiring one, and explains that passkeys can sync. Credential revocation invalidates its sessions and unused votes immediately, with another check at redemption. Last-key revocation requires explicit lockout confirmation.
+
+The item 38 Cognito link backend lets an enrolled non-child member link only their
+own current login, with an exact resource-bound token and a fresh passkey over its
+digest. Existing mappings cannot be reassigned. The grant, account row and audit
+commit together. Household starts a browser PKCE flow bound to the current session;
+the return consumes its state before token exchange and fresh passkey confirmation.
+The flow is locally verified; hosted Cognito and live acceptance remain pending
+([ADR-019](docs/adr/ADR-019-companion.md#item-38-self-linked-cognito-login--2026-10-19)).
 
 Local item 24 implements a separate simulated issuer and authenticated startup;
 [ADR-014](./docs/adr/ADR-014-local-oauth.md) specifies the lifetimes, limits,

@@ -118,15 +118,36 @@ final form; no form has been submitted by this review.
 >
 > Built on MCP 2025-11-25 (Streamable HTTP, OAuth 2.1 PKCE, MCP Apps following Amazon's add-on design guide), Python and TypeScript, PostgreSQL, Amazon Bedrock, and Amazon Bedrock AgentCore infrastructure, with Runtime/Memory integration and signed home commands still awaiting their live gates, with an Alexa+ simulator that hosts the real MCP server through an emulated orchestrator because add-on developer access is limited to select partners. The simulator's host harness and an add-on conformance checker are published as a separate open-source project.
 
-## Product feedback (template, one block per tool)
+## Product feedback draft — 2026-10-20
 
-For each of: Alexa+ MCP Toolkit docs and contract; the Alexa+ add-on design guide; MCP Apps SDK (`@modelcontextprotocol/ext-apps`); MCP Python SDK; AgentCore Runtime; AgentCore Gateway + Policy; Dogwood CLI; AgentCore Memory; AgentCore Identity; Amazon Bedrock (Claude, Nova); Strands Agents SDK; AWS KMS; Home Assistant API; the community Alexa Skill MCP bridge; Smartcar sandbox; ComEd Hourly Pricing API; Open-Meteo:
+These are factual draft notes for the final form, limited to retained evidence.
+Each friction link owns the exact error, date, workaround and feature request;
+copy from that record when completing the form. No onboarding duration was
+measured consistently enough to report. The author still supplies their own
+“would build with it again” answer; these notes do not invent that endorsement.
 
-- What it was used for.
-- What worked well (setup, docs, performance, reliability).
-- What needs improvement (errors, missing features, compatibility).
-- Onboarding: time from zero to hello world.
-- Would build with it again: yes/no and why.
+| Tool / API | What Hirz used and verified | Feedback / remaining limitation |
+|---|---|---|
+| Alexa+ MCP contract / Toolkit | Published contract informed the real MCP server, independent checker and emulated host. | Participant Toolkit access was unavailable; request a public test host. The organizer-approved Simulator is not a test on Alexa+ itself ([record](friction-log.md#entries)). |
+| Alexa+ add-on design guide | Tokens/display modes informed the five MCP cards; item 27 retains reference-host captures and checks. | Keep implementable token/display examples alongside the contract. Actual Alexa display acceptance remains unavailable ([evidence](verification-log.md#item-27-closure--2026-09-24)). |
+| MCP Apps SDK | Cards use the host bridge; the extracted harness also renders a non-Hirz reference card. | Published-package compatibility needs old-phone coverage; the retained syntax workaround is in the [friction record](friction-log.md#item-29-bridge-dependency-syntax-blanks-the-older-companion-phone--2026-09-26). |
+| MCP Python SDK | Real HTTP initialization, authenticated tools, OAuth and card resources are covered by SDK/browser checks. | Per-call validation had measurable latency; keep performance attribution visible rather than bypassing validation ([record](friction-log.md#item-26b-sdk-per-call-schema-validation--2026-09-24)). |
+| AgentCore Runtime | Acceptance infrastructure provisions Runtime; application composition and resource-bound auth are locally tested. | Full application warm/cold latency and action acceptance remain item 38. No Runtime performance claim is available ([evidence](verification-log.md#item-38)). |
+| AgentCore Gateway + Policy | Typed private tools, publication/recovery and correlated decision-evidence collection are implemented; full live acceptance is still running. | Strict whole-engine analysis, slow publication and paginated traces need clearer operational guidance; use the exact [item 37 records](friction-log.md#item-37--login-expiry-interrupted-long-policy-analysis--2026-10-18). |
+| Dogwood | Native validation/replay is the local equivalence reference; startup-prepared native policies satisfy the local latency gates. | Repeated native compilation was costly; document reuse of prepared policies without reusing authorization decisions ([record](friction-log.md#item-26-repeated-native-compilation-in-local-replay--2026-09-23)). |
+| AgentCore Memory | Scoped provider/strategy composition and subject consent are locally tested; PostgreSQL remains the canonical record. | Live extraction and cost controls remain gates. Provisioning/rollback behavior deserves clearer recovery instructions ([record](friction-log.md#item-37--memory-creation-blocks-cloudformation-rollback--2026-10-17)). |
+| AgentCore Identity | Item 36 verified scoped IAM denial and a signer-role positive control using a nonfunctional synthetic credential. | This is credential-boundary evidence, not a working cloud-device integration ([decision](adr/ADR-009-signed-commands-home-agent.md#item-36-infrastructure-secret-exception--2026-10-16)). |
+| Bedrock: Claude / Nova | Haiku-backed tool selection and Simulator gates passed under retained ledgers; narration/drafting use validated outputs and safe fallbacks. | CountTokens and schema compatibility need model-specific guidance. Nova acceptance is deferred; do not present it as passing ([records](friction-log.md#item-29-nova-lite-cannot-satisfy-pre-inference-token-counting--2026-09-26), [schema record](friction-log.md#item-29-nova-tool-schema-restrictions--2026-09-27)). |
+| Strands Agents SDK | The Simulator's orchestrator selects tools while Hirz code retains all authorization and execution decisions. | Tool-control placement needs concrete provider examples; the successful native request shape is retained ([record](friction-log.md#item-29-bedrocks-native-single-tool-control-placement--2026-09-26)). |
+| AWS KMS | Item 36 provisions a P-256 signing key and verifies IAM separation; item 38a now tests the digest signer contract locally. | Actual command signing and Link acceptance are pending. Do not claim a live signed device command ([decision](adr/ADR-009-signed-commands-home-agent.md#item-38a-local-command-foundation--2026-10-20)). |
+| Cognito | Resource-bound JWT verification, passkey-gated member linking and pinned Simulator PKCE are locally tested. | Explicit cross-origin endpoints and omitted discovery capabilities need documented host support; live login acceptance remains pending ([record](friction-log.md#2026-10-19--cognito-discovery-differs-from-the-pinned-hosts-single-origin-assumption)). |
+| CDK / Fargate / RDS | Item 36 deployed the approved private worker/database topology and verified its teardown. | Asset recursion, source permissions and private-origin cleanup produced specific workarounds; reuse the [recorded feedback](friction-log.md#item-36--app-runner-availability-and-cdk-asset-staging-2026-10-16). |
+| S3 Object Lock / EventBridge | Infrastructure includes the anchor bucket and worker tick. | Bucket provisioning does not prove anchored audit verification; item 38b remains open. Tick behavior and scope are in [ADR-008](adr/ADR-008-agentcore-topology.md). |
+| Home Assistant | Local demo API, subscriptions, bounded actions and restoration have signed evidence; Link's transport adds recorded checks. | Token scoping motivated the home-only credential boundary; the physical plug gate is pending ([decision](adr/ADR-009-signed-commands-home-agent.md), [API record](friction-log.md#item-15-ha-demo-contract--2026-09-20)). |
+| Community Alexa Skill MCP bridge | Planned read-only gallery clip only; not yet accepted against the AWS endpoint. | No firsthand success, onboarding duration or failure claim is made ([scope](adr/ADR-007-alexa-surface-strategy.md)). |
+| Smartcar sandbox | The current EV integration is a labeled twin. | No live sandbox integration or product feedback is claimed; remove from the final “used” inventory unless verified before submission. |
+| ComEd Hourly Pricing API | Recorded/live feed reads and retained backtest outputs support published estimates. | Archive gaps affect eligible-day coverage; preserve exclusions and source dates ([record](friction-log.md#item-14-energy-research--2026-09-20)). |
+| Open-Meteo | Live/read-only weather inputs and recorded planner fixtures are verified. | Keep forecast-time inputs separate from realized billing in comparisons; no unsupported service-performance claim is made ([evidence](verification-log.md#item-14--complete-2026-09-20)). |
 
 ## Judge run instructions (README section to finalize)
 

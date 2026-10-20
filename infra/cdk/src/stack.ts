@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 import {
-  Stack, ArnFormat, IgnoreMode, CfnOutput, CfnParameter, Duration, RemovalPolicy, SecretValue, Tags,
+  Stack, ArnFormat, IgnoreMode, CfnOutput, CfnParameter, Duration, RemovalPolicy, SecretValue, Tags, Fn,
   aws_bedrockagentcore as core, aws_cloudfront as cf, aws_cloudfront_origins as origins,
   aws_cognito as cognito, aws_ec2 as ec2, aws_ecs as ecs, aws_ecr_assets as assets,
   aws_elasticloadbalancingv2 as elb, aws_events as events, aws_events_targets as targets,
@@ -24,6 +24,17 @@ export class HirzStack extends Stack {
       type: 'String', description: 'Fixed UTC acceptance start; preserve on every update.',
       allowedPattern: '^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\+00:00$',
     });
+    const runtimeResource = new CfnParameter(this, 'RuntimeResource', {
+      type: 'String', default: '',
+      description: 'Exact resource from Runtime PRM after initial creation; empty refuses invocation.',
+      allowedPattern: '^$|^https://bedrock-agentcore\\.us-east-1\\.amazonaws\\.com/runtimes/arn%3Aaws%3Abedrock-agentcore%3Aus-east-1%3A661550216013%3Aruntime%2F[A-Za-z0-9_-]+/invocations\\?qualifier=DEFAULT$',
+    });
+    // Supply the created distribution's exact callback on the second deployment; avoid a resource cycle.
+    const companionCallback = new CfnParameter(this, 'CompanionCallbackUrl', {
+      type: 'String', default: 'http://localhost:8765/account-link',
+      description: 'Companion origin plus /account-link after initial creation; local placeholder keeps the browser flow disabled.',
+      allowedPattern: '^http://localhost:8765/account-link$|^https://[a-z0-9]+\\.cloudfront\\.net/account-link$',
+    });
     const vpc = new ec2.Vpc(this, 'Vpc', {
       ipAddresses: ec2.IpAddresses.cidr('10.36.0.0/16'),
       availabilityZones: ['us-east-1a', 'us-east-1b'], natGateways: 1,
@@ -33,6 +44,7 @@ export class HirzStack extends Stack {
       ],
     });
     const workerSg = new ec2.SecurityGroup(this, 'WorkerSecurity', { vpc });
+    const runtimeSg = new ec2.SecurityGroup(this, 'RuntimeSecurity', { vpc });
     const albSg = new ec2.SecurityGroup(this, 'OriginSecurity', { vpc });
     // AWS-managed CloudFront origin-facing prefix list in this fixed us-east-1 deployment.
     // https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-vpc-origins.html
@@ -53,6 +65,7 @@ export class HirzStack extends Stack {
       }),
     });
     database.connections.allowDefaultPortFrom(workerSg);
+    database.connections.allowDefaultPortFrom(runtimeSg);
     const appPassword = new secrets.Secret(this, 'DatabasePassword', {
       generateSecretString: { passwordLength: 40, excludePunctuation: true },
     });
@@ -111,6 +124,7 @@ export class HirzStack extends Stack {
     for (const role of [worker, setup]) {
       for (const secret of [appPassword, audit, tickSecret]) secret.grantRead(role);
     }
+    for (const secret of [appPassword, audit]) secret.grantRead(mcp);
     audit.grantWrite(setup);
     tickSecret.grantWrite(setup);
     database.secret!.grantRead(setup);
@@ -119,7 +133,10 @@ export class HirzStack extends Stack {
     const humanResource = pool.addResourceServer('HumanScopes', { identifier: 'hirz', scopes: humanScopes });
     const human = pool.addClient('Human', {
       generateSecret: false, accessTokenValidity: Duration.minutes(5),
-      oAuth: { flows: { authorizationCodeGrant: true }, callbackUrls: ['http://localhost:8765/callback'],
+      oAuth: { flows: { authorizationCodeGrant: true }, callbackUrls: [
+        'http://localhost:8765/callback', companionCallback.valueAsString,
+        Fn.join('', [Fn.select(0, Fn.split('/account-link', companionCallback.valueAsString)), '/api/simulator/callback']),
+      ],
         scopes: [cognito.OAuthScope.OPENID, ...humanScopes.map(s => cognito.OAuthScope.resourceServer(humanResource, s))] },
       preventUserExistenceErrors: true,
     });
@@ -134,7 +151,7 @@ export class HirzStack extends Stack {
     machineSecret.grantRead(setup);
     machineSecret.grantWrite(setup);
     setup.addToPolicy(new iam.PolicyStatement({ actions: ['cognito-idp:DescribeUserPoolClient'], resources: [pool.userPoolArn] }));
-    pool.addDomain('LoginDomain', { cognitoDomain: { domainPrefix: 'hirz-item36-661550216013' } });
+    const loginDomain = pool.addDomain('LoginDomain', { cognitoDomain: { domainPrefix: 'hirz-item36-661550216013' } });
     const discovery = `https://cognito-idp.${this.region}.amazonaws.com/${pool.userPoolId}/.well-known/openid-configuration`;
     const root = fileURLToPath(new URL('../../../', import.meta.url));
     const image = new assets.DockerImageAsset(this, 'Image', { directory: root, platform: assets.Platform.LINUX_ARM64, ignoreMode: IgnoreMode.DOCKER, exclude: ["infra/cdk/cdk.out", "**/node_modules", ".git", ".env"] });
@@ -142,9 +159,13 @@ export class HirzStack extends Stack {
     const runtime = new core.CfnRuntime(this, 'Runtime', {
       agentRuntimeName: 'hirz_item36', roleArn: mcp.roleArn,
       agentRuntimeArtifact: { containerConfiguration: { containerUri: image.imageUri } },
-      protocolConfiguration: 'MCP', networkConfiguration: { networkMode: 'PUBLIC' },
+      protocolConfiguration: 'MCP', networkConfiguration: {
+        networkMode: 'VPC', networkModeConfig: {
+          subnets: vpc.privateSubnets.map(s => s.subnetId), securityGroups: [runtimeSg.securityGroupId],
+        },
+      },
       authorizerConfiguration: { customJwtAuthorizer: { discoveryUrl: discovery, allowedClients: [human.userPoolClientId] } },
-      environmentVariables: { HIRZ_AWS_ROLE: 'mcp', HIRZ_LLM: 'off' },
+      requestHeaderConfiguration: { requestHeaderAllowlist: ['Authorization'] },
     });
     const runtimeLog = new logs.LogGroup(this, 'RuntimeLog', {
       logGroupName: `/aws/bedrock-agentcore/runtimes/${runtime.attrAgentRuntimeId}-DEFAULT`,
@@ -158,7 +179,17 @@ export class HirzStack extends Stack {
     void runtimeLog;
     const engine = new core.CfnPolicyEngine(this, 'PolicyEngine', { name: 'hirz_item36' });
     worker.addToPolicy(new iam.PolicyStatement({ actions: ['bedrock-agentcore:GetPolicyEngine', 'bedrock-agentcore:ListPolicies', 'bedrock-agentcore:CreatePolicy', 'bedrock-agentcore:GetPolicy', 'bedrock-agentcore:UpdatePolicy', 'bedrock-agentcore:DeletePolicy'], resources: [engine.attrPolicyEngineArn, `${engine.attrPolicyEngineArn}/policy/*`] }));
-    new core.CfnMemory(this, 'Memory', { name: 'hirz_item36', eventExpiryDuration: 3, memoryStrategies: [] });
+    const memory = new core.CfnMemory(this, 'Memory', {
+      name: 'hirz_item36', eventExpiryDuration: 3,
+      memoryStrategies: [
+        { userPreferenceMemoryStrategy: { name: 'MemberPreferences', namespaceTemplates: ['/hirz/{actorId}/preferences/'] } },
+        { semanticMemoryStrategy: { name: 'MemberFacts', namespaceTemplates: ['/hirz/{actorId}/semantic/'] } },
+      ],
+    });
+    for (const role of [mcp, worker]) role.addToPolicy(new iam.PolicyStatement({
+      actions: ['bedrock-agentcore:CreateEvent', 'bedrock-agentcore:ListEvents', 'bedrock-agentcore:ListMemoryRecords'],
+      resources: [memory.attrMemoryArn],
+    }));
     const code = lambda.Code.fromAsset(fileURLToPath(new URL('../../../hirz/aws/lambdas', import.meta.url)));
     const actionLog = new logs.LogGroup(this, 'ActionLog', { retention: logs.RetentionDays.ONE_WEEK, removalPolicy: RemovalPolicy.DESTROY });
     const signer = new lambda.Function(this, 'Signer', {
@@ -177,6 +208,15 @@ export class HirzStack extends Stack {
       authorizerConfiguration: { customJwtAuthorizer: { discoveryUrl: discovery, allowedClients: [machine.userPoolClientId], allowedScopes: ['hirz-gateway/invoke'] } },
       policyEngineConfiguration: { arn: engine.attrPolicyEngineArn, mode: 'LOG_ONLY' },
     });
+    runtime.environmentVariables = {
+      HIRZ_AWS_ROLE: 'mcp', HIRZ_LLM: 'off', HIRZ_RUNTIME_RESOURCE: runtimeResource.valueAsString,
+      HIRZ_COGNITO_ISSUER: `https://cognito-idp.${this.region}.amazonaws.com/${pool.userPoolId}`,
+      HIRZ_HUMAN_CLIENT: human.userPoolClientId, HIRZ_DATABASE_HOST: database.dbInstanceEndpointAddress,
+      HIRZ_DATABASE_NAME: 'hirz_item36', HIRZ_DATABASE_SECRET: appPassword.secretArn,
+      HIRZ_AUDIT_SECRET: audit.secretArn, HIRZ_POLICY_ENGINE: engine.attrPolicyEngineId,
+      HIRZ_MEMORY_ID: memory.attrMemoryId,
+      HIRZ_GATEWAY_ARN: gateway.attrGatewayArn, HIRZ_GATEWAY_URL: gateway.attrGatewayUrl,
+    };
     gatewayRole.addToPolicy(new iam.PolicyStatement({ actions: ['bedrock-agentcore:AuthorizeAction', 'bedrock-agentcore:PartiallyAuthorizeActions', 'bedrock-agentcore:GetPolicyEngine'], resources: [engine.attrPolicyEngineArn, this.formatArn({ service: 'bedrock-agentcore', resource: 'gateway', resourceName: 'hirz-item36-*' })] }));
     gatewayRole.addToPolicy(new iam.PolicyStatement({ actions: ['bedrock-agentcore:GetWorkloadAccessToken'], resources: [this.formatArn({ service: 'bedrock-agentcore', resource: 'workload-identity-directory', resourceName: 'default' }), this.formatArn({ service: 'bedrock-agentcore', resource: 'workload-identity-directory', resourceName: 'default/workload-identity/hirz-item36-*' })] }));
     worker.addToPolicy(new iam.PolicyStatement({ actions: ['bedrock-agentcore:InvokeGateway', 'bedrock-agentcore:ManageResourceScopedPolicy'], resources: [gateway.attrGatewayArn] }));
@@ -244,11 +284,22 @@ export class HirzStack extends Stack {
       this.formatArn({ service: 'bedrock', resource: 'inference-profile', resourceName: 'us.anthropic.claude-haiku-4-5-20251001-v1:0' }),
       this.formatArn({ service: 'bedrock', resource: 'inference-profile', resourceName: 'us.amazon.nova-lite-v1:0' }),
     ] }));
+    // The existing Protect/emulator budget gate counts Haiku input before inference.
+    // https://docs.aws.amazon.com/service-authorization/latest/reference/list_bedrock.html
+    worker.addToPolicy(new iam.PolicyStatement({ actions: ['bedrock:CountTokens'], resources: [
+      'arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0',
+    ] }));
     const cluster = new ecs.Cluster(this, 'Cluster', { vpc });
     const environment = {
       HIRZ_AWS_ROLE: 'worker', HIRZ_LLM: 'off', HIRZ_DATABASE_HOST: database.dbInstanceEndpointAddress,
+      HIRZ_RUNTIME_RESOURCE: runtimeResource.valueAsString,
+      HIRZ_COGNITO_ISSUER: `https://cognito-idp.${this.region}.amazonaws.com/${pool.userPoolId}`,
+      HIRZ_HUMAN_CLIENT: human.userPoolClientId,
+      HIRZ_COGNITO_LOGIN_ORIGIN: loginDomain.baseUrl(),
+      HIRZ_ACCOUNT_LINK_CALLBACK: companionCallback.valueAsString,
       HIRZ_DATABASE_NAME: 'hirz_item36', HIRZ_DATABASE_SECRET: appPassword.secretArn,
       HIRZ_AUDIT_SECRET: audit.secretArn, HIRZ_TICK_SECRET: tickSecret.secretArn,
+      HIRZ_MEMORY_ID: memory.attrMemoryId,
       HIRZ_COMPANION_ORIGIN: origin, HIRZ_COMPANION_RP_ID: distribution.distributionDomainName,
       HIRZ_FIXTURE_START: start.valueAsString, HIRZ_SCHEDULE_GROUP: group.ref,
       HIRZ_TICK_ARN: tick.functionArn, HIRZ_SCHEDULE_ROLE: scheduleRole.roleArn,
@@ -290,6 +341,7 @@ export class HirzStack extends Stack {
       AuditSecret: audit.secretArn, TickSecret: tickSecret.secretArn, CommandKey: signingKey.keyArn,
       IdentityProvider: identity.attrCredentialProviderArn, IdentitySecret: backingSecret,
       SignerRole: actions.roleArn, AnchorBucket: anchors.bucketName, Runtime: runtime.attrAgentRuntimeArn,
+      Memory: memory.attrMemoryId,
       Gateway: gateway.attrGatewayUrl, UserPool: pool.userPoolId, HumanClient: human.userPoolClientId,
       PolicyEngine: engine.attrPolicyEngineId, GatewayArn: gateway.attrGatewayArn, GatewayTarget: actionTarget.attrTargetId,
       MachineClient: machine.userPoolClientId, MachineSecret: machineSecret.secretArn,

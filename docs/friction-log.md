@@ -1366,3 +1366,43 @@ probe authenticated as HirzDeploy. Neither probe deployed resources.
 - **Suggestion:** include intermediate LOG_ONLY span examples and demonstrate
   how to locate and correlate the final AuthorizeAction event separately.
   Run results and cleanup are in the [verification entry](verification-log.md#final-acceptance-stopped-at-gateway-evidence-teardown-verified--2026-10-20).
+
+## Item 38 — pnpm refused shared worktree dependencies — 2026-10-19
+
+- **Tool / task:** pnpm 12.4.2, CDK tests in an isolated Git worktree.
+- **Severity:** Minor.
+- **Docs:** [Dependency installation](https://pnpm.io/cli/install).
+- **Observed error:** `ERR_PNPM_UNSAFE_TASK_RUN_STATE_PATH` followed by
+  `Refusing to use task run state directory at /private/tmp/hirz-item38/node_modules because it is a symbolic link or not a directory`.
+- **What happened:** An attempted shortcut linked the primary checkout's
+  `node_modules` into the separate worktree. The task runner correctly refused
+  the symlink; no documented security guarantee failed. A subsequent offline
+  install returned `ERR_PNPM_NO_OFFLINE_TARBALL` for `qified@0.10.1`.
+- **Response:** Removed only those dependency-directory symlinks and ran
+  `pnpm install --frozen-lockfile` in the isolated worktree. Installation and the
+  CDK checks then passed without changing package versions or the lockfile.
+- **Feature request:** Include an isolated-worktree example that recommends a
+  separate install and explains the task-state restriction on directory symlinks.
+
+
+### 2026-10-19 — Cognito discovery differs from the pinned host's single-origin assumption
+
+- **Tool/version:** Published `addon-host==0.1.0` and Amazon Cognito public OpenID discovery.
+- **Task:** Prepare the Simulator's real Cognito login without weakening endpoint pinning.
+- **References:** [host package](https://pypi.org/project/addon-host/0.1.0/), [Cognito authorization and S256 contract](https://docs.aws.amazon.com/cognito/latest/developerguide/authorization-endpoint.html).
+- **Expected:** The host can use the explicitly configured Cognito issuer and login domain with PKCE S256.
+- **Observed:** An offline contract probe against the installed library raises
+  `ValueError: Discovered endpoint is outside its configured origin` when given
+  Cognito's separate login origin. A read-only GET of the active acceptance pool's
+  public OpenID metadata returned HTTP 200, the exact issuer, authorization/token
+  endpoints on that separate origin, and no `code_challenge_methods_supported`
+  field. The host also requires that field to advertise S256. No login, token
+  exchange, resource mutation or live item 38 acceptance was attempted.
+- **Severity:** Major.
+- **Response:** Prepare a narrow application adapter for the exact configured
+  authorization/token endpoints. Preserve resource/issuer/other endpoint checks;
+  use Cognito's documented S256 contract only when its discovery omits the field,
+  rejecting explicit conflicting metadata. [Local validation passed](verification-log.md#cognito-simulator-composition-and-discovery-compatibility--2026-10-19); live Cognito acceptance remains pending.
+- **Feature request:** Support explicitly pinned cross-origin OAuth endpoints and
+  a documented-provider PKCE capability when metadata omits the optional field,
+  without accepting arbitrary discovered origins or downgrading PKCE.

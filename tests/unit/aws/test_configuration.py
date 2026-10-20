@@ -84,7 +84,17 @@ def test_fixture_is_stable_twin_and_covers_window(monkeypatch):
     assert first.execution_policy.version == 7
 
 
-def test_worker_request_evidence_omits_private_paths(monkeypatch, caplog):
+@pytest.mark.parametrize("resource", ["", "https://runtime.example.test/mcp"])
+@pytest.mark.parametrize(
+    "callback",
+    [
+        "http://localhost:8765/account-link",
+        "https://example.cloudfront.net/account-link",
+    ],
+)
+def test_worker_request_evidence_omits_private_paths(
+    monkeypatch, caplog, resource, callback
+):
     import asyncio
     import logging
     from unittest.mock import AsyncMock
@@ -94,11 +104,17 @@ def test_worker_request_evidence_omits_private_paths(monkeypatch, caplog):
     from fastapi import FastAPI
 
     from hirz.aws import app as aws_app
+    from tests.unit.aws.test_auth import CLIENT, ISSUER
 
     secret = "ab" * 32
     monkeypatch.setenv("HIRZ_LLM", "off")
     monkeypatch.setenv("HIRZ_COMPANION_ORIGIN", "https://example.cloudfront.net")
     monkeypatch.setenv("HIRZ_COMPANION_RP_ID", "example.cloudfront.net")
+    monkeypatch.setenv("HIRZ_RUNTIME_RESOURCE", resource)
+    monkeypatch.setenv("HIRZ_COGNITO_ISSUER", ISSUER)
+    monkeypatch.setenv("HIRZ_HUMAN_CLIENT", CLIENT)
+    monkeypatch.setenv("HIRZ_ACCOUNT_LINK_CALLBACK", callback)
+    monkeypatch.setenv("HIRZ_COGNITO_LOGIN_ORIGIN", "https://login.example.test")
     for field in ("HIRZ_POLICY_ENGINE", "HIRZ_GATEWAY_ARN", "HIRZ_GATEWAY_URL"):
         monkeypatch.setenv(field, "synthetic")
     monkeypatch.setattr(aws_app.config, "secret", lambda _: secret)
@@ -107,7 +123,8 @@ def test_worker_request_evidence_omits_private_paths(monkeypatch, caplog):
         aws_app, "signing_key", lambda _: ec.generate_private_key(ec.SECP256R1())
     )
     monkeypatch.setattr(aws_app, "Companion", Mock())
-    monkeypatch.setattr(aws_app, "create_app", lambda **kw: FastAPI())
+    factory = Mock(side_effect=lambda **kw: FastAPI())
+    monkeypatch.setattr(aws_app, "create_app", factory)
     monkeypatch.setattr(aws_app, "tick", AsyncMock())
     caplog.set_level(logging.INFO, logger="uvicorn.error")
 
@@ -123,6 +140,26 @@ def test_worker_request_evidence_omits_private_paths(monkeypatch, caplog):
             assert response.status_code == 204
 
     asyncio.run(run())
+    verifier = aws_app.Companion.call_args.kwargs["account_verifier"]
+    if resource:
+        assert (verifier.issuer, verifier.resource, verifier.client_id) == (
+            ISSUER,
+            resource,
+            CLIENT,
+        )
+    else:
+        assert verifier is None
+    assert aws_app.Companion.call_args.kwargs["account_login_origin"] == (
+        "https://login.example.test"
+        if resource and callback == "https://example.cloudfront.net/account-link"
+        else None
+    )
+    simulator = factory.call_args.kwargs["simulator"]
+    if resource and callback == "https://example.cloudfront.net/account-link":
+        assert simulator.issuer == ISSUER and simulator.mcp_url == resource
+        assert simulator.ledger is None
+    else:
+        assert simulator is None
     evidence = [r.message for r in caplog.records if "item36_request" in r.message]
     assert evidence == [
         "item36_request kind=other status=404",

@@ -9,6 +9,7 @@ import { Approvals } from "./pages/Approvals";
 import { ConstitutionPage } from "./pages/Constitution";
 import { Checkins, ContactLink } from "./pages/Checkins";
 import { Household } from "./pages/Household";
+import { AccountLinkReturn } from "./components/AccountLink";
 import { Audit } from "./pages/Audit";
 import { Twin } from "./pages/Twin";
 import type { Session } from "./types";
@@ -89,6 +90,7 @@ function Shell({ session, refresh }: { session: Session; refresh: () => void }) 
         <Route path="/constitution" element={<ConstitutionPage />} />
         <Route path="/approvals" element={<Approvals />} />
         <Route path="/household" element={<Household />} />
+        <Route path="/account-link" element={<AccountLinkReturn />} />
         <Route path="/checkins" element={<Checkins />} />
         <Route path="/audit" element={<Audit />} />
         <Route path="/twin" element={<Twin />} />

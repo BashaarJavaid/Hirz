@@ -1,8 +1,227 @@
 # Development procedures
 
-The existing stack setup and credential recovery procedures remain in the
-[README](../README.md#local-development-stack-phase-0-items-2–3) until their planned
-move before submission. This page owns the new graph operating procedures.
+Run commands from the repository root. This page owns setup, credential recovery,
+CI mechanics and the component operating procedures; the [README](../README.md#quickstart)
+keeps the short demo path.
+
+## Scaffold setup (Phase 0, items 1–3)
+
+The Python package has a liveness endpoint, local-development bootstrap checks,
+the foundation and versioned household graph managed by Alembic, and `hirz doctor`.
+Item 6 adds explicit demo seeding and redacted current/historical context reads;
+see [graph development procedures](#item-6-migrate-seed-inspect). The `web` and `mcp-app`
+workspaces contain the companion pages, simulator, MCP App cards, unit tests and
+browser suites. The decision pipeline, read-only `hirz decide` preview and durable
+local worker execution are implemented; the dev Compose Hirz container remains
+liveness only.
+See [decision preview prerequisites](#decision-preview-item-11).
+
+Verified toolchain: Python **3.12.13**, uv **0.12.15**, Node **24.21.0**, and pnpm
+**12.4.2**. Python is selected by `.python-version`; pnpm is recorded in
+`package.json`. Direct dependencies are pinned exactly, with both lockfiles checked in.
+
+On macOS with Homebrew, install the tools and select Node 24 for this shell only
+(Homebrew installs its currently available versions):
+
+```bash
+brew install uv pnpm node@24
+export PATH="$(brew --prefix node@24)/bin:$PATH"
+```
+
+From the repository root:
+
+```bash
+uv sync --locked
+pnpm install --frozen-lockfile
+pnpm --filter mcp-app build
+# First build/export the pinned Dogwood CLI (docs/development.md, item 7).
+uv run pytest
+uv run ruff check .
+uv run ruff format --check .
+uv run mypy hirz/ scripts/ alembic/
+pnpm -r lint
+pnpm -r typecheck
+pnpm -r test
+uv build
+```
+
+Default Python tests cover the implemented components without AWS or database
+access; the WebSocket test binds a temporary local port. The TypeScript workspaces
+run their service-free unit tests. Python's **80% line-coverage gate over `hirz/`**
+combines the service-free and disposable PostgreSQL suites:
+
+```bash
+uv run pytest
+uv run pytest -m integration --cov=hirz --cov-append
+uv run --locked coverage report --fail-under=80
+```
+
+The second command needs the local PostgreSQL service. These tests do not certify
+the live AWS or physical-device gates.
+
+## Continuous integration (Phase 0, item 4)
+
+The [CI workflow](../.github/workflows/ci.yml) runs on pushes, pull requests, and
+manual dispatch using Ubuntu 24.04 x64 and the pinned toolchain above. It runs
+Python lint/types/tests with the 80% coverage gate, TypeScript lint/types/Vitest,
+Python package and fresh-wheel checks, and Docker build/non-root checks.
+The Python test job initializes an isolated Compose stack and runs migrations,
+`alembic check`, doctor, authenticated service checks, and the live PostgreSQL
+tests. Generated credentials stay in the runner's ignored `.env`; cleanup removes
+only that run's containers, volumes, and credentials.
+
+All twelve architecture job IDs are present, including the separate `companion` browser-smoke job. Scenarios and local Cedar checks run;
+add-on conformance runs the pinned [addon-check](https://github.com/BashaarJavaid/addon-check)
+against disposable households ([procedure](#independent-add-on-checks-item-25a)).
+Latency runs both scenario gates on manual dispatch; release remains a
+**successful placeholder**. Browser suites and frontend bundles are implemented.
+No AWS secrets or publication are involved.
+There are no cross-run dependency/Docker caches or artifact uploads.
+
+On GitHub, open **Actions → CI → Run workflow** for manual dispatch.
+Phase 0 item 4 is complete (2026-09-17); the workflow now has twelve job IDs,
+including `companion` ([split-job evidence](verification-log.md#d9a7dfc--separate-companion-ci-job)).
+Green placeholders do not claim application behavior or protection. Item 5
+was subsequently completed as recorded in [the roadmap](../ROADMAP.md).
+
+## Local development stack (Phase 0, items 2–3)
+
+Start Docker before running these commands from the repository root:
+
+```bash
+uv sync --locked
+uv run python scripts/init_dev.py
+docker compose -f compose.dev.yml up -d --build
+uv run alembic upgrade head
+uv run hirz doctor
+uv run python scripts/check_dev.py
+```
+
+The initializer creates missing local credentials in ignored `.env` (mode `0600`),
+starts Postgres and Home Assistant, completes HA onboarding, and saves a 365-day
+long-lived token. It also creates an unencrypted PKCS#8 P-256 private key as a
+quoted multiline `AUDIT_SIGNING_KEY`, only after confirming an empty audit database.
+It preserves existing credentials, valid keys, and unrelated `.env` entries;
+rerunning it reuses a valid token. Do not run initializers concurrently. Initial
+image downloads can take several minutes; readiness waits are bounded to 180 seconds.
+Use a regular, nonsymlink `.env` with mode `0600` for these credentials, not competing
+shell environment variables. Commands run from the checkout root; the database/user
+are `hirz` at `127.0.0.1:5432`, and HA is at `http://127.0.0.1:8123`. Endpoint
+configuration for deployment is deferred.
+
+| Service | Address | What exists now |
+|---|---|---|
+| Hirz | <http://localhost:8000/health> | `200 {"status":"ok"}`; process liveness only |
+| Home Assistant | <http://localhost:8123> | Real API, demo devices (**simulated**) |
+| PostgreSQL | `localhost:5432` | Database/user `hirz`; foundation, graph/history, and context view after migration |
+| Jaeger, optional | <http://localhost:16686> | In-memory traces; no Hirz instrumentation yet |
+
+All published ports bind to `127.0.0.1`. The dev Hirz container serves process
+liveness only, with no `/ready`, MCP, API docs, worker or companion pages in that
+container. Authenticated MCP, the local worker, companion pages and simulator are
+implemented and run through the explicit launchers described in the quickstart.
+The dev container contains no device credentials. The development
+container sets `HIRZ_LLM=off` and needs no AWS account. HA uses “Hirz Demo,” English,
+`America/Chicago`, US customary units, username `hirz`, and display name “Hirz Developer.”
+Retrieve the generated password privately from `.env` to sign into HA.
+
+HA's unmodified demo integration supplies the entities; the checker requires
+`climate.ecobee`, `cover.garage_door`, `light.bed_light`, and
+`sensor.outside_temperature`. Native onboarding also initializes `google_translate`,
+`met`, `radio_browser`, and `shopping_list`, plus frontend dependencies. Analytics
+sharing stays off. These are demo infrastructure, not household actions; neither
+script calls device services or substitutes for the future decision pipeline.
+
+HA's [installation guide](https://www.home-assistant.io/installation/linux/)
+excludes Docker Desktop from its supported Container setup. This demo-only stack
+passed on macOS ARM64 with Docker Desktop **4.87.0**, Engine **29.7.2**, and Compose
+**5.4.0** on **2026-09-17**; it does not establish physical-device support.
+If it fails on your runtime, retain the volumes and investigate before switching
+runtimes. No host networking, privileged mode, or physical-device mounts are used.
+
+For the roadmap's direct authenticated API check, pass the header through stdin
+so the token is absent from curl's command-line arguments:
+
+```bash
+uv run python -c 'from dotenv import dotenv_values; print("Authorization: Bearer " + dotenv_values(".env", interpolate=False)["HA_TOKEN"])' \
+  | curl --fail --silent --show-error --header @- http://localhost:8123/api/states
+```
+
+The response contains demo entities. Without that header, HA returns `401`.
+`check_dev.py` additionally checks a password-authenticated Postgres query and Hirz
+liveness; it prints entity IDs and results, never credentials.
+
+```bash
+# Rebuild after Python source/dependency changes; no source mount or reload watcher.
+docker compose -f compose.dev.yml up -d --build
+
+# Optional Jaeger; OTLP ports 4317/4318 remain internal to Compose.
+docker compose -f compose.dev.yml --profile observability up -d
+uv run python scripts/check_dev.py --observability
+
+# Stop all services, retaining Postgres and HA named volumes and .env.
+docker compose -f compose.dev.yml --profile observability down
+```
+
+The observability check submits one disposable `hirz-dev-check` trace from inside
+the Compose network and retrieves it by ID. Jaeger stores traces in memory and
+loses them on restart. No tracing SDK is installed in Hirz.
+
+**Recovery:** if HA is already onboarded and `HA_TOKEN` is absent, invalid, or
+expired, sign into HA with the original credentials, finish any pending onboarding,
+then create a replacement under **Profile → Security → Long-lived access tokens**.
+Revoke an obsolete “Hirz local development” token before reusing its name. Save the
+replacement as `HA_TOKEN` in `.env` and rerun initialization. The script does not
+automatically sign in again or edit HA authentication storage. Missing credentials
+for existing volumes require restoring the original `.env`; changing the Postgres
+environment variable does not change a persisted database password. Inspect service
+status with `docker compose -f compose.dev.yml ps`; do not publish `.env`, rendered
+Compose configuration, or container inspection output containing credentials.
+
+**Local diagnostics and migrations:** `uv run hirz doctor` prints four named
+PASS/FAIL lines for password-authenticated Postgres, HA demo entities, an in-memory
+P-256 sign/verify probe, and migration currency plus the presence of graph tables and `household_context`.
+Each check has a ten-second deadline and no retry. All checks run; exit status is
+0 only if every check passes, otherwise 1. It performs no repairs, migrations,
+audit writes, or device actions. It does not check full schema drift, constitution
+compilation, or AWS yet. There is no `--json` or `--aws` mode in item 3.
+
+Apply migrations explicitly with `uv run alembic upgrade head`; neither the server
+nor initialization applies them. `uv run alembic check` compares the schema with
+Core metadata for Alembic-supported differences. **`uv run alembic downgrade base`
+destroys the application tables, graph history, and their data**; use it only on disposable data.
+Migrations insert no seed or audit rows. Graph history, repositories, and explicit
+seeding are documented in [development procedures](#item-6-migrate-seed-inspect);
+audit-chain execution remains item 10.
+
+**Signing-key recovery:** back up `.env` privately. Missing keys are generated only
+for a completely unmigrated database or a consistent migrated schema with no audit
+rows. Any audit rows, partial schema, or database-check failure blocks creation.
+Malformed, encrypted, or wrong-curve keys fail without replacement. Restore the
+original key and resolve database problems; never delete audit data to make setup
+pass. Local private-key material stays in `.env`, never in the liveness container.
+
+With the local database running, explicitly run its integration tests:
+
+```bash
+uv run pytest -m integration --no-cov
+```
+
+These tests use the `.env` database credentials to create uniquely named
+`hirz_test_*` databases, exercise migrations and constraints with synthetic schema
+fixtures, and drop only those databases afterward. Default `uv run pytest` excludes
+them; the combined coverage procedure above enforces the 80% gate. Execution
+tests use real Pipeline grants in disposable households.
+
+**Destructive reset, only when intentionally discarding this demo's data:**
+
+```bash
+docker compose -f compose.dev.yml --profile observability down --volumes
+```
+
+This deletes both the database and HA state. Remove only `HA_TOKEN` from `.env`
+(preserving unrelated entries), then rerun the first-start commands. Ordinary
+shutdown uses `down` without `--volumes`. Never use this reset to recover a token.
 
 ## Item 6: migrate, seed, inspect
 
@@ -1979,9 +2198,11 @@ relock. No extra browser matrix is required.
 
 ## Item 36 AWS acceptance
 
-**Status: live acceptance underway; item 36 is incomplete.** The scoped
-service-charge review and current acceptance window are recorded in the
+**Historical item 36 procedure; acceptance completed on 2026-10-17**
+([closure](verification-log.md#item-36-closure--2026-10-17)). The original scoped
+service-charge review is retained in the
 [evidence log](verification-log.md#acceptance-window-opened--2026-10-16).
+A completed window is not authorization to deploy again.
 Taxes are an explicitly accepted exception
 ([ADR-008](adr/ADR-008-agentcore-topology.md#tax-exception--2026-10-16)); they no
 longer block deployment. Refresh credit eligibility, late-reported usage and other
@@ -2212,7 +2433,7 @@ secrets, logs, repositories and buckets. Stack deletion by itself is not the fin
 no-billable-resources evidence. Failed or partial cleanup must be reported and
 repaired immediately, never labeled complete. The teardown helper's retry path
 uses retained pre-destruction inventory; keep that private directory until cleanup
-is verified. Item 36 stays open until every live gate and teardown passes.
+is verified. A new acceptance is not complete until every applicable live gate and teardown passes.
 
 ## Item 37 policy acceptance
 
@@ -2321,3 +2542,195 @@ A smaller isolated probe must establish strict conditional-policy acceptance,
 record any actual expected hard-deny rejection before its exception, and verify
 restoration before full acceptance. Preserve existing stack/resource names. No
 completion is earned until every original acceptance gate and teardown passes.
+
+## Item 38 Runtime preparation (local only)
+
+The Runtime composition and private network template are described in
+[ADR-008](adr/ADR-008-agentcore-topology.md#item-38-runtime-composition-locally-verified--2026-10-19).
+They have not been deployed. Do not update the active item 37 stack from the item
+38 checkout. Local account linking and Simulator memory are prepared below;
+durable inference budgets, full acceptance automation and live verification
+remain unfinished.
+
+For the future reviewed deployment, keep `WorkerDesiredCount=0` during initial
+creation and explicit database/bootstrap initialization. Obtain the exact public
+PRM `resource` for the created Runtime; set `RuntimeResource` to that value in the
+second stack deployment, preserving `FixtureStart`. The entrypoint refuses an
+empty resource. Never substitute the container's `/mcp` URL for the public
+resource audience, or omit its qualifier. Apply the reviewed deployment-role
+template before configuring VPC access if its network service-linked-role
+permission is absent. No extra always-on resource is introduced.
+
+The existing `us-east-1a`/`us-east-1b` subnets map to supported `use1-az1`/`use1-az2`
+in account `661550216013` (read-only verification on 2026-10-19); verify the mapping
+again before a future deployment. Acceptance must account for Runtime's
+documented VPC-interface deletion delay inside its approved cleanup deadline.
+The item 37 live runner is not an item 38 acceptance runner.
+
+### Runtime discovery and read smoke
+
+`scripts/smoke_runtime.py` prepares the read-only part of item 38 acceptance. It
+uses the official MCP SDK to verify the public 401 challenge and PRM, the exact
+twelve-tool catalog and a protected read of the expected linked household. The
+resource URL includes `qualifier=DEFAULT`; region and escaped ARN are derived
+from the explicit Runtime ARN. The Cognito pool must be in that region. AWS's
+[Runtime contract](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-mcp.html)
+defines the public metadata URL. No discovered URL can redirect the anonymous
+metadata fetch, and only the authenticated Runtime client receives the token.
+
+Run this only inside a separately approved item 38 acceptance window; read-only
+Runtime calls can incur service charges. First self-link the member through the
+companion and obtain their resource-bound Cognito access token through PKCE.
+Store it as `HIRZ_ACCEPTANCE_TOKEN` in a regular, nonsymlink, mode-0600 `.env`
+file under the private acceptance directory. Do not pass the token on the command
+line. The script does not create accounts, refresh tokens or deploy resources.
+
+```sh
+uv run --locked python -m scripts.smoke_runtime \
+  --runtime-arn '<Runtime output>' --user-pool '<UserPool output>' \
+  --household '<expected household UUID>' \
+  --token-file secrets/item38-acceptance/.env \
+  --output secrets/item38-acceptance/runtime-read.json
+```
+
+The new output file is exclusive and private. It contains checks and elapsed
+times, not tokens, member data or the household response. Errors suppress upstream
+details and return nonzero. `initialization_ms` is an observed initialization;
+it does **not** establish a cold start, and a single read is not a warm-p95 test.
+The report explicitly lists the remaining worker, Gateway, Link, anchor, tick,
+companion/demo, model/Memory and latency checks. Passing this smoke does not pass
+the complete `hirz doctor --aws` gate, which is still pending.
+
+Local verification uses recorded HTTP with the real SDK and the existing Runtime
+composition in disposable PostgreSQL databases:
+
+```sh
+uv run pytest tests/unit/aws/test_runtime_smoke.py tests/unit/aws/test_runtime.py --no-cov
+HIRZ_LLM=off uv run pytest tests/integration/test_runtime_database.py -m integration --no-cov --tb=short
+```
+
+### Memory, narration and account linking
+
+The optional Memory provider is locally verified against the pinned SDK schema.
+`HIRZ_MEMORY_ID` selects the deployed ID (not its ARN); unset it for offline local
+work. `MemoryService` commits to PostgreSQL first and mirrors outside that
+transaction. Extraction stays skipped with the template's `HIRZ_LLM=off` and when
+the constitution disables learning. The provider alone does not convert long-term hints into typed proposals; the
+Simulator capture and consent path is described below. Contract and limits:
+[architecture §5.9](../ARCHITECTURE.md#59-memory).
+
+```sh
+uv run pytest tests/unit/aws/test_agentcore_memory.py tests/unit/test_memory.py --no-cov
+uv run pytest tests/integration/test_memory_database.py -m integration --no-cov --tb=short
+```
+
+Worker narration preparation is also locally verified: initial plans and refreshes
+share the configured Explainer, and cancellation waits for the bounded SDK thread.
+The AWS entrypoint still rejects inference-enabled startup. Before changing that
+for a future reviewed acceptance, supply the explicit drafting model and durable
+Protect/emulator budget configuration, and verify the worker's permissions and
+aggregate spend limits. No local test here authorizes paid model calls.
+
+```sh
+uv run pytest tests/unit/test_explainer.py tests/unit/aws/test_evidence.py --no-cov
+uv run pytest tests/integration/test_explainer_database.py tests/integration/test_aws_worker.py tests/integration/test_household_tools_database.py -m integration --no-cov --tb=short
+```
+
+Household now exposes authenticated review of existing pending Memory proposals.
+Sign in as the subject member; the owner's session cannot review another member's
+preferences. The UI does not create proposals or ingest transcripts. Local HTTP
+tests use real passkey enrollment and disposable PostgreSQL; the browser test
+uses synthetic responses to check presentation and accessibility only.
+
+```sh
+uv run pytest tests/integration/test_memory_http.py tests/integration/test_memory_database.py tests/integration/test_companion_http.py -m integration --no-cov --tb=short
+# With the local Vite server already running:
+HIRZ_BROWSER_BACKEND=http://127.0.0.1:5173 pnpm --filter web test:browser tests/memory.spec.ts
+```
+
+The self-link backend is also locally verified. `GET /api/account-link` requires
+the companion session and returns its binding plus link status. A `link_account`
+passkey begin request supplies that binding and a current Cognito access token;
+finish must supply the identical token with the assertion. Neither request may
+select a member. The worker uses `HIRZ_COGNITO_ISSUER`, `HIRZ_HUMAN_CLIENT` and the
+exact `HIRZ_RUNTIME_RESOURCE`; without the resource, linking is unavailable.
+Do not manually insert account mappings or paste real tokens into shell history.
+Household now supplies the browser PKCE/redirect flow. In the second reviewed
+deployment, also set `CompanionCallbackUrl` to the exact created companion origin
+plus `/account-link`; preserve `FixtureStart`. The worker enables the link button
+only when that callback matches its origin and `RuntimeResource` is populated.
+The local placeholder is not a production callback. Actual Cognito UI/CORS and
+hosted/phone acceptance remain unverified. The flow consumes its state on an
+attempt; if login or the passkey fails, return to Household and start again.
+
+```sh
+uv run pytest tests/unit/test_account_link.py tests/unit/test_companion_api.py tests/unit/test_companion_auth.py tests/unit/aws/test_auth.py tests/unit/aws/test_configuration.py tests/unit/aws/test_runtime.py --no-cov
+uv run pytest tests/integration/test_account_link_database.py tests/integration/test_companion_auth_database.py tests/integration/test_companion_http.py -m integration --no-cov
+HIRZ_BROWSER_BACKEND=http://127.0.0.1:5175 pnpm --filter web test:browser tests/account-link.spec.ts tests/memory.spec.ts
+```
+
+
+Approved Simulator conversation capture uses the same disposable launcher. The
+application requires its matching OAuth verifier and Companion service; each
+stored turn rechecks planning scope and current linked membership. Use models off
+for local acceptance. It does not infer a transcript from MCP arguments. Scripted
+mode creates no temperature suggestions; the configured model selector can propose
+explicit personal Fahrenheit preferences for review using its existing bounded
+call path. Live model quality and AWS strategy behavior still need acceptance.
+
+```sh
+uv run pytest tests/unit/test_simulator_memory.py tests/unit/test_simulator.py --no-cov
+uv run pytest tests/integration/test_simulator_memory_database.py -m integration --no-cov --tb=short
+HIRZ_DOGWOOD="$PWD/.tools/dogwood" HIRZ_LLM=off uv run --locked python -m scripts.simulator_demo --origin https://hirz.example.test --port 8172 --issuer-port 8173 --artifacts-dir /tmp/item38-memory-unique --browser-test
+```
+
+Build both apps first using the item 29 procedure. The launcher verifies signed
+exports and removes its disposable database; it does not migrate development.
+Private audit evidence contains hashes and decisions, not the saved dialogue.
+
+
+The prepared AWS worker now composes the Simulator when `RuntimeResource` is set
+and `CompanionCallbackUrl` equals its exact origin plus `/account-link`. CDK derives
+and registers `/api/simulator/callback` from that same callback parameter. No new
+parameter or placeholder deployment is needed. Linking uses the configured human
+client, Cognito scopes and current passkey-linked graph member. The host still
+uses the three explicit demo Echo labels, and no paid host ledger is installed.
+Do not deploy this preparation before the outstanding Memory-event/inference
+budget and live acceptance plan are reviewed.
+
+```sh
+uv run pytest tests/unit/test_simulator_oauth.py tests/unit/test_simulator.py tests/unit/test_simulator_memory.py tests/unit/test_oauth.py tests/unit/aws/test_configuration.py --no-cov
+uv run pytest tests/integration/test_account_link_database.py tests/integration/test_simulator_memory_database.py -m integration --no-cov --tb=short
+pnpm --filter infra test
+```
+
+The local browser procedure above verifies the same membership callback with the
+local issuer. It cannot establish hosted Cognito UI, deployed callbacks or Runtime
+connectivity. The Cognito adapter's provider-specific limit is in
+[ADR-014](adr/ADR-014-local-oauth.md#item-38-cognito-simulator-composition--2026-10-19).
+
+## Item 38a local Link protocol
+
+Run from the checkout with native Dogwood configured and the existing local
+PostgreSQL service available:
+
+```bash
+HIRZ_LLM=off uv run --locked python -m scripts.smoke_link --artifacts-dir secrets/link-local-smoke
+```
+
+The output directory must not exist. The smoke creates a disposable twin
+database, obtains real Pipeline grants, signs with an explicit ephemeral local
+key, executes and verifies the opening, refuses a replay, reopens the private
+Link journal, and verifies the preauthorized ending. It verifies the signed audit
+both in the database and from the exported file, then drops only its disposable
+database. Private artifacts are mode 0600 under a mode-0700 directory; preserve
+the journal and report as evidence. No development migration, AWS request or
+physical device action occurs.
+
+This smoke's twin adapter still uses local PostgreSQL for execution accounting.
+The unit restart cases separately exercise the journal/ending algorithm without
+a cloud or database service, and HA transport tests use recorded HTTP responses.
+Neither is a physical offline-relock claim. The relay, receipt ingestion,
+observation stream, daemon and production Lambda remain unwired; there is no
+operational `compose.link.yml` deployment yet. Implementation details and rejected
+alternatives live in [ADR-009](adr/ADR-009-signed-commands-home-agent.md#item-38a-local-command-foundation--2026-10-20).

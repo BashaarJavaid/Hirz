@@ -75,6 +75,8 @@ fallback. Spoken yes/no or a single scalar can answer each pending question; fie
 one at a time and retain a labeled typed form. The transcript distinguishes processing
 from human wait, and reconnection never re-speaks old results. Rule activation and
 security approval link to the independently authenticated companion app.
+The frame also explains that linked conversations are saved under that account
+and that temperature suggestions require approval in Household.
 
 Playback is a companion-authorized control. A contact reply is explicitly labeled
 simulated, updates the genuine verification case, and is spoken only after a new
@@ -209,3 +211,13 @@ as activation; blocked restoration explicitly requires operator repair. The
 review warns that queued AWS rules have not yet taken effect. These states are
 polled through the existing Constitution resource; there is no optimistic
 activation or cloud call in a public Alexa tool.
+
+### Preference suggestions — 2026-10-19
+
+Household uses the existing Panel and AsyncButton components for the signed-in
+member's pending temperature suggestions. Each shows the temperature and proposal
+date, with Remember and Don't remember buttons. Both disable while its review is
+pending; success appears only after an executed response with the expected status.
+Refusals stay visible with a retryable error. Refresh and cursor-based paging are
+explicit. No transcript, internal identifier or another member's suggestion is
+rendered. Preference consent uses the current authenticated session.

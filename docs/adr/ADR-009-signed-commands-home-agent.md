@@ -68,3 +68,38 @@ or signed device execution yet; those remain items 38b and 38a/38d respectively.
 Storing adapter credentials in worker environment variables, sharing the RDS master
 login, silently repairing signing keys, and treating the LOG_ONLY placeholder as
 policy enforcement were rejected. See the [acceptance procedure](../development.md#item-36-aws-acceptance).
+
+## Item 38a local command foundation — 2026-10-20
+
+The first local implementation signs the existing canonical `Action`, including
+its exact inverse, inside a versioned envelope with one home, a nonce and a
+maximum 60-second lifetime. It reuses the executor contract and RFC 8785 hashing;
+there is no second action shape or worker-supplied hash authority. The signer
+recomputes the hash before calling either an explicitly supplied development key
+or the exact configured KMS key. KMS receives the SHA-256 digest with
+`MessageType=DIGEST` and `ECDSA_SHA_256`; provider failures have no local-key
+fallback. The production Lambda remains inert until its policy input and
+packaging are wired and verified.
+
+Link's private SQLite journal atomically consumes the nonce, action ID and
+24-hour semantic replay claim, saves the bounded ending, and queues a local
+execution receipt before dispatch. A crashed or uncertain opening is not retried.
+The journal pins its home and P-256 public-key fingerprint, requires explicit
+initialization, rejects existing-file replacement, and holds a separate process
+lock. A backwards clock refuses new work and makes pending endings due early.
+Failed endings remain pending for retry; read-back must match before verification.
+
+The home transport reuses the existing HA binding and request helpers for lights,
+switches and climate. It requires a journaled signed opening or its exact due
+ending, rechecks the command after preflight reads, and never substitutes a twin
+read-back. The HA token belongs only to this local adapter. A simulated door
+checks the bounded-unlock algorithm; this does not add physical-lock support.
+
+Rejected: a volatile replay set, retrying an uncertain opening, generating a key
+or replacing a journal on startup, accepting an arbitrary inverse, and trusting
+the supplied hash. Local receipts are not fabricated signed audit rows. Their
+authenticated, Pipeline-authorized cloud ingestion, registration, outbound relay,
+observation stream, independent scheduler, Compose entrypoint, Lambda wiring and
+physical-device acceptance remain outstanding. No threat-model row is promoted.
+See the [local evidence](../verification-log.md#item-38a) and
+[smoke procedure](../development.md#item-38a-local-link-protocol).

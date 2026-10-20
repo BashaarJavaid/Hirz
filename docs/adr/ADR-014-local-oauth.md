@@ -133,3 +133,80 @@ resumed elicitation rechecks current membership and token validity. Linking afte
 anonymous discovery requires initialization of an authenticated session; updated
 SDK smoke clients exercise that boundary explicitly. Simulator tokens stay in
 server memory and confer no companion authority.
+
+## Item 38 Cognito verification foundation — 2026-10-19
+
+The local verifier remains unchanged in its accepted token contract. A Cognito
+verifier reuses its bounded, same-origin OIDC/JWKS refresh and the existing request
+gate. It requires RS256, a known key, `typ=JWT`, the configured issuer and human
+client, `token_use=access`, an exact scalar resource audience, and a maximum
+300-second token lifetime. Cognito's `hirz/read`, `hirz/plan`, `hirz/act` and
+`hirz/verify` names map to the existing internal scopes; discovery and challenges
+use the issuer's public names. Unknown scopes confer no Hirz permission.
+
+The configured issuer URL is the graph account provider; the signed subject must
+match exactly one current household account. No match or ambiguous cross-household
+links grant no household authority. Existing member lookup supplies the current
+role. Token household, role, provider, speaker and passkey claims are discarded.
+A suspended request revalidates both its bearer and current graph identity before
+resuming. No new canonical identity or action shape is introduced.
+
+Alternatives rejected: trusting token-supplied household/role would bypass the
+current graph; accepting ID tokens or the machine client would confuse the login
+and Gateway contracts; selecting the first of several household matches would
+violate v1's one-household login. Accepting unbound Cognito access tokens would
+weaken the existing exact-resource guarantee. Cognito authorization-code requests
+must supply `resource` to obtain the bound `aud`; this still needs live proof.
+
+This foundation is tested locally and is **not yet wired into the AWS Runtime**.
+It adds no account-link mutation, seed exception, deployment, inference or AWS
+acceptance claim. Tests use rollback-only account views in disposable databases.
+
+Contracts: [Cognito access tokens](https://docs.aws.amazon.com/cognito/latest/developerguide/amazon-cognito-user-pools-using-the-access-token.html),
+[Cognito resource binding](https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-define-resource-servers.html),
+and [Runtime authorization forwarding](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-header-allowlist.html).
+
+The gate also accepts an explicitly configured metadata URL so an AWS challenge
+can retain the invocation path and qualifier query. The local default is
+unchanged. [Runtime's documented PRM endpoint](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-oauth.html)
+is served by AWS before container authentication; the live read recorded below
+confirms its resource URL for the existing item 37 deployment. Runtime wiring
+must supply that configuration rather than derive it from an untrusted request.
+
+
+## Item 38 Cognito Simulator composition — 2026-10-19
+
+Reuse the pinned `addon-host` discovery, PKCE, state consumption, refresh and MCP
+connection machinery. Add a narrow Cognito adapter because its issuer and hosted
+login have different origins. Only the configured login origin's exact
+`/oauth2/authorize` and `/oauth2/token` endpoints are additionally allowed. PRM,
+issuer and all other origin checks remain in the published harness. Reject
+arbitrary cross-origin discovery, a second OAuth implementation and token exposure
+to the browser.
+
+The active acceptance pool's public OIDC metadata was read without authentication
+or mutation. It returns the expected issuer and separate login endpoints, but
+omits `code_challenge_methods_supported`. The installed host rejects those
+conditions; the observed friction is recorded in
+[the friction log](../friction-log.md#2026-10-19--cognito-discovery-differs-from-the-pinned-hosts-single-origin-assumption).
+AWS documents [S256 as Cognito's only PKCE method](https://docs.aws.amazon.com/cognito/latest/developerguide/authorization-endpoint.html).
+After the harness has validated resource, issuer and endpoint origins, the adapter
+handles only its pinned missing-PKCE failure: re-read and validate the exact OIDC
+document, reject any explicit conflicting method list, and retain mandatory S256.
+There is no plain-PKCE fallback or skipped token verification. Remove this adapter
+when the published harness can express this explicit provider configuration.
+
+Use the human client and native Cognito scopes. Resolve the signed account's
+current graph membership for both local and Cognito login; compare it with the
+existing explicit demo Echo's household/member fixture. Mom's Echo still means
+her parents-household account; her membership in the home does not substitute.
+Self-linking remains the separately passkey-gated mutation, not an OAuth callback
+side effect. A token cannot invent household membership or choose the Echo label.
+
+Reuse `CompanionCallbackUrl` to derive the Simulator callback on the same origin,
+avoiding another parameter and CloudFormation resource cycle. The worker composes
+the Simulator only after its exact resource and companion callback are configured.
+It uses the Companion's existing Cognito verifier lifecycle; it does not add a
+second public household MCP implementation. Models remain disabled and no host
+ledger is supplied. Durable AWS inference and Memory-event budgeting, actual
+Cognito UI/token exchange, Runtime interaction and live acceptance remain owed.

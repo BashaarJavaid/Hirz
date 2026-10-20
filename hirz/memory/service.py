@@ -1,5 +1,7 @@
 """Memory mutations participate in the existing Pipeline grant transaction."""
 
+import os
+from contextlib import nullcontext
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Literal
 from uuid import UUID, uuid5
@@ -20,7 +22,7 @@ from hirz.memory.models import (
     Turn,
     TurnInput,
 )
-from hirz.memory.provider import Hint, InProcessMemory, MemoryProvider
+from hirz.memory.provider import Hint, MemoryProvider, configured
 from hirz.pipeline.hashing import digest
 from hirz.pipeline.models import Action, Decision, EventType, Principal
 from hirz.planner.coordinator import Clarification
@@ -320,7 +322,7 @@ async def commit(
 class MemoryService:
     def __init__(self, pipeline: "Pipeline", provider: MemoryProvider | None = None):
         self.pipeline = pipeline
-        self.provider = provider if provider is not None else InProcessMemory()
+        self.provider = provider if provider is not None else configured()
 
     async def session(self, principal: Principal, session_id: str) -> Session:
         member = await self.pipeline.requester(principal)
@@ -354,7 +356,11 @@ class MemoryService:
             p._memory_turn = None
         if isinstance(result.record, Turn):
             try:
-                await self.provider.append(result.record)
+                await self.provider.append(
+                    result.record,
+                    extract=os.environ.get("HIRZ_LLM", "off") == "bedrock"
+                    and p.bundle.policy().learning.accept_memory_proposals != "never",
+                )
             except Exception:
                 pass  # Advisory mirror; committed Postgres remains authoritative.
         return result
@@ -385,7 +391,13 @@ class MemoryService:
         )
 
     async def review(
-        self, principal: Principal, *, action_id: str, proposal_id: UUID, accept: bool
+        self,
+        principal: Principal,
+        *,
+        action_id: str,
+        proposal_id: UUID,
+        accept: bool,
+        locked: bool = False,
     ) -> MutationResult:
         if type(accept) is not bool:
             raise ValueError("Review requires an explicit boolean")
@@ -400,13 +412,20 @@ class MemoryService:
                     {"proposal_id": str(proposal_id), "operation": operation}
                 ),
             ),
+            locked=locked,
         )
 
     async def mutate(
-        self, principal: Principal, action_id: str, command: Command
+        self,
+        principal: Principal,
+        action_id: str,
+        command: Command,
+        *,
+        locked: bool = False,
     ) -> MutationResult:
         p = self.pipeline
-        decision = await p.redeem(
+        mutation = p.mutate_locked if locked else p.redeem
+        decision = await mutation(
             governance(
                 p, "memory", command.model_dump(mode="json"), principal, action_id
             ),
@@ -414,7 +433,7 @@ class MemoryService:
         )
         record: Turn | Proposal | None = None
         if decision.decision == "execute":
-            async with p.connection.begin():
+            async with nullcontext() if locked else p.connection.begin():
                 member = (await p.requester(principal)).member_id
                 assert member is not None
                 ident = command.proposal_id or uuid5(
@@ -467,11 +486,16 @@ class MemoryService:
             return ()
 
     async def proposals(
-        self, principal: Principal, *, pending_only: bool = True, page: Page = Page()
+        self,
+        principal: Principal,
+        *,
+        pending_only: bool = True,
+        page: Page = Page(),
+        locked: bool = False,
     ) -> tuple[Proposal, ...]:
         page = Page.model_validate(page.model_dump())
         p = self.pipeline
-        async with p.connection.begin():
+        async with nullcontext() if locked else p.connection.begin():
             session = await self.session(principal, "proposal-list")
             query = sa.select(db.memory_proposals).where(
                 p.scope(db.memory_proposals),

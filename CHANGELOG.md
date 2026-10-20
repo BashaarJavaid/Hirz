@@ -8,6 +8,36 @@ All notable changes are documented here. The format follows
 
 - 2026-10-20: Adopt the approved Simulator submission scope, defer unfinished cloud gates without marking them complete, and prioritize demo, human and release checks ([decision](docs/adr/ADR-007-alexa-surface-strategy.md#simulator-submission-scope--2026-10-20-author-approved), [roadmap](ROADMAP.md#cut-line-and-fallbacks)). Record the final policy acceptance failure and independently verified teardown ([evidence](docs/verification-log.md#final-acceptance-stopped-at-gateway-evidence-teardown-verified--2026-10-20)).
 
+- 2026-10-20: Add the local Link signature/replay journal, durable endings and recorded HA transport; production relay and device acceptance remain pending ([decision](docs/adr/ADR-009-signed-commands-home-agent.md#item-38a-local-command-foundation--2026-10-20)).
+
+- 2026-10-20: Move setup, recovery and CI procedures into the development guide, correct the README topology/scope and prepare evidence-based tool feedback for submission ([evidence](docs/verification-log.md#item-41)).
+
+- 2026-10-19: Prepare a private, read-only Runtime discovery and linked-household smoke for item 38; live invocation and the full AWS doctor remain pending ([procedure](docs/development.md#runtime-discovery-and-read-smoke)).
+
+- 2026-10-19: Prepare Cognito Simulator login with pinned endpoints, current member binding and a derived callback; preserve PKCE despite Cognito's omitted discovery field ([decision](docs/adr/ADR-014-local-oauth.md#item-38-cognito-simulator-composition--2026-10-19)).
+
+- 2026-10-19: Connect Simulator temperature suggestions to source-checked, subject-only consent through its existing model selection; paid inference remains disabled ([decision](docs/adr/ADR-002-postgres-over-dynamodb.md#item-38-simulator-temperature-suggestions--2026-10-19)).
+
+- 2026-10-19: Record approved Simulator conversations under the freshly verified linked account through existing private, audited memory storage ([decision](docs/adr/ADR-002-postgres-over-dynamodb.md#item-38-approved-simulator-conversation-capture--2026-10-19)).
+
+- 2026-10-19: Correct Bedrock schema compatibility without relaxing local narration or rule validation, and resolve the account-link test module collision ([evidence](docs/verification-log.md#provider-schema-compatibility-and-broad-collection--2026-10-19)).
+
+- 2026-10-19: Keep drafting ownership until an in-flight model call settles on cancellation, preserving the queued proposal for safe retry ([evidence](docs/verification-log.md#drafting-cancellation-ownership--2026-10-19)).
+
+- 2026-10-19: Connect Household's login button to session-bound browser PKCE and fresh passkey confirmation, with explicit callback configuration; live Cognito acceptance remains pending ([decision](docs/adr/ADR-019-companion.md#browser-self-link-flow-locally-verified--2026-10-19)).
+
+- 2026-10-19: Add the approved self-link backend with exact Cognito proof/passkey binding and atomic, non-reassignable account mapping; browser flow and live acceptance remain pending ([decision](docs/adr/ADR-019-companion.md#item-38-self-linked-cognito-login--2026-10-19)).
+
+- 2026-10-19: Add authenticated, subject-only temperature-preference review in Household, preserving atomic Pipeline consent and audit; production transcript capture and live extraction remain pending ([decision](docs/adr/ADR-002-postgres-over-dynamodb.md#item-38-authenticated-preference-consent--2026-10-19)).
+
+- 2026-10-19: Connect initial and refreshed worker plans to the configured explainer, retain stale-result checks and settle in-flight SDK narration before cancellation releases ownership; AWS inference remains disabled ([decision](docs/adr/ADR-012-explainer.md#item-38-worker-narration-preparation--2026-10-19)).
+
+- 2026-10-19: Add an optional AgentCore Memory mirror and scoped strategy configuration while retaining durable PostgreSQL turns and explicit preference consent; locally verified, not deployed ([decision](docs/adr/ADR-002-postgres-over-dynamodb.md#item-38-advisory-memory-provider--2026-10-19)).
+
+- 2026-10-19: Wire the full authenticated MCP application into the Runtime entrypoint, preserve explicit household boundary assignments and prepare private RDS access with scoped infrastructure secrets; locally verified, not deployed ([decision](docs/adr/ADR-008-agentcore-topology.md#item-38-runtime-composition-locally-verified--2026-10-19)).
+
+- 2026-10-19: Start item 38 with locally tested resource-bound Cognito verification, current account lookup and issuer-correct permission discovery ([decision](docs/adr/ADR-014-local-oauth.md#item-38-cognito-verification-foundation--2026-10-19)); Runtime wiring remains pending.
+
 - 2026-10-19: Align the publication audit-export regression assertion with the corrected failure message; prelaunch CI prevented AWS deployment while it was stale ([evidence](docs/verification-log.md#prelaunch-ci-assertion-correction--2026-10-19)).
 
 - 2026-10-19: Record the approved final policy retry and review remaining submission gates, current rules, source claims and human-test instructions ([readiness](docs/submission.md#readiness-review--2026-10-19)).

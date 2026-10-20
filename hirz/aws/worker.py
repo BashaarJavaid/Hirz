@@ -24,7 +24,7 @@ from hirz.executor.refresh_worker import RefreshWorker
 from hirz.executor.service import Executor
 from hirz.executor.storage import transition
 from hirz.executor.twin import restore
-from hirz.explainer.core import TemplateExplainer
+from hirz.explainer.bedrock import configured
 from hirz.graph.models import now
 from hirz.mcp.trust import advance as trust
 from hirz.mcp.worker import prepare_plans
@@ -195,12 +195,15 @@ async def tick(service: Companion) -> None:
                                 await trust(refresh, world)
                                 await contacts(refresh)
                                 await draft(refresh)
-                                await prepare_plans(refresh, loaded)
+                                explainer = configured()
+                                await prepare_plans(
+                                    refresh, loaded, explainer=explainer
+                                )
                                 await RefreshWorker(
                                     refresh,
                                     other_registry,
                                     world=world,
-                                    explainer=TemplateExplainer(),
+                                    explainer=explainer,
                                 ).batch()
                                 await advance_twin(refresh)
 

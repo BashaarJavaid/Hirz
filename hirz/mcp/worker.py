@@ -8,6 +8,7 @@ import sqlalchemy as sa
 from hirz import db
 from hirz.executor.plans import governance
 from hirz.executor.runtime import RuntimeInputs
+from hirz.explainer.core import Explainer, TemplateExplainer, attach, context
 from hirz.mcp.persistence import command
 from hirz.pipeline.hashing import digest
 from hirz.pipeline.models import Principal
@@ -17,7 +18,10 @@ from hirz.planner.scenario import workload_input
 from hirz.twin.scenario import LoadedScenario, PlanningSnapshot
 
 
-async def prepare_plans(p: Pipeline, loaded: LoadedScenario | None) -> None:
+async def prepare_plans(
+    p: Pipeline, loaded: LoadedScenario | None, *, explainer: Explainer | None = None
+) -> None:
+    explainer = explainer if explainer is not None else TemplateExplainer()
     async with p.connection.begin():
         pending = (
             (
@@ -101,6 +105,14 @@ async def prepare_plans(p: Pipeline, loaded: LoadedScenario | None) -> None:
             except asyncio.CancelledError:
                 await asyncio.gather(replay, return_exceptions=True)
                 raise
+            narration = await explainer.narrate(result.result.plan, context(snapshot))
+            result = result.model_copy(
+                update={
+                    "result": result.result.model_copy(
+                        update={"plan": attach(result.result.plan, narration)}
+                    )
+                }
+            )
         except Exception:
             # Failed preparation records no Plan; cancellation still propagates.
             result = None

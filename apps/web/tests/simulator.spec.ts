@@ -50,6 +50,7 @@ test("simulator linking, real enrollment, cards, Dot, switching and both themes"
   console.log("Simulator page loaded");
   await expect(page.getByRole("heading", { name: "Household simulator" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Link Echo with consent" })).toBeVisible();
+  await expect(page.getByText("Once linked, conversations are saved under that account. Temperature suggestions need your approval in Household.")).toBeVisible();
   await expect(page.getByRole("combobox", { name: "Display", exact: true })).toHaveValue("show");
   await expect(page.getByRole("combobox", { name: "Theme", exact: true })).toHaveValue("dark");
   await expect(page.getByRole("combobox", { name: "Echo account", exact: true })).toHaveValue("malik");

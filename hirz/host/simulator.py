@@ -1,23 +1,25 @@
 """Local browser host state. OAuth, conversation and prompts never enter cards."""
 
 import asyncio
+import logging
 import re
 import secrets
 import time
 from collections import deque
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import parse_qs, urlsplit
 from uuid import uuid4
 
-import httpx
 from addon_host import OAuthConfig, OAuthSession, connect_mcp
 from mcp import types
 
+from hirz.host.memory import Suggestion
 from hirz.mcp.auth import SCOPES
 from hirz.mcp.cards import TOOLS as CARDS
-from hirz.mcp.dev_oauth import choices
+from hirz.memory.models import Turn, TurnInput
 
 ACCOUNTS = {"mom": "Mom’s Echo", "malik": "Malik’s Echo", "dad": "Dad’s Echo"}
 MODELS = {"scripted": "Scripted", "haiku": "Claude Haiku 4.5", "nova": "Nova Lite"}
@@ -65,6 +67,7 @@ def describe(name: str, arguments: dict[str, Any]) -> str:
 @dataclass
 class Echo:
     oauth: OAuthSession | None = field(default=None, repr=False)
+    memory_session: str = field(default_factory=lambda: "simulator:" + uuid4().hex)
     history: list[dict[str, Any]] = field(default_factory=list)
     results: dict[str, Any] = field(default_factory=dict)
     request_ids: dict[str, str] = field(default_factory=dict)
@@ -316,6 +319,35 @@ class Simulator:
         )
         self.browsers: dict[str, Browser] = {}
         self.active: dict[str, asyncio.Task[None]] = {}
+        self.memory: Callable[[str, TurnInput], Awaitable[Turn]] | None = None
+        self.suggest: Callable[[str, Turn, Suggestion], Awaitable[None]] | None = None
+        self.verify_link: Callable[[str, str], Awaitable[None]] | None = None
+        self.client_id = "hirz-dev-sdk"
+        self.scopes = tuple(SCOPES)
+        self.login_origin: str | None = None
+
+    async def remember(
+        self, echo: Echo, role: Literal["user", "assistant"], text: str
+    ) -> Turn | None:
+        if self.memory is None or echo.oauth is None or not text.strip():
+            return None
+        try:
+            return await self.memory(
+                await echo.oauth.token(),
+                TurnInput(session_id=echo.memory_session, role=role, text=text),
+            )
+        except Exception as exc:
+            # Memory is advisory; each subsequent tool still enforces its own boundary.
+            logging.getLogger(__name__).warning(
+                "Simulator conversation memory unavailable (%s)", type(exc).__name__
+            )
+            return None
+
+    async def say(self, echo: Echo, generation: int, text: str) -> None:
+        if echo.generation != generation:
+            return
+        self.emit(echo, generation, kind="speech", text=text)
+        await self.remember(echo, "assistant", text)
 
     def browser(
         self, token: str | None, *, create: bool = False, touch: bool = True
@@ -338,14 +370,19 @@ class Simulator:
         return token, browser
 
     async def link(self, browser: Browser) -> str:
-        oauth = OAuthSession(
-            OAuthConfig(
-                server_url=self.mcp_url,
-                issuer=self.issuer,
-                client_id="hirz-dev-sdk",
-                redirect_uri=self.origin + "/api/simulator/callback",
-                scopes=tuple(SCOPES),
-            )
+        config = OAuthConfig(
+            server_url=self.mcp_url,
+            issuer=self.issuer,
+            client_id=self.client_id,
+            redirect_uri=self.origin + "/api/simulator/callback",
+            scopes=self.scopes,
+        )
+        from hirz.host.oauth import CognitoSession
+
+        oauth = (
+            CognitoSession(config, login_origin=self.login_origin)
+            if self.login_origin is not None
+            else OAuthSession(config)
         )
         browser.linking.clear()
         account = browser.account
@@ -361,32 +398,9 @@ class Simulator:
         if browser.expired() or browser.account != account:
             raise ValueError("Linking expired")
         await oauth.complete(state, code)
-        # Generic OAuth proves possession; only Hirz validates the linked household.
-        from hirz.mcp.auth import KeyCache
-
-        async with httpx.AsyncClient(trust_env=False) as http:
-            cache = KeyCache(self.issuer, self.mcp_url)
-            if not await cache.refresh(http):
-                raise ValueError("Issuer unavailable")
-            access = await cache.verify_token(await oauth.token())
-        available = choices()
-        home = next(c.household for c in available if c.subject == "malik")
-        parents = next(
-            c.household for c in available if c.subject == "mom" and c.role == "owner"
-        )
-        expected = next(
-            c
-            for c in available
-            if c.subject == account
-            and c.household == (parents if account == "mom" else home)
-        )
-        if (
-            access is None
-            or access.subject != expected.subject
-            or not access.claims
-            or access.claims["household_id"] != expected.household
-        ):
-            raise ValueError("Choose the household account named by this Echo")
+        if self.verify_link is None:
+            raise ValueError("Simulator account verification is unavailable")
+        await self.verify_link(account, await oauth.token())
         if browser.expired() or browser.account != account:
             raise ValueError("Linking expired")
         browser.cancel()
@@ -433,6 +447,7 @@ class Simulator:
         )
         started = time.monotonic()
         try:
+            await self.remember(echo, "assistant", message)
             async with asyncio.timeout(300):
                 result = await future
             if browser.expired() or echo.generation != generation:
@@ -462,10 +477,14 @@ class Simulator:
         echo = browser.echoes[account]
         generation = echo.generation
         echo.last_result = None
+        source: Turn | None = None
+        suggested = False
         self.emit(echo, generation, kind="card" if selected else "user", text=text)
         try:
             if echo.oauth is None:
                 raise ValueError("Link this Echo first")
+            if not selected:
+                source = await self.remember(echo, "user", text)
 
             async def elicit(context: Any, params: Any) -> types.ElicitResult:
                 reply = await self.ask(
@@ -506,7 +525,8 @@ class Simulator:
                     *,
                     continuing: bool = False,
                 ) -> list[tuple[str, dict[str, Any]]]:
-                    from hirz.host.selection import select
+                    nonlocal source, suggested
+                    from hirz.host.selection import complete_selection, select
 
                     for _ in range(8):
                         diagnostics: dict[str, Any] = {}
@@ -519,7 +539,51 @@ class Simulator:
                             message,
                             diagnostics,
                             continuing=continuing,
+                            memory=isinstance(source, Turn)
+                            and self.suggest is not None
+                            and not suggested,
                         )
+                        if (
+                            proposed
+                            and proposed[0][0] == "suggest_temperature_preference"
+                        ):
+                            if echo.generation != generation or browser.expired():
+                                return []
+                            name, raw = proposed[0]
+                            if (
+                                source is None
+                                or self.suggest is None
+                                or echo.oauth is None
+                                or suggested
+                            ):
+                                raise ValueError("Conversation source is unavailable")
+                            suggested = True
+                            failed = False
+                            try:
+                                await self.suggest(
+                                    await echo.oauth.token(),
+                                    source,
+                                    Suggestion.model_validate(raw),
+                                )
+                                response = "Your temperature suggestion is ready to review in Household. It takes effect only if you accept."
+                            except Exception as exc:
+                                failed = True
+                                logging.getLogger(__name__).warning(
+                                    "Simulator temperature suggestion unavailable (%s)",
+                                    type(exc).__name__,
+                                )
+                                response = "I couldn't save that temperature suggestion. Please try again later."
+                            complete_selection(
+                                echo.history,
+                                name,
+                                raw,
+                                {"message": response},
+                                error=failed,
+                            )
+                            await self.say(echo, generation, response)
+                            message = "Continue only unfinished parts of the current user request, or select finish_request."
+                            continuing = True
+                            continue
                         self.emit(
                             echo,
                             generation,
@@ -549,6 +613,7 @@ class Simulator:
                         if answer.get("action") != "accept":
                             return []
                         message = str(answer["content"]["reply"])
+                        source = await self.remember(echo, "user", message)
                     raise ValueError("Too many clarification questions")
 
                 if selected:
@@ -557,11 +622,10 @@ class Simulator:
                     calls = recorded(text, echo.results)
                 else:
                     calls = await choose(text)
-                if not calls and not selected:
-                    self.emit(
+                if not calls and not selected and not suggested:
+                    await self.say(
                         echo,
                         generation,
-                        kind="speech",
                         text="Scripted mode supports the recorded scenario utterances. Choose one to continue."
                         if model == "scripted"
                         else "No tool request was submitted. Please clarify your request or explicitly choose Scripted mode.",
@@ -614,10 +678,9 @@ class Simulator:
                             answer.get("action") != "accept"
                             or answer.get("content", {}).get("confirmed") is not True
                         ):
-                            self.emit(
+                            await self.say(
                                 echo,
                                 generation,
-                                kind="speech",
                                 text="That request was not submitted.",
                             )
                             break
@@ -693,10 +756,9 @@ class Simulator:
                     )
                     if echo.generation == generation and not selected:
                         speakable = output.get("speakable", {})
-                        self.emit(
+                        await self.say(
                             echo,
                             generation,
-                            kind="speech",
                             text=" ".join(
                                 [
                                     speakable.get("headline", "Request failed."),
@@ -725,8 +787,6 @@ class Simulator:
         except asyncio.CancelledError:
             raise
         except Exception as exc:
-            import logging
-
             cause: BaseException = exc
             while isinstance(cause, BaseExceptionGroup):
                 cause = cause.exceptions[0]

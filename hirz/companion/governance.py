@@ -70,17 +70,21 @@ async def credentials(
     principal: Principal,
     member_id: UUID,
     operation: Literal["enroll", "recover", "revoke", "reinvite"],
+    *,
+    account: tuple[str, str] | None = None,
 ) -> Decision:
     if p._companion_command is not None:
         raise ValueError("Nested companion mutation")
     if not principal.passkey_verified:
         raise ValueError("Verify the ceremony before changing credentials")
-    action = governance(
-        p,
-        "credentials",
-        {"operation": operation, "member_id": str(member_id)},
-        principal,
-    )
+    params = {"operation": operation, "member_id": str(member_id)}
+    if account is not None:
+        if operation != "enroll" or not all(account):
+            raise ValueError("Account proof belongs only to credential enrollment")
+        params.update(
+            credential_kind="cognito_link", provider=account[0], sub=account[1]
+        )
+    action = governance(p, "credentials", params, principal)
     p._companion_command = action
     try:
         decision = await p.mutate_locked(
