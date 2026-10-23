@@ -138,13 +138,13 @@ Item 32 adds `HIRZ_LLM=off uv run --locked python -m scripts.smoke_protect --art
 
 ## Current phase
 
-The author approved the Simulator submission scope for 2026-10-23; current
-priorities and deferrals are in [ROADMAP.md](ROADMAP.md#cut-line-and-fallbacks).
-Item 36 is complete. Item 37 failed its first Gateway evidence check; cleanup
-and signed exports are independently verified. Unfinished AWS/Link work is
-deferred; local item 38 preparation is retained in main. Human testing,
-video, judge instructions and release checks remain. Development stays on 0005;
-migrations are manual.
+Submission day, 2026-10-23: the restyled Simulator release with the Amazon
+Nova 2 Lite host is on `main` (item 29b Partial: parents and evening events
+1–17 pass; the overnight approval beat fails). README, Devpost text and demo
+script are reconciled under the approved scope
+([ROADMAP.md](ROADMAP.md#cut-line-and-fallbacks)). Remaining: the video (40),
+tag `v0.1.0` with CI on it (42), the form (41). AWS/Link work stays deferred;
+hallway tests were not run. Development stays on 0005; migrations are manual.
 
 ---
 
