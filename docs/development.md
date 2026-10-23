@@ -2057,10 +2057,9 @@ the running development PostgreSQL; ports 8002/8003 must be free (`--port` and
 ```sh
 export PATH="$(brew --prefix node@24)/bin:$PATH"
 tailscale serve --bg http://127.0.0.1:8002
-eval "$(aws configure export-credentials --profile hirz-login --format env)"
-unset AWS_PROFILE HIRZ_PROTECT_BUDGET_LEDGER HIRZ_DRAFT_MODEL_ID HIRZ_MEMORY_ID
-HIRZ_DOGWOOD="$PWD/.tools/dogwood" HIRZ_LLM=bedrock \
-  uv run --locked python -m scripts.simulator_demo \
+unset HIRZ_PROTECT_BUDGET_LEDGER HIRZ_DRAFT_MODEL_ID HIRZ_MEMORY_ID
+AWS_PROFILE=hirz-login HIRZ_DOGWOOD="$PWD/.tools/dogwood" HIRZ_LLM=bedrock \
+  uv run --locked --with awscrt python -m scripts.simulator_demo \
   --origin https://YOUR-TAILNET-HOST \
   --artifacts-dir ~/Projects/hirz-private-evidence/nova2-recording-UNIQUE \
   --budget-ledger secrets/item29-host-budget.json
@@ -2074,7 +2073,12 @@ above unset. Choose exactly one Nova host per session. **Nova 2 Lite** calls onl
 Never choose Claude Haiku 4.5: the ledger refuses it before any provider contact,
 but it is not a Nova model. Trusted-contact cases show "Additional warning checks
 are in progress." (keyword signals only; no model extraction runs).
-Exported credentials are temporary; re-export before a new session if they expire.
+Use the profile, not exported credentials: `aws configure export-credentials`
+snapshots of an `aws login` session expire in about fifteen minutes, and the first
+recording attempt on 2026-10-23 stopped mid-turn with "Credentials were refreshed,
+but the refreshed credentials are still expired." botocore's login provider
+refreshes for the whole session but needs `awscrt`; `uv run --with awscrt`
+layers it on the locked environment without changing the lockfile.
 Run it in a terminal so Ctrl-C reaches the launcher. Then, manually: enroll Malik
 and Mom from the private `invitations.json` with real passkeys, activate each seed
 policy, link each Echo with explicit PKCE consent, open `/simulator`, choose
