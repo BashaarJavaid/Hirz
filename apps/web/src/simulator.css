@@ -14,7 +14,7 @@
 
 /* The Echo Show is the hero: a device with a bezel, the request directly under it. */
 .simulator .sim-layout { max-width: 1440px; margin: 0 auto; gap: 40px; align-items: start; }
-.sim-device { padding: 14px 14px 22px; border-radius: 28px; background: #0b0d11; box-shadow: inset 0 0 0 1px #ffffff17, 0 1px 2px #0000004d, 0 28px 56px -24px #000000b3; }
+.sim-device { padding: 14px 14px 22px; border-radius: 28px; background: #0b0d11; box-shadow: inset 0 0 0 1px #ffffff2e, 0 0 0 1px #ffffff1a, 0 1px 2px #0000004d, 0 28px 56px -24px #000000b3; }
 .simulator .sim-display { border: 0; border-radius: 12px; background: var(--host-canvas); }
 .simulator .sim-display:has(.expanded) { border-radius: 16px; }
 .simulator .sim-empty h2 { margin: 0 0 6px; font-size: 1.75rem; font-weight: 600; letter-spacing: -.02em; }
