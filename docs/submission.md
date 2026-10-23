@@ -158,3 +158,57 @@ measured consistently enough to report. The author still supplies their own
 4. Try to break it: say "pause Hirz"; propose a rule of your own and read the situation lines before activating it.
 5. `uv run hirz verify-audit --household <household-uuid>` checks the selected household trail; `uv run hirz scenario run scenarios/demo-evening.yaml --headless --assert` proves the numbers.
 6. AWS acceptance follows `docs/development.md` and its approved cost window. Do not present signed commands, audit anchors or live Runtime/Memory as available before the corresponding roadmap gates pass.
+
+
+## Devpost paste-ready text — 2026-10-23
+
+Final text for the form, reconciled with the approved Simulator scope. Replace
+`VIDEO_URL_PENDING` and `HOST_SENTENCE_PENDING` from the recording run before
+pasting; everything else is final. Links point at evidence instead of copying it.
+
+**Project name:** Hirz
+
+**Tagline:** House rules for the AI in your home, and your parents'.
+
+**Track:** Alexa+ (simulation option). **Mini-challenges:** AWS Builder; Open Source.
+
+**Demo video:** VIDEO_URL_PENDING (under 3:00, captioned, public).
+
+**Repository:** https://github.com/BashaarJavaid/Hirz (Apache-2.0, created 2026-09-15; all code written during the submission window). Release: `v0.1.0`.
+
+**Description**
+
+> **Hirz: house rules for the AI in your home, and your parents'.**
+>
+> Hirz lets a family decide what Alexa may do on its own, what it must ask about, and what it may never do. It is built for the person who runs the smart home at their own place and at their parents' place. People reported losing $3.5 billion to imposter scams in 2025 (FTC), and 63 million Americans are family caregivers (AARP). Hirz is rules, not care: it does no medication or health monitoring.
+>
+> **Is it really him?** Mom asks her Echo whether the "Malik" who just called for money is real. Hirz checks the household's own verified records, never anything the caller said, and asks Malik through his own app. Hirz cannot see the call and says nothing about the caller's number; it asks Malik about that specific request, and he taps "No, that wasn't me." When Mom asks again, Alexa tells her. Hirz does not stop scam calls; it gives Mom one thing to do: ask first. If someone unexpected then turns up at her door, Hirz warns her and tells Malik.
+>
+> **The household writes the boundary.** Malik says, "From now on, never unlock the door for someone we're not expecting." Hirz drafts the rule and sends it to his phone: one English sentence, what changes in concrete situations (computed by running the old and new rules, never written by a model), and the compiled Cedar policy. He activates it with a passkey. Anyone in the room can propose a rule; only a person on their own phone can activate one. An hour later the rule refuses an unexpected visitor, and the same lock opens at 7:04 after an approval on a phone that says "Mom is expected now", not "this is Mom". A schedule is context, not identity. Never by voice, because an Echo is a shared device and Alexa does not tell add-ons who is speaking.
+>
+> **Deterministic, verifiable, honest about its limits.** Constitutions compile to Cedar/Dogwood and are enforced in-process by a deterministic pipeline; every decision is a signed row in a hash chain that `hirz verify-audit` checks offline. Enforcement at the AWS boundary, signed home commands and audit anchors are designed and partly built but their live gates are deferred beyond this submission, and the repository says so. Hirz governs the actions Hirz takes; devices controlled directly elsewhere are outside that boundary.
+>
+> **A real planner over real prices.** A MILP schedules the EV, home battery, HVAC and appliances against the household's real ComEd rate plan, all-in, and reports savings against the timer schedule a careful household already uses, with "do everything now" and a cheapest-slots heuristic beside it, all held to the same comfort and delivered energy. Every figure comes from a cited run or a year-long backtest that plans without hindsight and includes a home with no solar or battery. Simulated devices are a labeled physics twin. No model makes a decision: authorization, risk and planning are code. Models narrate, draft rule text a person must activate, and may add warning signals to a scam check, never remove one.
+>
+> Built on MCP 2025-11-25 (Streamable HTTP, OAuth 2.1 PKCE, MCP Apps following Amazon's add-on design guide), Python and TypeScript, PostgreSQL, Amazon Bedrock and Amazon Bedrock AgentCore. HOST_SENTENCE_PENDING The simulator's host harness and an add-on conformance checker are published as a separate open-source project.
+
+**Built with:** Python 3.12, FastAPI, MCP Python SDK, TypeScript, React, Vite, `@modelcontextprotocol/ext-apps`, PostgreSQL 16, Alembic, HiGHS (scipy MILP), Cedar / Dogwood, WebAuthn passkeys, Home Assistant, Amazon Bedrock (Claude Haiku 4.5; Nova 2 Lite host), Strands Agents SDK, AgentCore Runtime / Gateway / Policy / Memory / Identity (deployed and torn down in item 36; live integration deferred), AWS CDK, KMS, S3 Object Lock, EventBridge, Docker Compose, Playwright, GitHub Actions.
+
+**Testing instructions (judge field)**
+
+No credentials or AWS account are needed. Follow the README quickstart (Python 3.12, Node 24, uv, pnpm, Docker Desktop): clone, `uv sync --locked`, `pnpm install --frozen-lockfile`, build both web bundles, then `uv run --locked python scripts/demo.py init --origin http://localhost:8002` and `uv run --locked python scripts/demo.py run`. Open `http://localhost:8002/simulator`, enroll from the private invitations file the launcher names, activate the seed rules with the laptop's passkey, approve Echo linking, then follow the README's "Judge run instructions": Mom's Echo scam check and Malik's check-in reply, Malik's Echo rule proposal and phone activation, plan and voice revision, Echo Dot mode, the refused unlock at 18:40 and the phone-approved unlock at 19:04, "pause Hirz", then `hirz verify-audit` and the headless scenario assertion. The honesty banner names the host and states that devices and contact replies are simulated.
+
+**AWS Builder: services and how they are used (verified scope)**
+
+- Amazon Bedrock: Claude Haiku 4.5 for narration, rule drafting and Protect signal extraction behind schema validation; the simulator's emulated Alexa+ host on Bedrock through the Strands SDK ([item 29](verification-log.md#item-29), [item 32](verification-log.md#item-32-closure--2026-10-11)). HOST_SENTENCE_PENDING
+- Amazon Bedrock AgentCore Runtime, Gateway + Policy, Memory, Identity: provisioned with CDK, acceptance-tested and torn down in [item 36](verification-log.md#item-36-closure--2026-10-17) (quiet execution verified 24.23 s after due; IAM denial of `kms:Sign` and write-capable credentials for the worker role). Policy publication of 192 Cedar policies and the faulty-compiler refusal passed; live Gateway evidence did not, so boundary enforcement is deferred ([item 37](verification-log.md#final-acceptance-stopped-at-gateway-evidence-teardown-verified--2026-10-20)).
+- KMS asymmetric signing key, S3 Object Lock anchor bucket, EventBridge one-minute tick, Fargate worker, RDS: provisioned and verified in item 36; signing, anchoring and Link execution remain deferred. Nothing here is claimed as a live integration.
+
+**Open Source mini-challenge**
+
+- Contribution URL: https://github.com/BashaarJavaid/addon-check
+- Project repository URL: https://github.com/BashaarJavaid/addon-check
+- GitHub username: BashaarJavaid
+- What, how, why: addon-check verifies any MCP server against the published Alexa+ add-on contract (Streamable HTTP on 2025-11-25, PRM, 401 + WWW-Authenticate, schema completeness, naming, display modes, warm round trip, spoken length, formatting artefacts) in one command, and its companion host package renders MCP Apps cards and handles OAuth independently of Hirz. Its tests include deliberately broken servers and a non-Hirz reference server. It gives builders a reusable way to check and exercise add-ons while access to the Alexa+ host is restricted to select partners. Hirz's CI runs the checker on every push ([evidence](verification-log.md#item-25a--2026-09-23), [harness](verification-log.md#item-29a-closure-with-shutdown-follow-up--2026-10-01)).
+
+**Product feedback:** paste from the [table above](#product-feedback-draft--2026-10-20), one row per tool. **Friction log:** paste or attach [`docs/friction-log.md`](friction-log.md) (36 dated entries with URLs, exact errors, severities, workarounds and feature requests).
