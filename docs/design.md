@@ -221,3 +221,11 @@ pending; success appears only after an executed response with the expected statu
 Refusals stay visible with a retryable error. Refresh and cursor-based paging are
 explicit. No transcript, internal identifier or another member's suggestion is
 rendered. Preference consent uses the current authenticated session.
+
+## Companion and simulator styling — 2026-10-23
+
+"Quiet utility": seven named tokens in `apps/web/src/style.css` (`simulator.css` repeats them per Theme control): `--canvas`, `--surface` (Amazon's #FFFFFF/#FAF9FB light, #14181E/#1B2028 dark), `--ink`, `--ink-muted`, `--line`, `--accent` (#2D415E, final-action buttons only) and `--warn` (alerts). Cards keep §1 tokens verbatim.
+
+Type: Instrument Sans variable (SIL OFL 1.1; Latin subset, weight 400–700, `tnum`), self-hosted in `apps/web/src/fonts/` and `apps/mcp-app/src/fonts/` with `OFL.txt`; cards inline it as a data URL. Display (h1) 32–42px/620; headline 19px/600 (hero 24px); body 16px/400; caption and eyebrow 12–14px in `--ink-muted`; figures 52px/640, tabular.
+
+Roles: hero 16px radius with a soft shadow (rule review, unlock approval, plan figure; the Echo device bezel is 28px); sections are flat and ruled; rows are dividers; controls 8px. One motion per screen: the hero (or the simulator's pending question) settles 8–10px on entry, translate only, off under reduced motion.

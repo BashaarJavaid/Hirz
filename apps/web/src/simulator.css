@@ -1,2 +1,56 @@
-.simulator{max-width:none;--surface:#1b2028;--canvas:#14181e;--text:#f5f5f5;--muted:#292f39;--border:#687181;color-scheme:dark}.simulator.light{--surface:#fff;--canvas:#faf9fb;--text:#14181e;--muted:#eeedf0;--border:#c7cad0;color-scheme:light}.simulator .sim-transcript{background:transparent}.simulator button{color:var(--text)}
-.simulator{min-height:100vh;padding:24px;background:#14181e;color:#f5f5f5}.simulator.light{background:#faf9fb;color:#14181e}.simulator header{margin-bottom:24px}.simulator h1{font-size:32px}.sim-honesty{padding:12px 16px;border:1px solid #637186;border-radius:8px}.sim-controls{display:flex;align-items:end;flex-wrap:wrap;gap:12px;margin:16px 0}.sim-controls label{min-width:120px}.simulator input,.simulator select{color:inherit;background:transparent;border:1px solid #637186}.simulator option{color:#14181e;background:white}.simulator .panel{color:inherit;background:transparent}.simulator button{white-space:normal}.simulator .sim-prompt:focus{outline:2px solid #819ec7}.simulator a{text-decoration:underline}.simulator input[type=checkbox]{width:auto}.simulator.light{--host-muted-text:#40536c;--host-canvas:#faf9fb}@media(max-width:900px){.simulator{padding:16px}}
+/* Simulator theme follows its own Theme control, not the OS. Same named tokens as style.css. */
+.simulator { --canvas: #14181e; --surface: #1b2028; --ink: #f3f4f6; --ink-muted: #a4acb9; --line: #303744; --warn: #ff9b8f; --host-canvas: #14181e; --host-muted-text: #a4acb9; color-scheme: dark; }
+.simulator.light { --canvas: #ffffff; --surface: #faf9fb; --ink: #14181e; --ink-muted: #59616e; --line: #dcdee3; --warn: #a3261b; --host-canvas: #faf9fb; --host-muted-text: #40536c; color-scheme: light; }
+.simulator { max-width: none; min-height: 100vh; padding: 20px 32px 56px; background: var(--canvas); color: var(--ink); }
+.simulator option { color: #14181e; background: white; }
+.simulator a { text-decoration: underline; }
+
+/* Chrome: one quiet line. */
+.sim-bar { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; max-width: 1440px; margin: 0 auto 20px; }
+.sim-bar .wordmark { font-size: 1.375rem; text-decoration: none; }
+.simulator .sim-bar h1 { margin: 0; color: var(--ink-muted); font-size: .9375rem; font-weight: 550; letter-spacing: 0; }
+.sim-honesty { margin: 0 0 0 auto; padding: 3px 12px; border: 1px solid var(--line); border-radius: 999px; color: var(--ink-muted); font-size: .8125rem; }
+.simulator > [role="alert"] { max-width: 1440px; margin: 0 auto 16px; }
+
+/* The Echo Show is the hero: a device with a bezel, the request directly under it. */
+.simulator .sim-layout { max-width: 1440px; margin: 0 auto; gap: 40px; align-items: start; }
+.sim-device { padding: 14px 14px 22px; border-radius: 28px; background: #0b0d11; box-shadow: inset 0 0 0 1px #ffffff17, 0 1px 2px #0000004d, 0 28px 56px -24px #000000b3; }
+.simulator .sim-display { border: 0; border-radius: 12px; background: var(--host-canvas); }
+.simulator .sim-display:has(.expanded) { border-radius: 16px; }
+.simulator .sim-empty h2 { margin: 0 0 6px; font-size: 1.75rem; font-weight: 600; letter-spacing: -.02em; }
+.simulator .sim-empty p { margin: 0; color: var(--ink-muted); }
+.simulator .sim-orb { border: 3px solid var(--ink-muted); box-shadow: none; }
+.sim-request label { margin: 20px 0 0; color: var(--ink-muted); }
+.simulator .sim-request input:not([type="checkbox"]) { min-height: 56px; padding: 12px 16px; border-radius: 12px; background: var(--surface); font-size: 1.125rem; }
+.sim-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 12px 0; }
+.sim-controls label { display: flex; align-items: center; margin: 0 0 0 4px; color: var(--ink); font-size: .875rem; }
+.sim-utterances > div { display: flex; flex-wrap: wrap; gap: 8px; padding-bottom: 12px; }
+.sim-utterances button { justify-content: flex-start; text-align: left; font-weight: 500; }
+.simulator button { white-space: normal; transition: none; }
+
+/* Pending question: the one motion on this screen, a short settle under the device. */
+.simulator .sim-prompt { margin: 16px 0 0; padding: 20px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); transition: translate 240ms cubic-bezier(.2, .7, .3, 1); }
+@starting-style { .simulator .sim-prompt { translate: 0 8px; } }
+.simulator .sim-prompt:focus { outline: 2px solid var(--ink-muted); outline-offset: 2px; }
+
+/* Secondary: account, host, display and theme in one compact toolbar; playback below. */
+.sim-settings { margin-top: 36px; padding-top: 16px; border-top: 1px solid var(--line); }
+.sim-toolbar { align-items: end; gap: 10px 12px; margin: 0; }
+.simulator .sim-toolbar label { flex: 1 1 140px; display: block; margin: 0; color: var(--ink-muted); font-size: .75rem; font-weight: 600; letter-spacing: .02em; }
+.simulator .sim-toolbar select { min-height: 40px; margin-top: 4px; padding: 6px 10px; background: var(--canvas); font-size: .875rem; }
+.sim-notes p { margin: 12px 0 0; color: var(--ink-muted); font-size: .8125rem; }
+.simulator .sim-playback { margin-top: 20px; padding: 16px 0 0; border-top: 1px solid var(--line); background: transparent; }
+.sim-playback h2 { font-size: 1rem; }
+.sim-playback label { max-width: 320px; }
+
+/* Transcript: a slim rail. */
+.simulator .sim-transcript { border-left: 1px solid var(--line); padding-left: 20px; background: transparent; font-size: .875rem; }
+.simulator .sim-transcript article { border-top: 0; border-bottom: 1px solid var(--line); }
+.simulator .sim-transcript details { border-top: 0; }
+.simulator .sim-transcript h2 { font-size: 1rem; }
+@media (max-width: 900px) {
+  .simulator { padding: 16px; }
+  .sim-honesty { margin-left: 0; border-radius: 12px; }
+  .sim-device { padding: 8px 8px 14px; border-radius: 20px; }
+  .simulator .sim-transcript { border-left: 0; border-top: 1px solid var(--line); padding: 16px 0; }
+}

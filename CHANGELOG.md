@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-10-23: Restyle the companion, simulator and cards: self-hosted Instrument Sans (OFL), seven named color tokens with the accent on final actions only, role-based radius/elevation, and a device-framed Echo Show first in the simulator with its settings below ([design](docs/design.md#companion-and-simulator-styling--2026-10-23)).
+
 - 2026-10-20: Adopt the approved Simulator submission scope, defer unfinished cloud gates without marking them complete, and prioritize demo, human and release checks ([decision](docs/adr/ADR-007-alexa-surface-strategy.md#simulator-submission-scope--2026-10-20-author-approved), [roadmap](ROADMAP.md#cut-line-and-fallbacks)). Record the final policy acceptance failure and independently verified teardown ([evidence](docs/verification-log.md#final-acceptance-stopped-at-gateway-evidence-teardown-verified--2026-10-20)).
 
 - 2026-10-20: Add the local Link signature/replay journal, durable endings and recorded HA transport; production relay and device acceptance remain pending ([decision](docs/adr/ADR-009-signed-commands-home-agent.md#item-38a-local-command-foundation--2026-10-20)).

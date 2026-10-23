@@ -1,6 +1,8 @@
 /* Amazon tokens: https://developer.amazon.com/docs/alexaplus/add-ons/mcp-addon-visual-foundations.html */
+/* Instrument Sans, SIL OFL 1.1 (fonts/OFL.txt); inlined as a data URL by the single-file build. */
+@font-face { font-family: "Instrument Sans"; src: url("./fonts/InstrumentSans-Variable.woff2") format("woff2"); font-weight: 400 700; font-style: normal; font-display: block; }
 :root {
-  font-family: system-ui, sans-serif; color: #14181E; background: #FFFFFF;
+  font-family: "Instrument Sans", system-ui, sans-serif; -webkit-font-smoothing: antialiased; color: #14181E; background: #FFFFFF;
   --display1: 48px; --display2: 40px; --display3: 32px; --display4: 28px; --display5: 24px;
   --headline1: 20px; --headline2: 18px; --body1: 16px; --body2: 14px; --body3: 12px; --label1: 10px; --label2: 8px;
   --space1: 2px; --space2: 6px; --space3: 8px; --space4: 12px; --space5: 16px; --space6: 20px; --space7: 24px;
@@ -15,22 +17,22 @@ body { margin: 0; background: var(--canvas); color: var(--ink); }
 .canvas { width: 768px; height: 480px; padding: var(--space7); transform: scale(var(--scale)); transform-origin: top left; display: flex; flex-direction: column; gap: var(--space4); overflow: hidden; }
 header { display: flex; align-items: center; gap: var(--space4); min-height: 48px; }
 .wordmark { font-size: var(--display4); font-weight: 750; letter-spacing: -.05em; }
-.badge { border: 1px solid currentColor; border-radius: var(--circle); padding: 4px 10px; font-size: var(--body3); }
+.badge { border: 1px solid currentColor; border-radius: var(--circle); padding: 4px 10px; font-size: var(--body3); font-weight: 600; letter-spacing: .02em; }
 .expand { margin-left: auto; }
 .content { flex: 1; min-height: 0; overflow: hidden; }
 .fullscreen .content { overflow-y: auto; padding-right: var(--space3); }
-h1 { font-size: var(--display3); line-height: 1.15; font-weight: 650; margin: 0 0 var(--space5); }
+h1 { font-size: var(--display3); line-height: 1.15; font-weight: 620; letter-spacing: -.02em; margin: 0 0 var(--space5); }
 h2 { font-size: var(--display5); margin: var(--space6) 0 var(--space3); }
 p { margin: 0 0 var(--space4); font-size: var(--body1); line-height: 1.4; }
-.figure { font-size: var(--display1); margin-bottom: var(--space2); font-variant-numeric: tabular-nums; }
+.figure { font-size: var(--display1); font-weight: 640; letter-spacing: -.03em; line-height: 1.05; margin-bottom: var(--space2); font-variant-numeric: tabular-nums; }
 .eyebrow { font-size: var(--headline1); margin-bottom: var(--space2); }
 .caption { font-size: var(--body2); }
 .rows { list-style: none; margin: var(--space4) 0; padding: 0; display: grid; gap: var(--space3); }
-.rows li { font-size: var(--headline1); padding: var(--space3) var(--space4); background: var(--nested); border-radius: var(--radius4); line-height: 1.25; }
+.rows li { font-size: var(--headline1); font-weight: 500; padding: var(--space3) var(--space4); background: var(--nested); border-radius: var(--radius4); line-height: 1.25; font-variant-numeric: tabular-nums; }
 footer { display: flex; gap: var(--space4); align-items: center; min-height: 48px; }
 button, input { font: inherit; min-height: 48px; padding: 10px 20px; border: 1px solid currentColor; border-radius: var(--radius3); background: transparent; color: inherit; }
 button { cursor: pointer; }
-button.primary { background: var(--primary); border-color: var(--primary); color: white; }
+button.primary { background: var(--primary); border-color: var(--primary); color: white; font-weight: 600; }
 button:disabled { opacity: .5; cursor: default; }
 :focus-visible { outline: 3px solid currentColor; outline-offset: 3px; }
 .primary:focus-visible { outline-color: var(--ink); }
