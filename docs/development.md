@@ -1802,21 +1802,21 @@ failed runs retain their disposable database and private evidence.
 For model selection only, set `HIRZ_LLM=bedrock`, `AWS_PROFILE=hirz` and add
 `--budget-ledger secrets/item29-host-budget.json`. Preserve this same separate
 aggregate ledger across every model, restart and attempted run. The approved Haiku
-acceptance extension raises its total ceiling to $20; Nova retains a $10 ceiling
-against the same total and is not part of the Haiku-only verification work. Never use/reset the
+acceptance extension raises its total ceiling to $20. Since 2026-10-23 the `nova`
+host is Nova 2 Lite with its own $20 ceiling counted over its reservations only
+(ADR-020). Never use/reset the
 existing $2 ledger. Haiku native token counting and maximum-output reservation precede inference.
-The approved Nova exception reserves 330,000 input tokens (its published 300K
-context ceiling plus 10%) and 512 maximum output tokens per attempt, even for
+The approved Nova 2 Lite exception reserves 1,100,000 input tokens (its documented 1M
+context ceiling plus 10%) and 512 maximum output tokens per attempt ($0.364408), even for
 short requests; this is a cost bound, not a measured token count. Expired credentials,
 Haiku counting failure and cap exhaustion stop the turn.
 Select scripted mode explicitly to continue. Pricing and model IDs are in ADR-020;
 recheck pricing before later paid invocations. Drafting stays on the labeled recorded
 patch and narration uses deterministic tool speech during acceptance.
 
-Item 29 is accepted for Haiku and scripted mode. Nova is deferred to item 29b by
-author approval; its existing experimental option is not a verified evening host.
-Use Haiku for the live demo. No further Nova inference is authorized by this
-deferral, and its failed-run evidence and reservations must remain intact.
+Item 29 is accepted for Haiku and scripted mode. Nova 2 Lite acceptance is item
+29b ([evidence](./verification-log.md#item-29b)); it is not a verified evening host.
+Failed-run evidence and reservations must remain intact.
 
 The Python CI job has a 45-minute allowance, including the real five-minute MCP
 prompt-expiry probe and the browser suites. Its combined coverage threshold is
@@ -1840,8 +1840,10 @@ matrix/gate results belong in [item 29](./verification-log.md#item-29).
 
 Refresh and verify the deployment profile using the
 [item 36 operator login procedure](#item-36-aws-acceptance).
-The verified Nova Lite endpoint rejects CountTokens; the approved context-ceiling
-reservation exception is documented in ADR-020. See the item 29 friction entry.
+Nova Lite v1 and Nova 2 Lite both reject CountTokens; the approved context-ceiling
+reservation exception is documented in ADR-020. The `hirz-login` CLI profile needs
+`botocore[crt]` in the SDK; export its credentials into the launcher's environment
+instead (below). See the item 29 friction entry.
 Playback pauses again if execution needs a new action approval: read the current
 plan, then explicitly approve or decline its pending action before continuing.
 
@@ -2041,6 +2043,45 @@ origin, `HIRZ_SIMULATOR_ARTIFACTS` pointing to its `artifacts` directory,
 `HIRZ_SIMULATOR_DISPLAY=show|dot` (see the test's display variable). Use a fresh
 run per cell. Virtual authenticators still undergo real server-side WebAuthn
 verification; they do not replace the manual real-phone rehearsal.
+
+### Recording with the Nova 2 Lite host — 2026-10-23
+
+`scripts/demo.py` supplies no inference credentials, so a Nova-hosted recording
+uses the item 29 launcher on the host, not the recording Compose stack. The
+launcher refuses an `http://localhost` origin (`Contact links require the
+configured HTTPS origin`), so it needs trusted HTTPS forwarding to 8002, as in
+the companion HTTPS procedure. Use Node 24, built UI bundles, native Dogwood and
+the running development PostgreSQL; ports 8002/8003 must be free (`--port` and
+`--issuer-port` move them; the HTTPS forward must follow `--port`).
+
+```sh
+export PATH="$(brew --prefix node@24)/bin:$PATH"
+tailscale serve --bg http://127.0.0.1:8002
+eval "$(aws configure export-credentials --profile hirz-login --format env)"
+unset AWS_PROFILE
+HIRZ_DOGWOOD="$PWD/.tools/dogwood" HIRZ_LLM=bedrock \
+  uv run --locked python -m scripts.simulator_demo \
+  --origin https://YOUR-TAILNET-HOST \
+  --artifacts-dir ~/Projects/hirz-private-evidence/nova2-recording-UNIQUE \
+  --budget-ledger secrets/item29-host-budget.json
+```
+
+Exported credentials are temporary; re-export before a new session if they expire.
+Run it in a terminal so Ctrl-C reaches the launcher. Then, manually: enroll Malik
+and Mom from the private `invitations.json` with real passkeys, activate each seed
+policy, link each Echo with explicit PKCE consent, open `/simulator`, choose
+**Host: Nova 2 Lite**, and pick the scenario. The honesty banner must read
+"Emulated Alexa+ host · Nova 2 Lite · Simulated devices and contact replies".
+Stop with Ctrl-C and keep the artifacts private. `tailscale serve reset` removes
+the forward afterwards.
+
+Each selection reserves $0.364408 against Nova 2 Lite's $20 ceiling. A simple turn
+takes one selection plus one continuation (about $0.73). The parents scam turn
+took eight ($2.92), because Nova 2 polled the pending check. An evening take is
+about 45 selections (about $16.40, counted on Haiku). After the item 29b parents
+cells, $12.71184 remains: not enough for an evening take. If the ledger refuses,
+the turn stops with "The inference budget is exhausted"; select Scripted mode or
+ask the author about the ceiling. Never edit or reset the ledger.
 
 ## Trusted-contact acceptance (item 31)
 

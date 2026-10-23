@@ -2,6 +2,7 @@
 
 import json
 import logging
+import re
 from decimal import Decimal
 from pathlib import Path
 from typing import Any, cast
@@ -19,17 +20,29 @@ from hirz.explainer.core import MODEL_ID
 from hirz.host.headless import Budget
 from hirz.host.memory import Suggestion
 
+# Nova 2 Lite on-demand, US East (N. Virginia), checked 2026-10-23 with the AWS
+# Price List API (`aws pricing get-products --service-code AmazonBedrock`):
+# USE1-Nova2.0Lite-input-tokens $0.00033/1K, USE1-Nova2.0Lite-output-tokens $0.00275/1K.
+NOVA_MODEL_ID = "us.amazon.nova-2-lite-v1:0"
 MODELS = {
     "haiku": (MODEL_ID, "1.10", "5.50"),
-    "nova": ("us.amazon.nova-lite-v1:0", "0.06", "0.24"),
+    "nova": (NOVA_MODEL_ID, "0.33", "2.75"),
 }
 PENDING = "Selected for sequential host confirmation; not executed yet."
-# Approved 2026-09-27: 300K context ceiling plus 10%, not a token estimate.
-# https://docs.aws.amazon.com/nova/latest/userguide/what-is-nova.html
-NOVA_INPUT_RESERVATION = 330_000
-HOST_BUDGET_LIMIT = Decimal("10")
-# Approved Haiku-only verification extension; Nova retains its original ceiling.
+# Approved 2026-10-23: Nova 2 Lite still rejects CountTokens. Reserve its documented
+# 1M-token context ceiling plus 10%, not a token estimate.
+# https://docs.aws.amazon.com/nova/latest/nova2-userguide/what-is-nova-2.html
+NOVA_INPUT_RESERVATION = 1_100_000
+# Approved 2026-10-23: Nova 2 Lite's own $20 ceiling, counted over its reservations
+# only. Haiku keeps its $20 aggregate ceiling over the whole ledger.
+NOVA_BUDGET_LIMIT = Decimal("20")
 HAIKU_BUDGET_LIMIT = Decimal("20")
+THINKING = re.compile(r"<thinking>.*?</thinking>", re.DOTALL)
+
+
+def strip_thinking(text: str) -> str:
+    """Remove Nova's <thinking> narration; tool results never pass through here."""
+    return THINKING.sub("", text).strip()
 
 
 def complete_selection(
@@ -84,11 +97,12 @@ def select(
     model_id, inputs, outputs = MODELS[name]
     budget = Budget(
         ledger,
-        limit=HAIKU_BUDGET_LIMIT if name == "haiku" else HOST_BUDGET_LIMIT,
+        limit=HAIKU_BUDGET_LIMIT if name == "haiku" else NOVA_BUDGET_LIMIT,
         input_rate=Decimal(inputs),
         output_rate=Decimal(outputs),
         purpose="item29-host",
         model=model_id,
+        model_scoped=name == "nova",
     )
     model = BedrockModel(
         model_id=model_id,
@@ -98,9 +112,11 @@ def select(
         temperature=0,
         # Anthropic's native control enforces one selection within 512 tokens.
         # https://platform.claude.com/docs/en/agents-and-tools/tool-use/parallel-tool-use
+        # The Nova 2 tool-use guide no longer recommends topK=1 greedy decoding:
+        # https://docs.aws.amazon.com/nova/latest/nova2-userguide/using-tools.html
         additional_request_fields={"tool_choice": {"disable_parallel_tool_use": True}}
         if name == "haiku"
-        else {"inferenceConfig": {"topK": 1}},
+        else None,
         boto_client_config=Config(
             retries={"total_max_attempts": 1}, connect_timeout=5, read_timeout=30
         ),
@@ -319,7 +335,9 @@ speaks deterministic tool results; do not produce outcome narration or policy ad
     )
     if diagnostics is not None:
         diagnostics.update(
-            stop_reason=result.stop_reason, response=str(result), selections=list(calls)
+            stop_reason=result.stop_reason,
+            response=strip_thinking(str(result)),
+            selections=list(calls),
         )
     history[:] = cast(list[dict[str, Any]], list(agent.messages))
     # Strands appends this synthetic assistant text for our AfterTools hook.
@@ -340,6 +358,8 @@ speaks deterministic tool results; do not produce outcome narration or policy ad
             raise ValueError("Invalid temperature suggestion") from None
     elif selected in {t.name for t in controls}:
         question = arguments.get("question", "")
+        if isinstance(question, str):
+            question = strip_thinking(question)
         if selected == "ask_user" and (
             not isinstance(question, str) or not 0 < len(question) <= 500
         ):

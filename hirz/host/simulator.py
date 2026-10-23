@@ -22,7 +22,7 @@ from hirz.mcp.cards import TOOLS as CARDS
 from hirz.memory.models import Turn, TurnInput
 
 ACCOUNTS = {"mom": "Mom’s Echo", "malik": "Malik’s Echo", "dad": "Dad’s Echo"}
-MODELS = {"scripted": "Scripted", "haiku": "Claude Haiku 4.5", "nova": "Nova Lite"}
+MODELS = {"scripted": "Scripted", "haiku": "Claude Haiku 4.5", "nova": "Nova 2 Lite"}
 
 
 def commitment(name: str, args: dict[str, Any]) -> bool:

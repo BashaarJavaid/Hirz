@@ -217,6 +217,55 @@ def test_aggregate_ledger_concurrency_and_separate_task(tmp_path):
     assert legacy.read_bytes() == before
 
 
+def test_nova_ceiling_counts_only_its_own_reservations(tmp_path):
+    from hirz.host import selection
+
+    path = tmp_path / "ledger"
+    nova = selection.MODELS["nova"][0]
+    prior = [
+        {"model": selection.MODEL_ID, "reserved_usd": "18"},
+        {"model": "us.amazon.nova-lite-v1:0", "reserved_usd": "0.45"},
+        {"model": nova, "reserved_usd": "19.5"},
+    ]
+    path.write_text(
+        json.dumps({"purpose": "item29-host", "reserved_usd": "37.95", "calls": prior})
+    )
+
+    def budget(model, scoped):
+        return Budget(
+            path,
+            limit=Decimal("20"),
+            input_rate=Decimal("0.33"),
+            output_rate=Decimal("2.75"),
+            purpose="item29-host",
+            model=model,
+            model_scoped=scoped,
+        )
+
+    budget(nova, True).reserve(1_100_000, 512)
+    record = json.loads(path.read_text())
+    assert Decimal(record["reserved_usd"]) == Decimal("38.314408")
+    assert record["calls"][:3] == prior
+    before = path.read_bytes()
+    for model, scoped in [(nova, True), (selection.MODEL_ID, False)]:
+        with pytest.raises(ValueError, match="BEDROCK_BUDGET_EXHAUSTED"):
+            budget(model, scoped).reserve(1_100_000, 512)
+    assert path.read_bytes() == before
+
+
+def test_strip_thinking_removes_only_model_reasoning():
+    from hirz.host.selection import strip_thinking
+
+    assert (
+        strip_thinking("<thinking>Need the door.\n</thinking>Which door?")
+        == "Which door?"
+    )
+    assert strip_thinking("<thinking>a</thinking> One <thinking>b</thinking>") == (
+        "One"
+    )
+    assert strip_thinking("Which door?") == "Which door?"
+
+
 @pytest.mark.parametrize("model_name", ["haiku", "nova"])
 @pytest.mark.parametrize("failure", ["counting", "exhausted", "retry"])
 def test_selection_stops_before_unreserved_inference(
@@ -227,17 +276,22 @@ def test_selection_stops_before_unreserved_inference(
     from hirz.host import selection
 
     ledger = tmp_path / "selection.json"
-    ceiling = "20" if model_name == "haiku" else "10"
+    from hirz.host import selection as models
+
+    exhausted = failure == "exhausted"
     ledger.write_text(
         json.dumps(
             {
                 "purpose": "item29-host",
-                "reserved_usd": ceiling
-                if failure == "exhausted"
+                "reserved_usd": "20"
+                if exhausted
                 else "10"
                 if model_name == "haiku" and failure == "retry"
                 else "0",
-                "calls": [],
+                # Nova 2 Lite's ceiling counts only its own reservations.
+                "calls": [{"model": models.MODELS[model_name][0], "reserved_usd": "20"}]
+                if exhausted and model_name == "nova"
+                else [],
             }
         )
     )
@@ -279,9 +333,8 @@ def test_selection_stops_before_unreserved_inference(
     assert factory.call_args.kwargs["retry_strategy"] is None
     assert model.call_args.kwargs["max_tokens"] == 512
     if model_name == "nova":
-        assert model.call_args.kwargs["additional_request_fields"] == {
-            "inferenceConfig": {"topK": 1}
-        }
+        assert model.call_args.kwargs["additional_request_fields"] is None
+        assert model.call_args.kwargs["model_id"] == "us.amazon.nova-2-lite-v1:0"
     assert (
         model.call_args.kwargs["boto_client_config"].retries["total_max_attempts"] == 1
     )
@@ -301,9 +354,9 @@ def test_selection_stops_before_unreserved_inference(
         records = json.loads(ledger.read_text())["calls"]
         assert len(records) == 1
         if model_name == "nova":
-            assert records[0]["input_tokens"] == 330_000
+            assert records[0]["input_tokens"] == 1_100_000
             assert records[0]["input_basis"] == "nova_context_ceiling_plus_10_percent"
-            assert Decimal(records[0]["reserved_usd"]) == Decimal("0.01992288")
+            assert Decimal(records[0]["reserved_usd"]) == Decimal("0.364408")
         elif failure == "retry":
             assert (
                 Decimal("10")
@@ -338,7 +391,11 @@ def test_model_host_controls_never_execute_mcp(tmp_path, monkeypatch, step):
     )
     agent = Mock()
     question = "Which door and how many minutes?"
-    arguments = {"question": question} if step == "ask_user" else {}
+    arguments = (
+        {"question": "<thinking>Unclear.</thinking>" + question}
+        if step == "ask_user"
+        else {}
+    )
     if step in {
         "suggest_temperature_preference",
         "stale_suggestion",

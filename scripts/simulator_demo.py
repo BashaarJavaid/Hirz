@@ -488,7 +488,7 @@ def main() -> None:
     parser.add_argument(
         "--budget-ledger",
         type=Path,
-        help="Separate durable item29-host ledger: $20 aggregate for Haiku, $10 ceiling for Nova",
+        help="Separate durable item29-host ledger: $20 aggregate for Haiku, $20 Nova 2 Lite-only ceiling",
     )
     asyncio.run(run(parser.parse_args()))
 

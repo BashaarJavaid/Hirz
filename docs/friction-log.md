@@ -1406,3 +1406,20 @@ probe authenticated as HirzDeploy. Neither probe deployed resources.
 - **Feature request:** Support explicitly pinned cross-origin OAuth endpoints and
   a documented-provider PKCE capability when metadata omits the optional field,
   without accepting arbitrary discovered origins or downgrading PKCE.
+
+## Item 29b: Nova 2 Lite cannot satisfy pre-inference token counting — 2026-10-23
+
+- **Tool/task:** Amazon Bedrock `CountTokens` for the current-generation Nova 2
+  Lite, before the simulator's paid inference in `us-east-1`.
+- **Command:** `aws bedrock-runtime count-tokens --region us-east-1 --model-id us.amazon.nova-2-lite-v1:0 --input '{"converse":{"messages":[{"role":"user","content":[{"text":"Hello"}]}]}}'`
+  (the `amazon.nova-2-lite-v1:0` foundation ID gives the same result).
+- **Exact error:** `An error occurred (ValidationException) when calling the CountTokens operation: The provided model doesn't support counting tokens.`
+- **Reference:** [CountTokens API](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_CountTokens.html);
+  the [Nova 2 user guide](https://docs.aws.amazon.com/nova/latest/nova2-userguide/what-is-nova-2.html)
+  says nothing about counting support.
+- **Severity:** Major. Without a count, the approved rule reserves the full 1M
+  context plus 10% per call ($0.364408), about 30 times a typical request's cost.
+  A $20 ceiling then covers about 54 selections, which is less than two evening scenarios.
+- **Workaround:** context-ceiling reservation (ADR-020); no estimated count.
+- **Feature request:** support `CountTokens` for Nova 2 Lite, and list per-model
+  counting support in the Bedrock model documentation.

@@ -81,6 +81,7 @@ class Budget:
         output_rate: Decimal = Decimal("5.50"),
         purpose: str | None = None,
         model: str | None = None,
+        model_scoped: bool = False,
     ):
         self.path = path
         self.limit, self.input_rate, self.output_rate, self.purpose = (
@@ -89,7 +90,9 @@ class Budget:
             output_rate,
             purpose,
         )
-        self.model = model
+        # A model-scoped ceiling counts only this model's reservations; the
+        # ledger's aggregate total still includes every model and attempt.
+        self.model, self.model_scoped = model, model_scoped
         self.calls: list[dict[str, int]] = []
 
     def check(self, outputs: int) -> None:
@@ -132,10 +135,28 @@ class Budget:
                 raise ValueError("Budget ledger belongs to a different task")
             if self.purpose is not None:
                 record["purpose"] = self.purpose
-            used = Decimal(record["reserved_usd"])
-            if not used.is_finite() or used < 0 or used + cost > self.limit:
+            total = Decimal(record["reserved_usd"])
+            used = (
+                sum(
+                    (
+                        Decimal(c["reserved_usd"])
+                        for c in record["calls"]
+                        if c.get("model") == self.model
+                    ),
+                    Decimal(0),
+                )
+                if self.model_scoped
+                else total
+            )
+            if (
+                not total.is_finite()
+                or total < 0
+                or not used.is_finite()
+                or used < 0
+                or used + cost > self.limit
+            ):
                 raise ValueError("BEDROCK_BUDGET_EXHAUSTED")
-            record["reserved_usd"] = str(used + cost)
+            record["reserved_usd"] = str(total + cost)
             reservation: dict[str, Any] = dict(
                 input_tokens=inputs, max_output_tokens=outputs
             )

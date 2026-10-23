@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-10-23: Switch the simulator's `nova` host to Nova 2 Lite with a per-model $20 ceiling, a 1.1M-token context-bound reservation, no `topK`, and `<thinking>` stripping. Parents cells pass; evening cells are owed ([decision](docs/adr/ADR-020-simulator.md#nova-2-lite-host-substitution--2026-10-23), [evidence](docs/verification-log.md#item-29b)).
+
 - 2026-10-23: Restyle the companion, simulator and cards: self-hosted Instrument Sans (OFL), seven named color tokens with the accent on final actions only, role-based radius/elevation, and a device-framed Echo Show first in the simulator with its settings below ([design](docs/design.md#companion-and-simulator-styling--2026-10-23)).
 
 - 2026-10-20: Adopt the approved Simulator submission scope, defer unfinished cloud gates without marking them complete, and prioritize demo, human and release checks ([decision](docs/adr/ADR-007-alexa-surface-strategy.md#simulator-submission-scope--2026-10-20-author-approved), [roadmap](ROADMAP.md#cut-line-and-fallbacks)). Record the final policy acceptance failure and independently verified teardown ([evidence](docs/verification-log.md#final-acceptance-stopped-at-gateway-evidence-teardown-verified--2026-10-20)).

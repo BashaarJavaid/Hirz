@@ -466,3 +466,53 @@ claims; it does not change AWS/Link guarantees or resolve issue #7.
 
 Rejected: permitting an ending without its opening, swallowing the claim error,
 rewriting retained failed-run history, and a simulator-only exception.
+
+### Nova 2 Lite host substitution — 2026-10-23
+
+The author decided four things on 2026-10-23, superseding the earlier rejection of
+substituting Nova 2:
+
+1. **Model.** The `nova` host is now Amazon Nova 2 Lite, `us.amazon.nova-2-lite-v1:0`
+   (US cross-region profile, us-east-1). Nova Lite v1 is no longer selectable. The
+   simulator and its honesty banner label it "Nova 2 Lite"; a Nova result is never
+   presented as a Haiku or scripted result.
+2. **Reservation without counting.** CountTokens still rejects Nova 2 Lite. On
+   2026-10-23 `aws bedrock-runtime count-tokens --region us-east-1 --model-id
+   us.amazon.nova-2-lite-v1:0` (and the `amazon.` foundation ID) returned
+   `ValidationException: The provided model doesn't support counting tokens.`
+   The approved rule stays: no estimated counting. Each attempt reserves the
+   [documented 1M-token context](https://docs.aws.amazon.com/nova/latest/nova2-userguide/what-is-nova-2.html)
+   plus 10 percent (1,100,000 input tokens) plus 512 maximum output tokens before
+   inference, labeled `nova_context_ceiling_plus_10_percent`.
+3. **Ceiling.** A new $20 Nova 2 Lite ceiling on the same
+   `secrets/item29-host-budget.json` ledger, counted per model: the sum of
+   `reserved_usd` over calls whose `model` is the Nova 2 Lite ID. The $18.44548614
+   already reserved by Haiku and Nova Lite v1 does not count against it. Haiku's
+   $20 aggregate rule is unchanged, so Haiku now refuses on this ledger. `Budget`
+   gains only a `model_scoped` flag; the ledger total still sums every call.
+4. **Rates.** AWS Price List API (`aws pricing get-products --service-code
+   AmazonBedrock --region us-east-1`, read 2026-10-23), on-demand US East:
+   `USE1-Nova2.0Lite-input-tokens` $0.00033 per 1K and
+   `USE1-Nova2.0Lite-output-tokens` $0.00275 per 1K, i.e. **$0.33 / $2.75 per
+   million**. Each attempt therefore reserves **$0.364408**; the $20 ceiling admits
+   54 attempts. The cheaper `-cross-region-global` rows ($0.30 / $2.50) apply to the
+   global profile, which the host does not use.
+
+Unchanged: no automatic inference retries, the 512-token output cap,
+`temperature=0`, `toolChoice.any` and the model-facing root-schema filter.
+`topK: 1` is dropped for Nova 2: the
+[Nova 2 tool-use guide](https://docs.aws.amazon.com/nova/latest/nova2-userguide/using-tools.html)
+no longer recommends greedy decoding, and its
+[request schema](https://docs.aws.amazon.com/nova/latest/nova2-userguide/request-response-schema.html)
+lists topK as "default: not used". `<thinking>…</thinking>` blocks are stripped in
+`selection.select` from the model's `ask_user` question and the diagnostic response
+text, the only model narration the host produces; tool results are never touched.
+
+Rejected: estimated token counting (violates the count-or-bound rule); raising the
+512 output cap; one shared $20 aggregate for both models (already exhausted by
+prior work); Nova 2 Sonic voice (out of scope today).
+
+At this reservation rate an evening cell (about 45 selections, measured on Haiku)
+reserves about $16.40, so the $20 ceiling cannot cover both evening cells, nor an
+evening recording take after the parents cells. Results and the open spending
+decision are in the [item 29b evidence](../verification-log.md#item-29b).

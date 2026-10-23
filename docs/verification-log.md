@@ -11384,6 +11384,103 @@ verification evidence is an unchanged prefix, and `git diff --check` is clean.
 The closure commit's push will trigger ordinary CI; it is not a new latency
 acceptance dispatch and is not represented here as a completed run.
 
+## Item 29b
+
+### Nova 2 Lite substitution — 2026-10-23
+
+Decisions: [ADR-020 amendment](./adr/ADR-020-simulator.md#nova-2-lite-host-substitution--2026-10-23).
+Source: the runtime and test changes are in `5c090f1`, where a concurrent session
+committed them together with a README edit; the runs used that identical code.
+The following commit adds only these records. Environment: macOS 15 (Darwin 24.6.0), Python 3.12 via
+uv, Node 24.21.0 (Homebrew `node@24`), native Dogwood `.tools/dogwood`, development
+PostgreSQL container `hirz-postgres-1`; disposable databases only.
+AWS: `hirz-login` (account root, us-east-1), credentials exported into the process
+environment with `aws configure export-credentials --profile hirz-login --format env`.
+
+Read-only checks:
+
+- `aws bedrock-runtime count-tokens --region us-east-1 --model-id us.amazon.nova-2-lite-v1:0 --input '{"converse":{"messages":[{"role":"user","content":[{"text":"Hello"}]}]}}'`
+  (also with `amazon.nova-2-lite-v1:0`), aws-cli 2.37.0:
+  `An error occurred (ValidationException) when calling the CountTokens operation: The provided model doesn't support counting tokens.`
+- `aws pricing get-products --service-code AmazonBedrock --region us-east-1 --filters Type=TERM_MATCH,Field=regionCode,Value=us-east-1`:
+  `USE1-Nova2.0Lite-input-tokens` $0.0003300000 per 1K, `USE1-Nova2.0Lite-output-tokens`
+  $0.0027500000 per 1K (on-demand standard). Context: "All models support up to 1
+  million tokens of context" ([Nova 2 user guide](https://docs.aws.amazon.com/nova/latest/nova2-userguide/what-is-nova-2.html)).
+
+Each cell ran:
+
+```sh
+HIRZ_DOGWOOD="$PWD/.tools/dogwood" HIRZ_LLM=bedrock HIRZ_SIMULATOR_MODEL=nova \
+  HIRZ_SIMULATOR_SCENARIO=<scenario> HIRZ_SIMULATOR_DISPLAY=<show|dot> \
+  uv run --locked python -m scripts.simulator_demo --origin https://hirz.example.test \
+  --artifacts-dir ~/Projects/hirz-private-evidence/nova2-2026-10-23-<cell> \
+  --browser-test --budget-ledger secrets/item29-host-budget.json
+```
+
+Ledger `secrets/item29-host-budget.json` (mode 0600, never edited by hand):
+
+| Point | Total reserved | Calls | Nova 2 Lite reserved / calls |
+|---|---|---|---|
+| Before | $18.44548614 | 838 | $0 / 0 |
+| After parents Show | $22.08956614 | 848 | $3.64408 / 10 |
+| After parents Dot | $25.73364614 | 858 | $7.28816 / 20 |
+
+Every Nova 2 Lite call reserved 1,100,000 input + 512 output tokens = $0.364408,
+labeled `nova_context_ceiling_plus_10_percent`. These are upper bounds, not a bill.
+
+| Cell | Result | Artifacts |
+|---|---|---|
+| Parents Show, attempt 1 | **Failed before inference**: `Simulator turn stopped (MissingDependencyException): Missing Dependency: Using the login credential provider requires an additional dependency. You will need to pip install "botocore[crt]" before proceeding.` 0 reservations; database `hirz_ha_smoke_339c147495ed4d429daf03dd75ff50dd` retained | `nova2-2026-10-23-parents-show/` |
+| Parents Show, attempt 2 | **Harness passed**: `1 passed (29.4s)`, timeline complete, **115** verified signed rows, 10 selections, database dropped after verified export | `nova2-2026-10-23-parents-show-2/` |
+| Parents Dot | **Harness passed**: `1 passed (25.0s)`, timeline complete, **103** verified signed rows, 10 selections, database dropped after verified export | `nova2-2026-10-23-parents-dot/` |
+| Evening Show | **Not run** (budget, below) | none |
+| Evening Dot | **Not run** (budget, below) | none |
+
+Parents selections, both modes: the first turn selected
+`verify_trusted_identity(operation=start, contact=Malik, text=…)` with exact
+confirmation, then **seven automatic `verify_trusted_identity(status)` polls**
+until the host's eight-call per-utterance limit stopped it. The host spoke "A
+simulated check is pending. Ask me again in a minute." eight times. "Alexa, is it
+him?" then selected `status` (reply: "The simulated reply says they did not make
+this request. Do not send anything.") and `finish_request`. This passes the browser
+harness, but it ignores the host prompt's "do not … poll it automatically", costs
+seven extra selections ($2.55) per check, and repeats the spoken line. It is not
+recording quality. The passing Nova Lite v1 histories (2026-09-27) hold four model turns each. No
+`<thinking>` text appeared in either model history.
+
+The evening cells were not started. Haiku's final evening cells used 45 and 46
+reservations. At $0.364408 per attempt, one evening cell is about $16.40. After
+the parents cells, $12.71184 (34 attempts) remains under the Nova 2 Lite ceiling,
+so neither evening cell can finish. Starting one would exhaust the ceiling partway
+and leave nothing for recording. **The evening compound request ("Don't charge the
+car past 50, I'm not driving tomorrow") has no Nova 2 Lite result.** Haiku also
+cannot run on this ledger any more: its unchanged $20 aggregate rule now sees
+$25.73364614.
+
+Recording-procedure check: `scripts.simulator_demo --origin http://localhost:8002
+--budget-ledger …` with `HIRZ_LLM=bedrock` started its servers, then stopped:
+`ValueError: Contact links require the configured HTTPS origin`, then `Runtime
+shutdown failed; storage and exports retained` (database
+`hirz_ha_smoke_7ee0f7df5985433eacbfc592f981e4b8` retained; artifacts
+`nova2-2026-10-23-recording-launch/`; no reservation). Tailscale was stopped on
+this machine (`tailscale serve status`: `No serve config`), and was not started
+without the author. A manual Nova session with a real HTTPS origin, real passkeys
+and a manually answered turn was **not** verified. The browser cells used the same
+launcher, ledger and Nova host through the test's HTTPS origin forwarding, with
+virtual authenticators verified server-side. In the parents Show capture the
+banner reads "Emulated Alexa+ host · Nova 2 Lite · Simulated devices and contact
+replies" and the Host list offers Scripted, Claude Haiku 4.5 and Nova 2 Lite.
+
+Offline checks: `uv run pytest tests/unit/test_simulator.py --no-cov` **31 passed**
+(new per-model ceiling and `<thinking>` strip tests, updated Nova reservation and
+no-`topK` assertions); `uv run pytest` **1839 passed, 296 deselected** (service-free
+coverage 70%; the 80% gate is combined with integration in CI, not claimed here);
+`ruff check`, `ruff format --check` and `mypy hirz/ scripts/ alembic/` (239 files) pass.
+
+Not claimed: either evening cell, the compound request, a manual recording session,
+Show/Dot microphone or phone passkey acceptance, actual AWS billing, or any fix to
+the auto-polling.
+
 ## Item 30
 
 ### Recording implementation checks — 2026-10-03
