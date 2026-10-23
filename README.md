@@ -6,10 +6,20 @@ Hirz lets your family decide what Alexa may do on its own, what it must ask abou
 
 > Built for the **Build, Ship, Shape: Amazon Developer Hackathon 2026**: Alexa+ track and both mini-challenges, AWS Builder and Open Source. Designed as a startup, not a weekend project: see [`ROADMAP.md`](./ROADMAP.md) for the hackathon cut line and what comes after it.
 
-Implementation status lives in the [roadmap](./ROADMAP.md), with the verified
-security scope in the [threat model](./THREAT_MODEL.md). The signed-home architecture
-described below still has AWS integration and physical-device acceptance gates;
-the working local demo uses explicitly labeled simulated devices.
+**Submission status (2026-10-23).** The entry is the working Hirz Simulator: a
+real MCP server (2025-11-25, Streamable HTTP, OAuth 2.1 PKCE, MCP Apps cards)
+driven by an emulated Alexa+ host in the browser, with explicitly labeled
+simulated devices, deterministic local policy checks, passkey approvals in the
+companion app and signed local audits. Demo video: VIDEO_URL_PENDING. Judges run
+it with no credentials from the [quickstart](#quickstart) and the
+[judge run instructions](#judge-run-instructions). The signed-home architecture
+described below is the design: AgentCore Policy enforcement, Hirz Link, audit
+anchors, the hosted demo, boundary passkeys, real push and email delivery, and
+the physical plug are **deferred beyond this submission**, each with its gate
+still open in the [roadmap](./ROADMAP.md) and its row unpromoted in the
+[threat model](./THREAT_MODEL.md). Hallway tests with outside participants
+(roadmap item 40a) were not run before the deadline, so no usability result is
+claimed.
 
 ---
 
@@ -92,6 +102,18 @@ exported energy, worst timer day, negative-price charging durations and coverage
 See [verification](./docs/verification-log.md#full-offline-reproduction-and-completion--2026-09-21)
 and [reproduction procedures](./docs/development.md#item-17-planner-and-backtest).
 
+## Screens
+
+Rendered from the actual application at Amazon's 768×480 card canvas and at phone width. Every device is a labeled twin.
+
+| Echo Show | Phone |
+|---|---|
+| ![Plan card: estimated savings, three rows, Approve](./docs/img/card-plan.png) | ![Rule review on the phone: the sentence, three derived situation lines, Activate with passkey](./docs/img/phone-rule-review.png) |
+| ![Verification card: warning signs, Check with Malik](./docs/img/card-verification.png) | ![Check-in on Malik's phone: No, that wasn't me](./docs/img/phone-checkin.png) |
+| ![Doorbell card: someone is at the front door, nobody expected](./docs/img/card-doorbell.png) | ![Unlock approval on the phone: schedule as context, Approve with passkey](./docs/img/phone-unlock.png) |
+
+The simulator itself, with the Echo Show as the hero and the tool-call transcript beside it: [`docs/img/simulator.png`](./docs/img/simulator.png). The scorecard's fullscreen view: [`docs/img/card-scorecard.png`](./docs/img/card-scorecard.png).
+
 ## Why existing agents fall short
 
 Alexa+ can now call third-party tools over MCP, orchestrate multi-turn conversations, and render interactive UI. Household agents built on it already follow a common pattern: an allowlist of actions, a human-approval step for the risky ones, and an audit trail. That pattern is necessary and Hirz has it. It is not sufficient, for three reasons:
@@ -106,7 +128,7 @@ Approval gates, an audit ledger, and a simulated Alexa+ host are the baseline fo
 
 | | What it is | Why it matters |
 |---|---|---|
-| **A boundary the household writes, that the home itself enforces** | A Household Constitution, proposed by voice or written as a form, as YAML, or in plain English, and always activated by a person on their own phone. It states per action class and per member what Hirz may do on its own, what it must ask about, and what it may never do. Every version compiles to a Cedar/Dogwood policy set that AgentCore Policy enforces at the AWS tool boundary, including a temporal "approval must precede action" rule. Only a permit gets a command signed, and the home-side agent, Hirz Link, obeys only signed commands. | The boundary belongs to the family, not the developer. Hirz's own processes hold no credential that can act on a device; only commands the policy engine authorized are signed, and the home obeys only signed commands, once each, addressed to that home. This covers a bug or a bypass path in Hirz's own code. It does not yet cover a fully compromised worker, which could still tell the boundary an approval happened; closing that for security actions (the passkey itself verified at the boundary) is `ROADMAP.md` item 38d, and `THREAT_MODEL.md` says No until it is built. |
+| **A boundary the household writes, that the home itself enforces** | A Household Constitution, proposed by voice or written as a form, as YAML, or in plain English, and always activated by a person on their own phone. It states per action class and per member what Hirz may do on its own, what it must ask about, and what it may never do. Every version compiles to a Cedar/Dogwood policy set that AgentCore Policy enforces at the AWS tool boundary, including a temporal "approval must precede action" rule. Only a permit gets a command signed, and the home-side agent, Hirz Link, obeys only signed commands. | The boundary belongs to the family, not the developer. Hirz's own processes hold no credential that can act on a device; only commands the policy engine authorized are signed, and the home obeys only signed commands, once each, addressed to that home. This covers a bug or a bypass path in Hirz's own code. It does not yet cover a fully compromised worker, which could still tell the boundary an approval happened; closing that for security actions (the passkey itself verified at the boundary) is `ROADMAP.md` item 38d, and `THREAT_MODEL.md` says No until it is built. **Status:** in-process enforcement, the Cedar compiler, native Dogwood agreement, passkey activation and the signed audit are verified locally; enforcement at the AWS boundary (item 37) and Hirz Link (item 38a) are deferred and not claimed. |
 | **Verification from the household's own records** | Trusted contacts have channels verified out of band at setup. A request is checked against those records and confirmed through the subject's own app or verified number, never through anything the caller supplied. A recent scam call plus an unexpected visitor at the door raises a warning. Hirz has no way to move money, by design. | "Is this really Malik?" is answered by the graph, not by the person asking. |
 | **A real planner over real prices** | A rolling-horizon MILP schedules the EV, the home battery, HVAC, and appliances against the household's real rate plan (all-in, supply plus delivery) and live weather, per-occupant comfort bands, and member constraints, and reports savings against a timer schedule a careful household would already use, with "do everything now" and a cheapest-slots strategy beside it, all held to the same comfort and delivered energy. A physics twin supplies every device that is not real, labeled as simulated. | The savings on the scorecard are computed, not typed, and the binding constraints and rejected alternatives are outputs of the model rather than a story about it. |
 | **Multi-member coordination with provenance** | Each constraint and preference keeps the linked account it arrived on, the surface, and the time: "Dad, 22:40: kitchen in use until 23:00" survives into the plan, the explanation, and the audit row. Alexa does not say who spoke, so provenance is the account, never the voice; a name someone merely claims is recorded as claimed. Conflicts between members are returned as data with the people involved, never silently resolved. | A household is not one user. The plan can say whose request moved the dishwasher, and why. |
@@ -290,7 +312,18 @@ enrollment and linking.
 
 A phone needs the Tailscale HTTPS origin instead of localhost; see
 [recording setup and shutdown](./docs/development.md#item-30-recording-stack).
-The hosted demo remains planned under item 38c.
+There is no hosted demo; item 38c is deferred.
+
+### Judge run instructions
+
+1. With the launcher running and enrollment done, open `http://localhost:8002/simulator`. The banner names the host in use and says the devices are simulated.
+2. Choose **Mom's Echo** and type or say: *Malik just called from a strange number. He says he's in trouble and needs five hundred dollars. Is it really him?* Then open the companion app's Check-ins page as Malik and answer **No, that wasn't me**. Back on Mom's Echo: *Alexa, is it him?*
+3. Choose **Malik's Echo**. The demo evening is paused at 17:30; press **Play 1×** or **Next event**. Say: *From now on, never unlock the door for someone we're not expecting.* Open the companion app's Constitution page, read the three situation lines, and activate the rule with your passkey.
+4. *What's going on tonight?* shows the plan card. *Don't charge the car past 50, I'm not driving tomorrow* revises it. *Do it* approves it.
+5. Switch Display to **Echo Dot** for the voice-only version of any of the above.
+6. When the 18:40 doorbell fires, *Let them in* is refused under the rule you activated. At 19:04, the expected arrival asks for approval on the phone, never by voice; approve it on the Approvals page with your passkey and watch the relock.
+7. Try to break it: say *pause Hirz*; propose a rule of your own and read its situation lines before activating.
+8. Proof: the Audit page lists every decision; `uv run hirz verify-audit --household <household-uuid>` checks the signed chain, and `uv run hirz scenario run scenarios/demo-evening.yaml --headless --assert` reproduces the evening's numbers offline.
 
 Starting a real check-in requires `uv run --locked python scripts/init_contacts.py`
 first; without the contact key the worker prints a status line, email check-ins
