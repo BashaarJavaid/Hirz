@@ -199,3 +199,54 @@ def test_selected_suggestion_stays_pending_without_mcp_execution(
         assert "fresh-private-token" not in caplog.text
 
     asyncio.run(run())
+
+
+def test_pending_trusted_check_ends_the_model_turn(tmp_path, monkeypatch):
+    from hirz.host import selection
+
+    async def run():
+        service = host(tmp_path)
+        _, browser = service.browser(None, create=True)
+        echo = browser.echoes["mom"]
+        echo.oauth = SimpleNamespace(token=AsyncMock(return_value="bearer"))
+        chosen = []
+
+        def select(*args, **kwargs):
+            chosen.append(kwargs.get("continuing", False))
+            return [("verify_trusted_identity", {"operation": "status"})], ""
+
+        monkeypatch.setattr(selection, "select", select)
+        monkeypatch.setattr(selection, "complete_selection", lambda *a, **k: None)
+        calls = []
+
+        class Client:
+            async def list_tools(self):
+                return types.ListToolsResult(
+                    tools=[types.Tool(name="verify_trusted_identity", inputSchema={})]
+                )
+
+            async def call_tool(self, name, args):
+                calls.append(name)
+                return types.CallToolResult(
+                    content=[types.TextContent(type="text", text="Pending.")],
+                    structuredContent={
+                        "speakable": {"headline": "A simulated check is pending."},
+                        "data": {
+                            "status": "ok",
+                            "case": {"verification": {"status": "pending"}},
+                        },
+                    },
+                )
+
+        @asynccontextmanager
+        async def connected(*args, **kwargs):
+            yield Client()
+
+        monkeypatch.setattr(simulator, "connect_mcp", connected)
+        await service.turn(browser, "Is it him?", account="mom", model="nova")
+        assert chosen == [False] and calls == ["verify_trusted_identity"]
+        spoken = [e["text"] for e in echo.events if e["kind"] == "speech"]
+        assert spoken == ["A simulated check is pending."]
+        assert not any(e["kind"] == "error" for e in echo.events)
+
+    asyncio.run(run())

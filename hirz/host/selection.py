@@ -33,9 +33,9 @@ PENDING = "Selected for sequential host confirmation; not executed yet."
 # 1M-token context ceiling plus 10%, not a token estimate.
 # https://docs.aws.amazon.com/nova/latest/nova2-userguide/what-is-nova-2.html
 NOVA_INPUT_RESERVATION = 1_100_000
-# Approved 2026-10-23: Nova 2 Lite's own $20 ceiling, counted over its reservations
+# Approved 2026-10-23: Nova 2 Lite's own $80 ceiling (raised from $20 the same day), counted over its reservations
 # only. Haiku keeps its $20 aggregate ceiling over the whole ledger.
-NOVA_BUDGET_LIMIT = Decimal("20")
+NOVA_BUDGET_LIMIT = Decimal("80")
 HAIKU_BUDGET_LIMIT = Decimal("20")
 THINKING = re.compile(r"<thinking>.*?</thinking>", re.DOTALL)
 

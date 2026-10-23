@@ -775,6 +775,18 @@ class Simulator:
                         and not browser.expired()
                         and count < 8
                         and not result.isError
+                        # A pending trusted-contact check completes this turn: its
+                        # reply arrives later and is read only when asked again.
+                        and not (
+                            name == "verify_trusted_identity"
+                            and (
+                                ((output.get("data") or {}).get("case") or {}).get(
+                                    "verification"
+                                )
+                                or {}
+                            ).get("status")
+                            == "pending"
+                        )
                     ):
                         calls = await choose(
                             f"Original user request: {text}\n"

@@ -289,7 +289,7 @@ def test_selection_stops_before_unreserved_inference(
                 if model_name == "haiku" and failure == "retry"
                 else "0",
                 # Nova 2 Lite's ceiling counts only its own reservations.
-                "calls": [{"model": models.MODELS[model_name][0], "reserved_usd": "20"}]
+                "calls": [{"model": models.MODELS[model_name][0], "reserved_usd": "80"}]
                 if exhausted and model_name == "nova"
                 else [],
             }

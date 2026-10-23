@@ -11481,6 +11481,58 @@ Not claimed: either evening cell, the compound request, a manual recording sessi
 Show/Dot microphone or phone passkey acceptance, actual AWS billing, or any fix to
 the auto-polling.
 
+
+### Ceiling raise, pending-check turn end and evening Show — 2026-10-23
+
+Decisions: [ADR-020 amendment](./adr/ADR-020-simulator.md#nova-2-lite-ceiling-raise-and-pending-check-turn-end--2026-10-23).
+The Nova 2 Lite ceiling is $80, and the reservation is unchanged at $0.364408. The host
+ends a model turn after a pending `verify_trusted_identity` result. New unit test
+`test_pending_trusted_check_ends_the_model_turn`: one selection, one MCP call and one
+spoken line. It fails against the previous `simulator.py` (`1 failed`) and passes with
+the change. The environment and launcher command are the same as above.
+
+| Cell | Result | Ledger before → after (total / calls / Nova 2 Lite) | Artifacts |
+|---|---|---|---|
+| Parents Show, attempt 3 | **Failed before linking, no inference**: Playwright `route.fetch: read ECONNRESET` on `GET /api/auth/session`, then `getByRole('heading', { name: 'Hirz simulated login' })` not visible. Database `hirz_ha_smoke_8a80cfc890fd4c428433f2c6c093e0e6` retained | $25.73364614 / 858 / $7.28816 (unchanged) | `nova2-2026-10-23-parents-show-3/` |
+| Parents Show, attempt 4 | **PASS**: `1 passed (17.0s)`, timeline complete, **75** verified signed rows, **3** selections, database dropped after verified export | $25.73364614 / 858 / $7.28816 → $26.82687014 / 861 / $8.381384 | `nova2-2026-10-23-parents-show-4/` |
+| Evening Show, attempt 1 | **FAIL**, at the compound-request beat; no provider error | → $31.19976614 / 873 / $12.75428 | `nova2-2026-10-23-evening-show-1/` |
+| Evening Dot | Deferred by the author | none | none |
+
+In parents Show attempt 4, the first turn selected `verify_trusted_identity(start)`
+and the host spoke "A simulated check is pending. Ask me again in a minute.
+Additional warning checks are in progress." **once**, then ended the turn. "Alexa, is
+it him?" selected `status`, spoke "The simulated reply says they did not make this
+request. Do not send anything." and then selected `finish_request`.
+
+Evening Show attempt 1 made 12 selections. The rule utterance first selected an
+unneeded `get_household_plan(horizon=tonight)`, then `propose_household_rule`
+(recorded, not activated). The tonight read selected context, plan and explain. The
+compound request **"Don't charge the car past 50. I'm not driving tomorrow. Keep the
+guest room at 72 Fahrenheit until seven in the morning. Run the dishwasher after
+23:31."** produced these selections:
+
+1. `get_household_plan(horizon=tonight)`, which returned "The car target is 80 percent by 6:30 AM."
+2. `revise_household_plan(operation=add, kind=constraint, change=car_limit, percent=50, applies_to=Car, text="Don't charge the car past 50. I'm not driving tomorrow.")`, confirmed and `recorded`: "The car limit is 50 percent. The affected plan is updating."
+3. `revise_household_plan(operation=add, kind=constraint, change=temperature, applies_to=Guest room, temperature_f=72, window_end="7 AM", …)`, `recorded`: "The temperature request is 72 degrees. The affected plan is updating."
+4. `revise_household_plan(operation=add, kind=one_time, change=appliance_after, applies_to=Dishwasher, at="23:31", window_start="23:31", …)`, `recorded`: "The appliance's earliest start time is 11:31 PM. The affected plan is updating."
+5. `finish_request`.
+
+Every tool use was valid; there was no `ModelErrorException` or other provider error.
+Nova 2 Lite **did not lower the car target from 80 to 50 before the ceiling**, which
+the scenario script (`replaces: $initial_target`) and the host prompt require. The
+browser driver then failed: `page.evaluate: Error: Scenario next: 409: Finish this
+utterance through the named linked Echo first`. That 409 is playback correctly
+refusing to treat the beat as complete. Database
+`hirz_ha_smoke_20f76d431ce349cbab7f4c36380ec1e9` is retained, with the model history
+in `model-histories.json`. Per the author's instruction there was no retry and no
+further evening run.
+
+Offline checks: `uv run pytest tests/unit/test_simulator.py tests/unit/test_simulator_memory.py --no-cov`
+**46 passed**. ruff check, ruff format --check and mypy results are in the commit report.
+
+Not claimed: evening Show or Dot, a fixed compound request, a manual recording
+session, or actual AWS billing.
+
 ## Item 30
 
 ### Recording implementation checks — 2026-10-03

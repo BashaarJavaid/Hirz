@@ -516,3 +516,31 @@ At this reservation rate an evening cell (about 45 selections, measured on Haiku
 reserves about $16.40, so the $20 ceiling cannot cover both evening cells, nor an
 evening recording take after the parents cells. Results and the open spending
 decision are in the [item 29b evidence](../verification-log.md#item-29b).
+
+### Nova 2 Lite ceiling raise and pending-check turn end — 2026-10-23
+
+**Ceiling.** The author raised the Nova 2 Lite per-model ceiling from $20 to **$80**
+on the same ledger, still counted over Nova 2 Lite reservations only. The
+full-context reservation rule is unchanged: each attempt reserves 1,100,000 input
+plus 512 output tokens, **$0.364408**. The real cost of a selection is far lower.
+The last 157 Haiku selections on this ledger natively counted 7,321–32,782 input
+tokens (median 18,648); at Nova 2 Lite rates that is about $0.004–$0.012, so the
+reservation is roughly 30 to 90 times the likely real cost. The coordinator's
+figure of about $0.003 per call was not measured here.
+$80 admits 219 attempts in total. The author chose a bounded worst case over
+changing the reservation rule. Estimated counting remains rejected.
+
+**One pending check per turn.** Parents cells showed Nova 2 Lite polling
+`verify_trusted_identity(status)` seven times after a pending result, until the
+eight-call limit stopped it, and the host spoke the pending line eight times. The
+host now ends the model turn when a `verify_trusted_identity` result reports a
+case with `verification.status == "pending"`. This applies whether the result came
+from `start` or `status`, so a turn makes at most one status poll and the pending
+line is spoken once. The reply is read when the member asks again, as the
+speakable already says. This is a deterministic host rule on the server's own
+result. The narration is still the server's speakable, and no model is consulted.
+The rule covers the requirement that a delayed result is never polled on the
+member's behalf. Rejected: further prompt wording (the existing "do not … poll it
+automatically" was ignored); lowering the per-utterance limit for all tools; a
+model-side completion check. The Nova 2 tool-use guide says nothing about
+repeated calls, so no friction entry was earned.

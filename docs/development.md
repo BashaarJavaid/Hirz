@@ -1803,7 +1803,7 @@ For model selection only, set `HIRZ_LLM=bedrock`, `AWS_PROFILE=hirz` and add
 `--budget-ledger secrets/item29-host-budget.json`. Preserve this same separate
 aggregate ledger across every model, restart and attempted run. The approved Haiku
 acceptance extension raises its total ceiling to $20. Since 2026-10-23 the `nova`
-host is Nova 2 Lite with its own $20 ceiling counted over its reservations only
+host is Nova 2 Lite with its own $80 ceiling (raised from $20 the same day) counted over its reservations only
 (ADR-020). Never use/reset the
 existing $2 ledger. Haiku native token counting and maximum-output reservation precede inference.
 The approved Nova 2 Lite exception reserves 1,100,000 input tokens (its documented 1M
@@ -2075,11 +2075,11 @@ policy, link each Echo with explicit PKCE consent, open `/simulator`, choose
 Stop with Ctrl-C and keep the artifacts private. `tailscale serve reset` removes
 the forward afterwards.
 
-Each selection reserves $0.364408 against Nova 2 Lite's $20 ceiling. A simple turn
-takes one selection plus one continuation (about $0.73). The parents scam turn
-took eight ($2.92), because Nova 2 polled the pending check. An evening take is
-about 45 selections (about $16.40, counted on Haiku). After the item 29b parents
-cells, $12.71184 remains: not enough for an evening take. If the ledger refuses,
+Each selection reserves $0.364408 against Nova 2 Lite's $80 ceiling. A simple turn
+takes one selection plus one continuation (about $0.73). A pending trusted-contact
+check now ends its turn, so the parents scam turn takes one selection. See the
+[item 29b evidence](./verification-log.md#item-29b) for measured per-cell totals
+and the remaining ceiling before planning takes. If the ledger refuses,
 the turn stops with "The inference budget is exhausted"; select Scripted mode or
 ask the author about the ceiling. Never edit or reset the ledger.
 
