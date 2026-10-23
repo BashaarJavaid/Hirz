@@ -323,7 +323,7 @@ There is no hosted demo; item 38c is deferred.
 5. Switch Display to **Echo Dot** for the voice-only version of any of the above.
 6. When the 18:40 doorbell fires, *Let them in* is refused under the rule you activated. At 19:04, the expected arrival asks for approval on the phone, never by voice; approve it on the Approvals page with your passkey and watch the relock.
 7. Try to break it: say *pause Hirz*; propose a rule of your own and read its situation lines before activating.
-8. Proof: the Audit page lists every decision; `uv run hirz verify-audit --household <household-uuid>` checks the signed chain, and `uv run hirz scenario run scenarios/demo-evening.yaml --headless --assert` reproduces the evening's numbers offline.
+8. Proof: the Audit page lists every decision. Stop the launcher with Ctrl-C: it exports both households' signed audit chains to `secrets/demo/runs/<run-id>/artifacts/<household-id>/audit.json` and verifies them against the run's audit key, recording `exports_verified` in `shutdown.json`. The household ids are the `household_id` values in `constitutions/quinn-home.yaml` and `constitutions/quinn-parents.yaml`. With the development Postgres from `compose.dev.yml` running, `uv run hirz scenario run scenarios/demo-evening.yaml --headless --assert` reproduces the evening's numbers in a disposable database.
 
 Starting a real check-in requires `uv run --locked python scripts/init_contacts.py`
 first; without the contact key the worker prints a status line, email check-ins
