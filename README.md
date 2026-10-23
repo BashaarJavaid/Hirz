@@ -10,7 +10,7 @@ Hirz lets your family decide what Alexa may do on its own, what it must ask abou
 real MCP server (2025-11-25, Streamable HTTP, OAuth 2.1 PKCE, MCP Apps cards)
 driven by an emulated Alexa+ host in the browser, with explicitly labeled
 simulated devices, deterministic local policy checks, passkey approvals in the
-companion app and signed local audits. Demo video: VIDEO_URL_PENDING. Judges run
+companion app and signed local audits. Demo video: VIDEO_URL_PENDING. The submission video is recorded with **Amazon Nova 2 Lite on Bedrock** as the emulated Alexa+ host, selected in the simulator and named in its honesty banner; the no-credential judge path uses the scripted host. Nova 2 Lite passes the parents scam scenario and evening events 1 to 17 of 21 under the item 29b gate; the overnight re-plan approval (events 18 to 19) is a recorded failure, so item 29b is Partial ([evidence](./docs/verification-log.md#item-29b)). Judges run
 it with no credentials from the [quickstart](#quickstart) and the
 [judge run instructions](#judge-run-instructions). The signed-home architecture
 described below is the design: AgentCore Policy enforcement, Hirz Link, audit
@@ -170,7 +170,7 @@ graph TD
         Protect["Protect (trusted contacts, verification, request assessment)"] --> Pipe
         Exec --> Audit["Audit Ledger (hash-chained, signed)"]
         Pipe --> Audit
-        Explain["Explainer (Bedrock Claude, structured facts → narration data)"]
+        Explain["Explainer (templates by default; Bedrock narration behind a schema guard when enabled)"]
         Memory["Memory (Postgres graph of record + AgentCore Memory)"]
     end
 
@@ -195,7 +195,7 @@ graph TD
         S3A["S3 Object Lock: audit chain anchors"]
         Mem["AgentCore Memory"]
         Id["AgentCore Identity (outbound credential vault)"]
-        BR["Bedrock: Claude Haiku 4.5 / Sonnet 5; emulator on Haiku 4.5 by default, Nova Lite selectable"]
+        BR["Bedrock: emulated host on Amazon Nova 2 Lite (Nova Pro, Claude Haiku 4.5 selectable); Explainer/drafting on Claude Haiku 4.5 when enabled, templates otherwise"]
         Sched["EventBridge Scheduler + Lambda ticks"]
     end
     MCP -.-> RT
@@ -236,7 +236,7 @@ graph TD
 | Home agent | Hirz Link: a small Python process beside Home Assistant, outbound-only, executes only KMS-signed commands | The Home Assistant token never leaves the house, no tunnel, and a bypass in Hirz's own processes has nothing to act with ([ADR-009](./docs/adr/ADR-009-signed-commands-home-agent.md)) |
 | Open source | [addon-check](https://github.com/BashaarJavaid/addon-check): an independent MCP checker; simulator host harness remains item 29a | Explicit cases produce scoped protocol, schema, authentication and speech evidence without claiming Amazon certification; Hirz CI runs the checker ([ADR-016](./docs/adr/ADR-016-add-on-conformance-checker.md)) |
 | Alexa+ | MCP 2025-11-25, Streamable HTTP, OAuth 2.1 + PKCE S256, Protected Resource Metadata, MCP Apps for visuals | The add-on contract, verbatim ([ADR-007](./docs/adr/ADR-007-alexa-surface-strategy.md)) |
-| AWS | AgentCore Runtime, Gateway, Policy, Memory, Identity; Bedrock (Claude Haiku 4.5 / Sonnet 5; the emulator runs Haiku 4.5 by default with Nova Lite selectable); EventBridge Scheduler + Lambda; KMS (command signing); S3 Object Lock (audit anchors); CDK (TypeScript) | AWS runs Hirz's agentic state and enforcement, not just its hosting ([ADR-008](./docs/adr/ADR-008-agentcore-topology.md)) |
+| AWS | AgentCore Runtime, Gateway, Policy, Memory, Identity; Bedrock (Amazon Nova 2 Lite drives the emulated host in the submission recording, with Nova Pro and Claude Haiku 4.5 selectable; narration, drafting and Protect extraction use Claude Haiku 4.5 only when enabled with their own ledgers, templates and keywords otherwise); EventBridge Scheduler + Lambda; KMS (command signing); S3 Object Lock (audit anchors); CDK (TypeScript) | AWS runs Hirz's agentic state and enforcement, not just its hosting ([ADR-008](./docs/adr/ADR-008-agentcore-topology.md)) |
 | Twin | Physics-lite models with a simulated clock and a YAML scenario DSL | Everything is demonstrable end to end with no hardware, and every scenario is an integration test ([ADR-006](./docs/adr/ADR-006-twin-first-adapters.md)) |
 | Ops | Docker Compose (Postgres, Home Assistant demo, Hirz), OpenTelemetry → CloudWatch via AgentCore Observability, GitHub Actions (ruff / mypy strict / pytest 80% gate / tsc / vitest / playwright) | |
 
