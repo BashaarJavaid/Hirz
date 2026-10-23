@@ -338,7 +338,9 @@ def test_selection_stops_before_unreserved_inference(
     assert (
         model.call_args.kwargs["boto_client_config"].retries["total_max_attempts"] == 1
     )
-    if model_name == "haiku":
+    if model_name == "haiku" and failure == "exhausted":
+        client.count_tokens.assert_not_called()
+    elif model_name == "haiku":
         client.count_tokens.assert_called_once_with(
             modelId=selection.MODELS["haiku"][0].removeprefix("us."),
             input={
@@ -753,3 +755,134 @@ def test_simulator_background_finishes_connection_cleanup_before_stop(monkeypatc
         assert closed and contacts.await_count == 1
 
     asyncio.run(run())
+
+
+def test_car_limit_below_planned_target_is_refused_to_the_model(tmp_path, monkeypatch):
+    from unittest.mock import Mock
+
+    from hirz.host import selection
+
+    plan = {
+        "role": "user",
+        "content": [
+            {
+                "toolResult": {
+                    "toolUseId": "plan",
+                    "status": "success",
+                    "content": [
+                        {
+                            "json": {
+                                "data": {
+                                    "actions": [
+                                        {
+                                            "class": "energy.ev_charge",
+                                            "target": {"entity": "ev"},
+                                            "params": {"charge_limit": 0.8},
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    ],
+                }
+            }
+        ],
+    }
+    history = [
+        {"role": "user", "content": [{"text": "Don't charge past 50"}]},
+        {
+            "role": "assistant",
+            "content": [
+                {
+                    "toolUse": {
+                        "toolUseId": "plan",
+                        "name": "get_household_plan",
+                        "input": {},
+                    }
+                }
+            ],
+        },
+        plan,
+    ]
+    limit = {"change": "car_limit", "percent": 50, "operation": "add"}
+    client = Mock()
+    monkeypatch.setattr(
+        selection, "BedrockModel", Mock(return_value=SimpleNamespace(client=client))
+    )
+    agent = Mock()
+    agent.messages = list(history)
+    event = SimpleNamespace(
+        tool_use={"name": "revise_household_plan", "input": limit}, cancel_tool=False
+    )
+
+    def invoke(text):
+        agent.hooks.add_callback.call_args_list[0].args[1](event)
+        return SimpleNamespace(stop_reason="end_turn")
+
+    agent.side_effect = invoke
+    monkeypatch.setattr(selection, "Agent", Mock(return_value=agent))
+    diagnostics: dict = {}
+    result = selection.select(
+        "nova",
+        tmp_path / "ledger",
+        [types.Tool(name="revise_household_plan", inputSchema={"type": "object"})],
+        history,
+        "Don't charge past 50",
+        diagnostics,
+    )
+    assert result == ([], "")
+    assert "planned car target is 80%" in diagnostics["host_refusal"]
+    assert event.cancel_tool == diagnostics["host_refusal"]
+    # A separately recorded lower target, or a limit at the target, passes through.
+    lowered = [
+        *history,
+        {
+            "role": "assistant",
+            "content": [
+                {
+                    "toolUse": {
+                        "toolUseId": "t",
+                        "name": "revise_household_plan",
+                        "input": {"change": "car_target", "percent": 50},
+                    }
+                }
+            ],
+        },
+        {
+            "role": "user",
+            "content": [{"toolResult": {"toolUseId": "t", "status": "success"}}],
+        },
+    ]
+    refuse = selection.car_ordering_refusal
+    assert refuse(lowered, "revise_household_plan", limit) is None
+    assert refuse(history, "revise_household_plan", limit | {"percent": 80}) is None
+    assert (
+        refuse(history, "revise_household_plan", limit | {"change": "car_target"})
+        is None
+    )
+
+
+def test_nova_pro_reserves_its_context_bound_without_counting(tmp_path, monkeypatch):
+    from unittest.mock import Mock
+
+    from hirz.host import selection
+
+    ledger = tmp_path / "ledger"
+    client = Mock()
+    model = Mock(return_value=SimpleNamespace(client=client))
+    monkeypatch.setattr(selection, "BedrockModel", model)
+    body = {"messages": [], "inferenceConfig": {"maxTokens": 512}}
+
+    def invoke(text):
+        reserve = client.meta.events.register.call_args.args[1]
+        reserve({"body": json.dumps(body)})
+        reserve({"body": json.dumps(body)})
+
+    monkeypatch.setattr(selection, "Agent", Mock(return_value=Mock(side_effect=invoke)))
+    with pytest.raises(ValueError, match="Automatic inference retries"):
+        selection.select("nova-pro", ledger, [], [], "Hello")
+    client.count_tokens.assert_not_called()
+    assert model.call_args.kwargs["model_id"] == "us.amazon.nova-pro-v1:0"
+    (call,) = json.loads(ledger.read_text())["calls"]
+    assert call["input_tokens"] == 330_000
+    assert Decimal(call["reserved_usd"]) == Decimal("0.2656384")

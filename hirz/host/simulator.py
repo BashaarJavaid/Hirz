@@ -22,7 +22,12 @@ from hirz.mcp.cards import TOOLS as CARDS
 from hirz.memory.models import Turn, TurnInput
 
 ACCOUNTS = {"mom": "Mom’s Echo", "malik": "Malik’s Echo", "dad": "Dad’s Echo"}
-MODELS = {"scripted": "Scripted", "haiku": "Claude Haiku 4.5", "nova": "Nova 2 Lite"}
+MODELS = {
+    "scripted": "Scripted",
+    "haiku": "Claude Haiku 4.5",
+    "nova": "Nova 2 Lite",
+    "nova-pro": "Nova Pro",
+}
 
 
 def commitment(name: str, args: dict[str, Any]) -> bool:
@@ -590,6 +595,14 @@ class Simulator:
                             kind="model",
                             result={"structuredContent": diagnostics},
                         )
+                        if diagnostics.get("host_refusal"):
+                            message = (
+                                f"Original user request: {text}\n"
+                                "Follow the host's error result above, then continue "
+                                "only the unfinished parts of this request."
+                            )
+                            continuing = True
+                            continue
                         if proposed or not question:
                             return proposed
                         answer = await self.ask(

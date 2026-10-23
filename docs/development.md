@@ -2058,7 +2058,7 @@ the running development PostgreSQL; ports 8002/8003 must be free (`--port` and
 export PATH="$(brew --prefix node@24)/bin:$PATH"
 tailscale serve --bg http://127.0.0.1:8002
 eval "$(aws configure export-credentials --profile hirz-login --format env)"
-unset AWS_PROFILE
+unset AWS_PROFILE HIRZ_PROTECT_BUDGET_LEDGER HIRZ_DRAFT_MODEL_ID HIRZ_MEMORY_ID
 HIRZ_DOGWOOD="$PWD/.tools/dogwood" HIRZ_LLM=bedrock \
   uv run --locked python -m scripts.simulator_demo \
   --origin https://YOUR-TAILNET-HOST \
@@ -2066,6 +2066,14 @@ HIRZ_DOGWOOD="$PWD/.tools/dogwood" HIRZ_LLM=bedrock \
   --budget-ledger secrets/item29-host-budget.json
 ```
 
+**Nova only.** In this launcher the host's selection is the only Bedrock caller. Do
+not run `hirz worker` or any other worker beside it: the local and AWS workers can
+call the Haiku Explainer, Protect extraction and drafting. Keep the four variables
+above unset. Choose exactly one Nova host per session. **Nova 2 Lite** calls only
+`us.amazon.nova-2-lite-v1:0`; **Nova Pro** calls only `us.amazon.nova-pro-v1:0`.
+Never choose Claude Haiku 4.5: the ledger refuses it before any provider contact,
+but it is not a Nova model. Trusted-contact cases show "Additional warning checks
+are in progress." (keyword signals only; no model extraction runs).
 Exported credentials are temporary; re-export before a new session if they expire.
 Run it in a terminal so Ctrl-C reaches the launcher. Then, manually: enroll Malik
 and Mom from the private `invitations.json` with real passkeys, activate each seed
@@ -2075,7 +2083,7 @@ policy, link each Echo with explicit PKCE consent, open `/simulator`, choose
 Stop with Ctrl-C and keep the artifacts private. `tailscale serve reset` removes
 the forward afterwards.
 
-Each selection reserves $0.364408 against Nova 2 Lite's $80 ceiling. A simple turn
+Each selection reserves $0.364408 (Nova 2 Lite) or $0.2656384 (Nova Pro), each against its own $80 ceiling. A simple turn
 takes one selection plus one continuation (about $0.73). A pending trusted-contact
 check now ends its turn, so the parents scam turn takes one selection. See the
 [item 29b evidence](./verification-log.md#item-29b) for measured per-cell totals

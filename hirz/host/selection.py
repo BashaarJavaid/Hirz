@@ -27,17 +27,75 @@ NOVA_MODEL_ID = "us.amazon.nova-2-lite-v1:0"
 MODELS = {
     "haiku": (MODEL_ID, "1.10", "5.50"),
     "nova": (NOVA_MODEL_ID, "0.33", "2.75"),
+    # Approved fallback 2026-10-23. Price List API, us-east-1 on-demand:
+    # USE1-NovaPro-input-tokens $0.0008/1K, USE1-NovaPro-output-tokens $0.0032/1K.
+    "nova-pro": ("us.amazon.nova-pro-v1:0", "0.80", "3.20"),
 }
 PENDING = "Selected for sequential host confirmation; not executed yet."
 # Approved 2026-10-23: Nova 2 Lite still rejects CountTokens. Reserve its documented
 # 1M-token context ceiling plus 10%, not a token estimate.
 # https://docs.aws.amazon.com/nova/latest/nova2-userguide/what-is-nova-2.html
-NOVA_INPUT_RESERVATION = 1_100_000
-# Approved 2026-10-23: Nova 2 Lite's own $80 ceiling (raised from $20 the same day), counted over its reservations
-# only. Haiku keeps its $20 aggregate ceiling over the whole ledger.
+# Nova Pro also rejects CountTokens; its documented context is 300K, plus 10%.
+# https://docs.aws.amazon.com/nova/latest/userguide/what-is-nova.html
+NOVA_INPUT_RESERVATION = {"nova": 1_100_000, "nova-pro": 330_000}
+# Approved 2026-10-23: each Nova model's own $80 ceiling (raised from $20 the same
+# day), counted over that model id's reservations only. Haiku keeps its $20 aggregate ceiling over the whole ledger.
 NOVA_BUDGET_LIMIT = Decimal("80")
 HAIKU_BUDGET_LIMIT = Decimal("20")
 THINKING = re.compile(r"<thinking>.*?</thinking>", re.DOTALL)
+
+
+def car_ordering_refusal(
+    history: list[dict[str, Any]], name: str, arguments: dict[str, Any]
+) -> str | None:
+    """Deterministic host check: a car ceiling below the retained planned target
+    needs a separate car_target change first. The service contract is unchanged."""
+    if name != "revise_household_plan" or arguments.get("change") != "car_limit":
+        return None
+    percent = arguments.get("percent")
+    if not isinstance(percent, int | float):
+        return None
+    uses = {
+        block["toolUse"]["toolUseId"]: block["toolUse"]
+        for message in history
+        for block in message["content"]
+        if "toolUse" in block
+    }
+    for message in reversed(history):
+        for block in reversed(message["content"]):
+            result = block.get("toolResult", {})
+            if result.get("status") != "success":
+                continue
+            use = uses.get(result.get("toolUseId"), {})
+            changed = use.get("input", {})
+            if (
+                use.get("name") == "revise_household_plan"
+                and changed.get("change") == "car_target"
+                and isinstance(changed.get("percent"), int | float)
+                and changed["percent"] <= percent
+            ):
+                return None
+            for item in result.get("content", []):
+                actions = (item.get("json") or {}).get("data", {}).get("actions")
+                targets = {
+                    a["target"]["entity"]: a["params"]["charge_limit"]
+                    for a in actions or []
+                    if a.get("class") == "energy.ev_charge"
+                }
+                # The host only maps "the car" when exactly one car is planned.
+                if len(targets) == 1:
+                    target = round(next(iter(targets.values())) * 100)
+                    if percent < target:
+                        return (
+                            f"Not submitted. The planned car target is {target}%. "
+                            f"First lower it with a separate revise_household_plan "
+                            f"change=car_target at {percent:g}%, then set the "
+                            f"car_limit ceiling at {percent:g}%."
+                        )
+                    return None
+                if targets:
+                    return None
+    return None
 
 
 def strip_thinking(text: str) -> str:
@@ -102,7 +160,7 @@ def select(
         output_rate=Decimal(outputs),
         purpose="item29-host",
         model=model_id,
-        model_scoped=name == "nova",
+        model_scoped=name in NOVA_INPUT_RESERVATION,
     )
     model = BedrockModel(
         model_id=model_id,
@@ -114,8 +172,12 @@ def select(
         # https://platform.claude.com/docs/en/agents-and-tools/tool-use/parallel-tool-use
         # The Nova 2 tool-use guide no longer recommends topK=1 greedy decoding:
         # https://docs.aws.amazon.com/nova/latest/nova2-userguide/using-tools.html
+        # Nova Pro (version 1) keeps the v1 guide's greedy topK=1:
+        # https://docs.aws.amazon.com/nova/latest/userguide/tools-troubleshooting.html
         additional_request_fields={"tool_choice": {"disable_parallel_tool_use": True}}
         if name == "haiku"
+        else {"inferenceConfig": {"topK": 1}}
+        if name == "nova-pro"
         else None,
         boto_client_config=Config(
             retries={"total_max_attempts": 1}, connect_timeout=5, read_timeout=30
@@ -138,9 +200,9 @@ def select(
         if attempts != 1:
             raise ValueError("Automatic inference retries are disabled")
         request = json.loads(params["body"])
-        if name == "nova":
+        if name in NOVA_INPUT_RESERVATION:
             budget.reserve(
-                NOVA_INPUT_RESERVATION,
+                NOVA_INPUT_RESERVATION[name],
                 request["inferenceConfig"]["maxTokens"],
                 input_basis="nova_context_ceiling_plus_10_percent",
             )
@@ -166,8 +228,16 @@ def select(
     model.client.meta.events.register("before-call.bedrock-runtime.Converse", reserve)
     calls: list[tuple[str, dict[str, Any]]] = []
 
+    refusals: list[str] = []
+
     def capture(event: BeforeToolCallEvent) -> None:
-        calls.append((event.tool_use["name"], dict(event.tool_use["input"])))
+        name, arguments = event.tool_use["name"], dict(event.tool_use["input"])
+        if refusal := car_ordering_refusal(history, name, arguments):
+            # Returned to the model as this tool's error; never sent to MCP.
+            refusals.append(refusal)
+            event.cancel_tool = refusal
+            return
+        calls.append((name, arguments))
         event.cancel_tool = PENDING
 
     def finish(event: AfterToolsEvent) -> None:
@@ -225,7 +295,7 @@ def select(
                             for k, v in t.inputSchema.items()
                             if k in {"type", "properties", "required"}
                         }
-                        if name == "nova"
+                        if name in NOVA_INPUT_RESERVATION
                         else t.inputSchema
                     },
                 },
@@ -326,6 +396,10 @@ speaks deterministic tool results; do not produce outcome narration or policy ad
     )
     agent.hooks.add_callback(BeforeToolCallEvent, capture)
     agent.hooks.add_callback(AfterToolsEvent, finish)
+    if name == "haiku":
+        # Refuse before CountTokens: an exhausted aggregate ledger must not
+        # contact the Anthropic model at all (Nova-only recording sessions).
+        budget.check(512)
     result = agent(
         text
         if continuing
@@ -346,6 +420,10 @@ speaks deterministic tool results; do not produce outcome narration or policy ad
         {"text": "Turn ended early by hook after tool execution"}
     ]:
         history.pop()
+    if refusals and not calls:
+        if diagnostics is not None:
+            diagnostics["host_refusal"] = refusals[0]
+        return [], ""
     if len(calls) != 1:
         raise ValueError("Model must select exactly one next step")
     selected, arguments = calls[0]

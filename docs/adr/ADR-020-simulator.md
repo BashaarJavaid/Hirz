@@ -544,3 +544,53 @@ member's behalf. Rejected: further prompt wording (the existing "do not … poll
 automatically" was ignored); lowering the per-utterance limit for all tools; a
 model-side completion check. The Nova 2 tool-use guide says nothing about
 repeated calls, so no friction entry was earned.
+
+### Car-ordering guard, Nova-only recording and Nova Pro option — 2026-10-23
+
+**Car-ordering guard.** In evening Show attempt 1, Nova 2 Lite set `car_limit=50`
+below the plan's 80 percent target without the required `car_target` change first.
+That happened despite two prompt-level instructions: the system prompt's worked
+example (added 2026-09-27) and the first-step reminder "If lowering a charge ceiling
+conflicts with its current planned target, adjust the target first."
+The host now refuses that selection deterministically in Strands'
+`BeforeToolCallEvent`, the same hook that holds selections for confirmation.
+The rule: `revise_household_plan(change=car_limit)` below the retained planned
+target. The target comes from the latest genuine plan result that holds exactly
+one car's canonical EV action. A later successful `car_target` change at or below
+the requested percentage satisfies the rule. The refused call is never sent to
+MCP; the model receives it as that tool's error result, and the host asks for the
+next step. No model decides anything, and the service contract is unchanged.
+Several retained cars are left to the service. Rejected: more prompt wording
+(already failed twice), and changing the server to infer the target.
+
+**Nova-only sessions.** The author requires that no Anthropic model be called in a
+recording session; the AWS credit covers Nova only. In a `scripts.simulator_demo`
+session the only Bedrock caller is host selection (`hirz/host/selection.py`):
+- The Explainer's `configured()` is used only by `hirz/executor/local.py` and the
+  AWS worker. The launcher's MCP runtime keeps `TemplateExplainer`.
+- Protect extraction (`hirz/protect/worker.py`) and drafting
+  (`hirz/companion/drafting.py`) also run only in those workers.
+- Protect additionally requires `HIRZ_PROTECT_BUDGET_LEDGER`. Drafting requires
+  `HIRZ_DRAFT_MODEL_ID` and otherwise raises.
+- Memory (`hirz/memory/provider.py`) is in-process unless `HIRZ_MEMORY_ID` is set,
+  and makes no model call.
+
+The Host list still offers Claude Haiku 4.5. Its path called the unbilled
+CountTokens on the Anthropic model before the ledger refused it. Selection now runs
+`Budget.check(512)` first, so an exhausted Haiku aggregate ($20 against
+$53.38083014) refuses before any provider contact. No new environment switch was
+needed.
+
+**Nova Pro option.** Evening Show on guarded Nova 2 Lite passed the compound request
+but failed a later planned-action approval. Under the author's conditional
+authorization, `nova-pro` (`us.amazon.nova-pro-v1:0`) is a second host with these
+rules:
+- Same ledger; same $80 ceiling, applied per model id.
+- No CountTokens (it also returns `ValidationException … doesn't support counting
+  tokens`), so each attempt reserves the documented
+  [300K context](https://docs.aws.amazon.com/nova/latest/userguide/what-is-nova.html)
+  plus 10 percent: 330,000 input tokens plus 512 output, $0.2656384 per attempt.
+- Price List API, us-east-1 on-demand: `USE1-NovaPro-input-tokens` $0.0008/1K and
+  `USE1-NovaPro-output-tokens` $0.0032/1K.
+- As a version 1 model it keeps the v1 guide's `topK: 1`.
+- No retries, a 512-token output cap, and the same root-schema filter.

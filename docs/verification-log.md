@@ -11533,6 +11533,67 @@ Offline checks: `uv run pytest tests/unit/test_simulator.py tests/unit/test_simu
 Not claimed: evening Show or Dot, a fixed compound request, a manual recording
 session, or actual AWS billing.
 
+
+### Car-ordering guard, Nova-only check and Nova Pro evening — 2026-10-23
+
+Decisions: [ADR-020 amendment](./adr/ADR-020-simulator.md#car-ordering-guard-nova-only-recording-and-nova-pro-option--2026-10-23).
+New unit tests:
+- `test_car_limit_below_planned_target_is_refused_to_the_model` fails against the
+  previous `selection.py` (`1 failed`).
+- `test_nova_pro_reserves_its_context_bound_without_counting`.
+- The Haiku-exhausted case now asserts that CountTokens is not called.
+
+The cell environment adds `unset AWS_PROFILE HIRZ_PROTECT_BUDGET_LEDGER
+HIRZ_DRAFT_MODEL_ID HIRZ_MEMORY_ID`. Nova Pro used `HIRZ_SIMULATOR_MODEL=nova-pro`.
+
+| Cell | Result | Ledger before → after (total / calls) | Model share after | Artifacts |
+|---|---|---|---|---|
+| Evening Show, Nova 2 Lite, attempt 2 (guarded) | **FAIL at event 18/21**; compound request passes | $31.19976614 / 873 → $45.41167814 / 912 (39 calls) | Nova 2 Lite $26.966192 | `nova2-2026-10-23-evening-show-2/`, database `hirz_ha_smoke_25c8b873e38946ba8d3647af44bd79bc` retained |
+| Evening Show, Nova Pro, attempt 1 | **FAIL at event 16/21** | → $53.38083014 / 942 (30 calls) | Nova Pro $7.969152 | `novapro-2026-10-23-evening-show-1/`, database `hirz_ha_smoke_2a2659c37c7740be9ba99baa2a898324` retained |
+
+**Nova 2 Lite, compound request (attempt 2), verbatim selections:**
+
+1. `get_household_plan(horizon=tonight)`, which returned "The car target is 80 percent by 6:30 AM."
+2. The model proposed `car_limit` at 50. The host refused it with: "Not submitted. The planned car target is 80%. First lower it with a separate revise_household_plan change=car_target at 50%, then set the car_limit ceiling at 50%." Nothing was sent to MCP.
+3. `revise_household_plan(operation=add, kind=constraint, change=car_target, percent=50, applies_to=Car, …)`, confirmed and `recorded`: "The car target is 50 percent. The affected plan is updating."
+4. `revise_household_plan(… change=car_limit, percent=50 …)`, `recorded`: "The car limit is 50 percent. The affected plan is updating."
+5. Guest room: `temperature_f=72, window_end="7 AM"`, `recorded`.
+6. Dishwasher: `appliance_after, at="23:31"`, `recorded`.
+7. `finish_request`.
+
+Later beats passed: plan approval, the unexpected-visitor denial ("The household
+rules block this door request."), the lamp, Mom's phone-required unlock, and the
+re-plan approval. The run failed at "Approve the pending action.": Nova 2 Lite
+selected `approve_action(approved=true, plan_id=…, version=9)` without the pending
+`action_id`/`approval_id`, and the service answered `failed` ("That request could
+not be accepted. Check its references and try again."). The browser assertion
+failed on that error result. There was no provider error.
+
+**Nova Pro (one authorized run).** The signed audit records the compound request
+as `CONSTRAINT_RECORDED` `ev_target` 0.5, then `ev_ceiling` 0.5, from Malik's
+text. The trimmed model history does not show whether the host refusal fired. The
+run failed at event 16/21, Dad's "Don't run the dishwasher until I'm done in the
+kitchen at eleven.": Nova Pro proposed `revise_household_plan(kind=constraint,
+change=appliance_after, applies_to=dishwasher, at=2026-10-14T23:00:00Z, …)`. The
+service elicited "That constraint is unavailable for this household target. Give
+the missing details Applies to?". The prompt/elicitation pair repeated until the
+driver's 60-second poll timed out. There was no provider error, and no further
+run was made.
+
+**Nova-only verification:**
+- No file in either run's artifacts or log mentions `anthropic` or `claude-haiku`.
+- After 873 calls, the ledger holds only `us.amazon.nova-2-lite-v1:0` (39) and
+  `us.amazon.nova-pro-v1:0` (30).
+- `secrets/item32-protect-budget.json` is unchanged since 2026-10-11.
+- The launcher log does not print model ids. The component analysis therefore rests
+  on the code trace in the ADR amendment, not on logs alone.
+
+Offline: `uv run pytest tests/unit/test_simulator.py tests/unit/test_simulator_memory.py --no-cov`
+passes (see the commit report for counts).
+
+Not claimed: any passing evening cell, evening Dot, a manual recording session, or
+actual AWS billing.
+
 ## Item 30
 
 ### Recording implementation checks — 2026-10-03
