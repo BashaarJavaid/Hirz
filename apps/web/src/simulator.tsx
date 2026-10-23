@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import type { RefObject } from "react";
 import { McpAppFrame, Transcript, useVoice } from "addon-host";
 import type { TranscriptEvent } from "addon-host";
 import "addon-host/style.css";
@@ -33,20 +34,23 @@ function PromptForm({ prompt, submit }: { prompt: Prompt; submit: (body: Record<
 }
 
 type Playback = { selected: string; playing: boolean; speed: number; controllable?: string[]; scenarios: Record<string, { at: string; next: number; total: number; beat: { event: string; text?: string; member?: string; response?: string; deferred?: string } | null }> };
-function PlaybackControls({ choose }: { choose: (text: string) => void }) {
+type PlaybackKeys = { next: () => void; toggle: () => void };
+function PlaybackControls({ choose, keys }: { choose: (text: string) => void; keys: RefObject<PlaybackKeys | null> }) {
   const [state, setState] = useState<Playback>(), [error, setError] = useState("");
   const load = async () => { await api("/auth/session"); setState(await api<Playback>("/simulator/scenarios")); };
   useEffect(() => { void load().catch(() => {}); const timer = setInterval(() => void load().catch(() => {}), 2000); return () => clearInterval(timer); }, []);
   async function control(operation: string, scenario = state?.selected, extra: Record<string, unknown> = {}) {
     try { setError(""); await api("/simulator/scenarios", { scenario, operation, ...extra }); await load(); } catch (e) { setError(e instanceof Error ? e.message : "Playback could not continue. Refresh and try again."); }
   }
+  keys.current = { next: () => void control("next"), toggle: () => void (state?.playing ? control("pause") : control("play", state?.selected, { speed: 1 })) };
   const beat = state?.scenarios[state.selected].beat;
   return <section className="panel sim-playback"><h2>Scenario playback</h2>{!state ? <p>Sign into the companion app to control your household’s scenario. Enrollment and seed-policy activation are required.</p> : <><label>Scenario<select value={state.selected} onChange={e => void control("select", e.target.value)}>{Object.keys(state.scenarios).map(name => <option key={name}>{name}</option>)}</select></label><p>{state.scenarios[state.selected].at} · event {state.scenarios[state.selected].next}/{state.scenarios[state.selected].total} · {state.playing ? "playing" : "paused"}</p><div className="sim-controls"><Button onClick={() => void control("next")}>Next event</Button>{[1, 60].map(speed => <Button key={speed} onClick={() => void control("play", state.selected, { speed })}>Play {speed}×</Button>)}<Button onClick={() => void control("pause")}>Pause</Button></div>{beat && <><p>{beat.event} {beat.member ? `· ${beat.member}’s linked Echo` : ""}</p>{beat.text && <Button onClick={() => choose(beat.text!)}>{beat.text}</Button>}{beat.response && <Button onClick={() => choose(beat.response!)}>{beat.response}</Button>}{beat.deferred && <p>Deferred: {beat.deferred}</p>}{beat.event === "constitution.activate" && <p>Review the matching proposal and activate its recorded patch in the companion app.</p>}{beat.event === "app.approve" && <p>Approve the door request with your passkey in the companion app. Then continue to verify the bounded relock.</p>}{beat.event === "contact.checkin_reply" && <><p>Choose an explicitly simulated contact reply. No real message is delivered.</p>{["genuine", "not_genuine", "will_call", "no_answer"].map(reply => <Button key={reply} onClick={() => void control("reply", state.selected, { reply })}>{reply.replaceAll("_", " ")}</Button>)}</>}</>}</>}{error && <p role="alert">{error}</p>}</section>;
 }
 
 export function Simulator() {
   const [session, setSession] = useState<Session>(), [error, setError] = useState(""), [events, setEvents] = useState<Event[]>([]), [text, setText] = useState(""), [mode, setMode] = useState("show"), [theme, setTheme] = useState<"light" | "dark">("dark"), [voice, setVoice] = useState(false), [prompt, setPrompt] = useState<Prompt | null>(null), [card, setCard] = useState<Event>();
-  const input = useRef<HTMLInputElement>(null);
+  const [focus, setFocus] = useState(() => new URLSearchParams(window.location.search).get("focus") === "1"), [drawer, setDrawer] = useState(false), [speaking, setSpeaking] = useState(false);
+  const input = useRef<HTMLInputElement>(null), playback = useRef<PlaybackKeys>(null);
   const choose = (value: string) => { setText(value); input.current?.focus(); input.current?.scrollIntoView({ block: "center" }); };
   const sessionRef = useRef<Session | undefined>(undefined), voiceRef = useRef(false);
   const { listening, listen, stop, speak } = useVoice({ onText: receivedSpeech, onError: setError });
@@ -79,12 +83,44 @@ export function Simulator() {
       if (event.kind === "wait" || event.kind === "settled") { setPrompt(null); void load().catch(() => {}); }
       if (event.card && event.result) setCard(event);
       if ((event.kind === "speech" || event.kind === "prompt") && !event.replay && voiceRef.current && "speechSynthesis" in window) {
-        speak(event.text ?? event.prompt?.message ?? "");
+        speak(event.text ?? event.prompt?.message ?? ""); setSpeaking(true);
       }
     };
     stream.onerror = () => { clearTimeout(interruption); interruption = setTimeout(() => setError("Event stream interrupted. Accepted requests may still finish; refresh to reconcile."), 5000); };
     return () => { clearTimeout(interruption); stream.close(); };
   }, [session?.account, session?.generation]); // Account and generation are the stream identity.
+  useEffect(() => {
+    if (!speaking) return;
+    const timer = setInterval(() => { if (!window.speechSynthesis?.speaking) setSpeaking(false); }, 250);
+    return () => clearInterval(timer);
+  }, [speaking]);
+  // Recording keys call the same handlers as the buttons; never while a field or the pending question has focus.
+  const keyRef = useRef<(e: KeyboardEvent) => void>(() => {});
+  keyRef.current = e => {
+    const target = e.target as HTMLElement | null;
+    if (e.metaKey || e.ctrlKey || e.altKey || target?.closest("input, textarea, select, [contenteditable], .sim-prompt")) return;
+    if (e.code === "Space") {
+      e.preventDefault();
+      if (e.repeat || !session?.linked) return;
+      if (e.type === "keydown" ? !listening : listening) listen();
+      return;
+    }
+    if (e.type !== "keydown" || e.repeat) return;
+    const key = e.key.toLowerCase();
+    if (key === "n") playback.current?.next();
+    else if (key === "p") playback.current?.toggle();
+    else if (key === "f") setFocus(on => !on);
+    else if (key === "c") setDrawer(on => !on);
+    else if (key === "/") { e.preventDefault(); setDrawer(true); setTimeout(() => input.current?.focus()); }
+  };
+  useEffect(() => {
+    const handle = (e: KeyboardEvent) => keyRef.current(e);
+    window.addEventListener("keydown", handle); window.addEventListener("keyup", handle);
+    return () => { window.removeEventListener("keydown", handle); window.removeEventListener("keyup", handle); };
+  }, []);
+  const lastSpeech = [...events].reverse().find(e => e.kind === "speech" && e.generation === session?.generation)?.text;
+  const said = prompt?.message ?? lastSpeech ?? "Hold Space or the mic to talk.";
+  const state = listening ? "listening" : session?.busy ? "thinking" : speaking ? "speaking" : "idle";
   function receivedSpeech(final: string) {
       setText(final);
       if (!prompt) { void submit({ operation: "turn", text: final }); return; }
@@ -97,5 +133,5 @@ export function Simulator() {
       if (schema.type === "boolean" && value !== true || typeof value === "number" && !Number.isFinite(value)) { setError("Say yes, no, or the requested value. You can also use the response form."); return; }
       void submit({ operation: "answer", prompt_id: prompt.id, action: "accept", content: { [key]: value } });
   }
-  return <main className={`simulator ${theme}`} tabIndex={-1}><header className="sim-bar"><a href="/tonight" className="wordmark">Hirz</a><h1>Household simulator</h1><p className="sim-honesty">Emulated Alexa+ host · {session?.models[session.model] ?? "Scripted"} · Simulated devices and contact replies</p></header>{error && <p role="alert">{error}</p>}{session && <div className="sim-layout"><div className="sim-main"><section aria-label="Echo" className="sim-stage"><div className="sim-device"><div className="sim-display">{mode === "show" && card ? <Card event={card} theme={theme} /> : <div className="sim-empty"><div className="sim-orb" aria-hidden="true" /><h2>{session.accounts[session.account]}</h2><p>{mode === "dot" ? "Voice-only mode. No card is mounted." : "Your household’s next response appears here."}</p></div>}</div></div>{prompt && <PromptForm key={prompt.id} prompt={prompt} submit={submit} />}<form className="sim-request" onSubmit={e => { e.preventDefault(); void submit({ operation: "turn", text }); setText(""); }}><label>Your request<input ref={input} value={text} onChange={e => setText(e.target.value)} maxLength={2000} /></label><div className="sim-controls"><Button type="submit" variant="default" disabled={!session.linked || session.busy || !text.trim()}>Send</Button><Button type="button" onClick={listen} disabled={!session.linked}>{listening ? "Finish listening" : "Push to talk"}</Button><Button type="button" onClick={() => void submit({ operation: "cancel" })}>Cancel turn</Button><label><input type="checkbox" checked={voice} onChange={e => { setVoice(e.target.checked); voiceRef.current = e.target.checked; if (!e.target.checked) stop(); }} /> Speak responses</label></div></form><details className="sim-utterances"><summary>Recorded utterances</summary><div>{["What can you do?", "What's going on tonight?", "From now on, never unlock the door for someone we're not expecting.", "Do it.", "Let them in.", "Malik just called from a strange number. He says he's in trouble and needs five hundred dollars. Is it really him?", "Alexa, is it him?"].map(line => <Button key={line} onClick={() => choose(line)}>{line}</Button>)}</div></details></section><div className="sim-settings"><div className="sim-controls sim-toolbar"><label>Echo account<select value={session.account} onChange={e => void submit({ operation: "account", text: e.target.value })}>{Object.entries(session.accounts).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label><label>Host<select value={session.model} onChange={e => void submit({ operation: "model", text: e.target.value })}>{Object.entries(session.models).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label><label>Display<select value={mode} onChange={e => { stop(); setMode(e.target.value); }}><option value="show">Echo Show</option><option value="dot">Echo Dot · voice only</option></select></label><label>Theme<select value={theme} onChange={e => setTheme(e.target.value as "light" | "dark")}><option>dark</option><option>light</option></select></label><Button onClick={() => void submit({ operation: "link" })}>{session.linked ? "Relink Echo" : "Link Echo with consent"}</Button></div><div className="sim-notes"><p>Rule activation and security approval finish in your <a href="/constitution" target="_blank" rel="noreferrer">companion app</a> under its own household login.</p><p>Once linked, conversations are saved under that account. Temperature suggestions need your approval in Household.</p></div><PlaybackControls choose={choose} /></div></div><Transcript events={events} /></div>}</main>;
+  return <main className={`simulator ${theme}${focus ? " focus" : ""}${focus && drawer ? " drawer-open" : ""}`} tabIndex={-1}><header className="sim-bar"><a href="/tonight" className="wordmark">Hirz</a><h1>Household simulator</h1><p className="sim-honesty">Emulated Alexa+ host · {session?.models[session.model] ?? "Scripted"} · Simulated devices and contact replies</p>{focus && <div className="sim-focus-tools"><button type="button" aria-expanded={drawer} onClick={() => setDrawer(on => !on)}>Controls</button><button type="button" onClick={() => setFocus(false)}>Exit focus</button></div>}</header>{error && <p role="alert">{error}</p>}{session && <div className="sim-layout"><div className="sim-main"><section aria-label="Echo" className="sim-stage"><div className="sim-device"><div className="sim-display">{mode === "show" && card ? <Card event={card} theme={theme} /> : <div className="sim-empty"><div className="sim-orb" aria-hidden="true" /><h2>{session.accounts[session.account]}</h2><p>{mode === "dot" ? "Voice-only mode. No card is mounted." : "Your household’s next response appears here."}</p></div>}</div></div>{focus && <section className="sim-focusbar" aria-label="Alexa"><button type="button" className="sim-mic" aria-pressed={listening} aria-label={listening ? "Finish listening" : "Hold to talk"} disabled={!session.linked} onPointerDown={() => { if (!listening) listen(); }} onPointerUp={() => { if (listening) listen(); }} onKeyDown={e => { if (e.key === "Enter") listen(); }}><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M12 15a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-2.08A7 7 0 0 0 19 12h-2Z" /></svg></button><p role="status">{said}</p><span className={`sim-state ${state}`}>{state}</span></section>}{prompt && <PromptForm key={prompt.id} prompt={prompt} submit={submit} />}<form className="sim-request" onSubmit={e => { e.preventDefault(); void submit({ operation: "turn", text }); setText(""); }}><label>Your request<input ref={input} value={text} onChange={e => setText(e.target.value)} maxLength={2000} /></label><div className="sim-controls"><Button type="submit" variant="default" disabled={!session.linked || session.busy || !text.trim()}>Send</Button><Button type="button" onClick={listen} disabled={!session.linked}>{listening ? "Finish listening" : "Push to talk"}</Button><Button type="button" onClick={() => void submit({ operation: "cancel" })}>Cancel turn</Button><label><input type="checkbox" checked={voice} onChange={e => { setVoice(e.target.checked); voiceRef.current = e.target.checked; if (!e.target.checked) stop(); }} /> Speak responses</label></div></form><details className="sim-utterances"><summary>Recorded utterances</summary><div>{["What can you do?", "What's going on tonight?", "From now on, never unlock the door for someone we're not expecting.", "Do it.", "Let them in.", "Malik just called from a strange number. He says he's in trouble and needs five hundred dollars. Is it really him?", "Alexa, is it him?"].map(line => <Button key={line} onClick={() => choose(line)}>{line}</Button>)}</div></details></section><div className="sim-settings"><div className="sim-controls sim-toolbar"><label>Echo account<select value={session.account} onChange={e => void submit({ operation: "account", text: e.target.value })}>{Object.entries(session.accounts).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label><label>Host<select value={session.model} onChange={e => void submit({ operation: "model", text: e.target.value })}>{Object.entries(session.models).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label><label>Display<select value={mode} onChange={e => { stop(); setMode(e.target.value); }}><option value="show">Echo Show</option><option value="dot">Echo Dot · voice only</option></select></label><label>Theme<select value={theme} onChange={e => setTheme(e.target.value as "light" | "dark")}><option>dark</option><option>light</option></select></label><Button onClick={() => void submit({ operation: "link" })}>{session.linked ? "Relink Echo" : "Link Echo with consent"}</Button></div><div className="sim-notes"><p>Rule activation and security approval finish in your <a href="/constitution" target="_blank" rel="noreferrer">companion app</a> under its own household login.</p><p>Once linked, conversations are saved under that account. Temperature suggestions need your approval in Household.</p></div><PlaybackControls choose={choose} keys={playback} /></div></div><Transcript events={events} /></div>}</main>;
 }

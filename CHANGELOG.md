@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+- 2026-10-23: Add an opt-in simulator focus view for recording (`?focus=1` or `F`): Echo, one mic/speech/state bar and the transcript rail, with every other control in a Controls drawer, plus Space/N/P/F/C/`/` keys over the existing handlers and a mocked-route Playwright check (`apps/web/tests/simulator-focus.spec.ts`); see [design](docs/design.md#companion-and-simulator-styling--2026-10-23).
+
 - 2026-10-23: Add a deterministic host guard for car-ceiling ordering, refuse an exhausted Haiku before CountTokens so recordings call only Nova, and add Nova Pro as a second paid host. Evening Show fails on both Nova models ([decision](docs/adr/ADR-020-simulator.md#car-ordering-guard-nova-only-recording-and-nova-pro-option--2026-10-23), [evidence](docs/verification-log.md#item-29b)).
 
 - 2026-10-23: Raise the Nova 2 Lite per-model ceiling to $80 (unchanged full-context reservation), and end a simulator turn when a trusted-contact check is pending ([decision](docs/adr/ADR-020-simulator.md#nova-2-lite-ceiling-raise-and-pending-check-turn-end--2026-10-23), [evidence](docs/verification-log.md#item-29b)).

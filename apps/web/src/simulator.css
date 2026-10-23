@@ -54,3 +54,31 @@
   .sim-device { padding: 8px 8px 14px; border-radius: 20px; }
   .simulator .sim-transcript { border-left: 0; border-top: 1px solid var(--line); padding: 16px 0; }
 }
+
+/* Focus (recording) view, opt-in with ?focus=1 or F: the Echo, one bottom bar and the transcript rail.
+   Everything else stays in the DOM and is hidden until Controls (or C) opens it. */
+.simulator.focus { padding: 16px 32px 24px; }
+.simulator.focus .sim-bar { align-items: center; margin-bottom: 16px; }
+.simulator.focus .sim-bar h1 { display: none; }
+.sim-focus-tools { display: flex; gap: 6px; }
+.sim-focus-tools button { padding: 4px 10px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--ink-muted); font-size: .8125rem; }
+.sim-focus-tools button:hover, .sim-focus-tools button[aria-expanded="true"] { color: var(--ink); }
+.simulator.focus:not(.drawer-open) :is(.sim-request, .sim-utterances, .sim-settings) { display: none; }
+.simulator.focus .sim-layout { grid-template-columns: minmax(0, 1fr) 300px; gap: 32px; }
+.simulator.focus .sim-transcript { max-height: calc(100vh - 96px); color: var(--ink-muted); font-size: .8125rem; }
+.simulator.focus .sim-device { max-width: calc((100vh - 220px) * 1.6 + 28px); margin: 0 auto; }
+.sim-focusbar { display: flex; align-items: center; gap: 16px; max-width: calc((100vh - 220px) * 1.6 + 28px); margin: 20px auto 0; }
+.sim-focusbar p { flex: 1; margin: 0; font-size: 1rem; line-height: 1.45; }
+.sim-mic { display: grid; flex: none; place-items: center; width: 48px; height: 48px; border: 1px solid var(--line); border-radius: 50%; background: var(--surface); color: var(--ink); touch-action: none; }
+.sim-mic[aria-pressed="true"] { border-color: var(--accent); background: var(--accent); color: #ffffff; }
+.sim-mic:disabled { opacity: .5; }
+.sim-state { flex: none; display: flex; align-items: center; gap: 6px; color: var(--ink-muted); font-size: .8125rem; }
+.sim-state::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+.sim-state.listening::before, .sim-state.speaking::before { background: var(--ink); }
+.sim-state.thinking::before { background: var(--ink-muted); }
+@media (max-width: 900px) {
+  .simulator.focus { padding: 12px 16px; }
+  .simulator.focus .sim-layout { grid-template-columns: 1fr; }
+  .simulator.focus .sim-transcript { max-height: 40vh; }
+  .sim-focusbar { gap: 12px; }
+}
